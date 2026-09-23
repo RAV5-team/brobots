@@ -1,0 +1,55 @@
+# Продовый контур:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+#
+# Отличия: фронтенд отдаёт nginx на 80, внутренние сервисы наружу не публикуются,
+# у контейнеров есть лимиты ресурсов.
+
+services:
+  postgres:
+    # База доступна только из сети compose.
+    ports: !reset []
+    environment:
+      APP_ENV: production
+
+  economics:
+    ports: !reset []
+    environment:
+      APP_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-warning}
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  simulation:
+    ports: !reset []
+    environment:
+      APP_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-warning}
+    deploy:
+      resources:
+        limits:
+          # Прогон суток упирается в процессор — здесь запас больше.
+          cpus: "2.0"
+          memory: 2G
+
+  api:
+    ports: !reset []
+    environment:
+      APP_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-warn}
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 256M
+
+  web:
+    ports:
+      - "${WEB_PUBLIC_PORT:-8080}:80"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
