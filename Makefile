@@ -1,50 +1,38 @@
 .DEFAULT_GOAL := help
-COMPOSE      := docker compose
-COMPOSE_PROD := docker compose -f docker-compose.yml -f docker-compose.prod.yml
-SERVICES     := api simulation economics
+COMPOSE       := docker compose
+COMPOSE_STAND := docker compose -f docker-compose.yml -f docker-compose.stand.yml
 
-.PHONY: help init up up-prod down clean build logs ps test test-api test-py shell psql
+.PHONY: help init secrets up up-stand down clean logs ps smoke psql
 
 help: ## Список команд
-	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
+	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
 
-init: ## Подготовить .env из шаблона
-	@test -f .env || (cp .env.example .env && echo "создан .env — проверьте пароль базы")
+init: ## Подготовить .env из шаблона (профиль local)
+	@test -f .env || (cp .env.example .env && echo "создан .env из .env.example")
 
-up: init ## Поднять всё в режиме разработки
-	$(COMPOSE) up --build
+secrets: ## Сгенерировать случайные секреты в .env (для stand)
+	./scripts/gen-secrets.sh
 
-up-prod: init ## Поднять продовый контур в фоне
-	$(COMPOSE_PROD) up --build -d
+up: init ## Поднять Postgres + Keycloak + шлюз, профиль local (http://localhost/auth/)
+	$(COMPOSE) up -d --build
+
+up-stand: ## Поднять профиль stand (https, сертификат в infra/nginx/certs)
+	$(COMPOSE_STAND) up -d --build
 
 down: ## Остановить контейнеры
 	$(COMPOSE) down
 
-clean: ## Остановить и удалить тома (данные базы будут стёрты)
+clean: ## Остановить и удалить тома: БД, realm и ключи Keycloak будут созданы заново
 	$(COMPOSE) down --volumes --remove-orphans
 
-build: ## Пересобрать образы без кеша
-	$(COMPOSE) build --no-cache
-
-logs: ## Логи всех сервисов (make logs s=api — одного)
+logs: ## Логи (make logs s=keycloak — одного контейнера)
 	$(COMPOSE) logs -f $(s)
 
 ps: ## Статус контейнеров
 	$(COMPOSE) ps
 
-test: test-api test-py ## Прогнать тесты всех сервисов
+smoke: ## Smoke-тесты Keycloak и шлюза
+	./scripts/auth-smoke.sh
 
-test-api: ## Тесты Go-сервиса api
-	docker build -f services/api/Dockerfile --target test .
-
-test-py: ## Тесты Python-сервисов
-	@for s in simulation economics; do \
-		echo "--- $$s ---"; \
-		docker build -f services/$$s/Dockerfile --target test . || exit 1; \
-	done
-
-shell: ## Шелл внутри сервиса: make shell s=api
-	$(COMPOSE) exec $(s) sh
-
-psql: ## Консоль Postgres
-	$(COMPOSE) exec postgres psql -U $$(grep ^POSTGRES_USER .env | cut -d= -f2) -d $$(grep ^POSTGRES_DB .env | cut -d= -f2)
+psql: ## Консоль Postgres под суперпользователем (make psql db=keycloak)
+	$(COMPOSE) exec postgres psql -U $$(grep ^POSTGRES_USER .env | cut -d= -f2) -d $(or $(db),postgres)

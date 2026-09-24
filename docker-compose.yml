@@ -1,110 +1,103 @@
-# Базовый контур: 3 сервиса + фронтенд + Postgres.
+# Keycloak для RAV5: Postgres (БД keycloak) + Keycloak + nginx-шлюз на /auth.
 #
-#   cp .env.example .env
-#   docker compose up --build          # разработка (подхватится docker-compose.override.yml)
-#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build
+#   cp .env.example .env && docker compose up -d --build            # профиль local, http://localhost
+#   docker compose -f docker-compose.yml -f docker-compose.stand.yml up -d --build   # stand, https
 #
-# Порт фронтенда объявлен только в override/prod: в разработке это Vite на 5173,
-# в проде — nginx на 80. Остальные порты одинаковы в обоих режимах.
+# Наружу публикуется только gateway.
 
-name: brobots
+name: rav5
 
 x-service: &service
   restart: unless-stopped
-  networks: [brobots]
   logging:
     driver: json-file
     options:
       max-size: "10m"
       max-file: "3"
 
+networks:
+  edge: {}
+  # Без выхода в интернет: здесь живёт Postgres.
+  internal:
+    internal: true
+
+volumes:
+  pgdata: {}
+
 services:
   postgres:
     <<: *service
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?переменная не задана, скопируйте .env.example в .env}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?переменная не задана, скопируйте .env.example в .env}
-      POSTGRES_DB: ${POSTGRES_DB:-brobots}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      # Роль и БД keycloak создаёт infra/postgres/init/01-keycloak.sh (только на пустом томе).
+      KC_DB_USERNAME: ${KC_DB_USERNAME}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD}
     volumes:
-      - postgres-data:/var/lib/postgresql/data
-      # Скрипты отсюда выполняются один раз — при создании пустого тома.
+      - pgdata:/var/lib/postgresql/data
       - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    networks: [internal]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d postgres"]
       interval: 5s
       timeout: 3s
-      retries: 10
-      start_period: 10s
+      retries: 20
 
-  economics:
+  keycloak:
     <<: *service
-    build:
-      context: .
-      dockerfile: services/economics/Dockerfile
-      target: runtime
+    build: ./infra/keycloak
+    # Схему своей БД Keycloak создаёт и обновляет сам (миграции Liquibase при старте).
+    command: ["start", "--optimized", "--import-realm"]
     environment:
-      APP_ENV: ${APP_ENV:-local}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      PORT: 8002
-    ports:
-      - "${ECONOMICS_PORT:-8002}:8002"
-
-  simulation:
-    <<: *service
-    build:
-      context: .
-      dockerfile: services/simulation/Dockerfile
-      target: runtime
-    environment:
-      APP_ENV: ${APP_ENV:-local}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      PORT: 8001
-    ports:
-      - "${SIMULATION_PORT:-8001}:8001"
-
-  api:
-    <<: *service
-    build:
-      context: .
-      dockerfile: services/api/Dockerfile
-      target: runtime
-      args:
-        VERSION: ${VERSION:-dev}
-    environment:
-      APP_ENV: ${APP_ENV:-local}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      HTTP_ADDR: ":8000"
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-brobots}?sslmode=disable
-      SIMULATION_URL: http://simulation:8001
-      ECONOMICS_URL: http://economics:8002
-    ports:
-      - "${API_PORT:-8000}:8000"
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: ${KC_DB_USERNAME}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD}
+      KC_HOSTNAME: ${PUBLIC_URL:?переменная не задана, скопируйте .env.example в .env}/auth
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN_USERNAME}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
+      # Подставляются в realm-rav5.json при импорте.
+      PUBLIC_URL: ${PUBLIC_URL}
+      KC_API_INTERNAL_SECRET: ${KC_API_INTERNAL_SECRET}
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD}
+      DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD}
+    volumes:
+      - ./infra/keycloak/realm-rav5.json:/opt/keycloak/data/import/realm-rav5.json:ro
+    # edge — для шлюза и для клиентов Keycloak внутри Docker (http://keycloak:8080/auth).
+    networks: [edge, internal]
+    mem_limit: 1g
     depends_on:
-      postgres:
-        condition: service_healthy
-      simulation:
-        condition: service_started
-      economics:
-        condition: service_started
+      postgres: { condition: service_healthy }
+    healthcheck:
+      # В образе нет curl: запрос к management-порту 9000 средствами bash.
+      # Проверяется статус ответа (200/503), а не `grep UP`: тело DOWN-ответа тоже содержит
+      # "UP" (проверка "Graceful Shutdown"), и контейнер стал бы healthy до готовности.
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /auth/health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && head -n1 <&3 | grep -q ' 200 '"]
+      interval: 10s
+      timeout: 5s
+      # Холодный старт с импортом realm — 1–2 минуты, на загруженной машине дольше.
+      # Сбои во время start_period не считаются; дальше до unhealthy ещё 30 × 10 с.
+      retries: 30
+      start_period: 180s
 
-  web:
+  gateway:
     <<: *service
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-      target: runtime
-      args:
-        # Пусто = относительные пути, nginx внутри контейнера проксирует /api в api.
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+    image: nginx:1.28-alpine
+    ports: ["${GATEWAY_PORT:-80}:80"]
+    environment:
+      ADMIN_ALLOW_CIDR: ${ADMIN_ALLOW_CIDR:-0.0.0.0/0}
+    volumes:
+      - ./infra/nginx/templates/gateway.local.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./infra/nginx/snippets:/etc/nginx/snippets:ro
+    networks: [edge]
+    mem_limit: 128m
     depends_on:
-      - api
-
-volumes:
-  postgres-data:
-
-networks:
-  brobots:
-    driver: bridge
+      keycloak: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
