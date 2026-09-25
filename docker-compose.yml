@@ -78,6 +78,10 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       HTTP_ADDR: ":8000"
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-brobots}?sslmode=disable
+      # Миграции goose при старте; демо-данные организатора загружаются один раз и не перезаписываются.
+      MIGRATE_ON_START: ${API_MIGRATE_ON_START:-true}
+      SEED_DEMO: ${API_SEED_DEMO:-true}
+      SWAGGER_ENABLED: ${API_SWAGGER_ENABLED:-true}
       SIMULATION_URL: http://simulation:8001
       ECONOMICS_URL: http://economics:8002
     ports:
