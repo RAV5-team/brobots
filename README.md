@@ -112,13 +112,15 @@ docker compose up --build
    `npm create vite@latest apps/web -- --template react-ts`, затем
    `npm install` (нужен закоммиченный `package-lock.json` — его ждёт `npm ci`)
    и прокси `/api` → `http://api:8000` в `server.proxy` внутри `vite.config.ts`.
-2. **`services/api`** — `cmd/api/main.go` и пакеты в `internal/`.
+2. ~~**`services/api`**~~ — готов: локации, задачи, проекты, каталог, классы
+   операций и подбор. Запуск, контракт и карта экранов — [docs/api](docs/api/README.md).
 3. **`services/simulation`, `services/economics`** — `app/main.py`, который
    поднимает приложение FastAPI (Dockerfile запускает `app.main:app`).
 4. **`packages/pycommon/pycommon`** — общий слой; в образ попадает через
    `PYTHONPATH=/opt/pycommon`, отдельная сборка пакета не нужна.
 5. **`infra/postgres/init`** — стартовая схема. Выполняется **один раз**, при
-   создании пустого тома; после изменения нужен `make clean`.
+   создании пустого тома; после изменения нужен `make clean`. Таблицы api сюда
+   не кладутся: их создают миграции goose сервиса при старте.
 
 Каждый Dockerfile содержит стадию `test` (`docker build --target test ...`) —
 `make test` прогоняет её для всех трёх сервисов.
