@@ -1,0 +1,4418 @@
+openapi: 3.0.3
+info:
+  description: |-
+    Сервис api: локации, задачи и проекты; каталог и классы операций; подбор по классу операции и жёсткие проверки.
+
+    Ошибки — application/problem+json (RFC 7807) с полем errors: поле, код, сообщение и подсказка на русском.
+    PATCH — JSON merge patch: переданные поля заменяются, null очищает, вложенные объекты сливаются; неизвестные поля отклоняются.
+    Доли (automationShare, timeShare и т.п.) — от 0 до 1. Деньги — рубли с НДС.
+  title: RAV5 API · локации, каталог, подбор
+  version: 0.1.0
+paths:
+  /api/v1/dashboard/summary:
+    get:
+      description: foundSavingsRubYear пока null — его посчитает оркестратор оценки.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dashboard'
+          description: OK
+      summary: Сводка дашборда
+      tags:
+      - dashboard
+  /api/v1/data-sources:
+    get:
+      description: Экран A6.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSourceList'
+          description: OK
+      summary: Источники данных
+      tags:
+      - data-sources
+    post:
+      description: Экраны A7/A7б. Загрузка файла и проверка ссылки — вне рамок сервиса.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataSourceInput'
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSource'
+          description: Created
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
+      summary: Добавить источник
+      tags:
+      - data-sources
+  /api/v1/data-sources/{id}:
+    delete:
+      description: Ссылки из каталога очищаются.
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Удалить источник
+      tags:
+      - data-sources
+    get:
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSource'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Источник данных
+      tags:
+      - data-sources
+    patch:
+      description: JSON merge patch.
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataSourceInput'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSource'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
+      summary: Изменить источник
+      tags:
+      - data-sources
+  /api/v1/dictionaries:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dictionaries'
+          description: OK
+      summary: Все справочники для выпадающих списков
+      tags:
+      - dictionaries
+  /api/v1/facility-types/{code}/parameters:
+    get:
+      description: 'Определения из датасетов организатора: единицы, диапазоны, подсказки,
+        роли для формул.'
+      parameters:
+      - in: path
+        name: code
+        required: true
+        schema:
+          enum:
+          - warehouse
+          - airport
+          - medical
+          - custom
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DefinitionList'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Параметры типа объекта
+      tags:
+      - locations
+  /api/v1/locations:
+    get:
+      description: 'Карточки экрана 12: площадь, персонал, задачи, ручной труд, заполненность,
+        допущения, проекты.'
+      parameters:
+      - description: Название, город, тип объекта
+        in: query
+        name: q
+        schema:
+          description: Название, город, тип объекта
+          type: string
+      - in: query
+        name: facilityType
+        schema:
+          type: string
+      - in: query
+        name: completeness
+        schema:
+          enum:
+          - complete
+          - has_assumptions
+          - has_missing
+          type: string
+      - in: query
+        name: projects
+        schema:
+          enum:
+          - has_completed
+          - drafts
+          - none
+          type: string
+      - in: query
+        name: sort
+        schema:
+          enum:
+          - updated
+          - name
+          - completeness
+          - projects
+          - labor_cost
+          type: string
+      - in: query
+        name: limit
+        schema:
+          default: 50
+          type: integer
+      - in: query
+        name: offset
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationPage'
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Bad Request
+      summary: Локации
+      tags:
+      - locations
+    post:
+      description: Экран 14. Значения проверяются по типу и диапазону датасета; fillDefaults
+        подставляет базовые значения организатора как допущения.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LocationInput'
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Location'
+          description: Created
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
+      summary: Создать локацию
+      tags:
+      - locations
+  /api/v1/locations/{id}:
+    delete:
+      description: Задачи архивируются, проекты сохраняют снимок и получают locationDeleted.
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Удалить локацию
+      tags:
+      - locations
+    get:
+      description: С группами персонала, сводкой и готовностью профиля.
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Location'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Локация
+      tags:
+      - locations
+    patch:
+      description: JSON merge patch; parameters и staffGroups в теле применяются как
+        upsert.
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LocationInput'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Location'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
+      summary: Изменить локацию
+      tags:
+      - locations
+  /api/v1/locations/{id}/parameters:
+    get:
+      description: 'Вкладка 17а: определения с значениями, источником и пометкой допущения.'
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationParameters'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Параметры объекта
+      tags:
+      - locations
+    put:
+      description: 'Upsert; value: null очищает значение.'
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParametersBody'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationParameters'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
+      summary: Сохранить параметры объекта
+      tags:
+      - locations
+  /api/v1/locations/{id}/staff-groups:
+    put:
+      description: Заменяет список групп; группы, которых нет в списке, удаляются
+        вместе с назначениями на задачи.
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffBody'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffGroupList'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
+      summary: Группы персонала
+      tags:
+      - locations
+  /api/v1/locations/{id}/tasks:
+    get:
+      description: 'Карточки 15/17: значения, готовность «9/9», число роботов, затраты
+        на персонал.'
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskList'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Задачи локации
+      tags:
+      - tasks
+    post:
+      description: 'Экран 15а: значения берутся из процесса и формул по параметрам
+        локации; params переопределяют их.'
+      parameters:
+      - description: Только посчитать значения задачи, не сохранять
+        in: query
+        name: dryRun
+        schema:
+          description: Только посчитать значения задачи, не сохранять
+          type: boolean
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreateInput'
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: Created
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
+      summary: Добавить задачу из процесса
+      tags:
+      - tasks
+  /api/v1/locations/from-template:
+    post:
+      description: Копирует параметры, группы персонала и задачи демо-локации.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FromTemplateInput'
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Location'
+          description: Created
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
+      summary: Создать локацию из типового объекта
+      tags:
+      - locations
+  /api/v1/locations/templates:
+    get:
+      description: Демо-локации организатора, которые можно скопировать.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateList'
+          description: OK
+      summary: Типовые объекты
+      tags:
+      - locations
+  /api/v1/matching-runs/{id}:
+    get:
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Прогон подбора
+      tags:
+      - matching
+  /api/v1/processes:
+    get:
+      description: 'Экран 07: значения по умолчанию, число роботов по классу, число
+        локаций.'
+      parameters:
+      - in: query
+        name: q
+        schema:
+          type: string
+      - in: query
+        name: workTypeId
+        schema:
+          format: uuid
+          type: string
+      - in: query
+        name: facilityType
+        schema:
+          type: string
+      - description: Вид работ
+        in: query
+        name: category
+        schema:
+          description: Вид работ
+          type: string
+      - in: query
+        name: isCustom
+        schema:
+          type: boolean
+      - in: query
+        name: includeHidden
+        schema:
+          type: boolean
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessList'
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Bad Request
+      summary: Справочник процессов
+      tags:
+      - processes
+    post:
+      description: Экран 09а. Процесс без класса операции не сохраняется. Формулы
+        ссылаются на коды или роли параметров локации.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcessInput'
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Process'
+          description: Created
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
+      summary: Создать процесс
+      tags:
+      - processes
+  /api/v1/processes/{id}:
+    delete:
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Скрыть процесс
+      tags:
+      - processes
+    get:
+      description: Экран 11.
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessDetail'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Процесс и его задачи на локациях
+      tags:
+      - processes
+    patch:
+      description: JSON merge patch. Созданные задачи хранят свои копии значений;
+        класс нельзя сменить, если процесс уже на локациях.
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcessInput'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Process'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
+      summary: Изменить процесс
+      tags:
+      - processes
+  /api/v1/processes/{id}/duplicate:
+    post:
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Process'
+          description: Created
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Дублировать процесс
+      tags:
+      - processes
+  /api/v1/processes/{id}/robots:
+    get:
+      description: 'Предварительная проверка по значениям процесса: проходят / есть
+        ограничения / мало данных (экран 11).'
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RobotGroups'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Роботы класса процесса
+      tags:
+      - processes
+  /api/v1/projects:
+    get:
+      parameters:
+      - in: query
+        name: locationId
+        schema:
+          format: uuid
+          type: string
+      - in: query
+        name: taskId
+        schema:
+          format: uuid
+          type: string
+      - in: query
+        name: status
+        schema:
+          enum:
+          - params
+          - matching
+          - simulation
+          - economics
+          - result
+          type: string
+      - in: query
+        name: q
+        schema:
+          type: string
+      - in: query
+        name: sort
+        schema:
+          enum:
+          - updated
+          - name
+          type: string
+      - in: query
+        name: limit
+        schema:
+          default: 50
+          type: integer
+      - in: query
+        name: offset
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectPage'
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Bad Request
+      summary: Проекты
+      tags:
+      - projects
+    post:
+      description: Ровно одна задача. Фиксируется снимок локации и задачи и версии
+        каталога и справочников. pinnedSolutionId — вход «Проверить на своём объекте».
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreateInput'
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: Created
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
+      summary: Создать проект
+      tags:
+      - projects
+  /api/v1/projects/{id}:
+    delete:
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Удалить проект
+      tags:
+      - projects
+    get:
+      description: dataChanged — локация или задача изменились после снимка; catalogUpdated
+        — доступна новая версия каталога.
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Проект
+      tags:
+      - projects
+    patch:
+      description: 'JSON merge patch: название, шаг, горизонт.'
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectPatchInput'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
+      summary: Изменить проект
+      tags:
+      - projects
+  /api/v1/projects/{id}/conditions:
+    delete:
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConditionList'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Сбросить условия к задаче
+      tags:
+      - matching
+    get:
+      description: 'Панель 12a: у каждого условия источник — задача, формула, проект
+        или правило.'
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConditionList'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Условия подбора проекта
+      tags:
+      - matching
+    put:
+      description: Заменяет переопределения; действуют только в этом проекте.
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConditionsBody'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConditionList'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
+      summary: Изменить условия подбора в проекте
+      tags:
+      - matching
+  /api/v1/projects/{id}/copy:
+    post:
+      description: Со снимком, условиями и ручными кандидатами.
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: Created
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Копировать проект
+      tags:
+      - projects
+  /api/v1/projects/{id}/evaluation-context:
+    get:
+      description: Снимок, условия и подходящие кандидаты последнего прогона с полными
+        данными каталога.
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationContext'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Контекст для оркестратора оценки
+      tags:
+      - matching
+  /api/v1/projects/{id}/manual-candidates:
+    get:
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManualList'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Решения, добавленные вручную
+      tags:
+      - matching
+    post:
+      description: 'ТЗ 3.4.4: решение проверяется и показывается с предупреждением.'
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManualCandidateInput'
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManualList'
+          description: Created
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
+      summary: Добавить решение вручную
+      tags:
+      - matching
+  /api/v1/projects/{id}/manual-candidates/{solutionId}:
+    delete:
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      - in: path
+        name: solutionId
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Убрать решение, добавленное вручную
+      tags:
+      - matching
+  /api/v1/projects/{id}/matching-runs:
+    post:
+      description: Совпадение класса операции и жёсткие проверки со значениями и причинами;
+        прогон сохраняется.
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+          description: Created
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Запустить подбор
+      tags:
+      - matching
+  /api/v1/projects/{id}/matching-runs/latest:
+    get:
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Последний прогон подбора
+      tags:
+      - matching
+  /api/v1/projects/{id}/refresh-snapshot:
+    post:
+      description: 'Экран saved: «данные изменились — пересчитать».'
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+      summary: Обновить снимок
+      tags:
+      - projects
+  /api/v1/projects/{id}/selection:
+    put:
+      description: 'solutionId: null снимает выбор. Состав парка и экономику считает
+        оркестратор.'
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SelectionInput'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
+      summary: Выбрать конфигурацию
+      tags:
+      - projects
+  /api/v1/projects/{id}/snapshot:
+    get:
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectSnapshot'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Снимок входных данных проекта
+      tags:
+      - projects
+  /api/v1/solutions:
+    get:
+      description: Фильтры, поиск и сортировка витрины каталога и админского списка
+        (экраны 03/K1, A1).
+      parameters:
+      - description: Вкладка каталога
+        in: query
+        name: kind
+        schema:
+          description: Вкладка каталога
+          enum:
+          - robot
+          - infrastructure
+          - software
+          - service
+          - support
+          type: string
+      - description: Поиск по названию, производителю, коду
+        in: query
+        name: q
+        schema:
+          description: Поиск по названию, производителю, коду
+          type: string
+      - description: Классы операций, через запятую
+        in: query
+        name: workTypeId
+        schema:
+          description: Классы операций, через запятую
+          items:
+            type: string
+          type: array
+      - description: Отрасли (названия), через запятую
+        in: query
+        name: industry
+        schema:
+          description: Отрасли (названия), через запятую
+          items:
+            type: string
+          type: array
+      - description: 'Тип объекта: через процессы, применимые к нему'
+        in: query
+        name: facilityType
+        schema:
+          description: 'Тип объекта: через процессы, применимые к нему'
+          type: string
+      - description: operation, piloting, rnd
+        in: query
+        name: status
+        schema:
+          description: operation, piloting, rnd
+          items:
+            type: string
+          type: array
+      - in: query
+        name: trlMin
+        schema:
+          maximum: 9
+          minimum: 1
+          type: integer
+      - description: Граница относится к нижнему диапазону
+        in: query
+        name: priceBand
+        schema:
+          description: Граница относится к нижнему диапазону
+          enum:
+          - lte1m
+          - 1to3m
+          - gt3m
+          type: string
+      - in: query
+        name: costType
+        schema:
+          enum:
+          - capex
+          - opex
+          type: string
+      - description: Есть хотя бы один класс операции
+        in: query
+        name: hasCapabilities
+        schema:
+          description: Есть хотя бы один класс операции
+          type: boolean
+      - description: yes, partial, no
+        in: query
+        name: specsConfirmed
+        schema:
+          description: yes, partial, no
+          items:
+            type: string
+          type: array
+      - in: query
+        name: includeHidden
+        schema:
+          type: boolean
+      - in: query
+        name: sort
+        schema:
+          enum:
+          - relevance
+          - price_asc
+          - price_desc
+          - trl
+          - confirmation
+          - updated
+          - name
+          type: string
+      - in: query
+        name: limit
+        schema:
+          default: 50
+          maximum: 500
+          type: integer
+      - in: query
+        name: offset
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SolutionPage'
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Bad Request
+      summary: Каталог решений
+      tags:
+      - catalog
+    post:
+      description: Карточка робота или позиции для запуска (экран A2). Правка идёт
+        в следующую версию каталога.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SolutionInput'
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Solution'
+          description: Created
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
+      summary: Добавить решение
+      tags:
+      - catalog
+  /api/v1/solutions/{id}:
+    delete:
+      description: Решение уходит из новых подборов, сохранённые проекты его сохраняют.
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Скрыть решение
+      tags:
+      - catalog
+    get:
+      description: С ТТХ, классами операций, предложениями и числом проектов.
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Solution'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Карточка решения
+      tags:
+      - catalog
+    patch:
+      description: JSON merge patch; spec и price сливаются по полям; workTypeIds
+        заменяет набор классов.
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SolutionInput'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Solution'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
+      summary: Изменить решение
+      tags:
+      - catalog
+  /api/v1/solutions/{id}/capabilities:
+    get:
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CapabilityList'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Классы операций робота
+      tags:
+      - catalog
+    post:
+      description: Производительность, способ обработки, среда, высота подъёма для
+        пары «робот + класс».
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CapabilityInput'
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Capability'
+          description: Created
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
+      summary: Добавить строку класса с атрибутами
+      tags:
+      - catalog
+    put:
+      description: 'Чипы на карточке A2: новые строки создаются, отсутствующие скрываются.'
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkTypeIDsBody'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CapabilityList'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
+      summary: Задать набор классов робота
+      tags:
+      - catalog
+  /api/v1/solutions/{id}/capabilities/{capId}:
+    delete:
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      - in: path
+        name: capId
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Скрыть строку класса
+      tags:
+      - catalog
+    patch:
+      description: JSON merge patch; пустые handlingMethodCode и environment берутся
+        из ТТХ робота.
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      - in: path
+        name: capId
+        required: true
+        schema:
+          format: uuid
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CapabilityInput'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Capability'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
+      summary: Изменить строку класса
+      tags:
+      - catalog
+  /api/v1/solutions/compare:
+    get:
+      description: Единая таблица характеристик по группам ТЗ 3.3 (экран compare).
+      parameters:
+      - description: 2–6 идентификаторов через запятую
+        in: query
+        name: ids
+        required: true
+        schema:
+          description: 2–6 идентификаторов через запятую
+          items:
+            type: string
+          type: array
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comparison'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
+      summary: Сравнение решений
+      tags:
+      - catalog
+  /api/v1/tasks/{id}:
+    delete:
+      description: Задача из проектов архивируется, иначе удаляется (экран 17в).
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteTaskResult'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Удалить задачу с локации
+      tags:
+      - tasks
+    get:
+      description: 'Экран 16: значения, источник каждого значения, производные показатели.'
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Задача на локации
+      tags:
+      - tasks
+    patch:
+      description: 'params: ключи задают значения (null очищает); assumeDefaults —
+        кнопка «Не знаю»: значение процесса с пометкой допущения.'
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskPatchInput'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
+      summary: Изменить задачу
+      tags:
+      - tasks
+  /api/v1/tasks/{id}/match-preview:
+    get:
+      description: Подбор без сохранения по текущим данным задачи (экран 18).
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Подходящие роботы для задачи
+      tags:
+      - matching
+  /api/v1/versions:
+    get:
+      description: Для строки «Версия данных» и закрепления в проекте (ТЗ 3.1.5).
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionList'
+          description: OK
+      summary: Текущие версии каталога и справочников
+      tags:
+      - dictionaries
+  /api/v1/work-types:
+    get:
+      description: Со счётчиками роботов и процессов (экран A8).
+      parameters:
+      - description: Показать скрытые записи
+        in: query
+        name: includeHidden
+        schema:
+          description: Показать скрытые записи
+          type: boolean
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkTypeList'
+          description: OK
+      summary: Классы операций (ключ подбора)
+      tags:
+      - work-types
+    post:
+      description: Код OP-NN присваивается автоматически (экран A9).
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkTypeInput'
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkType'
+          description: Created
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
+      summary: Создать класс операции
+      tags:
+      - work-types
+  /api/v1/work-types/{id}:
+    delete:
+      description: 'Класс не удаляется: роботы и процессы продолжают на него ссылаться.'
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Скрыть класс операции
+      tags:
+      - work-types
+    get:
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkType'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      summary: Класс операции
+      tags:
+      - work-types
+    patch:
+      description: 'JSON merge patch: переданные поля заменяются, null очищает. Связи
+        идут по id — переименование их не ломает.'
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkTypeInput'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkType'
+          description: OK
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
+      summary: Изменить класс операции
+      tags:
+      - work-types
+  /healthz:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+          description: OK
+      summary: Живость сервиса
+      tags:
+      - service
+  /readyz:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+          description: OK
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Service Unavailable
+      summary: 'Готовность: доступность базы'
+      tags:
+      - service
+components:
+  schemas:
+    Badges:
+      properties:
+        inRegistry719:
+          type: boolean
+        testedByFcbas:
+          type: boolean
+      type: object
+    Budget:
+      properties:
+        amount:
+          nullable: true
+          type: number
+        currency:
+          type: string
+        source:
+          nullable: true
+          type: string
+        sourceUnit:
+          nullable: true
+          type: string
+      type: object
+    Candidate:
+      properties:
+        capabilityId:
+          $ref: '#/components/schemas/UUID'
+        checks:
+          items:
+            $ref: '#/components/schemas/Check'
+          nullable: true
+          type: array
+        id:
+          $ref: '#/components/schemas/UUID'
+        isManual:
+          type: boolean
+        offerId:
+          $ref: '#/components/schemas/UUID'
+        risks:
+          description: specs_unconfirmed, throughput_unknown, hypothesis_only
+          items:
+            type: string
+          nullable: true
+          type: array
+        solution:
+          $ref: '#/components/schemas/CandidateSolution'
+        state:
+          enum:
+          - passed
+          - needs_verification
+          - excluded
+          type: string
+        summary:
+          type: string
+        throughputPerHour:
+          nullable: true
+          type: number
+        transferFlag:
+          description: 'Пока считается только P3: статус rnd или УГТ ниже 7'
+          enum:
+          - P0
+          - P1
+          - P2
+          - P3
+          nullable: true
+          type: string
+      type: object
+    CandidateSolution:
+      properties:
+        code:
+          type: string
+        id:
+          $ref: '#/components/schemas/UUID'
+        manufacturer:
+          type: string
+        name:
+          type: string
+        payloadKg:
+          nullable: true
+          type: number
+        priceRub:
+          nullable: true
+          type: number
+        solutionType:
+          nullable: true
+          type: string
+        specsConfirmed:
+          nullable: true
+          type: string
+        status:
+          nullable: true
+          type: string
+        trl:
+          nullable: true
+          type: integer
+      type: object
+    Capability:
+      properties:
+        effective:
+          $ref: '#/components/schemas/Effective'
+        environment:
+          description: Пусто — по допускам робота
+          enum:
+          - indoor
+          - outdoor
+          - both
+          nullable: true
+          type: string
+        handlingMethodCode:
+          description: Пусто — берётся из ТТХ робота
+          nullable: true
+          type: string
+        id:
+          $ref: '#/components/schemas/UUID'
+        isActive:
+          type: boolean
+        liftHeightMm:
+          nullable: true
+          type: integer
+        solutionId:
+          $ref: '#/components/schemas/UUID'
+        sourceId:
+          $ref: '#/components/schemas/UUID'
+        sourceText:
+          nullable: true
+          type: string
+        throughputExact:
+          type: boolean
+        throughputPerHour:
+          nullable: true
+          type: number
+        throughputRangeText:
+          nullable: true
+          type: string
+        workType:
+          $ref: '#/components/schemas/WorkTypeRef'
+      type: object
+    CapabilityInput:
+      properties:
+        environment:
+          nullable: true
+          type: string
+        handlingMethodCode:
+          nullable: true
+          type: string
+        isActive:
+          nullable: true
+          type: boolean
+        liftHeightMm:
+          nullable: true
+          type: integer
+        sourceId:
+          $ref: '#/components/schemas/UUID'
+        sourceText:
+          nullable: true
+          type: string
+        throughputExact:
+          type: boolean
+        throughputPerHour:
+          nullable: true
+          type: number
+        throughputRangeText:
+          nullable: true
+          type: string
+        workTypeId:
+          $ref: '#/components/schemas/UUID'
+      type: object
+    CapabilityList:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Capability'
+          nullable: true
+          type: array
+      type: object
+    Check:
+      properties:
+        code:
+          enum:
+          - work_type
+          - handling
+          - environment
+          - payload
+          - aisle_width
+          - min_temperature
+          - lift_height
+          - price
+          type: string
+        label:
+          type: string
+        message:
+          type: string
+        requiredValue:
+          type: string
+        requiredValueSource:
+          type: string
+        robotValue:
+          type: string
+        robotValueSource:
+          type: string
+        status:
+          enum:
+          - pass
+          - fail
+          - unknown
+          - not_applicable
+          type: string
+        unit:
+          type: string
+      type: object
+    Comparison:
+      properties:
+        rows:
+          items:
+            $ref: '#/components/schemas/ComparisonRow'
+          nullable: true
+          type: array
+        solutions:
+          items:
+            $ref: '#/components/schemas/SolutionSummary'
+          nullable: true
+          type: array
+      type: object
+    ComparisonRow:
+      properties:
+        field:
+          type: string
+        group:
+          type: string
+        label:
+          type: string
+        unit:
+          type: string
+        values:
+          items: {}
+          nullable: true
+          type: array
+      type: object
+    Condition:
+      properties:
+        applicable:
+          type: boolean
+        code:
+          type: string
+        label:
+          type: string
+        list:
+          items:
+            type: string
+          nullable: true
+          type: array
+        note:
+          type: string
+        number:
+          nullable: true
+          type: number
+        source:
+          enum:
+          - task
+          - formula
+          - project
+          - rule
+          type: string
+        text:
+          nullable: true
+          type: string
+        unit:
+          type: string
+      type: object
+    ConditionList:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Condition'
+          nullable: true
+          type: array
+      type: object
+    ConditionsBody:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Override'
+          nullable: true
+          type: array
+      type: object
+    Dashboard:
+      properties:
+        foundSavingsRubYear:
+          nullable: true
+          type: number
+        locations:
+          properties:
+            byFacilityType:
+              additionalProperties:
+                type: integer
+              nullable: true
+              type: object
+            total:
+              type: integer
+          type: object
+        manualLaborCostRubYear:
+          format: double
+          type: number
+        projects:
+          properties:
+            calculated:
+              type: integer
+            total:
+              type: integer
+          type: object
+        recentProjects:
+          items:
+            $ref: '#/components/schemas/Project'
+          nullable: true
+          type: array
+        topLocations:
+          items:
+            $ref: '#/components/schemas/Location'
+          nullable: true
+          type: array
+        versions:
+          items:
+            $ref: '#/components/schemas/ReferenceVersion'
+          nullable: true
+          type: array
+      type: object
+    DataSource:
+      properties:
+        actualizedOn:
+          $ref: '#/components/schemas/Date'
+        createdAt:
+          format: date-time
+          type: string
+        dataStatus:
+          type: string
+        fileName:
+          nullable: true
+          type: string
+        id:
+          $ref: '#/components/schemas/UUID'
+        locatorKind:
+          nullable: true
+          type: string
+        name:
+          type: string
+        origin:
+          type: string
+        provides:
+          nullable: true
+          type: string
+        refreshSchedule:
+          type: string
+        responsible:
+          nullable: true
+          type: string
+        sourceType:
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+        url:
+          nullable: true
+          type: string
+      type: object
+    DataSourceInput:
+      properties:
+        actualizedOn:
+          $ref: '#/components/schemas/Date'
+        dataStatus:
+          type: string
+        fileName:
+          nullable: true
+          type: string
+        locatorKind:
+          nullable: true
+          type: string
+        name:
+          type: string
+        origin:
+          type: string
+        provides:
+          nullable: true
+          type: string
+        refreshSchedule:
+          type: string
+        responsible:
+          nullable: true
+          type: string
+        sourceType:
+          type: string
+        url:
+          nullable: true
+          type: string
+      type: object
+    DataSourceList:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/DataSource'
+          nullable: true
+          type: array
+      type: object
+    Date:
+      format: date
+      type: string
+    DefinitionList:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ParameterDefinition'
+          nullable: true
+          type: array
+      type: object
+    DeleteTaskResult:
+      properties:
+        archived:
+          description: true — задача используется в проектах и скрыта, false — удалена
+          type: boolean
+      type: object
+    Dictionaries:
+      additionalProperties:
+        items:
+          $ref: '#/components/schemas/Option'
+        type: array
+      nullable: true
+      type: object
+    Effective:
+      properties:
+        environment:
+          nullable: true
+          type: string
+        handlingMethodCode:
+          nullable: true
+          type: string
+        liftHeightMm:
+          nullable: true
+          type: integer
+      type: object
+    EvaluationCandidate:
+      properties:
+        match:
+          $ref: '#/components/schemas/Candidate'
+        solution:
+          $ref: '#/components/schemas/Solution'
+      type: object
+    EvaluationContext:
+      properties:
+        candidates:
+          items:
+            $ref: '#/components/schemas/EvaluationCandidate'
+          nullable: true
+          type: array
+        conditions:
+          items:
+            $ref: '#/components/schemas/Condition'
+          nullable: true
+          type: array
+        project:
+          $ref: '#/components/schemas/Project'
+        runId:
+          $ref: '#/components/schemas/UUID'
+        snapshot:
+          $ref: '#/components/schemas/ProjectSnapshot'
+      type: object
+    FieldError:
+      properties:
+        code:
+          type: string
+        field:
+          type: string
+        hint:
+          type: string
+        message:
+          type: string
+      type: object
+    Formula:
+      properties:
+        description:
+          nullable: true
+          type: string
+        expression:
+          type: string
+        fieldCode:
+          type: string
+      type: object
+    FromTemplateInput:
+      properties:
+        city:
+          nullable: true
+          type: string
+        name:
+          nullable: true
+          type: string
+        templateLocationId:
+          $ref: '#/components/schemas/UUID'
+      type: object
+    HandlingShare:
+      properties:
+        code:
+          type: string
+        laborReplacementRatio:
+          nullable: true
+          type: number
+      type: object
+    Health:
+      properties:
+        status:
+          type: string
+        version:
+          type: string
+      type: object
+    Location:
+      properties:
+        address:
+          nullable: true
+          type: string
+        capexBudget:
+          $ref: '#/components/schemas/Budget'
+        city:
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        facilityTypeCode:
+          type: string
+        horizonYears:
+          nullable: true
+          type: integer
+        id:
+          $ref: '#/components/schemas/UUID'
+        isDemo:
+          type: boolean
+        isDraft:
+          type: boolean
+        name:
+          type: string
+        readiness:
+          $ref: '#/components/schemas/LocationReadiness'
+        staffGroups:
+          items:
+            $ref: '#/components/schemas/StaffGroup'
+          nullable: true
+          type: array
+        summary:
+          $ref: '#/components/schemas/LocationSummary'
+        updatedAt:
+          format: date-time
+          type: string
+        updatedBy:
+          nullable: true
+          type: string
+      type: object
+    LocationInput:
+      properties:
+        address:
+          nullable: true
+          type: string
+        capexBudget:
+          $ref: '#/components/schemas/Budget'
+        city:
+          type: string
+        facilityTypeCode:
+          type: string
+        fillDefaults:
+          type: boolean
+        horizonYears:
+          nullable: true
+          type: integer
+        isDraft:
+          type: boolean
+        name:
+          type: string
+        parameters:
+          items:
+            $ref: '#/components/schemas/ParameterInput'
+          nullable: true
+          type: array
+        staffGroups:
+          items:
+            $ref: '#/components/schemas/StaffGroupInput'
+          nullable: true
+          type: array
+        updatedBy:
+          nullable: true
+          type: string
+      type: object
+    LocationPage:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Location'
+          nullable: true
+          type: array
+        total:
+          type: integer
+      type: object
+    LocationParameters:
+      properties:
+        assumptionsCount:
+          type: integer
+        completenessPct:
+          type: integer
+        facilityTypeCode:
+          type: string
+        groups:
+          items:
+            $ref: '#/components/schemas/ParameterGroup'
+          nullable: true
+          type: array
+        locationId:
+          $ref: '#/components/schemas/UUID'
+      type: object
+    LocationReadiness:
+      properties:
+        assumptions:
+          type: integer
+        emptyOptional:
+          type: integer
+        missing:
+          items:
+            type: string
+          nullable: true
+          type: array
+        requiredFilled:
+          type: integer
+        requiredTotal:
+          type: integer
+        staffOk:
+          type: boolean
+      type: object
+    LocationSummary:
+      properties:
+        assumptionsCount:
+          type: integer
+        laborCostRubYear:
+          format: double
+          type: number
+        parametersCompletenessPct:
+          type: integer
+        projectsCompleted:
+          type: integer
+        projectsCount:
+          type: integer
+        shiftHours:
+          nullable: true
+          type: number
+        shiftsPerDay:
+          nullable: true
+          type: number
+        staffTotal:
+          nullable: true
+          type: number
+        tasksCount:
+          type: integer
+        totalAreaM2:
+          nullable: true
+          type: number
+        workersInTasks:
+          format: double
+          type: number
+      type: object
+    LocationTemplate:
+      properties:
+        city:
+          type: string
+        facilityTypeCode:
+          type: string
+        locationId:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+        parametersCount:
+          type: integer
+        tasksCount:
+          type: integer
+      type: object
+    ManualCandidate:
+      properties:
+        addedAt:
+          format: date-time
+          type: string
+        reason:
+          nullable: true
+          type: string
+        solutionId:
+          $ref: '#/components/schemas/UUID'
+        solutionName:
+          type: string
+      type: object
+    ManualCandidateInput:
+      properties:
+        reason:
+          nullable: true
+          type: string
+        solutionId:
+          $ref: '#/components/schemas/UUID'
+      type: object
+    ManualList:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ManualCandidate'
+          nullable: true
+          type: array
+      type: object
+    MatchCounts:
+      properties:
+        excluded:
+          type: integer
+        manual:
+          type: integer
+        needsVerification:
+          type: integer
+        passed:
+          type: integer
+        total:
+          type: integer
+      type: object
+    Offer:
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        isDefault:
+          type: boolean
+        label:
+          type: string
+        organizerRowRef:
+          nullable: true
+          type: string
+        price:
+          $ref: '#/components/schemas/Price'
+        sourceId:
+          $ref: '#/components/schemas/UUID'
+      type: object
+    Option:
+      properties:
+        code:
+          type: string
+        hint:
+          type: string
+        name:
+          type: string
+      type: object
+    Override:
+      properties:
+        code:
+          enum:
+          - handling
+          - environment
+          - payload
+          - aisle_width
+          - min_temperature
+          - lift_height
+          type: string
+        list:
+          items:
+            type: string
+          nullable: true
+          type: array
+        note:
+          nullable: true
+          type: string
+        number:
+          nullable: true
+          type: number
+        text:
+          nullable: true
+          type: string
+      type: object
+    ParameterDefinition:
+      properties:
+        baseValueNumber:
+          nullable: true
+          type: number
+        baseValueText:
+          nullable: true
+          type: string
+        code:
+          type: string
+        enumValues:
+          items:
+            type: string
+          nullable: true
+          type: array
+        facilityTypeCode:
+          type: string
+        formSection:
+          type: string
+        groupName:
+          type: string
+        hint:
+          nullable: true
+          type: string
+        isConstant:
+          type: boolean
+        isRequired:
+          type: boolean
+        maxValue:
+          nullable: true
+          type: number
+        minValue:
+          nullable: true
+          type: number
+        name:
+          type: string
+        role:
+          nullable: true
+          type: string
+        sort:
+          type: integer
+        sourceNote:
+          nullable: true
+          type: string
+        staffAttr:
+          nullable: true
+          type: string
+        staffRole:
+          nullable: true
+          type: string
+        unit:
+          nullable: true
+          type: string
+        valueType:
+          type: string
+      type: object
+    ParameterGroup:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ParameterItem'
+          nullable: true
+          type: array
+        name:
+          type: string
+      type: object
+    ParameterInput:
+      properties:
+        code:
+          type: string
+        isAssumption:
+          type: boolean
+        note:
+          nullable: true
+          type: string
+        source:
+          type: string
+        value: {}
+      type: object
+    ParameterItem:
+      properties:
+        definition:
+          $ref: '#/components/schemas/ParameterDefinition'
+        value:
+          $ref: '#/components/schemas/ParameterValue'
+      type: object
+    ParameterValue:
+      properties:
+        code:
+          type: string
+        isAssumption:
+          type: boolean
+        note:
+          nullable: true
+          type: string
+        source:
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+        value: {}
+      type: object
+    ParametersBody:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ParameterInput'
+          nullable: true
+          type: array
+      type: object
+    Price:
+      properties:
+        amountRub:
+          nullable: true
+          type: number
+        includesVat:
+          type: boolean
+        offerId:
+          $ref: '#/components/schemas/UUID'
+        percent:
+          nullable: true
+          type: number
+        unit:
+          type: string
+      type: object
+    Problem:
+      properties:
+        code:
+          type: string
+        detail:
+          type: string
+        errors:
+          items:
+            $ref: '#/components/schemas/FieldError'
+          type: array
+        status:
+          type: integer
+        title:
+          type: string
+        type:
+          type: string
+      type: object
+    Process:
+      properties:
+        code:
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        createdFromLocationId:
+          $ref: '#/components/schemas/UUID'
+        defaultWorkerRole:
+          nullable: true
+          type: string
+        defaultWorkerTimeShare:
+          nullable: true
+          type: number
+        defaults:
+          $ref: '#/components/schemas/TaskParams'
+        description:
+          nullable: true
+          type: string
+        facilityTypes:
+          items:
+            type: string
+          nullable: true
+          type: array
+        formulas:
+          items:
+            $ref: '#/components/schemas/Formula'
+          nullable: true
+          type: array
+        handlingMethods:
+          items:
+            $ref: '#/components/schemas/HandlingShare'
+          nullable: true
+          type: array
+        id:
+          $ref: '#/components/schemas/UUID'
+        isActive:
+          type: boolean
+        isCustom:
+          type: boolean
+        kpiUnit:
+          nullable: true
+          type: string
+        locationsCount:
+          type: integer
+        name:
+          type: string
+        robotsCount:
+          type: integer
+        updatedAt:
+          format: date-time
+          type: string
+        workCategoryCode:
+          nullable: true
+          type: string
+        workType:
+          $ref: '#/components/schemas/WorkTypeRef'
+      type: object
+    ProcessDetail:
+      properties:
+        code:
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        createdFromLocationId:
+          $ref: '#/components/schemas/UUID'
+        defaultWorkerRole:
+          nullable: true
+          type: string
+        defaultWorkerTimeShare:
+          nullable: true
+          type: number
+        defaults:
+          $ref: '#/components/schemas/TaskParams'
+        description:
+          nullable: true
+          type: string
+        facilityTypes:
+          items:
+            type: string
+          nullable: true
+          type: array
+        formulas:
+          items:
+            $ref: '#/components/schemas/Formula'
+          nullable: true
+          type: array
+        handlingMethods:
+          items:
+            $ref: '#/components/schemas/HandlingShare'
+          nullable: true
+          type: array
+        id:
+          $ref: '#/components/schemas/UUID'
+        isActive:
+          type: boolean
+        isCustom:
+          type: boolean
+        kpiUnit:
+          nullable: true
+          type: string
+        locationsCount:
+          type: integer
+        name:
+          type: string
+        robotsCount:
+          type: integer
+        updatedAt:
+          format: date-time
+          type: string
+        usage:
+          items:
+            $ref: '#/components/schemas/ProcessUsage'
+          nullable: true
+          type: array
+        workCategoryCode:
+          nullable: true
+          type: string
+        workType:
+          $ref: '#/components/schemas/WorkTypeRef'
+      type: object
+    ProcessInput:
+      properties:
+        code:
+          nullable: true
+          type: string
+        createdFromLocationId:
+          $ref: '#/components/schemas/UUID'
+        defaultWorkerRole:
+          nullable: true
+          type: string
+        defaultWorkerTimeShare:
+          nullable: true
+          type: number
+        defaults:
+          $ref: '#/components/schemas/TaskParams'
+        description:
+          nullable: true
+          type: string
+        facilityTypes:
+          items:
+            type: string
+          nullable: true
+          type: array
+        formulas:
+          items:
+            $ref: '#/components/schemas/Formula'
+          nullable: true
+          type: array
+        handlingMethods:
+          items:
+            $ref: '#/components/schemas/HandlingShare'
+          nullable: true
+          type: array
+        isActive:
+          nullable: true
+          type: boolean
+        isCustom:
+          type: boolean
+        kpiUnit:
+          nullable: true
+          type: string
+        name:
+          type: string
+        workCategoryCode:
+          nullable: true
+          type: string
+        workTypeId:
+          $ref: '#/components/schemas/UUID'
+      type: object
+    ProcessList:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Process'
+          nullable: true
+          type: array
+      type: object
+    ProcessUsage:
+      properties:
+        automationShare:
+          nullable: true
+          type: number
+        dailyVolume:
+          nullable: true
+          type: number
+        facilityTypeCode:
+          type: string
+        laborCostRubYear:
+          nullable: true
+          type: number
+        locationId:
+          $ref: '#/components/schemas/UUID'
+        locationName:
+          type: string
+        peakIntensityPerHour:
+          nullable: true
+          type: number
+        ready:
+          type: boolean
+        taskId:
+          $ref: '#/components/schemas/UUID'
+        taskName:
+          type: string
+        workers:
+          type: string
+      type: object
+    Project:
+      properties:
+        catalogUpdated:
+          type: boolean
+        copiedFromId:
+          $ref: '#/components/schemas/UUID'
+        createdAt:
+          format: date-time
+          type: string
+        dataChanged:
+          type: boolean
+        facilityTypeCode:
+          type: string
+        horizonYears:
+          nullable: true
+          type: integer
+        id:
+          $ref: '#/components/schemas/UUID'
+        isDemo:
+          type: boolean
+        latestRun:
+          $ref: '#/components/schemas/RunInfo'
+        locationDeleted:
+          type: boolean
+        locationId:
+          $ref: '#/components/schemas/UUID'
+        locationName:
+          type: string
+        name:
+          type: string
+        pinnedSolutionId:
+          $ref: '#/components/schemas/UUID'
+        selection:
+          $ref: '#/components/schemas/Selection'
+        snapshotTakenAt:
+          format: date-time
+          type: string
+        status:
+          enum:
+          - params
+          - matching
+          - simulation
+          - economics
+          - result
+          type: string
+        task:
+          $ref: '#/components/schemas/ProjectTaskRef'
+        updatedAt:
+          format: date-time
+          type: string
+        versions:
+          $ref: '#/components/schemas/Versions'
+      type: object
+    ProjectCreateInput:
+      properties:
+        horizonYears:
+          nullable: true
+          type: integer
+        locationId:
+          $ref: '#/components/schemas/UUID'
+        name:
+          nullable: true
+          type: string
+        pinnedSolutionId:
+          $ref: '#/components/schemas/UUID'
+        taskId:
+          $ref: '#/components/schemas/UUID'
+      type: object
+    ProjectPage:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Project'
+          nullable: true
+          type: array
+        total:
+          type: integer
+      type: object
+    ProjectPatchInput:
+      properties:
+        horizonYears:
+          nullable: true
+          type: integer
+        name:
+          type: string
+        status:
+          type: string
+      type: object
+    ProjectSnapshot:
+      properties:
+        location:
+          $ref: '#/components/schemas/Location'
+        parameters:
+          items:
+            $ref: '#/components/schemas/ParameterValue'
+          nullable: true
+          type: array
+        task:
+          $ref: '#/components/schemas/Task'
+      type: object
+    ProjectTaskRef:
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+        workType:
+          $ref: '#/components/schemas/WorkTypeRef'
+      type: object
+    Provenance:
+      properties:
+        expression:
+          nullable: true
+          type: string
+        isAssumption:
+          type: boolean
+        note:
+          nullable: true
+          type: string
+        source:
+          type: string
+      type: object
+    ReadinessItem:
+      properties:
+        code:
+          type: string
+        label:
+          type: string
+      type: object
+    ReferenceVersion:
+      properties:
+        label:
+          type: string
+        scope:
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+        version:
+          type: integer
+      type: object
+    RobotGroups:
+      properties:
+        conditions:
+          items:
+            $ref: '#/components/schemas/Condition'
+          nullable: true
+          type: array
+        insufficientData:
+          type: integer
+        items:
+          items:
+            $ref: '#/components/schemas/Candidate'
+          nullable: true
+          type: array
+        limited:
+          type: integer
+        passed:
+          type: integer
+        solutions:
+          items:
+            $ref: '#/components/schemas/SolutionSummary'
+          nullable: true
+          type: array
+        total:
+          type: integer
+      type: object
+    RobotSpec:
+      properties:
+        autonomyH:
+          nullable: true
+          type: number
+        avgPowerKw:
+          nullable: true
+          type: number
+        chargeTimeMin:
+          nullable: true
+          type: number
+        chargingInfra:
+          nullable: true
+          type: string
+        connectivity:
+          items:
+            type: string
+          nullable: true
+          type: array
+        dimensionsExact:
+          type: boolean
+        floorRequirements:
+          nullable: true
+          type: string
+        handlingMethodCode:
+          nullable: true
+          type: string
+        heightMm:
+          nullable: true
+          type: integer
+        indoorAllowed:
+          nullable: true
+          type: boolean
+        integrations:
+          items:
+            type: string
+          nullable: true
+          type: array
+        lengthMm:
+          nullable: true
+          type: integer
+        liftHeightMm:
+          nullable: true
+          type: integer
+        loadTimeS:
+          nullable: true
+          type: number
+        massKg:
+          nullable: true
+          type: number
+        maxSpeedMps:
+          nullable: true
+          type: number
+        maxTempC:
+          nullable: true
+          type: number
+        minPassageMm:
+          nullable: true
+          type: integer
+        minTempC:
+          nullable: true
+          type: number
+        minTempExact:
+          type: boolean
+        navigationType:
+          nullable: true
+          type: string
+        outdoorAllowed:
+          nullable: true
+          type: boolean
+        payloadExact:
+          type: boolean
+        payloadKg:
+          nullable: true
+          type: number
+        positioningAccuracyMm:
+          nullable: true
+          type: number
+        serviceTerms:
+          nullable: true
+          type: string
+        specsActualizedOn:
+          $ref: '#/components/schemas/Date'
+        specsConfirmed:
+          enum:
+          - "yes"
+          - partial
+          - "no"
+          type: string
+        specsSourceId:
+          $ref: '#/components/schemas/UUID'
+        specsSourceText:
+          nullable: true
+          type: string
+        unloadTimeS:
+          nullable: true
+          type: number
+        widthMm:
+          nullable: true
+          type: integer
+      type: object
+    Run:
+      properties:
+        candidates:
+          items:
+            $ref: '#/components/schemas/Candidate'
+          nullable: true
+          type: array
+        catalogVersion:
+          type: integer
+        conditions:
+          items:
+            $ref: '#/components/schemas/Condition'
+          nullable: true
+          type: array
+        counts:
+          $ref: '#/components/schemas/MatchCounts'
+        createdAt:
+          format: date-time
+          nullable: true
+          type: string
+        id:
+          $ref: '#/components/schemas/UUID'
+        projectId:
+          $ref: '#/components/schemas/UUID'
+        rulesetVersion:
+          type: string
+        taskId:
+          $ref: '#/components/schemas/UUID'
+        workType:
+          $ref: '#/components/schemas/WorkTypeRef'
+      type: object
+    RunInfo:
+      properties:
+        counts:
+          $ref: '#/components/schemas/MatchCounts'
+        createdAt:
+          format: date-time
+          type: string
+        id:
+          $ref: '#/components/schemas/UUID'
+      type: object
+    Selection:
+      properties:
+        acquisitionModel:
+          nullable: true
+          type: string
+        solutionId:
+          $ref: '#/components/schemas/UUID'
+        solutionName:
+          type: string
+      type: object
+    SelectionInput:
+      properties:
+        acquisitionModel:
+          nullable: true
+          type: string
+        solutionId:
+          $ref: '#/components/schemas/UUID'
+      type: object
+    Solution:
+      properties:
+        acquisitionModels:
+          items:
+            type: string
+          nullable: true
+          type: array
+        badges:
+          $ref: '#/components/schemas/Badges'
+        capabilities:
+          items:
+            $ref: '#/components/schemas/Capability'
+          nullable: true
+          type: array
+        casesText:
+          nullable: true
+          type: string
+        code:
+          type: string
+        compatibleWith:
+          nullable: true
+          type: string
+        completenessPct:
+          type: integer
+        costType:
+          nullable: true
+          type: string
+        country:
+          nullable: true
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        description:
+          nullable: true
+          type: string
+        id:
+          $ref: '#/components/schemas/UUID'
+        industries:
+          items:
+            type: string
+          nullable: true
+          type: array
+        isActive:
+          type: boolean
+        kind:
+          enum:
+          - robot
+          - infrastructure
+          - software
+          - service
+          - support
+          type: string
+        manufacturer:
+          type: string
+        marketPotential:
+          nullable: true
+          type: integer
+        missingSpecs:
+          items:
+            type: string
+          nullable: true
+          type: array
+        name:
+          type: string
+        offers:
+          items:
+            $ref: '#/components/schemas/Offer'
+          type: array
+        organizerIds:
+          description: id строк catalog_export_v4 после склейки дублей
+          items:
+            type: string
+          nullable: true
+          type: array
+        organizerScenarios:
+          items:
+            type: string
+          nullable: true
+          type: array
+        photoUrl:
+          nullable: true
+          type: string
+        price:
+          $ref: '#/components/schemas/Price'
+        productClass:
+          enum:
+          - brs
+          - bas
+          - software
+          nullable: true
+          type: string
+        quantityRule:
+          nullable: true
+          type: string
+        region:
+          nullable: true
+          type: string
+        serviceCostPct:
+          nullable: true
+          type: number
+        serviceLifeYears:
+          nullable: true
+          type: number
+        softwareCostPct:
+          nullable: true
+          type: number
+        solutionType:
+          nullable: true
+          type: string
+        sourceId:
+          $ref: '#/components/schemas/UUID'
+        spec:
+          $ref: '#/components/schemas/RobotSpec'
+        status:
+          enum:
+          - operation
+          - piloting
+          - rnd
+          nullable: true
+          type: string
+        trl:
+          description: УГТ, 1–9
+          nullable: true
+          type: integer
+        typeGroup:
+          nullable: true
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+        usedInProjects:
+          type: integer
+      type: object
+    SolutionInput:
+      properties:
+        acquisitionModels:
+          items:
+            type: string
+          nullable: true
+          type: array
+        badges:
+          $ref: '#/components/schemas/Badges'
+        casesText:
+          nullable: true
+          type: string
+        code:
+          nullable: true
+          type: string
+        compatibleWith:
+          nullable: true
+          type: string
+        costType:
+          nullable: true
+          type: string
+        country:
+          nullable: true
+          type: string
+        description:
+          nullable: true
+          type: string
+        industries:
+          items:
+            type: string
+          nullable: true
+          type: array
+        isActive:
+          nullable: true
+          type: boolean
+        kind:
+          type: string
+        manufacturer:
+          type: string
+        marketPotential:
+          nullable: true
+          type: integer
+        name:
+          type: string
+        organizerScenarios:
+          items:
+            type: string
+          nullable: true
+          type: array
+        photoUrl:
+          nullable: true
+          type: string
+        price:
+          $ref: '#/components/schemas/Price'
+        productClass:
+          nullable: true
+          type: string
+        quantityRule:
+          nullable: true
+          type: string
+        region:
+          nullable: true
+          type: string
+        serviceCostPct:
+          nullable: true
+          type: number
+        serviceLifeYears:
+          nullable: true
+          type: number
+        softwareCostPct:
+          nullable: true
+          type: number
+        solutionType:
+          nullable: true
+          type: string
+        sourceId:
+          $ref: '#/components/schemas/UUID'
+        spec:
+          $ref: '#/components/schemas/RobotSpec'
+        status:
+          nullable: true
+          type: string
+        trl:
+          nullable: true
+          type: integer
+        typeGroup:
+          nullable: true
+          type: string
+        workTypeIds:
+          items:
+            $ref: '#/components/schemas/UUID'
+          nullable: true
+          type: array
+      type: object
+    SolutionPage:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/SolutionSummary'
+          nullable: true
+          type: array
+        total:
+          type: integer
+      type: object
+    SolutionSummary:
+      properties:
+        badges:
+          $ref: '#/components/schemas/Badges'
+        code:
+          type: string
+        compatibleWith:
+          nullable: true
+          type: string
+        completenessPct:
+          type: integer
+        costType:
+          nullable: true
+          type: string
+        id:
+          $ref: '#/components/schemas/UUID'
+        industries:
+          items:
+            type: string
+          nullable: true
+          type: array
+        isActive:
+          type: boolean
+        kind:
+          type: string
+        manufacturer:
+          type: string
+        missingSpecs:
+          items:
+            type: string
+          nullable: true
+          type: array
+        name:
+          type: string
+        needsConfirmation:
+          type: boolean
+        payloadKg:
+          nullable: true
+          type: number
+        photoUrl:
+          nullable: true
+          type: string
+        price:
+          $ref: '#/components/schemas/Price'
+        priceBand:
+          nullable: true
+          type: string
+        quantityRule:
+          nullable: true
+          type: string
+        solutionType:
+          nullable: true
+          type: string
+        specsConfirmed:
+          nullable: true
+          type: string
+        status:
+          nullable: true
+          type: string
+        trl:
+          nullable: true
+          type: integer
+        typeGroup:
+          nullable: true
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+        workTypes:
+          items:
+            $ref: '#/components/schemas/WorkTypeRef'
+          nullable: true
+          type: array
+      type: object
+    StaffBody:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/StaffGroupInput'
+          nullable: true
+          type: array
+      type: object
+    StaffGroup:
+      properties:
+        headcount:
+          type: integer
+        id:
+          $ref: '#/components/schemas/UUID'
+        roleName:
+          type: string
+        salaryGrossMonthRub:
+          nullable: true
+          type: number
+        sort:
+          type: integer
+        source:
+          nullable: true
+          type: string
+      type: object
+    StaffGroupInput:
+      properties:
+        headcount:
+          type: integer
+        roleName:
+          type: string
+        salaryGrossMonthRub:
+          nullable: true
+          type: number
+        source:
+          nullable: true
+          type: string
+      type: object
+    StaffGroupList:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/StaffGroup'
+          nullable: true
+          type: array
+      type: object
+    Task:
+      properties:
+        archivedAt:
+          format: date-time
+          nullable: true
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        derived:
+          $ref: '#/components/schemas/TaskDerived'
+        facilityTypeCode:
+          type: string
+        handlingMethods:
+          items:
+            $ref: '#/components/schemas/HandlingShare'
+          nullable: true
+          type: array
+        id:
+          $ref: '#/components/schemas/UUID'
+        kpiUnit:
+          nullable: true
+          type: string
+        locationId:
+          $ref: '#/components/schemas/UUID'
+        locationName:
+          type: string
+        name:
+          type: string
+        params:
+          $ref: '#/components/schemas/TaskParams'
+        processId:
+          $ref: '#/components/schemas/UUID'
+        processName:
+          type: string
+        provenance:
+          additionalProperties:
+            $ref: '#/components/schemas/Provenance'
+          nullable: true
+          type: object
+        readiness:
+          $ref: '#/components/schemas/TaskReadiness'
+        robotsCount:
+          type: integer
+        updatedAt:
+          format: date-time
+          type: string
+        workType:
+          $ref: '#/components/schemas/WorkTypeRef'
+        workers:
+          items:
+            $ref: '#/components/schemas/TaskWorker'
+          nullable: true
+          type: array
+      type: object
+    TaskCreateInput:
+      properties:
+        handlingMethods:
+          items:
+            $ref: '#/components/schemas/HandlingShare'
+          nullable: true
+          type: array
+        name:
+          nullable: true
+          type: string
+        params:
+          additionalProperties: {}
+          nullable: true
+          type: object
+        processId:
+          $ref: '#/components/schemas/UUID'
+        workers:
+          items:
+            $ref: '#/components/schemas/WorkerInput'
+          nullable: true
+          type: array
+      type: object
+    TaskDerived:
+      properties:
+        avgHourlyToRobotize:
+          nullable: true
+          type: number
+        basePayrollRubYear:
+          nullable: true
+          type: number
+        maxRobotWidthM:
+          nullable: true
+          type: number
+        payrollTaxCoef:
+          format: double
+          type: number
+        peakIntensityPerHour:
+          nullable: true
+          type: number
+        peakToRobotizePerHour:
+          nullable: true
+          type: number
+        targetFte:
+          nullable: true
+          type: number
+        targetPayrollRubYear:
+          nullable: true
+          type: number
+      type: object
+    TaskList:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Task'
+          nullable: true
+          type: array
+      type: object
+    TaskParams:
+      properties:
+        automationShare:
+          description: Доля автоматизируемых операций, 0–1
+          nullable: true
+          type: number
+        cargoDivisible:
+          description: Груз делимый на несколько рейсов робота
+          nullable: true
+          type: boolean
+        cargoUnit:
+          description: 'Единица груза (носитель): паллета на полу, тележка…'
+          nullable: true
+          type: string
+        consumablesPerRobotRub:
+          description: Расходники на робота, ₽/год
+          nullable: true
+          type: number
+        dailyVolume:
+          description: Объём операций в сутки, в единице процесса
+          nullable: true
+          type: number
+        environment:
+          description: Среда работы
+          enum:
+          - indoor
+          - outdoor
+          nullable: true
+          type: string
+        fleetOperatorSalaryRub:
+          description: Оклад оператора флота, ₽/мес.
+          nullable: true
+          type: number
+        fleetOperatorsPerShift:
+          description: Операторов флота на смену
+          nullable: true
+          type: number
+        itIntegrationRub:
+          description: Интеграция с ИТ-системами, ₽
+          nullable: true
+          type: number
+        liftTimeS:
+          description: Ожидание и проезд лифта, с
+          nullable: true
+          type: number
+        liftTripShare:
+          description: Доля рейсов через лифт, 0–1
+          nullable: true
+          type: number
+        minAisleWidthM:
+          description: Минимальная ширина прохода, м
+          nullable: true
+          type: number
+        minOperatingTempC:
+          description: Мин. температура эксплуатации в зоне, °C
+          nullable: true
+          type: number
+        otherEffectsRub:
+          description: Иные измеримые эффекты, ₽/год
+          nullable: true
+          type: number
+        peakFactor:
+          description: 'Пиковый коэффициент: макс. час ÷ средний час'
+          nullable: true
+          type: number
+        requiredLiftHeightMm:
+          description: Требуемая высота подъёма на ярус, мм
+          nullable: true
+          type: number
+        routeLengthM:
+          description: Средняя длина маршрута в одну сторону, м
+          nullable: true
+          type: number
+        routePoints:
+          description: 'Типовой маршрут: точки «откуда → куда»'
+          items:
+            type: string
+          nullable: true
+          type: array
+        sitePrepShare:
+          description: Подготовка объекта, доля стоимости парка, 0–1
+          nullable: true
+          type: number
+        siteSpeedLimitMps:
+          description: Ограничение скорости на объекте, м/с
+          nullable: true
+          type: number
+        turnoverRate:
+          description: Годовая текучесть исполнителей, 0–1
+          nullable: true
+          type: number
+        unitMassKg:
+          description: Масса единицы груза, кг
+          nullable: true
+          type: number
+        widthClearanceM:
+          description: Запас по ширине для безопасного движения, м
+          nullable: true
+          type: number
+        workHoursPerDay:
+          description: Часов работы процесса в сутки
+          nullable: true
+          type: number
+        workTimeLoss:
+          description: Потери рабочего времени, 0–1
+          nullable: true
+          type: number
+      type: object
+    TaskPatchInput:
+      properties:
+        assumeDefaults:
+          items:
+            type: string
+          nullable: true
+          type: array
+        handlingMethods:
+          items:
+            $ref: '#/components/schemas/HandlingShare'
+          nullable: true
+          type: array
+        name:
+          nullable: true
+          type: string
+        params:
+          additionalProperties: {}
+          nullable: true
+          type: object
+        workers:
+          items:
+            $ref: '#/components/schemas/WorkerInput'
+          nullable: true
+          type: array
+      type: object
+    TaskReadiness:
+      properties:
+        filled:
+          type: integer
+        missing:
+          items:
+            $ref: '#/components/schemas/ReadinessItem'
+          nullable: true
+          type: array
+        ready:
+          type: boolean
+        total:
+          type: integer
+      type: object
+    TaskWorker:
+      properties:
+        headcount:
+          type: integer
+        roleName:
+          type: string
+        salaryGrossMonthRub:
+          nullable: true
+          type: number
+        staffGroupId:
+          $ref: '#/components/schemas/UUID'
+        timeShare:
+          format: double
+          type: number
+      type: object
+    TemplateList:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/LocationTemplate'
+          nullable: true
+          type: array
+      type: object
+    UUID:
+      format: uuid
+      type: string
+    VersionList:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ReferenceVersion'
+          nullable: true
+          type: array
+      type: object
+    Versions:
+      properties:
+        catalog:
+          type: integer
+        dictionaries:
+          type: integer
+        model:
+          nullable: true
+          type: string
+      type: object
+    WorkType:
+      properties:
+        action:
+          nullable: true
+          type: string
+        code:
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        description:
+          nullable: true
+          type: string
+        exampleProcesses:
+          nullable: true
+          type: string
+        handledObject:
+          nullable: true
+          type: string
+        id:
+          $ref: '#/components/schemas/UUID'
+        isActive:
+          type: boolean
+        name:
+          type: string
+        processesCount:
+          type: integer
+        robotsCount:
+          type: integer
+        typicalCarriers:
+          nullable: true
+          type: string
+        unitLabel:
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+        workCategoryCode:
+          nullable: true
+          type: string
+      type: object
+    WorkTypeIDsBody:
+      properties:
+        workTypeIds:
+          items:
+            $ref: '#/components/schemas/UUID'
+          nullable: true
+          type: array
+      type: object
+    WorkTypeInput:
+      properties:
+        action:
+          nullable: true
+          type: string
+        description:
+          nullable: true
+          type: string
+        exampleProcesses:
+          nullable: true
+          type: string
+        handledObject:
+          nullable: true
+          type: string
+        isActive:
+          nullable: true
+          type: boolean
+        name:
+          type: string
+        typicalCarriers:
+          nullable: true
+          type: string
+        unitLabel:
+          type: string
+        workCategoryCode:
+          nullable: true
+          type: string
+      type: object
+    WorkTypeList:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/WorkType'
+          nullable: true
+          type: array
+      type: object
+    WorkTypeRef:
+      properties:
+        code:
+          type: string
+        id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+        unitLabel:
+          type: string
+      type: object
+    WorkerInput:
+      properties:
+        roleName:
+          nullable: true
+          type: string
+        staffGroupId:
+          $ref: '#/components/schemas/UUID'
+        timeShare:
+          format: double
+          type: number
+      type: object
