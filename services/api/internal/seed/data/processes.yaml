@@ -1,0 +1,379 @@
+# Reference processes from the Figma screen «Процессы» (07). Keys follow the API ProcessInput;
+# workType is an operation class code resolved by the loader. Formulas reference location
+# parameter codes (wh_…, ap_…, med_…) or roles (shifts_per_day, active_area, …).
+# Shares are fractions; dataset percentages are divided by 100 in formulas.
+processes:
+  - code: PR-0001
+    name: Перемещение паллет
+    description: Перемещение паллет между приёмкой, хранением, производством и отгрузкой.
+    workType: OP-01
+    workCategoryCode: internal_logistics
+    kpiUnit: паллет
+    facilityTypes: [warehouse]
+    defaultWorkerRole: Операторы погрузчиков
+    defaultWorkerTimeShare: 1
+    handlingMethods:
+      - { code: forks, laborReplacementRatio: 0.8 }
+      - { code: platform, laborReplacementRatio: 0.6 }
+    defaults: &warehouse_defaults
+      cargoUnit: паллета на полу
+      unitMassKg: 800
+      cargoDivisible: false
+      routePoints: [Приёмка, Зона хранения, Отгрузка]
+      dailyVolume: 2000
+      workHoursPerDay: 22
+      peakFactor: 1.5
+      automationShare: 0.95
+      routeLengthM: 100
+      siteSpeedLimitMps: 1.5
+      widthClearanceM: 0.6
+      liftTripShare: 0
+      liftTimeS: 0
+      environment: indoor
+      minAisleWidthM: 2.8
+      minOperatingTempC: 5
+      turnoverRate: 0
+      workTimeLoss: 0.25
+      fleetOperatorsPerShift: 1
+      fleetOperatorSalaryRub: 120000
+      sitePrepShare: 0.05
+      itIntegrationRub: 2000000
+      consumablesPerRobotRub: 0
+      otherEffectsRub: 0
+    formulas:
+      - { fieldCode: dailyVolume, expression: wh_inbound_pallets + wh_outbound_pallets, description: "приёмка + отгрузка, паллет в сутки" }
+      - { fieldCode: workHoursPerDay, expression: shifts_per_day * shift_hours, description: "смен × продолжительность смены" }
+      - { fieldCode: peakFactor, expression: peak_factor }
+      - { fieldCode: automationShare, expression: 1 - wh_oversize_share / 100, description: "1 − доля негабарита: негабарит остаётся ручным" }
+      - { fieldCode: routeLengthM, expression: sqrt(active_area), description: "√ площади активной зоны; уточнится на 2D-схеме" }
+      - { fieldCode: unitMassKg, expression: wh_pallet_mass }
+      - { fieldCode: minAisleWidthM, expression: min_aisle_width }
+      - { fieldCode: workTimeLoss, expression: work_time_loss / 100 }
+      - { fieldCode: fleetOperatorSalaryRub, expression: wh_forklift_salary, description: "= оклад операторов погрузчиков" }
+
+  - code: PR-0002
+    name: Комплектация заказов
+    description: "Сбор заказов по строкам: отбор из зоны хранения на станцию упаковки."
+    workType: OP-02
+    workCategoryCode: fulfillment
+    kpiUnit: строк
+    facilityTypes: [warehouse]
+    defaultWorkerRole: Отборщики (комплектовщики)
+    defaultWorkerTimeShare: 1
+    handlingMethods:
+      - { code: platform, laborReplacementRatio: 0.6 }
+      - { code: manipulator, laborReplacementRatio: 0.5 }
+    defaults:
+      <<: *warehouse_defaults
+      cargoUnit: мобильный стеллаж
+      unitMassKg: 8
+      cargoDivisible: true
+      routePoints: [Зона хранения, Станция упаковки]
+      dailyVolume: 100000
+      automationShare: 0.7
+      routeLengthM: 60
+      fleetOperatorSalaryRub: 100000
+    formulas:
+      - { fieldCode: dailyVolume, expression: wh_picking_lines, description: "объём отбора, строк в сутки" }
+      - { fieldCode: workHoursPerDay, expression: shifts_per_day * shift_hours }
+      - { fieldCode: peakFactor, expression: peak_factor }
+      - { fieldCode: unitMassKg, expression: wh_unit_mass }
+      - { fieldCode: minAisleWidthM, expression: min_aisle_width }
+      - { fieldCode: workTimeLoss, expression: work_time_loss / 100 }
+
+  - code: PR-0003
+    name: Упаковка
+    description: Формирование и запечатывание отправлений после комплектации.
+    workType: OP-05
+    workCategoryCode: fulfillment
+    kpiUnit: заказов
+    facilityTypes: [warehouse]
+    defaultWorkerRole: Операторы упаковочных линий
+    defaultWorkerTimeShare: 1
+    handlingMethods:
+      - { code: manipulator, laborReplacementRatio: 0.5 }
+    defaults:
+      <<: *warehouse_defaults
+      cargoUnit: упаковочная линия
+      unitMassKg: 12
+      cargoDivisible: true
+      routePoints: [Станция упаковки, Отгрузка]
+      dailyVolume: 8000
+      workHoursPerDay: 16
+      automationShare: 0.6
+      routeLengthM: 25
+    formulas:
+      - { fieldCode: peakFactor, expression: peak_factor }
+      - { fieldCode: minAisleWidthM, expression: min_aisle_width }
+
+  - code: PR-0004
+    name: Уборка помещений
+    description: Механизированная уборка твёрдых покрытий в проходах и технологических зонах.
+    workType: OP-07
+    workCategoryCode: facility_maintenance
+    kpiUnit: м²
+    facilityTypes: [warehouse, airport, medical]
+    handlingMethods:
+      - { code: brushes, laborReplacementRatio: 0.7 }
+    defaults:
+      cargoUnit: твёрдое покрытие
+      dailyVolume: 20000
+      workHoursPerDay: 8
+      peakFactor: 1
+      automationShare: 0.9
+      routeLengthM: 400
+      siteSpeedLimitMps: 1
+      widthClearanceM: 0.3
+      environment: indoor
+      minAisleWidthM: 2.8
+      minOperatingTempC: 5
+      turnoverRate: 0
+      workTimeLoss: 0.25
+      fleetOperatorsPerShift: 0.5
+      sitePrepShare: 0.02
+      itIntegrationRub: 0
+      consumablesPerRobotRub: 60000
+      otherEffectsRub: 0
+    formulas:
+      - { fieldCode: dailyVolume, expression: active_area, description: "площадь роботизируемой зоны, м² в сутки" }
+      - { fieldCode: minAisleWidthM, expression: min_aisle_width }
+
+  - code: PR-0005
+    name: Инвентаризация
+    description: Автоматический пересчёт и контроль занятости паллетомест без остановки склада.
+    workType: OP-06
+    workCategoryCode: accounting_control
+    kpiUnit: паллетомест
+    facilityTypes: [warehouse]
+    handlingMethods:
+      - { code: none }
+    defaults:
+      cargoUnit: паллетоместо
+      dailyVolume: 20000
+      workHoursPerDay: 6
+      peakFactor: 1
+      automationShare: 0.95
+      routeLengthM: 300
+      siteSpeedLimitMps: 1.5
+      widthClearanceM: 0.6
+      environment: indoor
+      minAisleWidthM: 2.8
+      minOperatingTempC: 5
+      workTimeLoss: 0.25
+      itIntegrationRub: 500000
+    formulas:
+      - { fieldCode: dailyVolume, expression: wh_pallet_places }
+      - { fieldCode: minAisleWidthM, expression: min_aisle_width }
+
+  - code: PR-0006
+    name: Сортировка грузов
+    description: Распределение отправлений по направлениям на сортировочных линиях.
+    workType: OP-03
+    workCategoryCode: fulfillment
+    kpiUnit: ед.
+    facilityTypes: [warehouse]
+    handlingMethods:
+      - { code: body, laborReplacementRatio: 0.5 }
+      - { code: platform, laborReplacementRatio: 0.6 }
+    defaults:
+      <<: *warehouse_defaults
+      cargoUnit: отправление
+      unitMassKg: 25
+      cargoDivisible: true
+      routePoints: [Индукция, Сортировочные ячейки]
+      dailyVolume: 40000
+      workHoursPerDay: 20
+      automationShare: 0.8
+      routeLengthM: 80
+    formulas:
+      - { fieldCode: peakFactor, expression: peak_factor }
+
+  - code: PR-0007
+    name: Патрулирование и охрана
+    description: Автономные обходы по маршруту с видеоаналитикой и реакцией на события.
+    workType: OP-09
+    workCategoryCode: security
+    kpiUnit: обходов
+    facilityTypes: [warehouse, airport, medical]
+    handlingMethods:
+      - { code: none }
+    defaults:
+      cargoUnit: маршрут обхода
+      dailyVolume: 18
+      workHoursPerDay: 24
+      peakFactor: 1
+      automationShare: 1
+      routeLengthM: 2500
+      siteSpeedLimitMps: 2
+      widthClearanceM: 0.6
+      environment: outdoor
+      minAisleWidthM: 3
+      minOperatingTempC: -25
+      workTimeLoss: 0.25
+
+  - code: PR-0008
+    name: Перемещение багажа
+    description: Транспортировка багажа между сортировкой, перроном и выдачей.
+    workType: OP-01
+    workCategoryCode: internal_logistics
+    kpiUnit: ед. багажа
+    facilityTypes: [airport]
+    defaultWorkerRole: Персонал рампа
+    defaultWorkerTimeShare: 0.3
+    handlingMethods:
+      - { code: tow, laborReplacementRatio: 0.8 }
+      - { code: body, laborReplacementRatio: 0.5 }
+    defaults:
+      cargoUnit: багажная тележка
+      unitMassKg: 23
+      cargoDivisible: false
+      routePoints: [Сортировка багажа, Стоянка ВС, Выдача багажа]
+      dailyVolume: 32000
+      workHoursPerDay: 20
+      peakFactor: 1.5
+      automationShare: 0.75
+      routeLengthM: 350
+      siteSpeedLimitMps: 5
+      widthClearanceM: 0.6
+      environment: outdoor
+      minAisleWidthM: 4
+      minOperatingTempC: -25
+      turnoverRate: 0.35
+      workTimeLoss: 0.25
+      fleetOperatorsPerShift: 1
+      fleetOperatorSalaryRub: 100000
+      sitePrepShare: 0.05
+      itIntegrationRub: 3000000
+    formulas:
+      - { fieldCode: dailyVolume, expression: ap_baggage_day, description: "объём перемещения багажа, ед. в сутки" }
+      - { fieldCode: minOperatingTempC, expression: min_temperature, description: "температура на перроне зимой" }
+      - { fieldCode: turnoverRate, expression: turnover / 100 }
+
+  - code: PR-0009
+    name: Доставка бортпитания
+    description: Подвоз бортпитания от цеха к воздушным судам по расписанию.
+    workType: OP-08
+    workCategoryCode: internal_logistics
+    kpiUnit: порций
+    facilityTypes: [airport]
+    defaultWorkerRole: Персонал рампа
+    defaultWorkerTimeShare: 0.1
+    handlingMethods:
+      - { code: body, laborReplacementRatio: 0.5 }
+      - { code: tow, laborReplacementRatio: 0.8 }
+    defaults:
+      cargoUnit: тележка с бортпитанием
+      unitMassKg: 15
+      cargoDivisible: false
+      routePoints: [Цех бортпитания, Стоянка ВС]
+      dailyVolume: 18000
+      workHoursPerDay: 18
+      peakFactor: 1.5
+      automationShare: 0.6
+      routeLengthM: 900
+      siteSpeedLimitMps: 5
+      widthClearanceM: 0.6
+      environment: outdoor
+      minAisleWidthM: 4
+      minOperatingTempC: -25
+      workTimeLoss: 0.25
+      itIntegrationRub: 2000000
+    formulas:
+      - { fieldCode: dailyVolume, expression: ap_catering_portions_day }
+      - { fieldCode: minOperatingTempC, expression: min_temperature }
+
+  - code: PR-0010
+    name: Доставка питания по отделениям
+    description: Развоз питания из пищеблока по отделениям и обратный сбор тары.
+    workType: OP-08
+    workCategoryCode: internal_logistics
+    kpiUnit: порций
+    facilityTypes: [medical]
+    defaultWorkerRole: Сотрудники пищеблока (раздача)
+    defaultWorkerTimeShare: 0.5
+    handlingMethods:
+      - { code: platform, laborReplacementRatio: 0.8 }
+      - { code: tow, laborReplacementRatio: 0.8 }
+      - { code: body, laborReplacementRatio: 0.5 }
+    defaults: &medical_defaults
+      cargoUnit: тележка с питанием
+      unitMassKg: 120
+      cargoDivisible: false
+      routePoints: [Пищеблок, Отделения]
+      dailyVolume: 1950
+      workHoursPerDay: 12
+      peakFactor: 2
+      automationShare: 0.7
+      routeLengthM: 180
+      siteSpeedLimitMps: 1
+      widthClearanceM: 0.9
+      liftTripShare: 0.8
+      liftTimeS: 120
+      environment: indoor
+      minAisleWidthM: 2.4
+      minOperatingTempC: 18
+      turnoverRate: 0.45
+      workTimeLoss: 0.25
+      fleetOperatorsPerShift: 1
+      fleetOperatorSalaryRub: 55000
+      sitePrepShare: 0.05
+      itIntegrationRub: 1500000
+    formulas:
+      - { fieldCode: dailyVolume, expression: med_portions_day, description: "порций питания в сутки" }
+      - { fieldCode: unitMassKg, expression: med_food_cart_mass, description: "масса тележки с питанием брутто" }
+      - { fieldCode: routeLengthM, expression: med_kitchen_distance }
+      - { fieldCode: minAisleWidthM, expression: min_aisle_width }
+      - { fieldCode: turnoverRate, expression: turnover / 100 }
+
+  - code: PR-0011
+    name: Транспорт белья
+    description: Перемещение чистого и грязного белья между прачечной и отделениями.
+    workType: OP-08
+    workCategoryCode: internal_logistics
+    kpiUnit: кг
+    facilityTypes: [medical]
+    defaultWorkerRole: Сотрудники прачечной (транспорт белья)
+    defaultWorkerTimeShare: 1
+    handlingMethods:
+      - { code: platform, laborReplacementRatio: 0.8 }
+      - { code: body, laborReplacementRatio: 0.5 }
+    defaults:
+      <<: *medical_defaults
+      cargoUnit: контейнер с бельём
+      unitMassKg: 55
+      cargoDivisible: true
+      routePoints: [Прачечная, Отделения]
+      dailyVolume: 3600
+      peakFactor: 1.5
+      automationShare: 0.65
+      routeLengthM: 500
+    formulas:
+      - { fieldCode: dailyVolume, expression: med_dirty_linen_kg_day + med_clean_linen_kg_day, description: "грязное + чистое бельё, кг в сутки" }
+      - { fieldCode: unitMassKg, expression: med_linen_container_mass }
+      - { fieldCode: minAisleWidthM, expression: min_aisle_width }
+
+  - code: PR-0012
+    name: Доставка биоматериалов
+    description: Доставка проб из отделений в лабораторию с контролем времени.
+    workType: OP-08
+    workCategoryCode: internal_logistics
+    kpiUnit: проб
+    facilityTypes: [medical]
+    defaultWorkerRole: Санитары и транспортировщики
+    defaultWorkerTimeShare: 0.3
+    handlingMethods:
+      - { code: body, laborReplacementRatio: 0.5 }
+    defaults:
+      <<: *medical_defaults
+      cargoUnit: контейнер с пробами
+      unitMassKg: 2
+      cargoDivisible: true
+      routePoints: [Отделения, КДЛ]
+      dailyVolume: 1200
+      workHoursPerDay: 24
+      automationShare: 0.8
+      routeLengthM: 600
+    formulas:
+      - { fieldCode: dailyVolume, expression: med_samples_day }
+      - { fieldCode: minAisleWidthM, expression: min_aisle_width }
+      - { fieldCode: turnoverRate, expression: turnover / 100 }

@@ -1,0 +1,438 @@
+# Demo robots: specs and operation classes on top of catalog_export_v4.csv.
+# Sources: «Примеры решений» (docx), sheet «Каталог» of the economic model v1.1, Figma A1.
+# Values taken by analogy are marked specsConfirmed: partial/no and stay «требует проверки».
+# Keys of spec follow the API RobotSpec; capability keys follow CapabilityInput (workType is a code).
+robots:
+  - organizerId: f7634ef8-0034-4c5b-b2f0-e44a14f05a76
+    code: DMR-CARRIER-P
+    solutionType: FMR
+    spec:
+      payloadKg: 1500
+      payloadExact: true
+      lengthMm: 1975
+      widthMm: 1000
+      heightMm: 2050
+      massKg: 2250
+      maxSpeedMps: 1.5
+      autonomyH: 10
+      chargeTimeMin: 90
+      minTempC: 5
+      maxTempC: 35
+      avgPowerKw: 3
+      loadTimeS: 60
+      unloadTimeS: 60
+      liftHeightMm: 1600
+      navigationType: SLAM (лидары)
+      handlingMethodCode: forks
+      indoorAllowed: true
+      outdoorAllowed: false
+      specsConfirmed: partial
+      specsSourceText: "Примеры решений: DMR Carrier P; время зарядки, температуры, мощность — допущения команды"
+    capabilities:
+      - { workType: OP-01, throughputPerHour: 40, throughputRangeText: "40–60 паллет/ч", sourceText: "Примеры решений: нижняя граница диапазона" }
+      - { workType: OP-04, liftHeightMm: 1600, sourceText: "Примеры решений: подъём вил до 1600 мм" }
+
+  - organizerId: 5a36611d-033e-4893-bd49-5d4f776f57dd
+    code: AK-2000-2
+    spec:
+      payloadKg: 1500
+      lengthMm: 1975
+      widthMm: 1000
+      heightMm: 2050
+      maxSpeedMps: 1.5
+      autonomyH: 10
+      chargeTimeMin: 90
+      minTempC: 5
+      maxTempC: 35
+      avgPowerKw: 3
+      loadTimeS: 60
+      unloadTimeS: 60
+      navigationType: SLAM
+      handlingMethodCode: forks
+      indoorAllowed: true
+      outdoorAllowed: false
+      specsConfirmed: "no"
+      specsSourceText: "По аналогу FMR DMR Carrier P — требует проверки по сайту производителя"
+    capabilities:
+      - { workType: OP-01, sourceText: "Кейс каталога: 67 роботов в РЦ X5 «Новая Рига»" }
+
+  - organizerId: 5760e938-9a43-45a7-b8e8-f4f2e6383930
+    code: RONAVI-H1500
+    spec:
+      payloadKg: 1500
+      payloadExact: true
+      lengthMm: 1044
+      widthMm: 654
+      heightMm: 380
+      dimensionsExact: true
+      massKg: 250
+      maxSpeedMps: 1.5
+      autonomyH: 6
+      chargeTimeMin: 18
+      minTempC: 5
+      minTempExact: true
+      maxTempC: 25
+      avgPowerKw: 1
+      loadTimeS: 30
+      unloadTimeS: 30
+      positioningAccuracyMm: 3
+      navigationType: QR-метки + SLAM
+      handlingMethodCode: platform
+      indoorAllowed: true
+      outdoorAllowed: false
+      floorRequirements: ровный промышленный пол
+      specsConfirmed: "yes"
+      specsSourceText: "Примеры решений: Ronavi H1500"
+    capabilities:
+      - { workType: OP-01, throughputPerHour: 80, throughputRangeText: "80–100 паллет/ч", sourceText: "Примеры решений: нижняя граница диапазона" }
+
+  - organizerId: dcfd9975-81eb-49b5-a422-827a720ba582
+    code: RONAVI-M
+    spec:
+      payloadKg: 1200
+      payloadExact: true
+      lengthMm: 1044
+      widthMm: 654
+      heightMm: 380
+      maxSpeedMps: 1.5
+      autonomyH: 6
+      chargeTimeMin: 18
+      minTempC: 5
+      maxTempC: 30
+      avgPowerKw: 1
+      loadTimeS: 45
+      unloadTimeS: 45
+      navigationType: QR-метки + SLAM
+      handlingMethodCode: platform
+      indoorAllowed: true
+      outdoorAllowed: false
+      specsConfirmed: partial
+      specsSourceText: "Описание каталога; остальные ТТХ по аналогу Ronavi H1500 — требуют проверки"
+    capabilities:
+      - { workType: OP-01 }
+      - { workType: OP-08, sourceText: "Подъезд под больничные тележки" }
+
+  - organizerId: 5ec66969-8fcc-47b3-b517-a9c29372fffe
+    code: MOROS-AMR800
+    testedByFcbas: true
+    spec:
+      payloadKg: 800
+      payloadExact: true
+      lengthMm: 940
+      widthMm: 640
+      heightMm: 230
+      dimensionsExact: true
+      maxSpeedMps: 2
+      autonomyH: 24
+      chargeTimeMin: 60
+      minTempC: 5
+      minTempExact: true
+      avgPowerKw: 1
+      loadTimeS: 45
+      unloadTimeS: 45
+      navigationType: SLAM
+      handlingMethodCode: platform
+      indoorAllowed: true
+      outdoorAllowed: false
+      specsConfirmed: partial
+      specsSourceText: "По аналогу AMR 1500, описание каталога"
+    capabilities:
+      - { workType: OP-01 }
+      - { workType: OP-08, handlingMethodCode: tow, sourceText: "Тележки — буксиром" }
+
+  - organizerId: 7d5a76d2-7bf3-4a40-b6f7-64590d4d9273
+    code: MOROS-AMR1500
+    testedByFcbas: true
+    spec:
+      payloadKg: 1500
+      payloadExact: true
+      lengthMm: 1100
+      widthMm: 600
+      heightMm: 230
+      maxSpeedMps: 1.5
+      autonomyH: 22
+      minTempC: 5
+      navigationType: SLAM
+      handlingMethodCode: platform
+      indoorAllowed: true
+      outdoorAllowed: false
+      specsConfirmed: partial
+      specsSourceText: "Описание каталога: 1100×600×230, 1,5 м/с, проезд от 680 мм, 22 ч"
+    capabilities:
+      - { workType: OP-01 }
+
+  - organizerId: 89ffd69f-f07b-4bf2-8023-1fd765a2b6ff
+    code: MOROS-AMR100
+    spec:
+      payloadKg: 100
+      payloadExact: true
+      handlingMethodCode: platform
+      indoorAllowed: true
+      outdoorAllowed: false
+      specsConfirmed: partial
+      specsSourceText: "Грузоподъёмность из названия позиции каталога"
+    capabilities:
+      - { workType: OP-01 }
+      - { workType: OP-08 }
+
+  - organizerId: 6f3da854-41da-4363-8496-5487f37c845a
+    code: RONAVI-H2000
+    spec:
+      payloadKg: 2000
+      payloadExact: true
+      handlingMethodCode: platform
+      indoorAllowed: true
+      outdoorAllowed: false
+      specsConfirmed: "no"
+      specsSourceText: "Грузоподъёмность из названия позиции каталога"
+    capabilities:
+      - { workType: OP-01 }
+
+  - organizerId: 3f2aaa1b-2237-4d7b-b215-1ac5ec789ed5
+    code: RONAVI-SR
+    spec:
+      payloadKg: 50
+      payloadExact: true
+      handlingMethodCode: body
+      indoorAllowed: true
+      outdoorAllowed: false
+      specsConfirmed: "no"
+      specsSourceText: "Грузоподъёмность из названия позиции каталога"
+    capabilities:
+      - { workType: OP-03 }
+
+  - organizerId: 66d8e7ad-cdcd-4287-afb0-e2afa9ef5217
+    code: RONAVI-SD
+    spec:
+      payloadKg: 10
+      payloadExact: true
+      lengthMm: 420
+      widthMm: 400
+      heightMm: 200
+      dimensionsExact: true
+      massKg: 20
+      maxSpeedMps: 2.5
+      autonomyH: 10
+      chargeTimeMin: 60
+      minTempC: 5
+      maxTempC: 30
+      avgPowerKw: 0.3
+      loadTimeS: 20
+      unloadTimeS: 20
+      positioningAccuracyMm: 3
+      navigationType: QR-метки
+      handlingMethodCode: body
+      indoorAllowed: true
+      outdoorAllowed: false
+      minPassageMm: 700
+      specsConfirmed: "yes"
+      specsSourceText: "Примеры решений: Ronavi SD"
+    capabilities:
+      - { workType: OP-08 }
+
+  - organizerId: 4d347e47-38f9-415b-aae1-7a6d3759a75c
+    code: RONAVI-RCM
+    spec:
+      payloadKg: 350
+      payloadExact: true
+      handlingMethodCode: platform
+      indoorAllowed: true
+      outdoorAllowed: false
+      specsConfirmed: "no"
+      specsSourceText: "Грузоподъёмность из названия позиции каталога"
+    capabilities:
+      - { workType: OP-01 }
+
+  - organizerId: cccd0c0d-8ae7-435d-a171-45f5d82886e6
+    code: DMR-1200
+    testedByFcbas: true
+    spec:
+      payloadKg: 1200
+      payloadExact: true
+      handlingMethodCode: platform
+      indoorAllowed: true
+      outdoorAllowed: false
+      specsConfirmed: "no"
+      specsSourceText: "Грузоподъёмность из названия позиции каталога"
+    capabilities:
+      - { workType: OP-01 }
+
+  - organizerId: be814758-3616-4b94-befa-9848be2ac604
+    code: DMR-600
+    testedByFcbas: true
+    inRegistry719: true
+    spec:
+      payloadKg: 600
+      payloadExact: true
+      handlingMethodCode: platform
+      indoorAllowed: true
+      outdoorAllowed: false
+      specsConfirmed: "no"
+      specsSourceText: "Грузоподъёмность из названия позиции каталога"
+    capabilities:
+      - { workType: OP-01 }
+
+  - organizerId: 993d980e-8b91-45e0-9c98-50ffab6e11e4
+    code: SEMABOT
+    testedByFcbas: true
+    inRegistry719: true
+    spec:
+      payloadKg: 1500
+      payloadExact: true
+      handlingMethodCode: platform
+      indoorAllowed: true
+      outdoorAllowed: false
+      specsConfirmed: "no"
+      specsSourceText: "Грузоподъёмность из названия позиции каталога"
+    capabilities:
+      - { workType: OP-01 }
+      - { workType: OP-04 }
+
+  - organizerId: 2ffc706d-fe43-4c2b-baad-a624a95ad3ce
+    code: ROBOCV-STACKER
+    spec:
+      handlingMethodCode: forks
+      indoorAllowed: true
+      outdoorAllowed: false
+      specsConfirmed: "no"
+      specsSourceText: "ТТХ в каталоге нет — дополнить с robocv.ru"
+    capabilities:
+      - { workType: OP-01 }
+      - { workType: OP-04 }
+
+  - organizerId: b4a9ef38-b68a-4c0f-8512-9bc9a718c4e1
+    code: ROBOCV-TUG
+    spec:
+      handlingMethodCode: tow
+      indoorAllowed: true
+      outdoorAllowed: false
+      specsConfirmed: "no"
+      specsSourceText: "ТТХ в каталоге нет — дополнить с robocv.ru"
+    capabilities:
+      - { workType: OP-01 }
+
+  - organizerId: 28a5afa8-0473-4f80-99a9-b2922b76810f
+    code: COGNITIVE-TUG
+    spec:
+      payloadKg: 3000
+      payloadExact: true
+      lengthMm: 2300
+      widthMm: 1400
+      heightMm: 1500
+      massKg: 1250
+      maxSpeedMps: 4.17
+      autonomyH: 24
+      chargeTimeMin: 30
+      minTempC: -40
+      minTempExact: true
+      maxTempC: 45
+      avgPowerKw: 6
+      loadTimeS: 180
+      unloadTimeS: 180
+      navigationType: Мультисенсорный автопилот
+      handlingMethodCode: tow
+      indoorAllowed: false
+      outdoorAllowed: true
+      specsConfirmed: "yes"
+      specsSourceText: "Примеры решений: беспилотный тягач Cognitive Pilot; рабочая скорость 15 км/ч — допущение"
+    capabilities:
+      - { workType: OP-01, sourceText: "Кейс: 45 тягачей для Пулково (перевозка багажа)" }
+
+  - organizerId: cf9643b1-7a04-429c-9ac2-33060c9f42dd
+    code: EVOCARGO-N1
+    spec:
+      payloadKg: 2000
+      payloadExact: true
+      lengthMm: 5000
+      widthMm: 1800
+      heightMm: 2200
+      maxSpeedMps: 5.56
+      autonomyH: 8
+      chargeTimeMin: 30
+      minTempC: -40
+      minTempExact: true
+      maxTempC: 50
+      avgPowerKw: 6
+      loadTimeS: 240
+      unloadTimeS: 240
+      navigationType: Автопилот L4–5
+      handlingMethodCode: body
+      indoorAllowed: false
+      outdoorAllowed: true
+      specsConfirmed: "yes"
+      specsSourceText: "Примеры решений: EVOCARGO N1"
+    capabilities:
+      - { workType: OP-01 }
+      - { workType: OP-08 }
+
+  - organizerId: 446c5207-a099-45e0-b615-afd60de08589
+    code: MARK-2-SE
+    testedByFcbas: true
+    spec:
+      lengthMm: 860
+      widthMm: 610
+      heightMm: 980
+      massKg: 165
+      maxSpeedMps: 1
+      autonomyH: 3
+      chargeTimeMin: 120
+      minTempC: 5
+      maxTempC: 35
+      avgPowerKw: 1
+      navigationType: Лидар + камеры
+      handlingMethodCode: brushes
+      indoorAllowed: true
+      outdoorAllowed: true
+      specsConfirmed: "yes"
+      specsSourceText: "Примеры решений: MARK 2 SE"
+    capabilities:
+      - { workType: OP-07, throughputPerHour: 1000, throughputRangeText: "до 1000 м²/ч", sourceText: "Примеры решений: MARK 2 SE" }
+
+  - code: PUDUBOT-2
+    name: PuduBot 2 (робот-доставщик)
+    manufacturer: Pudu Robotics
+    productClass: brs
+    typeGroup: Мобильные роботы
+    solutionType: Робот-доставщик
+    country: Китай
+    description: Робот-доставщик с полками по 10 кг. В каталоге ФЦ БАС отсутствует, цены нет — экономика не считается без ввода цены.
+    spec:
+      payloadKg: 10
+      payloadExact: true
+      lengthMm: 580
+      widthMm: 535
+      heightMm: 1290
+      dimensionsExact: true
+      massKg: 39
+      maxSpeedMps: 1.2
+      autonomyH: 12
+      chargeTimeMin: 240
+      minTempC: 5
+      maxTempC: 35
+      avgPowerKw: 0.3
+      loadTimeS: 20
+      unloadTimeS: 20
+      navigationType: VSLAM + лазерный SLAM
+      handlingMethodCode: body
+      indoorAllowed: true
+      outdoorAllowed: false
+      minPassageMm: 800
+      specsConfirmed: partial
+      specsSourceText: "Примеры решений: PuduBot 2; pudurobotics.com"
+    capabilities:
+      - { workType: OP-08 }
+
+# Badges of the PDF catalog for positions without their own entry above.
+badges:
+  testedByFcbas: [РУБИ-С-03, Клинботикс 400 PRO, Клинботикс 600]
+  inRegistry719: [AS-RS P, AS-RS B, TFM-15-8E, Модель А12-1450, Модель А25-1720, DMR 300 Carrier B]
+
+# Operation class hints by the organizer scenario (PRD 7.6); only unambiguous ones.
+scenarioHints:
+  - { contains: Уборка помещений, workType: OP-07, handlingMethodCode: brushes, environment: indoor }
+  - { contains: Уборка улиц, workType: OP-07, handlingMethodCode: brushes, environment: outdoor }
+  - { contains: Инвентаризация склада, workType: OP-06, handlingMethodCode: none, environment: indoor }
+  - { contains: Доставка биоматериал, workType: OP-08 }
+  - { contains: Патрулирование, workType: OP-09, handlingMethodCode: none }
+  - { contains: Сортировка грузов, workType: OP-03 }
+  - { contains: Сборка товаров, workType: OP-02 }

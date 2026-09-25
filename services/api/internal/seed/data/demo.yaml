@@ -1,0 +1,71 @@
+# Demo locations of the three base facility types. Parameters default to the organizer
+# base values (source organizer); overrides and assumptions are listed per location.
+# Tasks reference process codes; params override the values computed from the process.
+locations:
+  - name: РЦ Химки
+    facilityTypeCode: warehouse
+    city: Москва
+    address: Москва, Ленинградское ш., 12
+    capexBudget: { amount: 80000000, currency: RUB, sourceUnit: млн руб., source: Датасет «Склад» }
+    horizonYears: 5
+    assumptions: [wh_floor_flatness, wh_power_kw]
+    tasks:
+      - { process: PR-0001, name: Перемещение паллет }
+      - { process: PR-0002 }
+      - { process: PR-0003, params: { dailyVolume: 833 } }
+      - { process: PR-0004, name: Уборка склада }
+      - { process: PR-0005 }
+    projects:
+      - { task: PR-0001, name: Роботизация паллетного потока · РЦ Химки, runMatching: true }
+
+  - name: Даркстор Юг
+    facilityTypeCode: warehouse
+    city: Ростов-на-Дону
+    address: Ростов-на-Дону, ул. Доватора, 150
+    capexBudget: { amount: 30000000, currency: RUB, sourceUnit: млн руб., source: Оценка команды }
+    horizonYears: 5
+    parameters:
+      wh_total_area: 10500
+      wh_active_area: 6000
+      wh_staff_total: 62
+      wh_inbound_pallets: 500
+      wh_outbound_pallets: 500
+      wh_picking_lines: 50000
+      wh_picking_units: 75000
+    assumptions: [wh_total_area, wh_active_area, wh_staff_total]
+    staffGroups:
+      - { roleName: Отборщики (комплектовщики), headcount: 30, salaryGrossMonthRub: 85000 }
+      - { roleName: Операторы погрузчиков, headcount: 9, salaryGrossMonthRub: 95000 }
+      - { roleName: Операторы упаковочных линий, headcount: 8 }
+    tasks:
+      - { process: PR-0001, name: Перемещение паллет, params: { dailyVolume: 620 } }
+      - { process: PR-0002 }
+      - { process: PR-0005 }
+
+  - name: Терминал Внуково-2
+    facilityTypeCode: airport
+    city: Москва
+    address: Москва, аэропорт Внуково, терминал 2
+    capexBudget: { amount: 120000000, currency: RUB, sourceUnit: млн руб., source: Датасет «Аэропорт» }
+    horizonYears: 7
+    tasks:
+      - { process: PR-0008 }
+      - { process: PR-0004, name: Уборка терминала, workers: [{ roleName: "Персонал терминала (логистика, уборка)", timeShare: 0.4 }] }
+      - { process: PR-0009 }
+    projects:
+      - { task: PR-0008, name: Роботизация перемещения багажа · Внуково-2, runMatching: true }
+
+  - name: ГКБ №17
+    facilityTypeCode: medical
+    city: Москва
+    address: Москва, ул. Волынская, 7
+    capexBudget: { amount: 35000000, currency: RUB, sourceUnit: млн руб., source: Датасет «Медучреждение» }
+    horizonYears: 7
+    assumptions: [med_portions_day]
+    tasks:
+      - { process: PR-0010 }
+      - { process: PR-0011 }
+      - { process: PR-0012 }
+      - { process: PR-0004, name: Уборка коридоров, workers: [{ roleName: "Санитары и транспортировщики", timeShare: 0.2 }] }
+    projects:
+      - { task: PR-0010, name: Доставка питания роботами · ГКБ №17, runMatching: true }

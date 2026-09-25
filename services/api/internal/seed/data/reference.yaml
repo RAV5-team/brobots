@@ -1,0 +1,166 @@
+# Dictionaries, operation classes and data sources of the demo.
+# Operation classes follow the Figma screen «Администрирование · Классы операций» (OP-01…OP-10).
+facilityTypes:
+  - { code: warehouse, name: Склад }
+  - { code: airport, name: Аэропорт }
+  - { code: medical, name: Медучреждение }
+  - { code: custom, name: Свой объект }
+
+industries:
+  - { code: trade_services, name: Торговля и услуги }
+  - { code: industry, name: Промышленность }
+  - { code: transport_logistics, name: Транспорт и логистика }
+  - { code: energy, name: ТЭК }
+  - { code: agriculture, name: Сельское хозяйство }
+  - { code: security, name: Безопасность }
+  - { code: construction, name: Строительство }
+  - { code: housing_utilities, name: ЖКХ }
+  - { code: forestry, name: Лесное хозяйство }
+
+handlingMethods:
+  - { code: forks, name: Вилы, hint: "FMR, штабелёры" }
+  - { code: platform, name: Платформа, hint: подъёмный AMR }
+  - { code: tow, name: Буксировка, hint: тягачи }
+  - { code: body, name: Кузов, hint: "грузовики, доставщики" }
+  - { code: manipulator, name: Манипулятор, hint: "коботы, роборуки" }
+  - { code: brushes, name: Щётки, hint: уборка }
+  - { code: none, name: Без груза, hint: "инвентаризация, патрулирование" }
+
+workCategories:
+  - { code: internal_logistics, name: Внутренняя логистика }
+  - { code: fulfillment, name: Фулфилмент }
+  - { code: facility_maintenance, name: Обслуживание объекта }
+  - { code: accounting_control, name: Учёт и контроль }
+  - { code: security, name: Безопасность }
+
+workTypes:
+  - code: OP-01
+    name: Перемещение грузов
+    description: Паллеты, тележки и короба между зонами объекта
+    unitLabel: ед. груза
+    workCategoryCode: internal_logistics
+    typicalCarriers: паллета, тележка, багажная тележка, короб
+    exampleProcesses: Перемещение паллет; Перемещение багажа
+  - code: OP-02
+    name: Комплектация заказов
+    description: Отбор товара по строкам заказа
+    unitLabel: строк
+    workCategoryCode: fulfillment
+    typicalCarriers: мобильный стеллаж, короб
+    exampleProcesses: Комплектация заказов
+  - code: OP-03
+    name: Сортировка
+    description: Распределение отправлений по направлениям
+    unitLabel: отправлений
+    workCategoryCode: fulfillment
+    typicalCarriers: отправление, посылка
+    exampleProcesses: Сортировка грузов
+  - code: OP-04
+    name: Хранение и выдача
+    description: Автоматические склады, шаттлы, стеллажи, подъём на ярус
+    unitLabel: операций
+    workCategoryCode: internal_logistics
+    typicalCarriers: паллета, контейнер
+    exampleProcesses: Подъём паллет на ярус
+  - code: OP-05
+    name: Упаковка и паллетирование
+    description: Упаковочные линии и паллетайзеры
+    unitLabel: заказов
+    workCategoryCode: fulfillment
+    typicalCarriers: заказ, короб
+    exampleProcesses: Упаковка
+  - code: OP-06
+    name: Инвентаризация
+    description: Пересчёт и контроль мест хранения
+    unitLabel: паллетомест
+    workCategoryCode: accounting_control
+    typicalCarriers: паллетоместо
+    exampleProcesses: Инвентаризация
+  - code: OP-07
+    name: Уборка помещений
+    description: Сухая и влажная уборка твёрдых покрытий
+    unitLabel: м²
+    workCategoryCode: facility_maintenance
+    typicalCarriers: твёрдое покрытие
+    exampleProcesses: Уборка помещений; Уборка терминала
+  - code: OP-08
+    name: Адресная доставка
+    description: Доставка по точкам маршрута внутри объекта
+    unitLabel: рейсов
+    workCategoryCode: internal_logistics
+    typicalCarriers: тележка с питанием, контейнер с бельём, контейнер с пробами
+    exampleProcesses: Доставка питания по отделениям; Транспорт белья; Доставка биоматериалов; Доставка бортпитания
+  - code: OP-09
+    name: Охрана и патрулирование
+    description: Обходы по маршруту, видеоаналитика
+    unitLabel: обходов
+    workCategoryCode: security
+    typicalCarriers: маршрут обхода
+    exampleProcesses: Патрулирование и охрана
+  - code: OP-10
+    name: Мониторинг и инспекция
+    description: Осмотр и контроль состояния
+    unitLabel: обходов
+    workCategoryCode: accounting_control
+    typicalCarriers: объект осмотра
+    exampleProcesses: Инспекция оборудования
+
+dataSources:
+  - key: catalog_v4
+    name: Каталог ФЦ БАС · catalog_export_v4
+    sourceType: catalog
+    origin: organizer
+    locatorKind: file
+    fileName: catalog_export_v4.csv
+    dataStatus: confirmed
+    provides: 223 строки · 187 решений · цены с НДС
+    actualizedOn: "2026-08-12"
+    refreshSchedule: manual
+  - key: catalog_pdf
+    name: Каталог внедрения ФЦ БАС · PDF
+    sourceType: cases
+    origin: organizer
+    locatorKind: file
+    fileName: ФЦ БАС — Каталог внедрения 2008 1247.pdf
+    dataStatus: confirmed
+    provides: фото, кейсы, УГТ, значки «Протестировано ФЦ БАС» и «Есть в 719»
+    actualizedOn: "2026-08-12"
+    refreshSchedule: manual
+  - key: examples
+    name: Примеры решений · типы объектов
+    sourceType: specs
+    origin: organizer
+    locatorKind: file
+    fileName: Примеры_решений_типы_объектов.docx
+    dataStatus: confirmed
+    provides: ТТХ 8 моделей-примеров
+    actualizedOn: "2026-09-15"
+    refreshSchedule: manual
+  - key: vendor_sites
+    name: Официальные сайты производителей
+    sourceType: specs
+    origin: open
+    locatorKind: url
+    url: https://ronavi-robotics.ru/catalogue
+    dataStatus: estimate
+    provides: ТТХ демо-роботов, дополненные по аналогам
+    actualizedOn: "2026-09-19"
+    refreshSchedule: monthly
+  - key: datasets
+    name: Демо-датасеты объектов
+    sourceType: dataset
+    origin: organizer
+    locatorKind: file
+    fileName: Датасеты_хакатон.xlsx
+    dataStatus: confirmed
+    provides: склад · аэропорт · медучреждение
+    actualizedOn: "2026-09-15"
+    refreshSchedule: manual
+  - key: startup_items
+    name: Позиции для запуска · оценка команды RAV5
+    sourceType: prices
+    origin: internal
+    dataStatus: estimate
+    provides: 29 позиций инфраструктуры, ПО, внедрения и поддержки
+    actualizedOn: "2026-09-19"
+    refreshSchedule: manual
