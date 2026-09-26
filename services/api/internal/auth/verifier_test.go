@@ -37,7 +37,7 @@ func TestVerifyAcceptsAccessToken(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.Subject != "alice" || p.Email != "alice@example.com" || p.AZP != "rav5-web" || p.IsService {
+	if p.Subject != authtest.SubOf("alice") || p.Email != "alice@example.com" || p.AZP != "rav5-web" || p.IsService {
 		t.Fatalf("principal = %+v", p)
 	}
 	if !p.HasRole(auth.RoleAdmin) || p.HasRole(auth.RoleService) {
@@ -88,6 +88,7 @@ func TestVerifyRejects(t *testing.T) {
 		"ID token":           with("typ", "ID"),
 		"refresh token":      with("typ", "Refresh"),
 		"no sub":             with("sub", nil),
+		"sub not a UUID":     with("sub", "alice"),
 		"no exp":             with("exp", nil),
 		"nbf in 2 minutes":   with("nbf", now+120),
 		"not a JWT":          "garbage",

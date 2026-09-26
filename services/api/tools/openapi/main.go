@@ -320,8 +320,8 @@ func AccessOf(method, path string) Access {
 		return Public
 	case method == http.MethodGet:
 		return Guest
-	case strings.HasPrefix(path, "/api/v1/processes/{id}") && (method == http.MethodPatch || method == http.MethodDelete):
-		return Admin // reference processes are shared by everyone
+	case strings.HasPrefix(path, "/api/v1/processes"):
+		return User // reference processes need admin, own ones their author: checked by the service
 	}
 	for _, prefix := range adminPrefixes {
 		if strings.HasPrefix(path, prefix) {
@@ -353,6 +353,8 @@ func Build() ([]byte, error) {
 			"Доступ — access token Keycloak (realm rav5, aud rav5-api) в заголовке Authorization: Bearer. " +
 			"Чтение открыто гостю; присланный токен обязан быть валидным. Запись — вошедшему пользователю, " +
 			"каталог, классы операций, источники и справочные процессы — роли admin. " +
+			"Локации, задачи, проекты и пользовательские процессы принадлежат автору: пользователь видит свои и " +
+			"демо-данные, гость — только демо; чужие — 404, изменение демо-данных и справочных процессов без admin — 403. " +
 			"401 и 403 — {code, message}; сервисный токен на этих путях — 403.\n" +
 			"PATCH — JSON merge patch: переданные поля заменяются, null очищает, вложенные объекты сливаются; неизвестные поля отклоняются.\n" +
 			"Доли (automationShare, timeShare и т.п.) — от 0 до 1. Деньги — рубли с НДС.")

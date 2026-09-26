@@ -20,7 +20,7 @@ SELECT p.id, p.name, p.location_id, l.name, l.facility_type_code, t.id, t.name, 
        ((SELECT version FROM reference_version WHERE scope = 'catalog') > p.catalog_version),
        l.deleted_at IS NOT NULL,
        p.pinned_solution_id, p.selected_solution_id, ss.name, p.selected_acquisition_model, p.copied_from_id, p.is_demo,
-       r.id, r.created_at, r.total_candidates, r.passed_count, r.verify_count, r.excluded_count,
+       p.owner_id, r.id, r.created_at, r.total_candidates, r.passed_count, r.verify_count, r.excluded_count,
        p.created_at, p.updated_at
 FROM project p
 JOIN location l ON l.id = p.location_id
@@ -41,7 +41,7 @@ func scanProject(r pgx.Row) (domain.Project, error) {
 		&p.Status, &p.HorizonYears, &p.Versions.Catalog, &p.Versions.Dictionaries, &p.Versions.Model, &p.SnapshotTakenAt,
 		&p.DataChanged, &p.CatalogUpdated, &p.LocationDeleted,
 		&p.PinnedSolutionID, &selID, &selName, &selModel, &p.CopiedFromID, &p.IsDemo,
-		&runID, &runAt, &total, &passed, &verify, &excluded, &p.CreatedAt, &p.UpdatedAt)
+		&p.OwnerID, &runID, &runAt, &total, &passed, &verify, &excluded, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		return p, err
 	}
@@ -97,6 +97,8 @@ type ProjectRecord struct {
 	SelectedModel      *string
 	CopiedFromID       *uuid.UUID
 	IsDemo             bool
+	// OwnerID is the Keycloak sub of the author; nil for demo projects. Set on insert only.
+	OwnerID *uuid.UUID
 }
 
 // SaveProject inserts or updates a project.
@@ -108,8 +110,8 @@ func (q Q) SaveProject(ctx context.Context, r ProjectRecord) error {
 	_, err = q.db.Exec(ctx, `
 INSERT INTO project (id, name, location_id, task_id, status, horizon_years, catalog_version, dictionaries_version,
                      model_version, snapshot, snapshot_taken_at, pinned_solution_id, selected_solution_id,
-                     selected_acquisition_model, copied_from_id, is_demo)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+                     selected_acquisition_model, copied_from_id, is_demo, owner_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, status = EXCLUDED.status, horizon_years = EXCLUDED.horizon_years,
   catalog_version = EXCLUDED.catalog_version, dictionaries_version = EXCLUDED.dictionaries_version,
   model_version = EXCLUDED.model_version, snapshot = EXCLUDED.snapshot, snapshot_taken_at = EXCLUDED.snapshot_taken_at,
@@ -117,7 +119,7 @@ ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, status = EXCLUDED.status, h
   selected_acquisition_model = EXCLUDED.selected_acquisition_model, updated_at = now()`,
 		r.ID, r.Name, r.LocationID, r.TaskID, r.Status, r.HorizonYears, r.Versions.Catalog, r.Versions.Dictionaries,
 		r.Versions.Model, snap, r.SnapshotTakenAt, r.PinnedSolutionID, r.SelectedSolutionID, r.SelectedModel,
-		r.CopiedFromID, r.IsDemo)
+		r.CopiedFromID, r.IsDemo, r.OwnerID)
 	return err
 }
 
@@ -127,10 +129,11 @@ func (q Q) ProjectRecordOf(ctx context.Context, id uuid.UUID) (ProjectRecord, er
 	var snap []byte
 	err := q.db.QueryRow(ctx, `
 SELECT id, name, location_id, task_id, status, horizon_years, catalog_version, dictionaries_version, model_version,
-       snapshot, snapshot_taken_at, pinned_solution_id, selected_solution_id, selected_acquisition_model, copied_from_id, is_demo
+       snapshot, snapshot_taken_at, pinned_solution_id, selected_solution_id, selected_acquisition_model, copied_from_id, is_demo,
+       owner_id
 FROM project WHERE id = $1 AND deleted_at IS NULL`, id).Scan(&r.ID, &r.Name, &r.LocationID, &r.TaskID, &r.Status,
 		&r.HorizonYears, &r.Versions.Catalog, &r.Versions.Dictionaries, &r.Versions.Model, &snap, &r.SnapshotTakenAt,
-		&r.PinnedSolutionID, &r.SelectedSolutionID, &r.SelectedModel, &r.CopiedFromID, &r.IsDemo)
+		&r.PinnedSolutionID, &r.SelectedSolutionID, &r.SelectedModel, &r.CopiedFromID, &r.IsDemo, &r.OwnerID)
 	if err != nil {
 		return r, notFound(err, "project", id)
 	}

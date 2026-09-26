@@ -21,15 +21,17 @@ type Formula struct {
 
 // Process is a reference work template with exactly one operation class.
 type Process struct {
-	ID                     uuid.UUID       `json:"id"`
-	Code                   string          `json:"code"`
-	Name                   string          `json:"name"`
-	Description            *string         `json:"description"`
-	WorkType               WorkTypeRef     `json:"workType"`
-	WorkCategoryCode       *string         `json:"workCategoryCode"`
-	KpiUnit                *string         `json:"kpiUnit"`
-	IsCustom               bool            `json:"isCustom"`
-	CreatedFromLocationID  *uuid.UUID      `json:"createdFromLocationId"`
+	ID                    uuid.UUID   `json:"id"`
+	Code                  string      `json:"code"`
+	Name                  string      `json:"name"`
+	Description           *string     `json:"description"`
+	WorkType              WorkTypeRef `json:"workType"`
+	WorkCategoryCode      *string     `json:"workCategoryCode"`
+	KpiUnit               *string     `json:"kpiUnit"`
+	IsCustom              bool        `json:"isCustom"`
+	CreatedFromLocationID *uuid.UUID  `json:"createdFromLocationId"`
+	// OwnerID is the author of a user process; nil for a reference process. Not exposed.
+	OwnerID                *uuid.UUID      `json:"-"`
 	DefaultWorkerRole      *string         `json:"defaultWorkerRole"`
 	DefaultWorkerTimeShare *float64        `json:"defaultWorkerTimeShare"`
 	FacilityTypes          []string        `json:"facilityTypes"`

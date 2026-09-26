@@ -96,6 +96,7 @@ type reference struct {
 
 // Load applies the demo data.
 func Load(ctx context.Context, st *store.Store, log *slog.Logger) error {
+	ctx = service.AsSystem(ctx) // demo data has no owner and is read only for users
 	started := time.Now()
 	var ref reference
 	if err := readYAML("reference.yaml", &ref); err != nil {

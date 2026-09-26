@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/google/uuid"
 )
 
 // Leeway tolerates clock skew between Keycloak and the service.
@@ -75,6 +76,10 @@ func (v *Verifier) Verify(ctx context.Context, raw string) (Principal, error) {
 	// ID and refresh tokens are signed with the same key but are not access tokens.
 	if tok.Subject == "" || c.Typ != "Bearer" {
 		return Principal{}, ErrInvalidToken
+	}
+	// Keycloak subs are UUIDs; data ownership is stored by them.
+	if _, err := uuid.Parse(tok.Subject); err != nil {
+		return Principal{}, errors.Join(ErrInvalidToken, errors.New("sub is not a UUID"))
 	}
 	// go-oidc allows nbf 5 minutes ahead; the rule is the same 30 s as for exp.
 	if c.NotBefore != nil && time.Unix(int64(*c.NotBefore), 0).After(v.now().Add(Leeway)) {

@@ -77,9 +77,11 @@ type Project struct {
 	Selection        *Selection     `json:"selection"`
 	CopiedFromID     *uuid.UUID     `json:"copiedFromId"`
 	IsDemo           bool           `json:"isDemo"`
-	LatestRun        *RunInfo       `json:"latestRun"`
-	CreatedAt        time.Time      `json:"createdAt"`
-	UpdatedAt        time.Time      `json:"updatedAt"`
+	// OwnerID is the Keycloak sub of the author; nil for demo projects. Not exposed.
+	OwnerID   *uuid.UUID `json:"-"`
+	LatestRun *RunInfo   `json:"latestRun"`
+	CreatedAt time.Time  `json:"createdAt"`
+	UpdatedAt time.Time  `json:"updatedAt"`
 }
 
 // ManualCandidate is a solution added to the comparison by hand (ТЗ 3.4.4).

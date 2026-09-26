@@ -78,7 +78,7 @@ func allSameLocation(list []domain.Task) bool {
 
 // ListLocationTasks returns the tasks of a location.
 func (s *Service) ListLocationTasks(ctx context.Context, locationID uuid.UUID) ([]domain.Task, error) {
-	if _, err := s.st.Q().GetLocation(ctx, locationID); err != nil {
+	if _, err := s.visibleLocation(ctx, s.st.Q(), locationID, false); err != nil {
 		return nil, err
 	}
 	return s.tasks(ctx, store.TaskFilter{LocationID: &locationID})
@@ -86,7 +86,7 @@ func (s *Service) ListLocationTasks(ctx context.Context, locationID uuid.UUID) (
 
 // GetTask returns a task with derived values.
 func (s *Service) GetTask(ctx context.Context, id uuid.UUID) (domain.Task, error) {
-	t, err := s.st.Q().GetTask(ctx, id)
+	t, err := s.visibleTask(ctx, s.st.Q(), id, false)
 	if err != nil {
 		return t, err
 	}
@@ -95,6 +95,15 @@ func (s *Service) GetTask(ctx context.Context, id uuid.UUID) (domain.Task, error
 		return t, err
 	}
 	return list[0], nil
+}
+
+// visibleTask loads a task whose location the caller may read, or change when write is set.
+func (s *Service) visibleTask(ctx context.Context, q store.Q, id uuid.UUID, write bool) (domain.Task, error) {
+	t, err := q.GetTask(ctx, id)
+	if err != nil {
+		return t, err
+	}
+	return t, accessOf(ctx).task(t, write)
 }
 
 // WorkerInput assigns a location staff group to a task.
@@ -266,7 +275,10 @@ func (s *Service) CreateTask(ctx context.Context, locationID uuid.UUID, body []b
 	}
 	var t domain.Task
 	err := s.st.Tx(ctx, func(q store.Q) error {
-		p, err := q.GetProcess(ctx, *in.ProcessID)
+		if _, err := s.visibleLocation(ctx, q, locationID, true); err != nil {
+			return err
+		}
+		p, err := s.visibleProcess(ctx, q, *in.ProcessID, false)
 		if err != nil {
 			var nf *domain.NotFoundError
 			if errors.As(err, &nf) {
@@ -354,7 +366,7 @@ func (s *Service) PatchTask(ctx context.Context, id uuid.UUID, body []byte) (dom
 	}
 	var v domain.Validator
 	err := s.st.Tx(ctx, func(q store.Q) error {
-		t, err := q.GetTask(ctx, id)
+		t, err := s.visibleTask(ctx, q, id, true)
 		if err != nil {
 			return err
 		}
@@ -428,7 +440,7 @@ func (s *Service) PatchTask(ctx context.Context, id uuid.UUID, body []byte) (dom
 // DeleteTask removes a task from its location; a task used by projects is archived instead.
 func (s *Service) DeleteTask(ctx context.Context, id uuid.UUID) (archived bool, err error) {
 	err = s.st.Tx(ctx, func(q store.Q) error {
-		t, err := q.GetTask(ctx, id)
+		t, err := s.visibleTask(ctx, q, id, true)
 		if err != nil {
 			return err
 		}

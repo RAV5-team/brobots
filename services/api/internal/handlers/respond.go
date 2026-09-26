@@ -44,6 +44,7 @@ func (a *API) fail(w http.ResponseWriter, r *http.Request, err error) {
 	var ve *domain.ValidationError
 	var nf *domain.NotFoundError
 	var ce *domain.ConflictError
+	var fe *domain.ForbiddenError
 	switch {
 	case errors.As(err, &ve):
 		writeProblem(w, Problem{Type: "https://rav5.local/problems/validation", Title: "Ошибка в данных", Status: http.StatusUnprocessableEntity,
@@ -51,6 +52,9 @@ func (a *API) fail(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.As(err, &nf):
 		writeProblem(w, Problem{Type: "https://rav5.local/problems/not-found", Title: "Не найдено", Status: http.StatusNotFound,
 			Detail: notFoundText(nf), Code: "not_found"})
+	case errors.As(err, &fe):
+		writeProblem(w, Problem{Type: "https://rav5.local/problems/forbidden", Title: "Нет прав на изменение", Status: http.StatusForbidden,
+			Detail: fe.Message, Code: fe.Code})
 	case errors.As(err, &ce):
 		writeProblem(w, Problem{Type: "https://rav5.local/problems/conflict", Title: "Конфликт", Status: http.StatusConflict,
 			Detail: ce.Message, Code: ce.Code})

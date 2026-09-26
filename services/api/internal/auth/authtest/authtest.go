@@ -15,6 +15,7 @@ import (
 
 	"github.com/brobots/api/internal/auth"
 	"github.com/go-jose/go-jose/v4"
+	"github.com/google/uuid"
 )
 
 // Defaults of the issued tokens: the local realm and the api audience.
@@ -71,12 +72,17 @@ func (i *Issuer) Middleware(t testing.TB) *auth.Middleware {
 	return auth.NewMiddleware(auth.NewVerifier(IssuerURL, Audience, i.KeySet(t)))
 }
 
-// Claims of a valid user access token for Audience; override or delete keys as needed.
-func Claims(sub string, roles ...string) map[string]any {
+// SubOf is the stable Keycloak-like sub (a UUID) of a test user name.
+func SubOf(name string) string {
+	return uuid.NewSHA1(uuid.NameSpaceOID, []byte("rav5-test:"+name)).String()
+}
+
+// Claims of a valid access token of the user name for Audience; override or delete keys as needed.
+func Claims(name string, roles ...string) map[string]any {
 	now := time.Now().Unix()
 	return map[string]any{
-		"iss": IssuerURL, "aud": []string{Audience, "account"}, "sub": sub, "typ": "Bearer",
-		"azp": "rav5-web", "iat": now, "exp": now + 300, "email": sub + "@example.com",
+		"iss": IssuerURL, "aud": []string{Audience, "account"}, "sub": SubOf(name), "typ": "Bearer",
+		"azp": "rav5-web", "iat": now, "exp": now + 300, "email": name + "@example.com",
 		"realm_access": map[string]any{"roles": roles},
 	}
 }
@@ -110,10 +116,10 @@ func (i *Issuer) SignWith(t testing.TB, key *rsa.PrivateKey, kid string, claims 
 	return raw
 }
 
-// User returns a valid user token with the roles.
-func (i *Issuer) User(t testing.TB, sub string, roles ...string) string {
+// User returns a valid token of the user name with the roles; its sub is SubOf(name).
+func (i *Issuer) User(t testing.TB, name string, roles ...string) string {
 	t.Helper()
-	return i.Sign(t, Claims(sub, roles...))
+	return i.Sign(t, Claims(name, roles...))
 }
 
 // Service returns a valid client-credentials token of rav5-api-internal that has Audience.

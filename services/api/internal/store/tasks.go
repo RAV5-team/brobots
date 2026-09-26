@@ -9,7 +9,7 @@ import (
 )
 
 var taskSelect = `
-SELECT t.id, t.location_id, l.name, l.facility_type_code, t.process_id, p.name, p.kpi_unit,
+SELECT t.id, t.location_id, l.name, l.facility_type_code, l.owner_id, l.is_demo, t.process_id, p.name, p.kpi_unit,
        w.id, w.code, w.name, w.unit_label, t.name, t.created_at, t.updated_at, t.archived_at,
        ` + prefixed("t.", domain.TaskParamColumns()) + `
 FROM task t
@@ -19,7 +19,8 @@ JOIN work_type w ON w.id = t.work_type_id`
 
 func scanTask(r pgx.Row) (domain.Task, error) {
 	var t domain.Task
-	targets := []any{&t.ID, &t.LocationID, &t.LocationName, &t.FacilityTypeCode, &t.ProcessID, &t.ProcessName, &t.KpiUnit,
+	targets := []any{&t.ID, &t.LocationID, &t.LocationName, &t.FacilityTypeCode, &t.LocationOwnerID, &t.LocationIsDemo,
+		&t.ProcessID, &t.ProcessName, &t.KpiUnit,
 		&t.WorkType.ID, &t.WorkType.Code, &t.WorkType.Name, &t.WorkType.UnitLabel, &t.Name, &t.CreatedAt, &t.UpdatedAt,
 		&t.ArchivedAt}
 	targets = append(targets, t.Params.Targets()...)
@@ -135,7 +136,9 @@ func (q Q) SaveTask(ctx context.Context, t domain.Task) error {
 		update = append(update, c+" = EXCLUDED."+c)
 	}
 	update = append(update, "name = EXCLUDED.name")
-	sql := `INSERT INTO task (` + joinCols(cols) + `) VALUES (` + placeholders(1, len(cols)) + `)
+	// A task belongs to its location: the owner is copied from it on insert.
+	sql := `INSERT INTO task (` + joinCols(cols) + `, owner_id) VALUES (` + placeholders(1, len(cols)) + `,
+		(SELECT owner_id FROM location WHERE id = $2))
 		ON CONFLICT (id) DO UPDATE SET ` + joinCols(update) + `, updated_at = now()`
 	if _, err := q.db.Exec(ctx, sql, args...); err != nil {
 		return err

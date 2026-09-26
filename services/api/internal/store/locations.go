@@ -55,14 +55,15 @@ ON CONFLICT (code) DO UPDATE SET facility_type_code = EXCLUDED.facility_type_cod
 
 const locationSelect = `
 SELECT id, name, facility_type_code, city, address, capex_budget_amount, capex_budget_currency,
-       capex_budget_source_unit, capex_budget_source, horizon_years, is_demo, is_draft, updated_by, created_at, updated_at
+       capex_budget_source_unit, capex_budget_source, horizon_years, is_demo, is_draft, updated_by, owner_id,
+       created_at, updated_at
 FROM location`
 
 func scanLocation(r pgx.Row) (domain.Location, error) {
 	var l domain.Location
 	err := r.Scan(&l.ID, &l.Name, &l.FacilityTypeCode, &l.City, &l.Address, &l.CapexBudget.Amount,
 		&l.CapexBudget.Currency, &l.CapexBudget.SourceUnit, &l.CapexBudget.Source, &l.HorizonYears, &l.IsDemo,
-		&l.IsDraft, &l.UpdatedBy, &l.CreatedAt, &l.UpdatedAt)
+		&l.IsDraft, &l.UpdatedBy, &l.OwnerID, &l.CreatedAt, &l.UpdatedAt)
 	l.StaffGroups = []domain.StaffGroup{}
 	return l, err
 }
@@ -120,15 +121,16 @@ func (q Q) SaveLocation(ctx context.Context, l domain.Location) error {
 	}
 	_, err := q.db.Exec(ctx, `
 INSERT INTO location (id, name, facility_type_code, city, address, capex_budget_amount, capex_budget_currency,
-                      capex_budget_source_unit, capex_budget_source, horizon_years, is_demo, is_draft, updated_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                      capex_budget_source_unit, capex_budget_source, horizon_years, is_demo, is_draft, updated_by,
+                      owner_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, facility_type_code = EXCLUDED.facility_type_code,
   city = EXCLUDED.city, address = EXCLUDED.address, capex_budget_amount = EXCLUDED.capex_budget_amount,
   capex_budget_currency = EXCLUDED.capex_budget_currency, capex_budget_source_unit = EXCLUDED.capex_budget_source_unit,
   capex_budget_source = EXCLUDED.capex_budget_source, horizon_years = EXCLUDED.horizon_years, is_demo = EXCLUDED.is_demo,
   is_draft = EXCLUDED.is_draft, updated_by = EXCLUDED.updated_by, updated_at = now()`,
 		l.ID, l.Name, l.FacilityTypeCode, l.City, l.Address, l.CapexBudget.Amount, currency, l.CapexBudget.SourceUnit,
-		l.CapexBudget.Source, l.HorizonYears, l.IsDemo, l.IsDraft, l.UpdatedBy)
+		l.CapexBudget.Source, l.HorizonYears, l.IsDemo, l.IsDraft, l.UpdatedBy, l.OwnerID) // owner is set on insert only
 	return err
 }
 

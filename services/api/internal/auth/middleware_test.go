@@ -19,6 +19,13 @@ var echo = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(sub))
 })
 
+// sub of the test users by name.
+var (
+	alice = authtest.SubOf("alice")
+	bob   = authtest.SubOf("bob")
+	root  = authtest.SubOf("root")
+)
+
 func serve(h http.Handler, header string) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	if header != "" {
@@ -48,18 +55,18 @@ func TestMiddlewareAccess(t *testing.T) {
 		body   string
 	}{
 		{"guest route without token", guest, "", 200, "guest"},
-		{"guest route with user", guest, user, 200, "alice"},
+		{"guest route with user", guest, user, 200, alice},
 		{"guest route with invalid token", guest, "Bearer garbage", 401, ""},
 		{"guest route with Basic auth", guest, "Basic YTpi", 401, ""},
 		{"guest route with empty Bearer", guest, "Bearer ", 401, ""},
 		{"guest route with service token", guest, service, 403, ""},
-		{"lowercase scheme", guest, "bearer " + iss.User(t, "bob", auth.RoleUser), 200, "bob"},
+		{"lowercase scheme", guest, "bearer " + iss.User(t, "bob", auth.RoleUser), 200, bob},
 		{"user route without token", onlyUser, "", 401, ""},
-		{"user route with user", onlyUser, user, 200, "alice"},
+		{"user route with user", onlyUser, user, 200, alice},
 		{"user route with service token", onlyUser, service, 403, ""},
 		{"admin route without token", onlyAdmin, "", 401, ""},
 		{"admin route with user", onlyAdmin, user, 403, ""},
-		{"admin route with admin", onlyAdmin, admin, 200, "root"},
+		{"admin route with admin", onlyAdmin, admin, 200, root},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -109,7 +116,7 @@ func TestTrackerSeesAuthenticatedSubject(t *testing.T) {
 	mw := iss.Middleware(t)
 	for header, want := range map[string]string{
 		"":                               "",
-		"Bearer " + iss.User(t, "alice"): "alice",
+		"Bearer " + iss.User(t, "alice"): alice,
 		"Bearer garbage":                 "",
 	} {
 		req := httptest.NewRequest(http.MethodGet, "/", nil)

@@ -11,6 +11,7 @@ import (
 	"github.com/brobots/api/internal/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/google/uuid"
 	"github.com/swaggest/swgui/v5emb"
 )
 
@@ -33,7 +34,8 @@ type Options struct {
 // NewRouter builds the HTTP router.
 //
 // Access on /api/v1 (docs/keycloak/middleware.md): reads are open to guests, writes need a
-// signed-in user, catalog and reference data changes need the admin role. A token that is sent
+// signed-in user, catalog changes need the admin role. Which records a caller sees and changes
+// (own, demo, reference) is decided by the service, see service/access.go. A token that is sent
 // must be valid even on guest routes.
 func NewRouter(svc *service.Service, log *slog.Logger, opts Options) http.Handler {
 	if opts.Auth == nil {
@@ -68,7 +70,7 @@ func NewRouter(svc *service.Service, log *slog.Logger, opts Options) http.Handle
 	}
 
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Use(opts.Auth.Authenticate)
+		r.Use(opts.Auth.Authenticate, withActor)
 		r.Get("/dictionaries", a.dictionaries)
 		r.Get("/versions", a.versions)
 		r.Get("/dashboard/summary", a.dashboard)
@@ -104,8 +106,9 @@ func NewRouter(svc *service.Service, log *slog.Logger, opts Options) http.Handle
 			r.Get("/", a.listProcesses)
 			r.With(user).Post("/", a.createProcess)
 			r.Get("/{id}", a.getProcess)
-			r.With(admin).Patch("/{id}", a.patchProcess)
-			r.With(admin).Delete("/{id}", a.hideProcess)
+			// Reference processes need admin, own processes their author: the service decides.
+			r.With(user).Patch("/{id}", a.patchProcess)
+			r.With(user).Delete("/{id}", a.hideProcess)
 			r.Get("/{id}/robots", a.processRobots)
 			r.With(user).Post("/{id}/duplicate", a.duplicateProcess)
 		})
@@ -153,6 +156,24 @@ func NewRouter(svc *service.Service, log *slog.Logger, opts Options) http.Handle
 		r.Get("/matching-runs/{id}", a.getRun)
 	})
 	return r
+}
+
+// withActor passes the signed-in user to the service, which checks data ownership.
+func withActor(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p, ok := auth.FromContext(r.Context())
+		if !ok {
+			next.ServeHTTP(w, r)
+			return
+		}
+		id, err := uuid.Parse(p.Subject) // the verifier accepts UUID subs only
+		if err != nil {
+			http.Error(w, "invalid subject", http.StatusUnauthorized)
+			return
+		}
+		ctx := service.WithActor(r.Context(), service.Actor{UserID: id, Admin: p.HasRole(auth.RoleAdmin)})
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
 
 func (a *API) logRequests(next http.Handler) http.Handler {
