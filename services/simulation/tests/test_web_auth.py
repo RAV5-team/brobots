@@ -10,6 +10,7 @@ import fakes
 from fastapi import testclient
 import pytest
 
+from adapters import json_codec
 from adapters.web import auth
 from adapters.web import server
 from application import models
@@ -17,9 +18,11 @@ from application import preview
 from application import submit
 
 USER = "user-token"
+OTHER_USER = "other-user-token"
 SERVICE = "service-token"
 FOREIGN_SERVICE = "foreign-service-token"
 _ID = "0" * 32
+_MISSING = "e" * 32
 
 
 @pytest.fixture(name="verifier")
@@ -27,6 +30,7 @@ def _verifier_fixture() -> fakes.FakeTokenVerifier:
     return fakes.FakeTokenVerifier(
         {
             USER: fakes.principal("alice", "user"),
+            OTHER_USER: fakes.principal("bob", "user"),
             SERVICE: fakes.principal("svc", "service", azp="rav5-api-internal"),
             FOREIGN_SERVICE: fakes.principal("other", "service", azp="other"),
         }
@@ -197,3 +201,94 @@ def test_principal_roles():
 
     assert admin.has_role("admin")
     assert not admin.is_service
+
+
+# --- владение ---------------------------------------------------------------
+@pytest.fixture(name="owned")
+def _owned_fixture(verifier):
+    """Клиент и хранилище: доступ к заданиям и прогонам по владельцу."""
+    services = _services(verifier)
+    return testclient.TestClient(server.create_app(services)), services.reader
+
+
+def _start(client, headers: dict | None = None) -> str:
+    body = dict(conftest.request_body(), scenarios=[conftest.scenario()])
+    resp = client.post("/api/simulations", json=body, headers=headers)
+    assert resp.status_code == 202
+    return resp.json()["job_id"]
+
+
+def _finish(store: fakes.FakeJobStore, job_id: str) -> str:
+    """Завершает задание одним прогоном; номер прогона."""
+    job = store.claim_next_job("w")
+    sim_id = "f" * 32
+    traces_gz, raw = json_codec.pack_traces([{"name": "Из подбора"}])
+    run = models.FinishedRun(
+        sim_id,
+        0,
+        {"simulation_id": sim_id},
+        models.PackedTraces(traces_gz, raw),
+    )
+    assert store.finish_job(job_id, job.lease, [run])
+    return sim_id
+
+
+def _paths(job_id: str, sim_id: str) -> list[str]:
+    return [
+        f"/api/simulations/jobs/{job_id}",
+        f"/api/simulations/{sim_id}",
+        f"/api/simulations/{sim_id}/traces",
+    ]
+
+
+@pytest.mark.parametrize(
+    "headers, status",
+    [(_bearer(USER), 200), (_bearer(OTHER_USER), 404), ({}, 404)],
+    ids=["owner", "other user", "guest"],
+)
+def test_users_job_and_runs_are_visible_only_to_the_owner(
+    owned, headers, status
+):
+    client, store = owned
+    job_id = _start(client, _bearer(USER))
+    sim_id = _finish(store, job_id)
+
+    for path in _paths(job_id, sim_id):
+        resp = client.get(path, headers=headers)
+        assert resp.status_code == status, path
+
+
+def test_foreign_job_is_indistinguishable_from_a_missing_one(owned):
+    client, _ = owned
+    job_id = _start(client, _bearer(USER))
+
+    foreign = client.get(
+        f"/api/simulations/jobs/{job_id}", headers=_bearer(OTHER_USER)
+    )
+    missing = client.get(
+        f"/api/simulations/jobs/{_MISSING}", headers=_bearer(OTHER_USER)
+    )
+
+    assert (foreign.status_code, foreign.json()) == (
+        missing.status_code,
+        missing.json(),
+    )
+
+
+@pytest.mark.parametrize("headers", [_bearer(USER), {}], ids=["user", "guest"])
+def test_guest_job_is_open_by_link(owned, headers):
+    client, store = owned
+    job_id = _start(client)
+    sim_id = _finish(store, job_id)
+
+    for path in _paths(job_id, sim_id):
+        resp = client.get(path, headers=headers)
+        assert resp.status_code == 200, path
+
+
+def test_token_is_verified_once_per_request(owned, verifier):
+    client, _ = owned
+
+    client.get(f"/api/simulations/jobs/{_ID}", headers=_bearer(USER))
+
+    assert verifier.calls == 1

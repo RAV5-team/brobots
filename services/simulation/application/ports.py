@@ -2,6 +2,12 @@
 
 Реализации — в adapters; сценарии знают только эти протоколы. Методы
 хранилища при потере соединения бросают errors.StorageUnavailableError.
+
+Владение (docs/keycloak/middleware.md): у задания пользователя владелец — его
+sub, у задания гостя владельца нет. Чтение идёт от имени viewer — sub
+вызывающего или None для гостя: задание с владельцем видит только он,
+задание без владельца — любой, кто знает номер. Чужое неотличимо от
+несуществующего (None).
 """
 
 from __future__ import annotations
@@ -21,8 +27,10 @@ class JobSubmission(Protocol):
         request: Mapping[str, Any],
         scenarios: Sequence[Mapping[str, Any]],
         simulation_version: str,
+        *,
+        owner_sub: str | None = None,
     ) -> None:
-        """Ставит задание в очередь (статус queued)."""
+        """Ставит задание в очередь (статус queued); owner_sub — владелец."""
 
 
 class JobQueue(Protocol):
@@ -77,14 +85,20 @@ class JobQueue(Protocol):
 class ResultReader(Protocol):
     """Чтение заданий и прогонов для клиента."""
 
-    def get_job(self, job_id: str) -> models.JobSnapshot | None:
-        """Задание; None — нет или помечено удалённым."""
+    def get_job(
+        self, job_id: str, *, viewer: str | None = None
+    ) -> models.JobSnapshot | None:
+        """Задание; None — нет, помечено удалённым или чужое."""
 
-    def get_run(self, simulation_id: str) -> Mapping[str, Any] | None:
-        """SimulationRun; None — нет или скрыт мягким удалением."""
+    def get_run(
+        self, simulation_id: str, *, viewer: str | None = None
+    ) -> Mapping[str, Any] | None:
+        """SimulationRun; None — нет, скрыт мягким удалением или чужой."""
 
-    def get_traces_gz(self, simulation_id: str) -> bytes | None:
-        """2D-трассы прогона в gzip; None — нет или скрыты."""
+    def get_traces_gz(
+        self, simulation_id: str, *, viewer: str | None = None
+    ) -> bytes | None:
+        """2D-трассы прогона в gzip; None — нет, скрыты или чужие."""
 
 
 class StorageHealth(Protocol):

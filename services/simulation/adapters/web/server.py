@@ -28,7 +28,8 @@
 Доступ (adapters.web.auth, docs/keycloak/middleware.md): экран и /api/health
 открыты всем; остальное — гостю или пользователю с access token Keycloak
 (aud rav5-sim). Присланный токен обязан быть валидным, сервисный токен здесь —
-403.
+403. Задание пользователя и его прогоны видит только он (чужое — 404, как
+несуществующее); задание гостя открыто любому, кто знает номер.
 
 Контракт ведётся вручную в adapters.web.openapi: автоматическая схема FastAPI
 отключена, чтобы docs/openapi.json оставался единственным описанием API.
@@ -61,6 +62,7 @@ from adapters.web import openapi
 from adapters.web import presenters
 from adapters.web import request_schema
 from application import errors
+from application import models
 from application import ports
 from simcore import inputs
 from simcore import version
@@ -84,7 +86,8 @@ class Services:
     """Сценарии и порты, которые обслуживает HTTP API.
 
     Attributes:
-        submit: Ставит проверку в очередь, возвращает номер задания.
+        submit: Ставит проверку в очередь от имени владельца (sub или None
+            для гостя), возвращает номер задания.
         preview: Потребность по часам без имитации.
         reader: Чтение заданий и прогонов.
         health: Готовность хранилища.
@@ -93,7 +96,7 @@ class Services:
             пути (INTERNAL_CALLER_AZP).
     """
 
-    submit: Callable[[Mapping[str, Any]], str]
+    submit: Callable[[Mapping[str, Any], str | None], str]
     preview: Callable[[Mapping[str, Any]], dict]
     reader: ports.ResultReader
     health: ports.StorageHealth
@@ -236,6 +239,11 @@ def _meta() -> dict:
     }
 
 
+def _viewer(caller: models.Principal | None) -> str | None:
+    """От чьего имени читать: sub пользователя или None для гостя."""
+    return caller.sub if caller else None
+
+
 def _require_id(value: str, message: str) -> None:
     if not _ID.match(value):
         raise ApiError(404, message)
@@ -289,10 +297,12 @@ def _add_simulations(app: fastapi.APIRouter) -> None:
             raise ApiError(422, str(e), e.errors) from e
 
     @app.post("/api/simulations")
-    def start(services: Deps, data: Body) -> JsonResponse:
+    def start(
+        services: Deps, data: Body, caller: auth.OptionalUser
+    ) -> JsonResponse:
         """Проверяет вход и ставит задание в очередь; ответ 202 с job_id."""
         try:
-            job_id = services.submit(data)
+            job_id = services.submit(data, _viewer(caller))
         except errors.InvalidSubmissionError as e:
             raise ApiError(422, str(e), e.errors) from e
         return JsonResponse(
@@ -309,30 +319,39 @@ def _add_simulations(app: fastapi.APIRouter) -> None:
         raise ApiError(404, "Задание не найдено.")
 
     @app.get("/api/simulations/jobs/{job_id}")
-    def get_job(services: Deps, job_id: str) -> JsonResponse:
+    def get_job(
+        services: Deps, job_id: str, caller: auth.OptionalUser
+    ) -> JsonResponse:
         """Ход задания и, когда готово, его прогоны."""
         _require_id(job_id, "Задание не найдено.")
-        job = services.reader.get_job(job_id)
+        job = services.reader.get_job(job_id, viewer=_viewer(caller))
         if job is None:
             raise ApiError(404, "Задание не найдено.")
         return JsonResponse(presenters.job_body(job))
 
     @app.get("/api/simulations/{simulation_id}")
-    def get_run(services: Deps, simulation_id: str) -> JsonResponse:
+    def get_run(
+        services: Deps, simulation_id: str, caller: auth.OptionalUser
+    ) -> JsonResponse:
         """Прогон целиком."""
         _require_id(simulation_id, "not found")
-        run = services.reader.get_run(simulation_id)
+        run = services.reader.get_run(simulation_id, viewer=_viewer(caller))
         if run is None:
             raise ApiError(404, "Прогон не найден.")
         return JsonResponse(run)
 
     @app.get("/api/simulations/{simulation_id}/traces")
     def get_traces(
-        services: Deps, simulation_id: str, request: fastapi.Request
+        services: Deps,
+        simulation_id: str,
+        request: fastapi.Request,
+        caller: auth.OptionalUser,
     ) -> responses.Response:
         """2D-трассы прогона: gzip, если клиент его принимает."""
         _require_id(simulation_id, "not found")
-        traces_gz = services.reader.get_traces_gz(simulation_id)
+        traces_gz = services.reader.get_traces_gz(
+            simulation_id, viewer=_viewer(caller)
+        )
         if traces_gz is None:
             raise ApiError(404, "Прогон не найден.")
         headers = {"Vary": "Accept-Encoding"}

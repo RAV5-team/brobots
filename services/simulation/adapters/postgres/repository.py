@@ -26,7 +26,10 @@ from application import errors
 from application import models
 
 # Ревизия Alembic, под которую написан этот код.
-EXPECTED_REVISION = "0001"
+EXPECTED_REVISION = "0002"
+# Задание видно viewer: без владельца — всем, с владельцем — только ему.
+# viewer = NULL (гость) даёт NULL в сравнении, то есть «не видно».
+_VISIBLE = "(j.owner_sub IS NULL OR j.owner_sub = %(viewer)s)"
 
 _INTERRUPTED = "Задание прервано: сервис перезапускался во время расчёта."
 _REQUEUED = "Воркер перестал отвечать — задание возвращено в очередь."
@@ -89,18 +92,21 @@ class PostgresJobRepository:
         request: Mapping[str, Any],
         scenarios: Sequence[Mapping[str, Any]],
         simulation_version: str,
+        *,
+        owner_sub: str | None = None,
     ) -> None:
-        """Ставит задание в очередь (статус queued)."""
+        """Ставит задание в очередь (статус queued); owner_sub — владелец."""
         with _connection(self._pool) as conn:
             conn.execute(
                 "INSERT INTO jobs"
-                " (job_id, simulation_version, request, scenarios)"
-                " VALUES (%s, %s, %s, %s)",
+                " (job_id, simulation_version, request, scenarios, owner_sub)"
+                " VALUES (%s, %s, %s, %s, %s)",
                 (
                     job_id,
                     simulation_version,
                     pg_json.Jsonb(dict(request)),
                     pg_json.Jsonb(list(scenarios)),
+                    owner_sub,
                 ),
             )
 
@@ -311,21 +317,25 @@ class PostgresJobRepository:
             )
             return cur.rowcount
 
-    def get_job(self, job_id: str) -> models.JobSnapshot | None:
-        """Задание; None — нет или помечено удалённым.
+    def get_job(
+        self, job_id: str, *, viewer: str | None = None
+    ) -> models.JobSnapshot | None:
+        """Задание; None — нет, помечено удалённым или чужое.
 
         elapsed_s считается по часам базы: от создания до завершения или до
         текущего момента.
         """
         with _connection(self._pool) as conn:
             row = conn.execute(
-                """
+                f"""
                 SELECT job_id, status, log, workers, error, errors,
                        extract(epoch FROM coalesce(finished_at, now())
                                           - created_at)::float8
-                  FROM jobs WHERE job_id = %s AND deleted_at IS NULL
+                  FROM jobs j
+                 WHERE job_id = %(job_id)s AND deleted_at IS NULL
+                   AND {_VISIBLE}
                 """,
-                (job_id,),
+                {"job_id": job_id, "viewer": viewer},
             ).fetchone()
             if row is None:
                 return None
@@ -349,30 +359,37 @@ class PostgresJobRepository:
             runs=tuple(r[1] for r in runs),
         )
 
-    def get_run(self, simulation_id: str) -> Mapping[str, Any] | None:
-        """Прогон; None — нет, или он либо его задание помечены удалёнными."""
+    def get_run(
+        self, simulation_id: str, *, viewer: str | None = None
+    ) -> Mapping[str, Any] | None:
+        """Прогон; None — нет, он или его задание удалены, или он чужой."""
         with _connection(self._pool) as conn:
             row = conn.execute(
-                """
+                f"""
                 SELECT r.result FROM runs r JOIN jobs j USING (job_id)
-                 WHERE r.simulation_id = %s
+                 WHERE r.simulation_id = %(simulation_id)s
                    AND r.deleted_at IS NULL AND j.deleted_at IS NULL
+                   AND {_VISIBLE}
                 """,
-                (simulation_id,),
+                {"simulation_id": simulation_id, "viewer": viewer},
             ).fetchone()
         return row[0] if row else None
 
-    def get_traces_gz(self, simulation_id: str) -> bytes | None:
-        """Трассы прогона в gzip; None — нет или скрыты мягким удалением."""
+    def get_traces_gz(
+        self, simulation_id: str, *, viewer: str | None = None
+    ) -> bytes | None:
+        """Трассы прогона в gzip; None — нет, скрыты или чужие."""
         with _connection(self._pool) as conn:
             row = conn.execute(
-                """
+                f"""
                 SELECT t.traces_gz FROM run_traces t
                   JOIN runs r USING (simulation_id) JOIN jobs j USING (job_id)
-                 WHERE t.simulation_id = %s AND t.deleted_at IS NULL
+                 WHERE t.simulation_id = %(simulation_id)s
+                   AND t.deleted_at IS NULL
                    AND r.deleted_at IS NULL AND j.deleted_at IS NULL
+                   AND {_VISIBLE}
                 """,
-                (simulation_id,),
+                {"simulation_id": simulation_id, "viewer": viewer},
             ).fetchone()
         return bytes(row[0]) if row else None
 
