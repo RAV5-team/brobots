@@ -1,0 +1,4 @@
+# Скрипты выполняются внутри Linux-контейнеров: CRLF из Windows-клона их ломает.
+*.sh text eol=lf
+*.conf text eol=lf
+*.template text eol=lf

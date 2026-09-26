@@ -53,14 +53,17 @@ brobots/
 │       └── schemas/
 │
 ├── infra/
-│   └── postgres/init/           SQL, выполняется при создании пустой базы
+│   ├── keycloak/                образ Keycloak и realm rav5 (роли, клиенты, демо-учётки)
+│   ├── nginx/                   шлюз к Keycloak на /auth: профили local и stand
+│   └── postgres/init/           роль и БД keycloak, выполняется при создании пустого тома
 │
-├── docs/                        проектная документация
-├── scripts/                     вспомогательные скрипты
+├── docs/
+│   ├── keycloak.md              Keycloak: запуск, realm, адреса, проверка
+│   └── middleware.md            проверка токенов Keycloak в сервисах (Go, Python)
+├── scripts/                     секреты и smoke-тесты Keycloak
 │
-├── docker-compose.yml           базовый контур
-├── docker-compose.override.yml  разработка: монтирование кода, автоперезапуск
-├── docker-compose.prod.yml      прод: без внешних портов, лимиты ресурсов
+├── docker-compose.yml           Postgres + Keycloak + шлюз, профиль local
+├── docker-compose.stand.yml     оверлей профиля stand: TLS, HSTS, allowlist админки
 ├── Makefile
 ├── .env.example
 ├── .dockerignore
@@ -86,22 +89,31 @@ brobots/
 
 ## Запуск
 
+Требования: Docker с Docker Compose **2.24+**, свободный порт 80.
+
 ```bash
-cp .env.example .env     # или make init
-docker compose up --build
+cp .env.example .env
+docker compose up -d --build
 ```
 
-| Сервис     | Стек                 | Порт (dev) | Роль                                  |
-|------------|----------------------|------------|---------------------------------------|
-| web        | Vite + React + TS    | 5173       | интерфейс                             |
-| api        | Go                   | 8000       | шлюз, хранение расчётов               |
-| simulation | Python + FastAPI     | 8001       | прогон рабочего дня                   |
-| economics  | Python + FastAPI     | 8002       | экономика конфигурации                |
-| postgres   | PostgreSQL 16        | 5432       | хранилище                             |
+Поднимаются Postgres, Keycloak и nginx-шлюз; Keycloak доступен на http://localhost/auth/.
+Первый старт — **1–2 минуты**: Keycloak создаёт схему в своей БД и импортирует realm.
+Дождитесь `healthy` в `docker compose ps`.
 
-Прод: `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d`.
-Наружу торчит только фронтенд (`WEB_PUBLIC_PORT`, по умолчанию 8080), остальное
-доступно внутри сети compose. `make help` — список остальных команд.
+| Кто | Логин | Пароль | Где |
+|-----|-------|--------|-----|
+| Пользователь | `user@example.com` | `DemoUser2026` | realm `rav5` |
+| Администратор платформы | `admin@example.com` | `DemoAdmin2026` | realm `rav5` |
+| Администратор Keycloak | `kcadmin` | `rav5-local-kcadmin-5b8e36` | http://localhost/auth/admin/ |
+
+- Сброс (БД, realm, ключи подписи): `docker compose down -v`. Нужен и после правки
+  `infra/keycloak/realm-rav5.json`, смены `PUBLIC_URL` или паролей в `.env`.
+- Порт 80 занят: `GATEWAY_PORT=8080` и `PUBLIC_URL=http://localhost:8080`, затем `down -v`.
+- HTTPS-стенд: `./scripts/gen-secrets.sh`, сертификат в `infra/nginx/certs/`,
+  `docker compose -f docker-compose.yml -f docker-compose.stand.yml up -d --build`.
+- Проверка: `./scripts/auth-smoke.sh`. Подробности — [docs/keycloak.md](docs/keycloak.md),
+  проверка токенов в сервисах — [docs/middleware.md](docs/middleware.md),
+  команды — `make help`.
 
 ## Что дальше
 
@@ -118,9 +130,8 @@ docker compose up --build
    поднимает приложение FastAPI (Dockerfile запускает `app.main:app`).
 4. **`packages/pycommon/pycommon`** — общий слой; в образ попадает через
    `PYTHONPATH=/opt/pycommon`, отдельная сборка пакета не нужна.
-5. **`infra/postgres/init`** — стартовая схема. Выполняется **один раз**, при
-   создании пустого тома; после изменения нужен `make clean`. Таблицы api сюда
-   не кладутся: их создают миграции goose сервиса при старте.
+5. **`infra/postgres/init`** — скрипты создания ролей и БД. Выполняются **один раз**,
+   при создании пустого тома; после изменения нужен `make clean`.
 
 Каждый Dockerfile содержит стадию `test` (`docker build --target test ...`) —
 `make test` прогоняет её для всех трёх сервисов.

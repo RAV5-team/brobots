@@ -31,3 +31,9 @@ htmlcov/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# --- infra ---
+# Сертификаты профиля stand и экспорты Keycloak (содержат приватные ключи realm).
+infra/nginx/certs/
+infra/keycloak/export/
+*realm-export*.json
