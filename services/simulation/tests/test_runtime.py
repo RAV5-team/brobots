@@ -92,3 +92,19 @@ def test_token_verifier_is_built_from_settings():
     )
 
     assert not runtime.token_verifier(settings).is_ready()
+
+
+# --- dev-режим. TODO(dev-auth): удалить вместе с dev-режимом ---------------
+def test_dev_mode_without_keycloak_has_no_verifier():
+    settings = conftest.config.Settings(database_url="x", auth_dev_mode=True)
+
+    assert runtime.token_verifier(settings) is None
+    principal = runtime.dev_principal(settings)
+    assert principal.sub == settings.auth_dev_sub
+    assert principal.has_role("admin")
+
+
+def test_no_dev_principal_outside_dev_mode():
+    settings = conftest.config.Settings(database_url="x")
+
+    assert runtime.dev_principal(settings) is None

@@ -11,6 +11,10 @@ from collections.abc import Callable, Mapping
 import dataclasses
 import logging
 from urllib import parse
+import uuid
+
+# TODO(dev-auth): удалить вместе с dev-режимом.
+DEFAULT_DEV_SUB = "11111111-1111-4111-8111-111111111111"
 
 
 class ConfigError(ValueError):
@@ -41,6 +45,26 @@ class SecretFilter(logging.Filter):
         if record.exc_text:
             record.exc_text = record.exc_text.replace(self._secret, "***")
         return True
+
+
+def _dev_settings(env: Mapping[str, str]) -> dict:
+    """Настройки dev-режима. TODO(dev-auth): удалить вместе с dev-режимом."""
+    raw = (env.get("AUTH_DEV_MODE") or "false").strip().lower()
+    if raw not in ("true", "false", "1", "0"):
+        raise ConfigError(f"AUTH_DEV_MODE: ожидается true или false, {raw!r}")
+    sub = env.get("AUTH_DEV_SUB") or DEFAULT_DEV_SUB
+    try:
+        uuid.UUID(sub)
+    except ValueError as e:
+        raise ConfigError(f"AUTH_DEV_SUB: ожидается UUID, {sub!r}") from e
+    roles = env.get("AUTH_DEV_ROLES") or "user,admin"
+    return {
+        "auth_dev_mode": raw in ("true", "1"),
+        "auth_dev_sub": sub,
+        "auth_dev_roles": tuple(
+            r.strip() for r in roles.split(",") if r.strip()
+        ),
+    }
 
 
 def _read(
@@ -90,6 +114,12 @@ class Settings:
         oidc_audience: Аудитория сервиса в aud (OIDC_AUDIENCE).
         internal_caller_azp: Клиент, которому открыты внутренние пути
             (INTERNAL_CALLER_AZP).
+        app_env: Окружение: local или stand (APP_ENV).
+        auth_dev_mode: Dev-режим: запросы без токена идут от auth_dev_sub,
+            OIDC_* необязательны; только при APP_ENV=local (AUTH_DEV_MODE).
+            TODO(dev-auth): удалить вместе с dev-режимом.
+        auth_dev_sub: UUID пользователя dev-режима (AUTH_DEV_SUB).
+        auth_dev_roles: Роли пользователя dev-режима (AUTH_DEV_ROLES).
     """
 
     database_url: str
@@ -106,6 +136,10 @@ class Settings:
     oidc_jwks_url: str = ""
     oidc_audience: str = ""
     internal_caller_azp: str = "rav5-api-internal"
+    app_env: str = "local"
+    auth_dev_mode: bool = False
+    auth_dev_sub: str = DEFAULT_DEV_SUB
+    auth_dev_roles: tuple[str, ...] = ("user", "admin")
 
     @classmethod
     def from_env(cls, env: Mapping[str, str]) -> Settings:
@@ -142,7 +176,14 @@ class Settings:
             internal_caller_azp=env.get(
                 "INTERNAL_CALLER_AZP", "rav5-api-internal"
             ),
+            app_env=env.get("APP_ENV") or "local",
+            **_dev_settings(env),
         )
+        if settings.auth_dev_mode and settings.app_env != "local":
+            raise ConfigError(
+                "AUTH_DEV_MODE: разрешён только при APP_ENV=local, "
+                f"сейчас {settings.app_env!r}"
+            )
         if settings.oidc_issuer.endswith("/"):
             raise ConfigError(
                 "OIDC_ISSUER: без слэша в конце — iss сверяется побайтно"
@@ -155,12 +196,22 @@ class Settings:
             raise ConfigError("SIM_DB_POOL_MIN: больше SIM_DB_POOL_MAX")
         return settings
 
+    @property
+    def oidc_enabled(self) -> bool:
+        """Проверка токенов настроена; нет — только в dev-режиме."""
+        return bool(self.oidc_issuer)
+
     def require_oidc(self) -> None:
         """Проверяет, что заданы настройки проверки токенов (для сервера).
+
+        В dev-режиме без OIDC_* Keycloak не нужен.
 
         Raises:
             ConfigError: Не задана одна из OIDC_*.
         """
+        oidc = (self.oidc_issuer, self.oidc_jwks_url, self.oidc_audience)
+        if self.auth_dev_mode and not any(oidc):  # TODO(dev-auth)
+            return
         for name, value in (
             ("OIDC_ISSUER", self.oidc_issuer),
             ("OIDC_JWKS_URL", self.oidc_jwks_url),

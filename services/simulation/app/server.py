@@ -41,13 +41,13 @@ def main() -> None:
     async def lifespan(app: fastapi.FastAPI) -> AsyncIterator[None]:
         del app  # воркерам приложение не нужно
         stop = threading.Event()
-        keys = threading.Thread(
-            target=verifier.preload_until_ready,
-            args=(stop,),
-            name="jwks-preload",
-            daemon=True,
-        )
-        keys.start()
+        if verifier is not None:  # None — dev-режим без Keycloak
+            threading.Thread(
+                target=verifier.preload_until_ready,
+                args=(stop,),
+                name="jwks-preload",
+                daemon=True,
+            ).start()
         started = runtime.start_workers(repo, settings, stop, settings.workers)
         _log.info(
             "Шаг «Симуляция»: http://localhost:%d (воркеров: %d, %s)",
@@ -64,7 +64,10 @@ def main() -> None:
             pool.close()
 
     services = runtime.http_services(
-        repo, verifier, settings.internal_caller_azp
+        repo,
+        verifier,
+        settings.internal_caller_azp,
+        runtime.dev_principal(settings),  # TODO(dev-auth)
     )
     app = web_server.create_app(services, lifespan)
     try:

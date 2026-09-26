@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 from typing import Annotated
+import uuid
 
 import fastapi
 from fastapi import concurrency
@@ -58,23 +59,42 @@ def forbidden() -> AuthError:
     return AuthError(403, "forbidden", _FORBIDDEN)
 
 
-def _verifier(request: fastapi.Request) -> ports.TokenVerifier:
+# TODO(dev-auth): удалить вместе с dev-режимом.
+DEV_USER_HEADER = "x-dev-user"
+
+
+def _verifier(request: fastapi.Request) -> ports.TokenVerifier | None:
     return request.app.state.services.verifier
+
+
+def _dev_principal(request: fastapi.Request) -> models.Principal | None:
+    """Пользователь dev-режима; X-Dev-User подменяет sub. None — режим выключен.
+
+    TODO(dev-auth): удалить вместе с dev-режимом.
+    """
+    dev = request.app.state.services.dev_principal
+    sub = (request.headers.get(DEV_USER_HEADER) or "").strip()
+    if dev is None or not sub:
+        return dev
+    try:
+        uuid.UUID(sub)
+    except ValueError:
+        raise unauthorized() from None
+    return models.Principal(sub=sub, email=None, roles=dev.roles, azp=dev.azp)
 
 
 async def _principal(request: fastapi.Request) -> models.Principal | None:
     """Вызывающий по заголовку Authorization; None — гость."""
     header = request.headers.get("authorization")
     if header is None:
-        return None
+        return _dev_principal(request)
     scheme, _, token = header.partition(" ")
     token = token.strip()
-    if scheme.lower() != "bearer" or not token:
+    verifier = _verifier(request)
+    if scheme.lower() != "bearer" or not token or verifier is None:
         raise unauthorized()
     try:
-        return await concurrency.run_in_threadpool(
-            _verifier(request).verify, token
-        )
+        return await concurrency.run_in_threadpool(verifier.verify, token)
     except errors.InvalidTokenError:
         raise unauthorized() from None
 

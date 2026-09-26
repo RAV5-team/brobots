@@ -136,6 +136,11 @@ services:
       OIDC_ISSUER: ${PUBLIC_URL:?}/auth/realms/rav5
       OIDC_JWKS_URL: http://keycloak:8080/auth/realms/rav5/protocol/openid-connect/certs
       OIDC_AUDIENCE: rav5-api
+      # TODO(dev-auth): dev-режим для ручного тестирования — запросы без токена идут от AUTH_DEV_SUB;
+      # только при APP_ENV=local. Удалить вместе с dev-режимом.
+      AUTH_DEV_MODE: ${AUTH_DEV_MODE:-false}
+      AUTH_DEV_SUB: ${AUTH_DEV_SUB:-}
+      AUTH_DEV_ROLES: ${AUTH_DEV_ROLES:-}
     ports: ["${API_PORT:-8000}:8000"]
     # edge — для публикации порта и вызовов simulation, internal — для Postgres.
     networks: [edge, internal]
@@ -168,6 +173,12 @@ services:
       OIDC_JWKS_URL: http://keycloak:8080/auth/realms/rav5/protocol/openid-connect/certs
       OIDC_AUDIENCE: rav5-sim
       INTERNAL_CALLER_AZP: rav5-api-internal
+      APP_ENV: ${APP_ENV:-local}
+      # TODO(dev-auth): dev-режим для ручного тестирования — запросы без токена идут от AUTH_DEV_SUB;
+      # только при APP_ENV=local. Удалить вместе с dev-режимом.
+      AUTH_DEV_MODE: ${AUTH_DEV_MODE:-false}
+      AUTH_DEV_SUB: ${AUTH_DEV_SUB:-}
+      AUTH_DEV_ROLES: ${AUTH_DEV_ROLES:-}
     ports: ["${SIMULATION_PORT:-8765}:8765"]
     networks: [edge, internal]
     depends_on:

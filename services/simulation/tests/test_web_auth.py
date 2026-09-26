@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+import dataclasses
+
 import conftest
 import fakes
 from fastapi import testclient
@@ -292,3 +294,70 @@ def test_token_is_verified_once_per_request(owned, verifier):
     client.get(f"/api/simulations/jobs/{_ID}", headers=_bearer(USER))
 
     assert verifier.calls == 1
+
+
+# --- dev-режим. TODO(dev-auth): удалить вместе с dev-режимом ---------------
+DEV_SUB = "11111111-1111-4111-8111-111111111111"
+OTHER_DEV_SUB = "22222222-2222-4222-8222-222222222222"
+
+
+def _dev_client(verifier) -> tuple[testclient.TestClient, fakes.FakeJobStore]:
+    services = dataclasses.replace(
+        _services(verifier),
+        dev_principal=fakes.principal(DEV_SUB, "user", "admin", azp="dev"),
+    )
+    return testclient.TestClient(server.create_app(services)), services.reader
+
+
+def test_dev_mode_owns_jobs_as_the_dev_user(verifier):
+    client, store = _dev_client(verifier)
+
+    job_id = _start(client)
+
+    assert store.get_job(job_id, viewer=DEV_SUB) is not None
+    assert client.get(f"/api/simulations/jobs/{job_id}").status_code == 200
+    other = {auth.DEV_USER_HEADER: OTHER_DEV_SUB}
+    resp = client.get(f"/api/simulations/jobs/{job_id}", headers=other)
+    assert resp.status_code == 404
+
+
+def test_dev_user_header_must_be_a_uuid(verifier):
+    client, _ = _dev_client(verifier)
+
+    resp = client.get("/api/meta", headers={auth.DEV_USER_HEADER: "bob"})
+
+    assert resp.status_code == 401
+
+
+def test_dev_mode_still_checks_sent_tokens(verifier):
+    client, _ = _dev_client(verifier)
+
+    assert client.get("/api/meta", headers=_bearer(USER)).status_code == 200
+    assert (
+        client.get("/api/meta", headers=_bearer("garbage")).status_code == 401
+    )
+
+
+def test_dev_mode_without_keycloak(verifier):
+    services = dataclasses.replace(
+        _services(verifier),
+        verifier=None,
+        dev_principal=fakes.principal(DEV_SUB, "user", azp="dev"),
+    )
+    client = testclient.TestClient(server.create_app(services))
+
+    assert client.get("/api/health").status_code == 200
+    assert client.get("/api/meta").status_code == 200
+    assert client.get("/api/meta", headers=_bearer(USER)).status_code == 401
+
+
+def test_dev_user_header_is_ignored_outside_dev_mode(owned):
+    client, _ = owned
+    job_id = _start(client, _bearer(USER))
+
+    resp = client.get(
+        f"/api/simulations/jobs/{job_id}",
+        headers={auth.DEV_USER_HEADER: fakes.principal("alice").sub},
+    )
+
+    assert resp.status_code == 404

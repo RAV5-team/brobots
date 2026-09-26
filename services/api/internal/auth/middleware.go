@@ -35,7 +35,10 @@ func Track(ctx context.Context) (context.Context, *Tracker) {
 }
 
 // Middleware authenticates requests and checks roles.
-type Middleware struct{ verifier *Verifier }
+type Middleware struct {
+	verifier *Verifier
+	dev      *DevIdentity // TODO(dev-auth): удалить вместе с dev-режимом
+}
 
 // NewMiddleware wraps a verifier.
 func NewMiddleware(v *Verifier) *Middleware { return &Middleware{verifier: v} }
@@ -68,24 +71,33 @@ func forbidden(w http.ResponseWriter) {
 func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		header := r.Header.Get("Authorization")
-		if header == "" {
+		if header == "" && m.dev == nil {
 			next.ServeHTTP(w, r)
 			return
 		}
-		scheme, raw, found := strings.Cut(header, " ")
-		raw = strings.TrimSpace(raw)
-		if !found || !strings.EqualFold(scheme, "Bearer") || raw == "" {
-			unauthorized(w)
-			return
-		}
-		p, err := m.verifier.Verify(r.Context(), raw)
-		if err != nil {
-			unauthorized(w)
-			return
-		}
-		if p.IsService {
-			forbidden(w)
-			return
+		var p Principal
+		if header == "" { // TODO(dev-auth): удалить вместе с dev-режимом
+			var ok bool
+			if p, ok = m.devPrincipal(r); !ok {
+				unauthorized(w)
+				return
+			}
+		} else {
+			scheme, raw, found := strings.Cut(header, " ")
+			raw = strings.TrimSpace(raw)
+			if !found || !strings.EqualFold(scheme, "Bearer") || raw == "" || m.verifier == nil {
+				unauthorized(w)
+				return
+			}
+			var err error
+			if p, err = m.verifier.Verify(r.Context(), raw); err != nil {
+				unauthorized(w)
+				return
+			}
+			if p.IsService {
+				forbidden(w)
+				return
+			}
 		}
 		if t, ok := r.Context().Value(trackKey{}).(*Tracker); ok {
 			t.p = &p

@@ -91,17 +91,21 @@ class Services:
         preview: Потребность по часам без имитации.
         reader: Чтение заданий и прогонов.
         health: Готовность хранилища.
-        verifier: Проверка access token Keycloak.
+        verifier: Проверка access token Keycloak; None — dev-режим без
+            Keycloak: присланный токен отклоняется.
         internal_caller_azp: Клиент Keycloak, которому открыты внутренние
             пути (INTERNAL_CALLER_AZP).
+        dev_principal: Пользователь запросов без токена в dev-режиме; None —
+            режим выключен. TODO(dev-auth): удалить вместе с dev-режимом.
     """
 
     submit: Callable[[Mapping[str, Any], str | None], str]
     preview: Callable[[Mapping[str, Any]], dict]
     reader: ports.ResultReader
     health: ports.StorageHealth
-    verifier: ports.TokenVerifier
+    verifier: ports.TokenVerifier | None
     internal_caller_azp: str = "rav5-api-internal"
+    dev_principal: models.Principal | None = None
 
 
 class ApiError(Exception):
@@ -260,7 +264,8 @@ def _add_public(app: fastapi.FastAPI) -> None:
     @app.get("/api/health")
     def health(services: Deps) -> JsonResponse:
         """Готов, когда доступна база и загружены ключи Keycloak."""
-        if services.health.is_ready() and services.verifier.is_ready():
+        keys = services.verifier is None or services.verifier.is_ready()
+        if services.health.is_ready() and keys:
             return JsonResponse({"status": "ok"})
         return JsonResponse({"status": "unavailable"}, 503)
 

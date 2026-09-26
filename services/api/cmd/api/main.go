@@ -82,17 +82,11 @@ func run() error {
 			return fmt.Errorf("seed: %w", err)
 		}
 	}
-	keys := auth.NewKeySet(cfg.OIDCJWKSURL)
-	// Until the first successful fetch /readyz answers 503; Keycloak may start after the api.
-	go keys.RefreshUntilReady(ctx, 2*time.Second, func(err error) {
-		log.Warn("keycloak keys are not loaded yet", slog.Any("error", err))
-	})
-	opts := handlers.Options{
-		Version:        version,
-		SwaggerEnabled: cfg.SwaggerEnabled,
-		Auth:           auth.NewMiddleware(auth.NewVerifier(cfg.OIDCIssuer, cfg.OIDCAudience, keys)),
-		AuthReady:      keys.Ready,
+	mw, ready, err := authMiddleware(ctx, cfg, log)
+	if err != nil {
+		return err
 	}
+	opts := handlers.Options{Version: version, SwaggerEnabled: cfg.SwaggerEnabled, Auth: mw, AuthReady: ready}
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           handlers.NewRouter(service.New(st, log), log, opts),
@@ -113,6 +107,31 @@ func run() error {
 	shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	return srv.Shutdown(shutdown)
+}
+
+// authMiddleware verifies Keycloak tokens; ready reports whether the keys are loaded (nil: always).
+func authMiddleware(ctx context.Context, cfg config.Config, log *slog.Logger) (*auth.Middleware, func() bool, error) {
+	var verifier *auth.Verifier
+	var ready func() bool
+	if cfg.OIDCEnabled() {
+		keys := auth.NewKeySet(cfg.OIDCJWKSURL)
+		// Until the first successful fetch /readyz answers 503; Keycloak may start after the api.
+		go keys.RefreshUntilReady(ctx, 2*time.Second, func(err error) {
+			log.Warn("keycloak keys are not loaded yet", slog.Any("error", err))
+		})
+		verifier, ready = auth.NewVerifier(cfg.OIDCIssuer, cfg.OIDCAudience, keys), keys.Ready
+	}
+	if !cfg.AuthDevMode {
+		return auth.NewMiddleware(verifier), ready, nil
+	}
+	// TODO(dev-auth): удалить вместе с dev-режимом.
+	dev, err := auth.NewDevIdentity(cfg.AuthDevSub, cfg.AuthDevRoles)
+	if err != nil {
+		return nil, nil, err
+	}
+	log.Warn("AUTH DEV MODE: requests without a token act as the dev user — never enable outside local",
+		slog.String("sub", dev.Subject), slog.Any("roles", dev.Roles), slog.Bool("keycloak", cfg.OIDCEnabled()))
+	return auth.NewDevMiddleware(verifier, dev), ready, nil
 }
 
 func connect(ctx context.Context, url string) (*pgxpool.Pool, error) {
