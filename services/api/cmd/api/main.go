@@ -19,6 +19,9 @@ import (
 	"time"
 
 	"github.com/brobots/api/internal/auth"
+	"github.com/brobots/api/internal/calc"
+	"github.com/brobots/api/internal/calc/httpclient"
+	"github.com/brobots/api/internal/calc/mock"
 	"github.com/brobots/api/internal/config"
 	"github.com/brobots/api/internal/handlers"
 	"github.com/brobots/api/internal/seed"
@@ -58,6 +61,7 @@ func run() error {
 	if len(os.Args) > 1 {
 		cmd = os.Args[1]
 	}
+	calculator := newCalculator(cfg, log)
 	switch cmd {
 	case "migrate":
 		return migrate(ctx, pool)
@@ -65,7 +69,7 @@ func run() error {
 		if err := migrate(ctx, pool); err != nil {
 			return err
 		}
-		return seed.Load(ctx, store.New(pool), log)
+		return seed.Load(ctx, store.New(pool), calculator, log)
 	case "serve":
 	default:
 		return fmt.Errorf("unknown command %q (serve, migrate, seed)", cmd)
@@ -78,7 +82,7 @@ func run() error {
 	}
 	st := store.New(pool)
 	if cfg.SeedDemo {
-		if err := seed.Load(ctx, st, log); err != nil {
+		if err := seed.Load(ctx, st, calculator, log); err != nil {
 			return fmt.Errorf("seed: %w", err)
 		}
 	}
@@ -89,7 +93,7 @@ func run() error {
 	opts := handlers.Options{Version: version, SwaggerEnabled: cfg.SwaggerEnabled, Auth: mw, AuthReady: ready}
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           handlers.NewRouter(service.New(st, log), log, opts),
+		Handler:           handlers.NewRouter(service.New(st, log, calculator), log, opts),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	errCh := make(chan error, 1)
@@ -107,6 +111,17 @@ func run() error {
 	shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	return srv.Shutdown(shutdown)
+}
+
+// newCalculator is the economics service when ECONOMICS_URL is set, otherwise the mock model.
+func newCalculator(cfg config.Config, log *slog.Logger) calc.Calculator {
+	if cfg.EconomicsURL == "" {
+		log.Warn("ECONOMICS_URL is not set: calculation uses the mock model", slog.String("model", mock.Version))
+		return mock.New()
+	}
+	log.Info("calculation by the economics service", slog.String("url", cfg.EconomicsURL),
+		slog.Duration("timeout", cfg.EconomicsTimeout))
+	return httpclient.New(cfg.EconomicsURL, cfg.EconomicsTimeout)
 }
 
 // authMiddleware verifies Keycloak tokens; ready reports whether the keys are loaded (nil: always).

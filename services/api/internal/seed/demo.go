@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/brobots/api/internal/domain"
 	"github.com/brobots/api/internal/service"
@@ -73,7 +74,7 @@ type demoLocation struct {
 	Projects         []demoProject    `yaml:"projects"`
 }
 
-func loadDemo(ctx context.Context, st *store.Store, svc *service.Service) (int, error) {
+func loadDemo(ctx context.Context, st *store.Store, svc *service.Service, log *slog.Logger) (int, error) {
 	var df struct {
 		Locations []demoLocation `yaml:"locations"`
 	}
@@ -136,7 +137,7 @@ func loadDemo(ctx context.Context, st *store.Store, svc *service.Service) (int, 
 		if err := q.SaveLocation(ctx, raw); err != nil {
 			return n, err
 		}
-		if err := loadDemoContent(ctx, q, svc, loc.ID, dl); err != nil {
+		if err := loadDemoContent(ctx, q, svc, log, loc.ID, dl); err != nil {
 			if derr := q.SoftDeleteLocation(ctx, loc.ID); derr != nil {
 				return n, errors.Join(err, fmt.Errorf("cleanup: %w", derr))
 			}
@@ -148,7 +149,7 @@ func loadDemo(ctx context.Context, st *store.Store, svc *service.Service) (int, 
 }
 
 // loadDemoContent creates the tasks and projects of a demo location.
-func loadDemoContent(ctx context.Context, q store.Q, svc *service.Service, locationID uuid.UUID, dl demoLocation) error {
+func loadDemoContent(ctx context.Context, q store.Q, svc *service.Service, log *slog.Logger, locationID uuid.UUID, dl demoLocation) error {
 	tasks := map[string]uuid.UUID{}
 	for _, dt := range dl.Tasks {
 		pid, found, err := q.ProcessIDByCode(ctx, dt.Process)
@@ -192,8 +193,14 @@ func loadDemoContent(ctx context.Context, q store.Q, svc *service.Service, locat
 			return fmt.Errorf("demo project %s: %w", dp.Name, err)
 		}
 		if dp.RunMatching {
-			if _, err := svc.RunMatching(ctx, p.ID); err != nil {
-				return fmt.Errorf("demo project %s matching: %w", dp.Name, err)
+			// Matching and calculation; an unavailable calculator must not stop the service start.
+			_, err := svc.Evaluate(ctx, p.ID)
+			var ue *domain.UnavailableError
+			switch {
+			case errors.As(err, &ue):
+				log.WarnContext(ctx, "demo project is matched but not calculated", slog.String("project", dp.Name), slog.Any("error", err))
+			case err != nil:
+				return fmt.Errorf("demo project %s evaluation: %w", dp.Name, err)
 			}
 		}
 	}

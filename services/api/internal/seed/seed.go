@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/brobots/api/internal/calc"
 	"github.com/brobots/api/internal/domain"
 	"github.com/brobots/api/internal/service"
 	"github.com/brobots/api/internal/store"
@@ -94,8 +95,8 @@ type reference struct {
 	} `yaml:"dataSources"`
 }
 
-// Load applies the demo data.
-func Load(ctx context.Context, st *store.Store, log *slog.Logger) error {
+// Load applies the demo data; calculator evaluates the demo projects.
+func Load(ctx context.Context, st *store.Store, calculator calc.Calculator, log *slog.Logger) error {
 	ctx = service.AsSystem(ctx) // demo data has no owner and is read only for users
 	started := time.Now()
 	var ref reference
@@ -154,7 +155,7 @@ func Load(ctx context.Context, st *store.Store, log *slog.Logger) error {
 	if err != nil {
 		return err
 	}
-	svc := service.New(st, log)
+	svc := service.New(st, log, calculator)
 	newProcesses, err := loadProcesses(ctx, st, svc)
 	if err != nil {
 		return err
@@ -164,7 +165,7 @@ func Load(ctx context.Context, st *store.Store, log *slog.Logger) error {
 			return err
 		}
 	}
-	newLocations, err := loadDemo(ctx, st, svc)
+	newLocations, err := loadDemo(ctx, st, svc, log)
 	if err != nil {
 		return err
 	}

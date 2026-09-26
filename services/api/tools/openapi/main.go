@@ -13,6 +13,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/brobots/api/internal/calc"
 	"github.com/brobots/api/internal/domain"
 	"github.com/brobots/api/internal/matching"
 	"github.com/brobots/api/internal/service"
@@ -25,6 +26,7 @@ import (
 func main() {
 	out := flag.String("out", "", "output file")
 	copyTo := flag.String("copy", "", "second output file (embedded copy)")
+	economics := flag.String("economics", "", "output file of the calculation contract for services/economics")
 	flag.Parse()
 	spec, err := Build()
 	if err != nil {
@@ -36,6 +38,16 @@ func main() {
 			continue
 		}
 		if err := os.WriteFile(path, spec, 0o644); err != nil {
+			fmt.Fprintln(os.Stderr, "openapi:", err)
+			os.Exit(1)
+		}
+	}
+	if *economics != "" {
+		econ, err := BuildEconomics()
+		if err == nil {
+			err = os.WriteFile(*economics, econ, 0o644)
+		}
+		if err != nil {
 			fmt.Fprintln(os.Stderr, "openapi:", err)
 			os.Exit(1)
 		}
@@ -177,7 +189,7 @@ type (
 	projectsQuery struct {
 		LocationID string `query:"locationId" format:"uuid"`
 		TaskID     string `query:"taskId" format:"uuid"`
-		Status     string `query:"status" enum:"params,matching,simulation,economics,result"`
+		Status     string `query:"status" enum:"draft,saved"`
 		Q          string `query:"q"`
 		Sort       string `query:"sort" enum:"updated,name"`
 		Limit      int    `query:"limit" default:"50"`
@@ -219,6 +231,7 @@ func Operations() []op {
 	notFound := []int{404}
 	withBody := []int{422}
 	withBodyNF := []int{404, 409, 422}
+	draftOnly := []int{404, 409} // 409 project_saved: a saved project is frozen
 	return []op{
 		{http.MethodGet, "/healthz", "service", "Живость сервиса", "", nil, nil, new(Health), 200, nil},
 		{http.MethodGet, "/readyz", "service", "Готовность: доступность базы", "", nil, nil, new(Health), 200, []int{503}},
@@ -280,21 +293,25 @@ func Operations() []op {
 		{http.MethodGet, "/api/v1/projects", "projects", "Проекты", "", new(projectsQuery), nil, new(ProjectPage), 200, []int{400}},
 		{http.MethodPost, "/api/v1/projects", "projects", "Создать проект", "Ровно одна задача. Фиксируется снимок локации и задачи и версии каталога и справочников. pinnedSolutionId — вход «Проверить на своём объекте».", nil, new(service.ProjectCreateInput), new(domain.Project), 201, withBodyNF},
 		{http.MethodGet, "/api/v1/projects/{id}", "projects", "Проект", "dataChanged — локация или задача изменились после снимка; catalogUpdated — доступна новая версия каталога.", new(idPath), nil, new(domain.Project), 200, notFound},
-		{http.MethodPatch, "/api/v1/projects/{id}", "projects", "Изменить проект", "JSON merge patch: название, шаг, горизонт.", new(idPath), new(service.ProjectPatchInput), new(domain.Project), 200, withBodyNF},
+		{http.MethodPatch, "/api/v1/projects/{id}", "projects", "Изменить проект", "JSON merge patch: название и горизонт. Статус меняют save и reopen; горизонт сохранённого проекта не меняется (409).", new(idPath), new(service.ProjectPatchInput), new(domain.Project), 200, withBodyNF},
 		{http.MethodDelete, "/api/v1/projects/{id}", "projects", "Удалить проект", "", new(idPath), nil, nil, 204, notFound},
 		{http.MethodPost, "/api/v1/projects/{id}/copy", "projects", "Копировать проект", "Со снимком, условиями и ручными кандидатами.", new(idPath), nil, new(domain.Project), 201, notFound},
-		{http.MethodPost, "/api/v1/projects/{id}/refresh-snapshot", "projects", "Обновить снимок", "Экран saved: «данные изменились — пересчитать».", new(idPath), nil, new(domain.Project), 200, []int{404, 409}},
+		{http.MethodPost, "/api/v1/projects/{id}/refresh-snapshot", "projects", "Обновить снимок", "«Данные изменились — пересчитать»: перечитывает локацию и задачу, снимает выбор робота (его цифры посчитаны на старых данных). Только для черновика.", new(idPath), nil, new(domain.Project), 200, draftOnly},
 		{http.MethodGet, "/api/v1/projects/{id}/snapshot", "projects", "Снимок входных данных проекта", "", new(idPath), nil, new(domain.ProjectSnapshot), 200, notFound},
 		{http.MethodGet, "/api/v1/projects/{id}/conditions", "matching", "Условия подбора проекта", "Панель 12a: у каждого условия источник — задача, формула, проект или правило.", new(idPath), nil, new(ConditionList), 200, notFound},
 		{http.MethodPut, "/api/v1/projects/{id}/conditions", "matching", "Изменить условия подбора в проекте", "Заменяет переопределения; действуют только в этом проекте.", new(conditionsBody), nil, new(ConditionList), 200, withBodyNF},
-		{http.MethodDelete, "/api/v1/projects/{id}/conditions", "matching", "Сбросить условия к задаче", "", new(idPath), nil, new(ConditionList), 200, notFound},
-		{http.MethodPost, "/api/v1/projects/{id}/matching-runs", "matching", "Запустить подбор", "Совпадение класса операции и жёсткие проверки со значениями и причинами; прогон сохраняется.", new(idPath), nil, new(matching.Run), 201, notFound},
+		{http.MethodDelete, "/api/v1/projects/{id}/conditions", "matching", "Сбросить условия к задаче", "", new(idPath), nil, new(ConditionList), 200, draftOnly},
+		{http.MethodPost, "/api/v1/projects/{id}/matching-runs", "matching", "Запустить подбор", "Совпадение класса операции и жёсткие проверки со значениями и причинами; прогон сохраняется. Без расчёта экономики — его делает evaluate.", new(idPath), nil, new(matching.Run), 201, draftOnly},
 		{http.MethodGet, "/api/v1/projects/{id}/matching-runs/latest", "matching", "Последний прогон подбора", "", new(idPath), nil, new(matching.Run), 200, notFound},
 		{http.MethodGet, "/api/v1/matching-runs/{id}", "matching", "Прогон подбора", "", new(idPath), nil, new(matching.Run), 200, notFound},
 		{http.MethodGet, "/api/v1/projects/{id}/manual-candidates", "matching", "Решения, добавленные вручную", "", new(idPath), nil, new(ManualList), 200, notFound},
 		{http.MethodPost, "/api/v1/projects/{id}/manual-candidates", "matching", "Добавить решение вручную", "ТЗ 3.4.4: решение проверяется и показывается с предупреждением.", new(idPath), new(service.ManualCandidateInput), new(ManualList), 201, withBodyNF},
-		{http.MethodDelete, "/api/v1/projects/{id}/manual-candidates/{solutionId}", "matching", "Убрать решение, добавленное вручную", "", new(manualPath), nil, nil, 204, notFound},
-		{http.MethodPut, "/api/v1/projects/{id}/selection", "projects", "Выбрать конфигурацию", "solutionId: null снимает выбор. Состав парка и экономику считает оркестратор.", new(idPath), new(service.SelectionInput), new(domain.Project), 200, withBodyNF},
+		{http.MethodDelete, "/api/v1/projects/{id}/manual-candidates/{solutionId}", "matching", "Убрать решение, добавленное вручную", "", new(manualPath), nil, nil, 204, draftOnly},
+		{http.MethodPost, "/api/v1/projects/{id}/evaluate", "orchestrator", "Рассчитать подбор", "Вкладка «Подбор»: подбор по снимку проекта и расчёт парка и экономики каждого кандидата (прошёл, требует проверки, добавлен вручную) для покупки и RaaS. Поля кандидатов замораживаются во входе расчёта. Новый расчёт снимает выбор робота. 503 — сервис расчёта не ответил, прогон подбора при этом сохранён.", new(idPath), nil, new(service.Evaluation), 201, []int{404, 409, 503}},
+		{http.MethodGet, "/api/v1/projects/{id}/evaluation", "orchestrator", "Последний расчёт подбора", "Читает сохранённые цифры, калькулятор не вызывается. stale — параметры проекта изменились после расчёта, modelOutdated — ядро расчёта обновилось.", new(idPath), nil, new(service.Evaluation), 200, notFound},
+		{http.MethodPut, "/api/v1/projects/{id}/selection", "orchestrator", "Выбрать робота", "Только из результатов последнего актуального расчёта. Поля робота копируются в snapshot.robot из входа расчёта. solutionId: null снимает выбор.", new(idPath), new(service.SelectionInput), new(domain.Project), 200, withBodyNF},
+		{http.MethodPost, "/api/v1/projects/{id}/save", "orchestrator", "Сохранить проект", "draft → saved: закрепляет снимок с выбранным роботом, расчёт и версию ядра. Нужен выбор по актуальному расчёту.", new(idPath), nil, new(domain.Project), 200, []int{404, 409}},
+		{http.MethodPost, "/api/v1/projects/{id}/reopen", "orchestrator", "Открыть проект для изменений", "saved → draft. Сохранённые расчёты остаются в истории.", new(idPath), nil, new(domain.Project), 200, notFound},
 		{http.MethodGet, "/api/v1/projects/{id}/evaluation-context", "matching", "Контекст для оркестратора оценки", "Снимок, условия и подходящие кандидаты последнего прогона с полными данными каталога.", new(idPath), nil, new(service.EvaluationContext), 200, notFound},
 	}
 }
@@ -343,22 +360,10 @@ func security(a Access) []map[string][]string {
 	return nil
 }
 
-// Build renders the specification.
-func Build() ([]byte, error) {
+// newReflector creates a reflector with the schema conventions of the service: UUID and date as strings.
+func newReflector() *openapi3.Reflector {
 	r := openapi3.NewReflector()
 	r.Spec = &openapi3.Spec{Openapi: "3.0.3"}
-	r.Spec.Info.WithTitle("RAV5 API · локации, каталог, подбор").WithVersion("0.1.0").WithDescription(
-		"Сервис api: локации, задачи и проекты; каталог и классы операций; подбор по классу операции и жёсткие проверки.\n\n" +
-			"Ошибки — application/problem+json (RFC 7807) с полем errors: поле, код, сообщение и подсказка на русском.\n" +
-			"Доступ — access token Keycloak (realm rav5, aud rav5-api) в заголовке Authorization: Bearer. " +
-			"Чтение открыто гостю; присланный токен обязан быть валидным. Запись — вошедшему пользователю, " +
-			"каталог, классы операций, источники и справочные процессы — роли admin. " +
-			"Локации, задачи, проекты и пользовательские процессы принадлежат автору: пользователь видит свои и " +
-			"демо-данные, гость — только демо; чужие — 404, изменение демо-данных и справочных процессов без admin — 403. " +
-			"401 и 403 — {code, message}; сервисный токен на этих путях — 403.\n" +
-			"PATCH — JSON merge patch: переданные поля заменяются, null очищает, вложенные объекты сливаются; неизвестные поля отклоняются.\n" +
-			"Доли (automationShare, timeShare и т.п.) — от 0 до 1. Деньги — рубли с НДС.")
-	r.Spec.SetHTTPBearerTokenSecurity("bearerAuth", "JWT", "Access token Keycloak realm rav5")
 	jr := r.JSONSchemaReflector()
 	uuidType := reflect.TypeOf(uuid.UUID{})
 	dateType := reflect.TypeOf(domain.Date{})
@@ -391,6 +396,68 @@ func Build() ([]byte, error) {
 			return strings.ToUpper(name[:1]) + name[1:]
 		}),
 	)
+	return r
+}
+
+// BuildEconomics renders the calculation contract that services/economics implements and
+// internal/calc/httpclient calls.
+func BuildEconomics() ([]byte, error) {
+	r := newReflector()
+	r.Spec.Info.WithTitle("RAV5 Economics · расчёт парка и экономики").WithVersion("0.1.0").WithDescription(
+		"Контракт калькуляции, который вызывает оркестратор сервиса api (docs/orchestrator.md).\n\n" +
+			"Запрос — замороженный вход расчёта одного проекта: локация, задача и кандидаты подбора с полями каталога. " +
+			"Ответ — ровно один результат на кандидата и модель приобретения из acquisitionModels запроса, " +
+			"которую предлагает робот (пустой acquisitionModels кандидата — все модели). " +
+			"modelVersion обязателен: проект хранит его, чтобы старые расчёты воспроизводились после смены формул. " +
+			"У каждого числа — строка trace с формулой и источником. Деньги — рубли с НДС, доли — от 0 до 1.\n\n" +
+			"Пока сервиса нет, api считает встроенной мок-моделью mock-calc/v1 (ECONOMICS_URL пуст).")
+	ops := []struct {
+		method, path, summary string
+		body, resp            any
+		errors                []int
+	}{
+		{http.MethodGet, calc.PathModelVersion, "Версия ядра расчёта", nil, new(calc.ModelVersionResponse), nil},
+		{http.MethodPost, calc.PathCalculations, "Рассчитать кандидатов проекта", new(calc.Request), new(calc.Response), []int{422}},
+	}
+	for _, o := range ops {
+		oc, err := r.NewOperationContext(o.method, o.path)
+		if err != nil {
+			return nil, err
+		}
+		oc.SetTags("economics")
+		oc.SetSummary(o.summary)
+		if o.body != nil {
+			oc.AddReqStructure(o.body)
+		}
+		oc.AddRespStructure(o.resp, func(cu *openapi.ContentUnit) { cu.HTTPStatus = http.StatusOK })
+		for _, code := range o.errors {
+			oc.AddRespStructure(new(Problem), func(cu *openapi.ContentUnit) {
+				cu.HTTPStatus = code
+				cu.ContentType = "application/problem+json"
+			})
+		}
+		if err := r.AddOperation(oc); err != nil {
+			return nil, fmt.Errorf("%s %s: %w", o.method, o.path, err)
+		}
+	}
+	return r.Spec.MarshalYAML()
+}
+
+// Build renders the specification.
+func Build() ([]byte, error) {
+	r := newReflector()
+	r.Spec.Info.WithTitle("RAV5 API · локации, каталог, подбор").WithVersion("0.1.0").WithDescription(
+		"Сервис api: локации, задачи и проекты; каталог и классы операций; подбор по классу операции и жёсткие проверки.\n\n" +
+			"Ошибки — application/problem+json (RFC 7807) с полем errors: поле, код, сообщение и подсказка на русском.\n" +
+			"Доступ — access token Keycloak (realm rav5, aud rav5-api) в заголовке Authorization: Bearer. " +
+			"Чтение открыто гостю; присланный токен обязан быть валидным. Запись — вошедшему пользователю, " +
+			"каталог, классы операций, источники и справочные процессы — роли admin. " +
+			"Локации, задачи, проекты и пользовательские процессы принадлежат автору: пользователь видит свои и " +
+			"демо-данные, гость — только демо; чужие — 404, изменение демо-данных и справочных процессов без admin — 403. " +
+			"401 и 403 — {code, message}; сервисный токен на этих путях — 403.\n" +
+			"PATCH — JSON merge patch: переданные поля заменяются, null очищает, вложенные объекты сливаются; неизвестные поля отклоняются.\n" +
+			"Доли (automationShare, timeShare и т.п.) — от 0 до 1. Деньги — рубли с НДС.")
+	r.Spec.SetHTTPBearerTokenSecurity("bearerAuth", "JWT", "Access token Keycloak realm rav5")
 	for _, o := range Operations() {
 		oc, err := r.NewOperationContext(o.method, o.path)
 		if err != nil {

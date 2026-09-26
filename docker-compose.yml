@@ -132,6 +132,9 @@ services:
       SEED_DEMO: ${API_SEED_DEMO:-true}
       SWAGGER_ENABLED: ${API_SWAGGER_ENABLED:-true}
       SIMULATION_URL: http://simulation:8765
+      # Калькуляция: пусто — мок-модель внутри api; адрес economics, когда сервис войдёт в контур.
+      ECONOMICS_URL: ${ECONOMICS_URL:-}
+      ECONOMICS_TIMEOUT: ${ECONOMICS_TIMEOUT:-10s}
       # Проверка токенов Keycloak (docs/keycloak/middleware.md): iss публичный, JWKS — внутренний.
       OIDC_ISSUER: ${PUBLIC_URL:?}/auth/realms/rav5
       OIDC_JWKS_URL: http://keycloak:8080/auth/realms/rav5/protocol/openid-connect/certs
