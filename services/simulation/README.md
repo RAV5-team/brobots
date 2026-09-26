@@ -75,6 +75,11 @@ docker run -d -e DATABASE_URL=… simulation python -m app.worker
 Полное описание — [`docs/openapi.json`](docs/openapi.json) (OpenAPI 3.1), в
 работающем сервисе — `GET /api/openapi.json`.
 
+API — приложение FastAPI (`adapters/web/server.py`), сервер — uvicorn
+(`app/server.py`). Контракт ведётся вручную в `adapters/web/openapi.py`:
+автоматическая схема и `/docs` FastAPI отключены. Ошибки — `{"error", "errors"?}`,
+в том числе 404 на неизвестный путь и 405 на неверный метод.
+
 | Метод и путь | Назначение | Ответы |
 |---|---|---|
 | `GET /` | экран шага | 200 |
@@ -284,13 +289,13 @@ app/           корень сборки: настройки, связывани
 | `application/process_job.py` | выполнение задания: подтверждения, ограждение `lease`, итог |
 | `application/ports.py`, `models.py`, `errors.py` | порты, данные между слоями, ошибки |
 | `application/input_policy.py` | строки, которые хранилище не примет |
-| `adapters/web/` | HTTP API (`server.py`), тела ответов, OpenAPI и JSON Schema, демо-вход, экран (`static/index.html`) |
+| `adapters/web/` | HTTP API на FastAPI (`server.py`), тела ответов, OpenAPI и JSON Schema, демо-вход, экран (`static/index.html`) |
 | `adapters/worker/loop.py` | потоки воркеров: опрос очереди, возврат зависших заданий |
 | `adapters/postgres/` | пул соединений и репозиторий заданий (весь SQL) |
 | `adapters/processes/` | расчёт сценариев в дочерних процессах |
 | `adapters/json_codec.py` | JSON без NaN, gzip трасс |
 | `app/runtime.py` | запуск, проверка схемы, связывание слоёв |
-| `app/server.py`, `app/worker.py` | точки входа `python -m app.server` и `python -m app.worker` |
+| `app/server.py`, `app/worker.py` | точки входа `python -m app.server` (uvicorn) и `python -m app.worker` |
 | `app/config.py` | настройки из окружения |
 | `migrations/`, `alembic.ini` | миграции схемы базы |
 | `gen_docs.py` | перегенерация `docs/openapi.json` |

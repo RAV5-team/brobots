@@ -18,6 +18,7 @@ import uuid
 
 import conftest
 import pytest
+import uvicorn
 
 from adapters import json_codec
 from adapters.postgres import pool as pg_pool
@@ -31,10 +32,36 @@ from simcore import version
 pytestmark = pytest.mark.db
 
 
-def _serve(repo) -> tuple[server_lib.HttpServer, str]:
-    httpd = server_lib.HttpServer(("127.0.0.1", 0), runtime.http_services(repo))
-    threading.Thread(target=httpd.serve_forever, daemon=True).start()
-    return httpd, f"http://127.0.0.1:{httpd.server_address[1]}"
+class _Served:
+    """uvicorn с приложением сервиса в фоновом потоке на свободном порту."""
+
+    def __init__(self, repo) -> None:
+        app = server_lib.create_app(runtime.http_services(repo))
+        self._sock = socket.create_server(("127.0.0.1", 0))
+        self._server = uvicorn.Server(
+            uvicorn.Config(app, log_config=None, lifespan="off", ws="none")
+        )
+        self._thread = threading.Thread(
+            target=self._server.run, kwargs={"sockets": [self._sock]}
+        )
+        self._thread.start()
+        deadline = time.monotonic() + 10
+        while not self._server.started:
+            assert self._thread.is_alive(), "uvicorn не запустился"
+            assert time.monotonic() < deadline, "uvicorn не запустился"
+            time.sleep(0.01)
+        self.base = f"http://127.0.0.1:{self._sock.getsockname()[1]}"
+
+    def stop(self) -> None:
+        """Останавливает сервер и ждёт поток."""
+        self._server.should_exit = True
+        self._thread.join()
+        self._sock.close()
+
+
+def _serve(repo) -> tuple[_Served, str]:
+    served = _Served(repo)
+    return served, served.base
 
 
 @pytest.fixture(name="base", scope="module")
@@ -42,8 +69,7 @@ def _base_fixture(pool):
     """Адрес сервера поверх тестовой базы на время модуля."""
     httpd, base = _serve(repository.PostgresJobRepository(pool))
     yield base
-    httpd.shutdown()
-    httpd.server_close()
+    httpd.stop()
 
 
 def _send(req: urllib.request.Request) -> tuple[int, dict]:
@@ -197,6 +223,24 @@ def test_unknown_paths_are_404(base, path):
     assert _get(f"{base}{path}")[0] == 404
 
 
+def test_responses_are_not_cached(base):
+    with urllib.request.urlopen(f"{base}/api/meta", timeout=10) as resp:
+        assert resp.headers["Cache-Control"] == "no-store"
+        assert resp.headers["Content-Type"] == "application/json; charset=utf-8"
+
+
+def test_index_page_is_served(base):
+    with urllib.request.urlopen(f"{base}/", timeout=10) as resp:
+        assert resp.headers["Content-Type"].startswith("text/html")
+        assert b"<html" in resp.read().lower()
+
+
+def test_wrong_method_is_405_in_service_format(base):
+    status, out = _post(f"{base}/api/meta", {})
+
+    assert (status, out) == (405, {"error": "method not allowed"})
+
+
 def test_job_without_id_is_not_found_as_job(base):
     assert _get(f"{base}/api/simulations/jobs") == (
         404,
@@ -309,8 +353,7 @@ def test_unavailable_database_gives_503(migrated_url):
         assert status == 503
         assert "недоступно" in out["error"]
     finally:
-        httpd.shutdown()
-        httpd.server_close()
+        httpd.stop()
         pool.close()
 
 
@@ -339,8 +382,7 @@ def test_job_runs_end_to_end_with_a_worker(pool):
         loop.stop_threads(started, stop)
         for thread, _ in started:
             thread.join()
-        httpd.shutdown()
-        httpd.server_close()
+        httpd.stop()
 
 
 def test_negative_content_length_is_400_not_a_hang(base):

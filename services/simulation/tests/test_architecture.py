@@ -89,7 +89,8 @@ ADAPTER_BOUNDARIES = {
 }
 # Внешние библиотеки, которые адаптеру запрещены.
 ADAPTER_FORBIDDEN_LIBS = {
-    "web": ("psycopg", "psycopg_pool", "multiprocessing"),
+    # Веб-адаптер — ASGI-приложение; HTTP-сервер запускает только app/.
+    "web": ("psycopg", "psycopg_pool", "multiprocessing", "uvicorn"),
     "worker": ("psycopg", "psycopg_pool", "multiprocessing"),
     "processes": ("psycopg", "psycopg_pool"),
 }

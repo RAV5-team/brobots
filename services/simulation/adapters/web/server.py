@@ -1,4 +1,4 @@
-"""HTTP API и экран шага 3 «Симуляция» (входящий веб-адаптер).
+"""HTTP API и экран шага 3 «Симуляция» (входящий веб-адаптер, FastAPI).
 
 Вход — конфигурация, выбранная на шаге «Подбор», и 1–2 сценария проверки.
 Задание ставится в очередь в PostgreSQL; его считает воркер (в этом процессе
@@ -24,21 +24,29 @@
         один прогон
     GET  /api/simulations/{simulation_id}/traces
         записи прогона для 2D-сравнения (JSON, gzip)
+
+Контракт ведётся вручную в adapters.web.openapi: автоматическая схема FastAPI
+отключена, чтобы docs/openapi.json оставался единственным описанием API.
+Обработчики с вызовами хранилища — синхронные: FastAPI выполняет их в пуле
+потоков, и блокирующий psycopg не останавливает цикл событий.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 import dataclasses
 import gzip
-from http import server as http_server
 import json
 import logging
 import os
 import pathlib
 import re
-from typing import Any
-from urllib import parse
+from typing import Annotated, Any
+
+import fastapi
+from fastapi import responses
+from starlette import exceptions as starlette_exceptions
+from starlette import types as starlette_types
 
 from adapters import json_codec
 from adapters.web import demo_input
@@ -52,7 +60,6 @@ from simcore import inputs
 from simcore import version
 
 _JSON = "application/json; charset=utf-8"
-_HTML = "text/html; charset=utf-8"
 _INDEX = pathlib.Path(__file__).with_name("static") / "index.html"
 # Номера заданий и прогонов — uuid4 в hex.
 _ID = re.compile(r"^[0-9a-f]{32}$")
@@ -60,6 +67,8 @@ _ID = re.compile(r"^[0-9a-f]{32}$")
 MAX_BODY_BYTES = 1_000_000
 # Тело до этого размера дочитывается перед ответом 413; больше — обрыв.
 _DRAIN_LIMIT_BYTES = 16_000_000
+# Тексты ответов Starlette на неизвестный путь и метод — в формате сервиса.
+_STATUS_TEXT = {404: "not found", 405: "method not allowed"}
 
 _log = logging.getLogger(__name__)
 
@@ -81,19 +90,34 @@ class Services:
     health: ports.StorageHealth
 
 
-class HttpServer(http_server.ThreadingHTTPServer):
-    """HTTP-сервер сервиса симуляции.
+class ApiError(Exception):
+    """Ответ об ошибке в формате сервиса: {"error", "errors"?}.
 
     Attributes:
-        services: Сценарии и порты для обработчика.
+        status: HTTP-код ответа.
+        message: Текст ошибки.
+        problems: Ошибки по полям или None.
     """
 
-    daemon_threads = True
+    def __init__(
+        self,
+        status: int,
+        message: str,
+        problems: Sequence[Mapping[str, Any]] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.status = status
+        self.message = message
+        self.problems = problems
 
-    def __init__(self, address: tuple[str, int], services: Services) -> None:
-        """Слушает address; запросы обслуживает Handler."""
-        super().__init__(address, Handler)
-        self.services = services
+
+class JsonResponse(responses.Response):
+    """JSON-ответ сервиса: без NaN и с UTF-8 без экранирования."""
+
+    media_type = _JSON
+
+    def render(self, content: Any) -> bytes:
+        return json_codec.dumps(json_codec.json_safe(content)).encode("utf-8")
 
 
 def _quality(params: str) -> float:
@@ -121,192 +145,252 @@ def accepts_gzip(header: str | None) -> bool:
     return weight > 0
 
 
-class Handler(http_server.BaseHTTPRequestHandler):
-    """HTTP-обработчик сервиса симуляции: страница шага и /api/*."""
+def _declared_size(request: fastapi.Request) -> int | None:
+    """Content-Length запроса; None — не указан (chunked)."""
+    header = request.headers.get("content-length")
+    if header is None:
+        return None
+    try:
+        size = int(header)
+    except ValueError as e:
+        raise ApiError(400, "Некорректный Content-Length") from e
+    if size < 0:
+        raise ApiError(400, "Некорректный Content-Length")
+    return size
 
-    # pylint: disable=invalid-name
-    # Имена do_GET/do_POST задаёт http.server.BaseHTTPRequestHandler:
-    # диспетчеризация идёт по ним, переименование отключит обработку запросов.
 
-    server: HttpServer
-    # Таймаут чтения запроса, с: зависший клиент не держит поток вечно.
-    timeout = 30
+async def _read_limited(request: fastapi.Request) -> bytes:
+    """Тело не больше MAX_BODY_BYTES; больше — 413.
 
-    def log_message(  # pylint: disable=redefined-builtin
-        self, format: str, *args: Any
-    ) -> None:
-        """Отключает журнал запросов в stderr."""
-        del format, args
+    Лишнее тело до _DRAIN_LIMIT_BYTES дочитывается, чтобы клиент, ещё
+    отправляющий запрос, увидел ответ, а не обрыв соединения.
+    """
+    declared = _declared_size(request)
+    too_big = declared is not None and declared > MAX_BODY_BYTES
+    if declared is not None and declared > _DRAIN_LIMIT_BYTES:
+        raise ApiError(413, f"Тело больше {MAX_BODY_BYTES} байт.")
+    chunks: list[bytes] = []
+    received = 0
+    async for chunk in request.stream():
+        received += len(chunk)
+        too_big = too_big or received > MAX_BODY_BYTES
+        if received > _DRAIN_LIMIT_BYTES:
+            break
+        if not too_big:
+            chunks.append(chunk)
+    if too_big:
+        raise ApiError(413, f"Тело больше {MAX_BODY_BYTES} байт.")
+    return b"".join(chunks)
 
-    def _send(
-        self, code: int, body: bytes, ctype: str, headers: dict | None = None
-    ) -> None:
-        self.send_response(code)
-        self.send_header("Content-Type", ctype)
-        self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
-        for name, value in (headers or {}).items():
-            self.send_header(name, value)
-        self.end_headers()
-        self.wfile.write(body)
 
-    def _json(self, obj: Any, code: int = 200) -> None:
-        body = json_codec.dumps(json_codec.json_safe(obj)).encode("utf-8")
-        self._send(code, body, _JSON)
+async def json_object(request: fastapi.Request) -> dict:
+    """Зависимость: тело запроса — JSON-объект; пустое тело — {}.
 
-    def _parts(self) -> list[str]:
-        return [p for p in parse.urlparse(self.path).path.split("/") if p]
+    Raises:
+        ApiError: 400 — не JSON, 413 — слишком большое, 422 — не объект.
+    """
+    raw = await _read_limited(request)
+    try:
+        data = json.loads(raw or b"{}")
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        raise ApiError(400, "Некорректный JSON") from e
+    if not isinstance(data, dict):
+        problems = [{"field": "body", "message": "должно быть объектом"}]
+        raise ApiError(422, "Тело запроса — JSON-объект.", problems)
+    return data
 
-    def do_GET(self) -> None:
-        """Отдаёт страницу шага, справочники, задания и прогоны."""
-        self._guarded(self._route_get)
 
-    def do_POST(self) -> None:
-        """Принимает предпросмотр и постановку задания в очередь."""
-        self._guarded(self._route_post)
+Body = Annotated[dict, fastapi.Depends(json_object)]
 
-    def _guarded(self, route: Callable[[], None]) -> None:
-        """Выполняет маршрут; недоступная база — 503."""
-        try:
-            route()
-        except errors.StorageUnavailableError:
-            _log.exception("хранилище недоступно")
-            self._json(
-                presenters.error_body("Хранилище недоступно, повторите позже."),
-                503,
-            )
 
-    def _route_get(self) -> None:
-        parts = self._parts()
-        if not parts or parts == ["index.html"]:
-            return self._send(200, _INDEX.read_bytes(), _HTML)
-        if parts == ["api", "health"]:
-            return self._health()
-        if parts == ["api", "meta"]:
-            return self._json(self._meta())
-        if parts == ["api", "simulations", "schema"]:
-            return self._json(request_schema.request_schema())
-        if parts == ["api", "openapi.json"]:
-            return self._json(openapi.spec())
-        if parts[:3] == ["api", "simulations", "jobs"] and len(parts) <= 4:
-            return self._get_job(parts[3] if len(parts) == 4 else "")
-        if parts[:2] == ["api", "simulations"] and len(parts) in (3, 4):
-            view = parts[3] if len(parts) == 4 else ""
-            return self._get_run(parts[2], view)
-        return self._json(presenters.error_body("not found"), 404)
+def _services(request: fastapi.Request) -> Services:
+    """Зависимость: сценарии и порты приложения."""
+    return request.app.state.services
 
-    def _route_post(self) -> None:
-        parts = self._parts()
-        data = self._body()
-        if data is None:
-            return None
-        if parts == ["api", "simulations", "preview"]:
-            return self._preview(data)
-        if parts == ["api", "simulations"]:
-            return self._start(data)
-        return self._json(presenters.error_body("not found"), 404)
 
-    def _body(self) -> dict | None:
-        """Читает тело-объект; при ошибке отвечает и возвращает None."""
-        try:
-            size = int(self.headers.get("Content-Length") or 0)
-        except ValueError:
-            size = -1
-        if size < 0:
-            self._json(
-                presenters.error_body("Некорректный Content-Length"), 400
-            )
-            return None
-        if size > MAX_BODY_BYTES:
-            self.close_connection = True
-            if size <= _DRAIN_LIMIT_BYTES:
-                self.rfile.read(size)  # дочитать, чтобы клиент увидел ответ
-            self._json(
-                presenters.error_body(f"Тело больше {MAX_BODY_BYTES} байт."),
-                413,
-            )
-            return None
-        try:
-            data = json.loads(self.rfile.read(size) or b"{}")
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            self._json(presenters.error_body("Некорректный JSON"), 400)
-            return None
-        if not isinstance(data, dict):
-            problems = [{"field": "body", "message": "должно быть объектом"}]
-            self._json(
-                presenters.error_body("Тело запроса — JSON-объект.", problems),
-                422,
-            )
-            return None
-        return data
+Deps = Annotated[Services, fastapi.Depends(_services)]
 
-    def _health(self) -> None:
-        """Доступность базы и ревизия схемы."""
-        if self.server.services.health.is_ready():
-            self._json({"status": "ok"})
-        else:
-            self._json({"status": "unavailable"}, 503)
 
-    def _meta(self) -> dict:
-        """Справочники для формы, примеры сценариев и демо-вход из подбора."""
-        return {
-            "simulation_version": version.SIM_VERSION,
-            "cpu": os.cpu_count() or 1,
-            "simulation_params_spec": form_spec.params_spec(),
-            "demo": {
-                "configurations": demo_input.demo_configurations(),
-                "location": demo_input.location(),
-                "task": demo_input.task(),
-            },
-        }
+def _meta() -> dict:
+    """Справочники для формы, примеры сценариев и демо-вход из подбора."""
+    return {
+        "simulation_version": version.SIM_VERSION,
+        "cpu": os.cpu_count() or 1,
+        "simulation_params_spec": form_spec.params_spec(),
+        "demo": {
+            "configurations": demo_input.demo_configurations(),
+            "location": demo_input.location(),
+            "task": demo_input.task(),
+        },
+    }
 
-    def _get_job(self, job_id: str) -> None:
-        """Ход задания и, когда готово, его прогоны."""
-        reader = self.server.services.reader
-        job = reader.get_job(job_id) if _ID.match(job_id) else None
-        if job is None:
-            return self._json(presenters.error_body("Задание не найдено."), 404)
-        return self._json(presenters.job_body(job))
 
-    def _get_run(self, simulation_id: str, view: str) -> None:
-        """Прогон целиком или его 2D-трассы (traces)."""
-        if view not in ("", "traces") or not _ID.match(simulation_id):
-            return self._json(presenters.error_body("not found"), 404)
-        reader = self.server.services.reader
-        if not view:
-            run = reader.get_run(simulation_id)
-            if run is None:
-                return self._json(
-                    presenters.error_body("Прогон не найден."), 404
-                )
-            return self._json(run)
-        traces_gz = reader.get_traces_gz(simulation_id)
-        if traces_gz is None:
-            return self._json(presenters.error_body("Прогон не найден."), 404)
-        if accepts_gzip(self.headers.get("Accept-Encoding")):
-            headers = {"Content-Encoding": "gzip", "Vary": "Accept-Encoding"}
-            return self._send(200, traces_gz, _JSON, headers)
-        headers = {"Vary": "Accept-Encoding"}
-        return self._send(200, gzip.decompress(traces_gz), _JSON, headers)
+def _require_id(value: str, message: str) -> None:
+    if not _ID.match(value):
+        raise ApiError(404, message)
 
-    def _preview(self, data: dict) -> None:
+
+def _add_pages(app: fastapi.FastAPI) -> None:
+    """Страница шага, готовность и справочники."""
+
+    @app.get("/", response_class=responses.HTMLResponse)
+    @app.get("/index.html", response_class=responses.HTMLResponse)
+    def index() -> responses.HTMLResponse:
+        return responses.HTMLResponse(_INDEX.read_bytes())
+
+    @app.get("/api/health")
+    def health(services: Deps) -> JsonResponse:
+        if services.health.is_ready():
+            return JsonResponse({"status": "ok"})
+        return JsonResponse({"status": "unavailable"}, 503)
+
+    @app.get("/api/meta")
+    def meta() -> JsonResponse:
+        return JsonResponse(_meta())
+
+    @app.get("/api/openapi.json")
+    def spec() -> JsonResponse:
+        return JsonResponse(openapi.spec())
+
+    @app.get("/api/simulations/schema")
+    def schema() -> JsonResponse:
+        return JsonResponse(request_schema.request_schema())
+
+
+def _add_simulations(app: fastapi.FastAPI) -> None:
+    """Предпросмотр, постановка в очередь, задания и прогоны.
+
+    Точные пути объявлены раньше шаблонных: /api/simulations/{simulation_id}
+    иначе перехватил бы schema и jobs.
+    """
+
+    @app.post("/api/simulations/preview")
+    def preview(services: Deps, data: Body) -> JsonResponse:
         """Потребность по часам и сверка со следом расчёта — без имитации."""
         try:
-            preview = self.server.services.preview(data)
+            return JsonResponse(services.preview(data))
         except inputs.RequestError as e:
-            return self._json(presenters.error_body(str(e), e.errors), 422)
-        return self._json(preview)
+            raise ApiError(422, str(e), e.errors) from e
 
-    def _start(self, data: dict) -> None:
+    @app.post("/api/simulations")
+    def start(services: Deps, data: Body) -> JsonResponse:
         """Проверяет вход и ставит задание в очередь; ответ 202 с job_id."""
         try:
-            job_id = self.server.services.submit(data)
+            job_id = services.submit(data)
         except errors.InvalidSubmissionError as e:
-            return self._json(presenters.error_body(str(e), e.errors), 422)
-        return self._json(
+            raise ApiError(422, str(e), e.errors) from e
+        return JsonResponse(
             {
                 "job_id": job_id,
                 "status_url": f"/api/simulations/jobs/{job_id}",
             },
             202,
         )
+
+    @app.get("/api/simulations/jobs")
+    def no_job() -> JsonResponse:
+        """Без номера задания — то же, что неизвестное задание."""
+        raise ApiError(404, "Задание не найдено.")
+
+    @app.get("/api/simulations/jobs/{job_id}")
+    def get_job(services: Deps, job_id: str) -> JsonResponse:
+        """Ход задания и, когда готово, его прогоны."""
+        _require_id(job_id, "Задание не найдено.")
+        job = services.reader.get_job(job_id)
+        if job is None:
+            raise ApiError(404, "Задание не найдено.")
+        return JsonResponse(presenters.job_body(job))
+
+    @app.get("/api/simulations/{simulation_id}")
+    def get_run(services: Deps, simulation_id: str) -> JsonResponse:
+        """Прогон целиком."""
+        _require_id(simulation_id, "not found")
+        run = services.reader.get_run(simulation_id)
+        if run is None:
+            raise ApiError(404, "Прогон не найден.")
+        return JsonResponse(run)
+
+    @app.get("/api/simulations/{simulation_id}/traces")
+    def get_traces(
+        services: Deps, simulation_id: str, request: fastapi.Request
+    ) -> responses.Response:
+        """2D-трассы прогона: gzip, если клиент его принимает."""
+        _require_id(simulation_id, "not found")
+        traces_gz = services.reader.get_traces_gz(simulation_id)
+        if traces_gz is None:
+            raise ApiError(404, "Прогон не найден.")
+        headers = {"Vary": "Accept-Encoding"}
+        if accepts_gzip(request.headers.get("accept-encoding")):
+            headers["Content-Encoding"] = "gzip"
+            return responses.Response(traces_gz, 200, headers, _JSON)
+        return responses.Response(
+            gzip.decompress(traces_gz), 200, headers, _JSON
+        )
+
+
+def _add_error_handlers(app: fastapi.FastAPI) -> None:
+    """Ошибки — в формате {"error", "errors"?}; база недоступна — 503."""
+
+    @app.exception_handler(ApiError)
+    async def api_error(_: fastapi.Request, exc: ApiError) -> JsonResponse:
+        return JsonResponse(
+            presenters.error_body(exc.message, exc.problems), exc.status
+        )
+
+    @app.exception_handler(errors.StorageUnavailableError)
+    async def storage_unavailable(
+        _: fastapi.Request, exc: errors.StorageUnavailableError
+    ) -> JsonResponse:
+        _log.error("хранилище недоступно", exc_info=exc)
+        return JsonResponse(
+            presenters.error_body("Хранилище недоступно, повторите позже."),
+            503,
+        )
+
+    @app.exception_handler(starlette_exceptions.HTTPException)
+    async def http_error(
+        _: fastapi.Request, exc: starlette_exceptions.HTTPException
+    ) -> JsonResponse:
+        message = _STATUS_TEXT.get(exc.status_code, str(exc.detail))
+        return JsonResponse(
+            presenters.error_body(message), exc.status_code, exc.headers
+        )
+
+
+def _no_store(app: fastapi.FastAPI) -> None:
+    """Ответы API не кешируются: задания и прогоны меняются."""
+
+    @app.middleware("http")
+    async def no_store(
+        request: fastapi.Request,
+        call_next: Callable[[fastapi.Request], Awaitable[responses.Response]],
+    ) -> responses.Response:
+        response = await call_next(request)
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+
+def create_app(
+    services: Services,
+    lifespan: starlette_types.Lifespan[fastapi.FastAPI] | None = None,
+) -> fastapi.FastAPI:
+    """ASGI-приложение сервиса симуляции.
+
+    Args:
+        services: Сценарии и порты для обработчиков.
+        lifespan: Запуск и остановка фоновых задач (воркеров) корнем сборки.
+    """
+    app = fastapi.FastAPI(
+        title="RAV5 simulation",
+        version=version.SIM_VERSION,
+        openapi_url=None,
+        docs_url=None,
+        redoc_url=None,
+        lifespan=lifespan,
+    )
+    app.state.services = services
+    _add_error_handlers(app)
+    _no_store(app)
+    _add_pages(app)
+    _add_simulations(app)
+    return app
