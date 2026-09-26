@@ -1,0 +1,877 @@
+{
+  "meta": {
+    "fileKey": "sd1kJRdpW6RBFzSi1ztXYK",
+    "rootNodeId": "15935:2",
+    "scope": "только фреймы 'экран · …' внутри секции dev",
+    "page": "хакатон (14161:22911)",
+    "script": "apps/web/docs/design/figma-audit.js",
+    "collectedAt": "2026-09-26",
+    "note": "top-N по частоте: colors 60, typography 40, radii 20, gaps 20, paddings 30, effects 15; скрытые узлы не учитываются"
+  },
+  "layout": {
+    "auto": 3468,
+    "none": 121
+  },
+  "colors": [
+    [
+      "text #111111",
+      1499
+    ],
+    [
+      "text #5e5e59",
+      1034
+    ],
+    [
+      "fill #f0eee9",
+      424
+    ],
+    [
+      "text #8a867d",
+      395
+    ],
+    [
+      "fill #e6e2da",
+      299
+    ],
+    [
+      "fill #e9e5de",
+      263
+    ],
+    [
+      "stroke #ffffff@0.60",
+      209
+    ],
+    [
+      "fill #111111",
+      196
+    ],
+    [
+      "text #d9f24a",
+      133
+    ],
+    [
+      "stroke #ddd8cf",
+      119
+    ],
+    [
+      "fill #d9d9d9",
+      81
+    ],
+    [
+      "stroke #8a867d",
+      58
+    ],
+    [
+      "fill #e7e3db",
+      50
+    ],
+    [
+      "stroke #ffffff@0.55",
+      30
+    ],
+    [
+      "stroke #5e5e59",
+      30
+    ],
+    [
+      "fill #e4f33d",
+      27
+    ],
+    [
+      "text #3f3f3b",
+      19
+    ],
+    [
+      "text #4a4f16",
+      15
+    ],
+    [
+      "fill #8a867d",
+      14
+    ],
+    [
+      "fill #d9f24a",
+      13
+    ],
+    [
+      "stroke #111111",
+      11
+    ],
+    [
+      "stroke #b9b3a7",
+      11
+    ],
+    [
+      "text #ce2c31",
+      8
+    ],
+    [
+      "text #b9b3a7",
+      7
+    ],
+    [
+      "fill #111111@0.32",
+      5
+    ],
+    [
+      "fill #ddd8cf",
+      4
+    ],
+    [
+      "text #1b1b1a",
+      3
+    ],
+    [
+      "stroke #d9f24a",
+      2
+    ],
+    [
+      "text #6b675f",
+      2
+    ],
+    [
+      "stroke #c9d62a",
+      2
+    ],
+    [
+      "text #f0eee9",
+      1
+    ],
+    [
+      "fill #dad6cd",
+      1
+    ],
+    [
+      "fill IMAGE",
+      1
+    ],
+    [
+      "fill #161616",
+      1
+    ],
+    [
+      "text #f4f2ee",
+      1
+    ],
+    [
+      "fill #f7e3de",
+      1
+    ],
+    [
+      "stroke #e5484d",
+      1
+    ],
+    [
+      "fill #3f3f3b",
+      1
+    ],
+    [
+      "fill #5e5e59",
+      1
+    ]
+  ],
+  "typography": [
+    [
+      "Onest SemiBold 14/20px",
+      548
+    ],
+    [
+      "Onest Regular 14/20px",
+      333
+    ],
+    [
+      "Onest Medium 12/16px",
+      282
+    ],
+    [
+      "Onest Medium 12/16px ls 0.10000000149011612px",
+      270
+    ],
+    [
+      "Onest Regular 12/16px ls 0.10000000149011612px",
+      266
+    ],
+    [
+      "Onest Medium 14/20px",
+      249
+    ],
+    [
+      "Onest Regular 12/16px",
+      193
+    ],
+    [
+      "Onest Regular 12/auto",
+      161
+    ],
+    [
+      "Onest SemiBold 14/auto",
+      161
+    ],
+    [
+      "Onest SemiBold 16/24px",
+      106
+    ],
+    [
+      "Onest Medium 11/16px ls 8%",
+      88
+    ],
+    [
+      "Onest Regular 13/19px",
+      43
+    ],
+    [
+      "Onest Medium 14/18px",
+      37
+    ],
+    [
+      "Onest SemiBold 20/28px",
+      35
+    ],
+    [
+      "Onest SemiBold 18/auto",
+      25
+    ],
+    [
+      "Unbounded Light 32/40px ls -2%",
+      24
+    ],
+    [
+      "Onest Regular 11/16px ls 4%",
+      24
+    ],
+    [
+      "Onest SemiBold 12/16px ls 0.10000000149011612px",
+      24
+    ],
+    [
+      "Onest Medium 11/auto ls 6%",
+      24
+    ],
+    [
+      "Onest Medium 12/auto",
+      24
+    ],
+    [
+      "Onest Medium 11/16px ls 0.10000000149011612px",
+      24
+    ],
+    [
+      "Onest Medium 11/auto ls 8%",
+      23
+    ],
+    [
+      "Onest SemiBold 12/16px",
+      21
+    ],
+    [
+      "Onest Medium 13/19px",
+      18
+    ],
+    [
+      "Onest Medium 13/18px",
+      16
+    ],
+    [
+      "Onest SemiBold 24/32px",
+      16
+    ],
+    [
+      "Unbounded Light 32/40px",
+      9
+    ],
+    [
+      "Onest Medium 16/24px",
+      9
+    ],
+    [
+      "Onest SemiBold 16/auto",
+      8
+    ],
+    [
+      "Onest Medium 13/16px",
+      8
+    ],
+    [
+      "Onest SemiBold 14/16px",
+      7
+    ],
+    [
+      "Onest Medium 20/auto",
+      6
+    ],
+    [
+      "Onest Regular 12/17px",
+      4
+    ],
+    [
+      "Onest Regular 12/17px ls 0.10000000149011612px",
+      3
+    ],
+    [
+      "Unbounded Light 24/31px",
+      3
+    ],
+    [
+      "Unbounded Regular 14/22px",
+      2
+    ],
+    [
+      "Unbounded Light 28/38px ls -1%",
+      2
+    ],
+    [
+      "Onest Medium 14/22px",
+      2
+    ],
+    [
+      "Onest Medium 12/17px ls 8%",
+      2
+    ],
+    [
+      "Onest Regular 14/22px",
+      2
+    ]
+  ],
+  "radii": [
+    [
+      "999",
+      949
+    ],
+    [
+      "12",
+      208
+    ],
+    [
+      "28",
+      111
+    ],
+    [
+      "7",
+      49
+    ],
+    [
+      "16",
+      49
+    ],
+    [
+      "4",
+      6
+    ],
+    [
+      "24",
+      3
+    ],
+    [
+      "20",
+      1
+    ]
+  ],
+  "gaps": [
+    [
+      "0",
+      1116
+    ],
+    [
+      "4",
+      919
+    ],
+    [
+      "8",
+      773
+    ],
+    [
+      "12",
+      327
+    ],
+    [
+      "16",
+      191
+    ],
+    [
+      "6",
+      83
+    ],
+    [
+      "20",
+      27
+    ],
+    [
+      "24",
+      27
+    ],
+    [
+      "10",
+      1
+    ],
+    [
+      "28",
+      1
+    ],
+    [
+      "40",
+      1
+    ],
+    [
+      "571",
+      1
+    ],
+    [
+      "-6",
+      1
+    ]
+  ],
+  "paddings": [
+    [
+      "0 0 0 0",
+      1958
+    ],
+    [
+      "12 12 12 12",
+      226
+    ],
+    [
+      "8 16 8 16",
+      205
+    ],
+    [
+      "4 10 4 10",
+      186
+    ],
+    [
+      "0 20 0 20",
+      145
+    ],
+    [
+      "8 0 8 0",
+      118
+    ],
+    [
+      "20 20 20 20",
+      62
+    ],
+    [
+      "12 16 12 16",
+      56
+    ],
+    [
+      "12 20 12 20",
+      49
+    ],
+    [
+      "16 0 16 0",
+      41
+    ],
+    [
+      "16 16 16 16",
+      37
+    ],
+    [
+      "12 0 12 0",
+      34
+    ],
+    [
+      "4 0 4 0",
+      33
+    ],
+    [
+      "4 4 4 4",
+      30
+    ],
+    [
+      "28 28 28 28",
+      29
+    ],
+    [
+      "0 0 0 240",
+      24
+    ],
+    [
+      "20 16 20 16",
+      24
+    ],
+    [
+      "8 16 8 20",
+      24
+    ],
+    [
+      "0 14 0 14",
+      24
+    ],
+    [
+      "2 8 2 8",
+      24
+    ],
+    [
+      "24 24 32 24",
+      22
+    ],
+    [
+      "0 4 0 4",
+      20
+    ],
+    [
+      "0 12 0 0",
+      18
+    ],
+    [
+      "8 12 8 12",
+      11
+    ],
+    [
+      "8 10 8 10",
+      10
+    ],
+    [
+      "0 24 0 24",
+      8
+    ],
+    [
+      "16 20 16 20",
+      6
+    ],
+    [
+      "8 20 8 20",
+      5
+    ],
+    [
+      "20 24 20 24",
+      3
+    ],
+    [
+      "0 0 12 0",
+      3
+    ]
+  ],
+  "effects": [
+    [
+      [
+        {
+          "type": "DROP_SHADOW",
+          "radius": 6,
+          "offset": {
+            "x": -2,
+            "y": -2
+          },
+          "spread": 0,
+          "color": "#ffffff@0.85"
+        },
+        {
+          "type": "DROP_SHADOW",
+          "radius": 6,
+          "offset": {
+            "x": 2,
+            "y": 2
+          },
+          "spread": 0,
+          "color": "#b9b3a7@0.30"
+        }
+      ],
+      205
+    ],
+    [
+      [
+        {
+          "type": "INNER_SHADOW",
+          "radius": 4,
+          "offset": {
+            "x": 2,
+            "y": 2
+          },
+          "spread": 0,
+          "color": "#b9b3a7@0.60"
+        },
+        {
+          "type": "INNER_SHADOW",
+          "radius": 4,
+          "offset": {
+            "x": -2,
+            "y": -2
+          },
+          "spread": 0,
+          "color": "#ffffff@0.95"
+        }
+      ],
+      194
+    ],
+    [
+      [
+        {
+          "type": "DROP_SHADOW",
+          "radius": 8,
+          "offset": {
+            "x": 0,
+            "y": 3
+          },
+          "spread": 0,
+          "color": "#000000@0.18"
+        }
+      ],
+      73
+    ],
+    [
+      [
+        {
+          "type": "DROP_SHADOW",
+          "radius": 14,
+          "offset": {
+            "x": -5,
+            "y": -5
+          },
+          "spread": 0,
+          "color": "#ffffff@0.85"
+        },
+        {
+          "type": "DROP_SHADOW",
+          "radius": 14,
+          "offset": {
+            "x": 5,
+            "y": 5
+          },
+          "spread": 0,
+          "color": "#b9b3a7@0.30"
+        }
+      ],
+      61
+    ],
+    [
+      [
+        {
+          "type": "DROP_SHADOW",
+          "radius": 22,
+          "offset": {
+            "x": -8,
+            "y": -8
+          },
+          "spread": 0,
+          "color": "#ffffff@0.85"
+        },
+        {
+          "type": "DROP_SHADOW",
+          "radius": 22,
+          "offset": {
+            "x": 8,
+            "y": 8
+          },
+          "spread": 0,
+          "color": "#b9b3a7@0.30"
+        }
+      ],
+      48
+    ],
+    [
+      [
+        {
+          "type": "INNER_SHADOW",
+          "radius": 8,
+          "offset": {
+            "x": 3,
+            "y": 3
+          },
+          "spread": 0,
+          "color": "#b9b3a7@0.30"
+        },
+        {
+          "type": "INNER_SHADOW",
+          "radius": 8,
+          "offset": {
+            "x": -3,
+            "y": -3
+          },
+          "spread": 0,
+          "color": "#ffffff@0.80"
+        }
+      ],
+      39
+    ],
+    [
+      [
+        {
+          "type": "DROP_SHADOW",
+          "radius": 22,
+          "offset": {
+            "x": 8,
+            "y": 8
+          },
+          "spread": 0,
+          "color": "#b9b3a7@0.30"
+        }
+      ],
+      25
+    ],
+    [
+      [
+        {
+          "type": "DROP_SHADOW",
+          "radius": 6,
+          "offset": {
+            "x": -2,
+            "y": -2
+          },
+          "spread": 0,
+          "color": "#f6ff9e@0.30"
+        },
+        {
+          "type": "DROP_SHADOW",
+          "radius": 6,
+          "offset": {
+            "x": 2,
+            "y": 2
+          },
+          "spread": 0,
+          "color": "#aebb1f@0.30"
+        }
+      ],
+      7
+    ],
+    [
+      [
+        {
+          "type": "DROP_SHADOW",
+          "radius": 6,
+          "offset": {
+            "x": 2,
+            "y": 2
+          },
+          "spread": 0,
+          "color": "#000000@0.06"
+        },
+        {
+          "type": "DROP_SHADOW",
+          "radius": 6,
+          "offset": {
+            "x": -2,
+            "y": -2
+          },
+          "spread": 0,
+          "color": "#ffffff@0.90"
+        }
+      ],
+      7
+    ],
+    [
+      [
+        {
+          "type": "INNER_SHADOW",
+          "radius": 8,
+          "offset": {
+            "x": 3,
+            "y": 3
+          },
+          "spread": 0,
+          "color": "#b9b3a7@0.50"
+        },
+        {
+          "type": "INNER_SHADOW",
+          "radius": 8,
+          "offset": {
+            "x": -3,
+            "y": -3
+          },
+          "spread": 0,
+          "color": "#ffffff@0.90"
+        }
+      ],
+      4
+    ],
+    [
+      [
+        {
+          "type": "INNER_SHADOW",
+          "radius": 8,
+          "offset": {
+            "x": 3,
+            "y": 3
+          },
+          "spread": 0,
+          "color": "#b9b3a7@0.60"
+        },
+        {
+          "type": "INNER_SHADOW",
+          "radius": 8,
+          "offset": {
+            "x": -3,
+            "y": -3
+          },
+          "spread": 0,
+          "color": "#ffffff@0.95"
+        }
+      ],
+      3
+    ],
+    [
+      [
+        {
+          "type": "INNER_SHADOW",
+          "radius": 8,
+          "offset": {
+            "x": 4,
+            "y": 4
+          },
+          "spread": 0,
+          "color": "#aebb1f@0.60"
+        },
+        {
+          "type": "INNER_SHADOW",
+          "radius": 8,
+          "offset": {
+            "x": -4,
+            "y": -4
+          },
+          "spread": 0,
+          "color": "#f6ff9e@0.95"
+        }
+      ],
+      2
+    ],
+    [
+      [
+        {
+          "type": "INNER_SHADOW",
+          "radius": 8,
+          "offset": {
+            "x": 4,
+            "y": 4
+          },
+          "spread": 0,
+          "color": "#aebb1f@0.60"
+        },
+        {
+          "type": "INNER_SHADOW",
+          "radius": 8,
+          "offset": {
+            "x": -4,
+            "y": -4
+          },
+          "spread": 0,
+          "color": "#f6ff9e@0.60"
+        }
+      ],
+      1
+    ],
+    [
+      [
+        {
+          "type": "DROP_SHADOW",
+          "radius": 22,
+          "offset": {
+            "x": 8,
+            "y": 8
+          },
+          "spread": 0,
+          "color": "#b9b3a7@0.30"
+        },
+        {
+          "type": "DROP_SHADOW",
+          "radius": 22,
+          "offset": {
+            "x": -8,
+            "y": -8
+          },
+          "spread": 0,
+          "color": "#ffffff@0.85"
+        }
+      ],
+      1
+    ]
+  ]
+}

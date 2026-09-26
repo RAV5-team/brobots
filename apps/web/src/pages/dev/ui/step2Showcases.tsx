@@ -1,0 +1,106 @@
+import { useState } from 'react'
+import { Checkbox } from '@/components/ui/Checkbox'
+import { Field } from '@/components/ui/Field'
+import { RadioGroup } from '@/components/ui/RadioGroup'
+import { Segmented } from '@/components/ui/Segmented'
+import { Select } from '@/components/ui/Select'
+import { FACILITY_TYPES } from '@/mocks/fixtures/facilityParameters'
+import { HANDLING_METHODS, OPERATION_CLASSES } from '@/mocks/fixtures/operationClasses'
+import { ru } from '@/shared/i18n/ru'
+import { stateProps, type DemoState } from './demoState'
+import { ShowcaseSection, StateGrid } from './StateGrid'
+
+const s = ru.dev.samples
+const STATES: readonly DemoState[] = ['default', 'hover', 'focus', 'disabled']
+const CLASS_OPTIONS = OPERATION_CLASSES.map((c) => ({ value: c.code, label: `${c.code} · ${c.name}`, description: c.description }))
+const FACILITY_OPTIONS = FACILITY_TYPES.map((f) => ({ value: f.code, label: f.name }))
+const HANDLING_OPTIONS = HANDLING_METHODS.slice(0, 3).map((h) => ({ value: h.code, label: h.name }))
+const YES_NO = [{ value: 'no', label: s.no }, { value: 'yes', label: s.yes }] as const
+
+function DemoSegmented({ size, state }: { size: 40 | 44; state: DemoState }) {
+  const [value, setValue] = useState<'no' | 'yes'>('no')
+  const { 'data-demo-state': demo, disabled } = stateProps(state)
+  return (
+    <span className="block w-[200px]">
+      <Segmented label={s.divisibleCargo} options={YES_NO} value={value} onChange={setValue} size={size} disabled={disabled ?? false} data-demo-state={demo} />
+    </span>
+  )
+}
+
+export function SegmentedShowcase() {
+  return (
+    <ShowcaseSection title="Segmented control">
+      <StateGrid
+        states={['default', 'hover', 'disabled']}
+        rows={[
+          { label: '40', render: (st) => <DemoSegmented size={40} state={st} /> },
+          { label: '44', render: (st) => <DemoSegmented size={44} state={st} /> },
+        ]}
+      />
+    </ShowcaseSection>
+  )
+}
+
+export function SelectShowcase() {
+  return (
+    <div className="flex flex-col gap-24">
+      <ShowcaseSection title="Select">
+        <StateGrid
+          states={STATES}
+          rows={[
+            {
+              label: 'field',
+              render: (st) => (
+                <span className="block w-[260px]">
+                  <Select aria-label={s.operationClass} options={CLASS_OPTIONS} defaultValue="OP-01" {...stateProps(st)} />
+                </span>
+              ),
+            },
+            {
+              label: 'filter',
+              render: (st) => <Select variant="filter" aria-label={s.filterFacility} placeholder={s.filterFacility} options={FACILITY_OPTIONS} {...stateProps(st)} />,
+            },
+          ]}
+        />
+      </ShowcaseSection>
+      <ShowcaseSection title="Field + Select">
+        <div className="grid grid-cols-2 gap-40">
+          <Field label={s.operationClass} required hint={s.operationClassHint}>
+            <Select options={CLASS_OPTIONS} defaultValue="OP-01" />
+          </Field>
+          <Field label={s.filterFacility} required error={s.activeAreaError}>
+            <Select options={FACILITY_OPTIONS} placeholder={s.filterFacility} />
+          </Field>
+        </div>
+      </ShowcaseSection>
+    </div>
+  )
+}
+
+export function CheckboxShowcase() {
+  return (
+    <ShowcaseSection title="Checkbox">
+      <StateGrid
+        states={STATES}
+        rows={[
+          { label: 'off', render: (st) => <Checkbox label={s.operationClassValue} {...stateProps(st)} /> },
+          { label: 'on', render: (st) => <Checkbox label={s.operationClassValue} defaultChecked {...stateProps(st)} /> },
+        ]}
+      />
+    </ShowcaseSection>
+  )
+}
+
+export function RadioShowcase() {
+  return (
+    <ShowcaseSection title="Radio">
+      <StateGrid
+        states={STATES}
+        rows={[
+          { label: 'vertical', render: (st) => <RadioGroup label={s.handlingMethod} options={HANDLING_OPTIONS} defaultValue="platform" {...stateProps(st)} /> },
+          { label: 'horizontal', render: (st) => <RadioGroup label={s.handlingMethod} orientation="horizontal" options={HANDLING_OPTIONS.slice(0, 2)} defaultValue="forks" {...stateProps(st)} /> },
+        ]}
+      />
+    </ShowcaseSection>
+  )
+}

@@ -1,0 +1,83 @@
+/*
+ * Тема Tailwind: утилиты ссылаются на токены --rav-* из tokens.css.
+ * Цвета, тени, радиусы, семейства и размеры шрифтов Tailwind по умолчанию отключены — только токены.
+ * Типографика — только классы type-* (typography.css): утилит text-<размер> и font-<семейство> нет.
+ * inline: Tailwind подставляет var(--rav-…) прямо в утилиты и не объявляет свои переменные.
+ */
+@theme inline {
+  --color-*: initial;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+  --color-bg: var(--rav-color-bg);
+  --color-surface-sunken: var(--rav-color-surface-sunken);
+  --color-surface-muted: var(--rav-color-surface-muted);
+  --color-border: var(--rav-color-border);
+  --color-border-strong: var(--rav-color-border-strong);
+  --color-border-control: var(--rav-color-border-control);
+  --color-highlight: var(--rav-color-highlight);
+  --color-text: var(--rav-color-text);
+  --color-text-secondary: var(--rav-color-text-secondary);
+  --color-text-muted: var(--rav-color-text-muted);
+  --color-text-disabled: var(--rav-color-text-disabled);
+  --color-inverse: var(--rav-color-inverse);
+  --color-inverse-hover: var(--rav-color-inverse-hover);
+  --color-on-inverse: var(--rav-color-on-inverse);
+  --color-accent: var(--rav-color-accent);
+  --color-accent-surface: var(--rav-color-accent-surface);
+  --color-on-accent: var(--rav-color-on-accent);
+  --color-accent-border: var(--rav-color-accent-border);
+  --color-danger: var(--rav-color-danger);
+  --color-danger-border: var(--rav-color-danger-border);
+  --color-danger-bg: var(--rav-color-danger-bg);
+  --color-scrim: var(--rav-color-scrim);
+
+  --font-*: initial;
+  --text-*: initial;
+
+  --radius-*: initial;
+  --radius-xs: var(--rav-radius-xs);
+  --radius-sm: var(--rav-radius-sm);
+  --radius-md: var(--rav-radius-md);
+  --radius-lg: var(--rav-radius-lg);
+  --radius-xl: var(--rav-radius-xl);
+  --radius-2xl: var(--rav-radius-2xl);
+  --radius-3xl: var(--rav-radius-3xl);
+  --radius-full: var(--rav-radius-full);
+
+  /* Шкала в пикселях: p-12 = 12px, gap-8 = 8px (не как в стандартном Tailwind). */
+  --spacing-*: initial;
+  --spacing-0: 0px;
+  --spacing-2: var(--rav-space-2);
+  --spacing-4: var(--rav-space-4);
+  --spacing-6: var(--rav-space-6);
+  --spacing-8: var(--rav-space-8);
+  --spacing-10: var(--rav-space-10);
+  --spacing-12: var(--rav-space-12);
+  --spacing-14: var(--rav-space-14);
+  --spacing-16: var(--rav-space-16);
+  --spacing-20: var(--rav-space-20);
+  --spacing-24: var(--rav-space-24);
+  --spacing-28: var(--rav-space-28);
+  --spacing-32: var(--rav-space-32);
+  --spacing-40: var(--rav-space-40);
+  /* Размеры контролов из components.md: h-44, size-18 и т. п. */
+  --spacing-18: var(--rav-size-18);
+  --spacing-36: var(--rav-size-36);
+  --spacing-38: var(--rav-size-38);
+  --spacing-44: var(--rav-size-44);
+  --spacing-48: var(--rav-size-48);
+  --spacing-sidebar: var(--rav-sidebar-width);
+
+  --shadow-*: initial;
+  --shadow-raised-sm: var(--rav-shadow-raised-sm);
+  --shadow-raised-md: var(--rav-shadow-raised-md);
+  --shadow-raised-lg: var(--rav-shadow-raised-lg);
+  --shadow-inset-sm: var(--rav-shadow-inset-sm);
+  --shadow-inset-md: var(--rav-shadow-inset-md);
+  --shadow-popover: var(--rav-shadow-popover);
+  --shadow-accent-raised: var(--rav-shadow-accent-raised);
+  --shadow-accent-inset: var(--rav-shadow-accent-inset);
+
+  --drop-shadow-*: initial;
+  --drop-shadow-popover: var(--rav-drop-shadow-popover);
+}

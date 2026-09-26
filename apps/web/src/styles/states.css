@@ -1,0 +1,9 @@
+/*
+ * Состояния D-02 и витрина: варианты hover / active / focus-visible / focus-within срабатывают
+ * и на настоящие псевдоклассы, и на data-demo-state — так /dev/ui показывает состояния без наведения.
+ * В продуктовых экранах data-demo-state не используется.
+ */
+@custom-variant hover (&:hover, &[data-demo-state~="hover"]);
+@custom-variant active (&:active, &[data-demo-state~="active"]);
+@custom-variant focus-visible (&:focus-visible, &[data-demo-state~="focus"]);
+@custom-variant focus-within (&:focus-within, [data-demo-state~="focus"] &);

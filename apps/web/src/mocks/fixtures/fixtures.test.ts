@@ -1,0 +1,128 @@
+import { describe, expect, it } from 'vitest'
+import { FACILITY_PARAMETERS } from './facilityParameters'
+import { LOCATION_PROCESSES } from './locationProcesses'
+import { LOCATIONS } from './locations'
+import { OPERATION_CLASSES } from './operationClasses'
+import { PROCESSES } from './processes'
+import { PROJECTS } from './projects'
+import { ROBOTS } from './robots'
+
+const base = (code: string) => {
+  const parameter = FACILITY_PARAMETERS.find((p) => p.code === code)
+  if (!parameter) throw new Error(`Нет параметра ${code}`)
+  return parameter.base
+}
+const process = (code: string) => PROCESSES.find((p) => p.code === code)
+const robot = (name: string) => ROBOTS.find((r) => r.name === name)
+const location = (name: string) => LOCATIONS.find((l) => l.name === name)
+const classCodes = new Set(OPERATION_CLASSES.map((c) => c.code))
+
+describe('fixtures: integrity', () => {
+  it('holds all 138 dataset parameters (42 / 39 / 57)', () => {
+    const count = (t: string) => FACILITY_PARAMETERS.filter((p) => p.facilityType === t).length
+    expect([FACILITY_PARAMETERS.length, count('warehouse'), count('airport'), count('medical')]).toEqual([138, 42, 39, 57])
+    expect(new Set(FACILITY_PARAMETERS.map((p) => p.code)).size).toBe(138)
+  })
+
+  it('keeps every numeric base value inside its range', () => {
+    const outside = FACILITY_PARAMETERS.filter(
+      (p) => typeof p.base === 'number' && p.min !== null && p.max !== null && (p.base < p.min || p.base > p.max),
+    )
+    expect(outside.map((p) => p.code)).toEqual([])
+  })
+
+  it('has ten operation classes OP-01…OP-10', () => {
+    expect([...classCodes]).toEqual(Array.from({ length: 10 }, (_, i) => `OP-${String(i + 1).padStart(2, '0')}`))
+  })
+
+  it('references only existing operation classes', () => {
+    expect(PROCESSES.filter((p) => !classCodes.has(p.operationClass))).toEqual([])
+    expect(ROBOTS.flatMap((r) => r.operationClasses).filter((c) => !classCodes.has(c.code))).toEqual([])
+  })
+
+  it('gives robots unique RB-NNNN ids', () => {
+    expect(ROBOTS.every((r) => /^RB-\d{4}$/.test(r.id))).toBe(true)
+    expect(new Set(ROBOTS.map((r) => r.id)).size).toBe(ROBOTS.length)
+  })
+
+  it('links location processes to existing locations and suitable processes', () => {
+    for (const lp of LOCATION_PROCESSES) {
+      const loc = LOCATIONS.find((l) => l.id === lp.locationId)
+      const proc = process(lp.processCode)
+      expect(loc, lp.id).toBeDefined()
+      expect(proc?.facilityTypes, lp.id).toContain(loc?.facilityType)
+    }
+  })
+
+  it('builds projects from processes of their own location', () => {
+    for (const pj of PROJECTS) {
+      const own = LOCATION_PROCESSES.filter((lp) => lp.locationId === pj.locationId).map((lp) => lp.id)
+      expect(pj.processIds.every((id) => own.includes(id)), pj.id).toBe(true)
+    }
+  })
+
+  it('fills every location parameter of its facility type', () => {
+    for (const loc of LOCATIONS) {
+      const expected = FACILITY_PARAMETERS.filter(
+        (p) => p.facilityType === loc.facilityType && !/_(capex_budget|horizon_years)$/.test(p.code),
+      ).map((p) => p.code)
+      expect(Object.keys(loc.parameters).sort(), loc.name).toEqual(expected.sort())
+    }
+  })
+})
+
+describe('fixtures: resolved PRD 15 discrepancies (README)', () => {
+  it('№37, №67: pallet mass is the dataset value 800 kg', () => {
+    expect(base('wh_pallet_mass')).toBe(800)
+    expect(process('PR-0001')?.defaults.unitMassKg).toBe(800)
+  })
+
+  it('№38: route length = √ active area of the dataset (100 m)', () => {
+    expect(process('PR-0001')?.defaults.routeLengthM).toBe(Math.sqrt(Number(base('wh_active_area'))))
+  })
+
+  it('№39: automation share = 1 − oversize share (95 %)', () => {
+    expect(process('PR-0001')?.defaults.automationShare).toBe(1 - Number(base('wh_oversize_share')) / 100)
+  })
+
+  it('№40: packing keeps 8 000 orders in the library and 833 on РЦ Химки', () => {
+    const khimki = location('РЦ Химки')
+    const packing = LOCATION_PROCESSES.find((lp) => lp.locationId === khimki?.id && lp.processCode === 'PR-0003')
+    expect(process('PR-0003')?.defaults.dailyVolume).toBe(8000)
+    expect(packing?.overrides.dailyVolume).toBe(833)
+  })
+
+  it('№41: РЦ Химки has five processes', () => {
+    expect(LOCATION_PROCESSES.filter((lp) => lp.locationId === location('РЦ Химки')?.id)).toHaveLength(5)
+  })
+
+  it('№7: portions per day use the dataset base 1 950', () => {
+    expect(process('PR-0010')?.defaults.dailyVolume).toBe(base('med_portions_day'))
+  })
+
+  it('№15: Ronavi H1500 throughput uses the lower bound of 80–100', () => {
+    expect(robot('Ronavi H1500')?.operationClasses[0]).toMatchObject({ productivityPerHour: 80, productivityText: '80–100 паллет/ч' })
+  })
+
+  it('№52: TRL comes from the organizer file', () => {
+    expect([robot('Ronavi M')?.trl, robot('AMR 1500')?.trl]).toEqual([7, 8])
+  })
+
+  it('№9: DMR Carrier P is an FMR', () => {
+    expect(robot('DMR Carrier P')?.subtype).toBe('FMR')
+  })
+
+  it('№57, №61: the Даркстор Юг project is a draft at simulation', () => {
+    const project = PROJECTS.find((p) => p.locationId === location('Даркстор Юг')?.id)
+    expect(project).toMatchObject({ status: 'draft', step: 'simulation', preliminary: { paybackYears: 2.2 } })
+  })
+
+  it('№65, №66: class codes and names follow the A8 reference', () => {
+    expect(['PR-0002', 'PR-0003', 'PR-0005'].map((c) => process(c)?.operationClass)).toEqual(['OP-02', 'OP-05', 'OP-06'])
+    expect(OPERATION_CLASSES[0]).toMatchObject({ code: 'OP-01', name: 'Перемещение грузов' })
+  })
+
+  it('outside PRD 15: baggage mass is the dataset value 18 kg', () => {
+    expect(process('PR-0008')?.defaults.unitMassKg).toBe(base('ap_baggage_mass'))
+  })
+})
