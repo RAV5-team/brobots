@@ -74,3 +74,37 @@ def test_scenario_result_is_ready_to_store():
     assert traces[0]["name"].startswith("Из подбора")
     assert raw_bytes > len(traces_gz)
     assert not progress.empty()
+
+
+def test_server_without_oidc_settings_exits_with_code_2():
+    with pytest.raises(SystemExit) as e:
+        runtime.token_verifier(conftest.config.Settings(database_url="x"))
+
+    assert e.value.code == runtime.EXIT_CONFIG
+
+
+def test_token_verifier_is_built_from_settings():
+    settings = conftest.config.Settings(
+        database_url="x",
+        oidc_issuer="http://localhost/auth/realms/rav5",
+        oidc_jwks_url="http://127.0.0.1:1/certs",
+        oidc_audience="rav5-sim",
+    )
+
+    assert not runtime.token_verifier(settings).is_ready()
+
+
+# --- dev-режим. TODO(dev-auth): удалить вместе с dev-режимом ---------------
+def test_dev_mode_without_keycloak_has_no_verifier():
+    settings = conftest.config.Settings(database_url="x", auth_dev_mode=True)
+
+    assert runtime.token_verifier(settings) is None
+    principal = runtime.dev_principal(settings)
+    assert principal.sub == settings.auth_dev_sub
+    assert principal.has_role("admin")
+
+
+def test_no_dev_principal_outside_dev_mode():
+    settings = conftest.config.Settings(database_url="x")
+
+    assert runtime.dev_principal(settings) is None

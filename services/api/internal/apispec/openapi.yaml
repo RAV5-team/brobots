@@ -4,6 +4,7 @@ info:
     Сервис api: локации, задачи и проекты; каталог и классы операций; подбор по классу операции и жёсткие проверки.
 
     Ошибки — application/problem+json (RFC 7807) с полем errors: поле, код, сообщение и подсказка на русском.
+    Доступ — access token Keycloak (realm rav5, aud rav5-api) в заголовке Authorization: Bearer. Чтение открыто гостю; присланный токен обязан быть валидным. Запись — вошедшему пользователю, каталог, классы операций, источники и справочные процессы — роли admin. Локации, задачи, проекты и пользовательские процессы принадлежат автору: пользователь видит свои и демо-данные, гость — только демо; чужие — 404, изменение демо-данных и справочных процессов без admin — 403. 401 и 403 — {code, message}; сервисный токен на этих путях — 403.
     PATCH — JSON merge patch: переданные поля заменяются, null очищает, вложенные объекты сливаются; неизвестные поля отклоняются.
     Доли (automationShare, timeShare и т.п.) — от 0 до 1. Деньги — рубли с НДС.
   title: RAV5 API · локации, каталог, подбор
@@ -19,6 +20,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/Dashboard'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
+      security:
+      - {}
+      - bearerAuth: []
       summary: Сводка дашборда
       tags:
       - dashboard
@@ -32,6 +48,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/DataSourceList'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
+      security:
+      - {}
+      - bearerAuth: []
       summary: Источники данных
       tags:
       - data-sources
@@ -49,12 +80,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/DataSource'
           description: Created
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "422":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Unprocessable Entity
+      security:
+      - bearerAuth: []
       summary: Добавить источник
       tags:
       - data-sources
@@ -71,12 +116,26 @@ paths:
       responses:
         "204":
           description: No Content
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - bearerAuth: []
       summary: Удалить источник
       tags:
       - data-sources
@@ -95,12 +154,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/DataSource'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - {}
+      - bearerAuth: []
       summary: Источник данных
       tags:
       - data-sources
@@ -125,6 +199,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/DataSource'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
@@ -143,6 +229,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Unprocessable Entity
+      security:
+      - bearerAuth: []
       summary: Изменить источник
       tags:
       - data-sources
@@ -155,6 +243,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/Dictionaries'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
+      security:
+      - {}
+      - bearerAuth: []
       summary: Все справочники для выпадающих списков
       tags:
       - dictionaries
@@ -180,12 +283,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/DefinitionList'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - {}
+      - bearerAuth: []
       summary: Параметры типа объекта
       tags:
       - locations
@@ -252,6 +370,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
+      security:
+      - {}
+      - bearerAuth: []
       summary: Локации
       tags:
       - locations
@@ -270,12 +403,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/Location'
           description: Created
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "422":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Unprocessable Entity
+      security:
+      - bearerAuth: []
       summary: Создать локацию
       tags:
       - locations
@@ -292,12 +439,26 @@ paths:
       responses:
         "204":
           description: No Content
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - bearerAuth: []
       summary: Удалить локацию
       tags:
       - locations
@@ -317,12 +478,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/Location'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - {}
+      - bearerAuth: []
       summary: Локация
       tags:
       - locations
@@ -348,6 +524,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/Location'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
@@ -366,6 +554,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Unprocessable Entity
+      security:
+      - bearerAuth: []
       summary: Изменить локацию
       tags:
       - locations
@@ -386,12 +576,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/LocationParameters'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - {}
+      - bearerAuth: []
       summary: Параметры объекта
       tags:
       - locations
@@ -416,6 +621,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/LocationParameters'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
@@ -434,6 +651,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Unprocessable Entity
+      security:
+      - bearerAuth: []
       summary: Сохранить параметры объекта
       tags:
       - locations
@@ -460,6 +679,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/StaffGroupList'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
@@ -478,6 +709,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Unprocessable Entity
+      security:
+      - bearerAuth: []
       summary: Группы персонала
       tags:
       - locations
@@ -499,12 +732,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/TaskList'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - {}
+      - bearerAuth: []
       summary: Задачи локации
       tags:
       - tasks
@@ -536,6 +784,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/Task'
           description: Created
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
@@ -554,6 +814,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Unprocessable Entity
+      security:
+      - bearerAuth: []
       summary: Добавить задачу из процесса
       tags:
       - tasks
@@ -572,6 +834,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/Location'
           description: Created
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
@@ -590,6 +864,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Unprocessable Entity
+      security:
+      - bearerAuth: []
       summary: Создать локацию из типового объекта
       tags:
       - locations
@@ -603,6 +879,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/TemplateList'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
+      security:
+      - {}
+      - bearerAuth: []
       summary: Типовые объекты
       tags:
       - locations
@@ -622,12 +913,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/Run'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - {}
+      - bearerAuth: []
       summary: Прогон подбора
       tags:
       - matching
@@ -676,6 +982,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
+      security:
+      - {}
+      - bearerAuth: []
       summary: Справочник процессов
       tags:
       - processes
@@ -694,6 +1015,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/Process'
           description: Created
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "409":
           content:
             application/problem+json:
@@ -706,6 +1039,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Unprocessable Entity
+      security:
+      - bearerAuth: []
       summary: Создать процесс
       tags:
       - processes
@@ -721,12 +1056,26 @@ paths:
       responses:
         "204":
           description: No Content
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - bearerAuth: []
       summary: Скрыть процесс
       tags:
       - processes
@@ -746,12 +1095,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProcessDetail'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - {}
+      - bearerAuth: []
       summary: Процесс и его задачи на локациях
       tags:
       - processes
@@ -777,6 +1141,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/Process'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
@@ -795,6 +1171,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Unprocessable Entity
+      security:
+      - bearerAuth: []
       summary: Изменить процесс
       tags:
       - processes
@@ -814,12 +1192,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/Process'
           description: Created
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - bearerAuth: []
       summary: Дублировать процесс
       tags:
       - processes
@@ -841,12 +1233,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/RobotGroups'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - {}
+      - bearerAuth: []
       summary: Роботы класса процесса
       tags:
       - processes
@@ -906,6 +1313,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
+      security:
+      - {}
+      - bearerAuth: []
       summary: Проекты
       tags:
       - projects
@@ -924,6 +1346,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/Project'
           description: Created
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
@@ -942,6 +1376,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Unprocessable Entity
+      security:
+      - bearerAuth: []
       summary: Создать проект
       tags:
       - projects
@@ -957,12 +1393,26 @@ paths:
       responses:
         "204":
           description: No Content
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - bearerAuth: []
       summary: Удалить проект
       tags:
       - projects
@@ -983,12 +1433,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/Project'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - {}
+      - bearerAuth: []
       summary: Проект
       tags:
       - projects
@@ -1013,6 +1478,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/Project'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
@@ -1031,6 +1508,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Unprocessable Entity
+      security:
+      - bearerAuth: []
       summary: Изменить проект
       tags:
       - projects
@@ -1050,12 +1529,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/ConditionList'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - bearerAuth: []
       summary: Сбросить условия к задаче
       tags:
       - matching
@@ -1076,12 +1569,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/ConditionList'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - {}
+      - bearerAuth: []
       summary: Условия подбора проекта
       tags:
       - matching
@@ -1106,6 +1614,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/ConditionList'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
@@ -1124,6 +1644,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Unprocessable Entity
+      security:
+      - bearerAuth: []
       summary: Изменить условия подбора в проекте
       tags:
       - matching
@@ -1144,12 +1666,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/Project'
           description: Created
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - bearerAuth: []
       summary: Копировать проект
       tags:
       - projects
@@ -1171,12 +1707,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/EvaluationContext'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - {}
+      - bearerAuth: []
       summary: Контекст для оркестратора оценки
       tags:
       - matching
@@ -1196,12 +1747,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/ManualList'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - {}
+      - bearerAuth: []
       summary: Решения, добавленные вручную
       tags:
       - matching
@@ -1226,6 +1792,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/ManualList'
           description: Created
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
@@ -1244,6 +1822,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Unprocessable Entity
+      security:
+      - bearerAuth: []
       summary: Добавить решение вручную
       tags:
       - matching
@@ -1265,12 +1845,26 @@ paths:
       responses:
         "204":
           description: No Content
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - bearerAuth: []
       summary: Убрать решение, добавленное вручную
       tags:
       - matching
@@ -1292,12 +1886,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/Run'
           description: Created
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - bearerAuth: []
       summary: Запустить подбор
       tags:
       - matching
@@ -1317,12 +1925,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/Run'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - {}
+      - bearerAuth: []
       summary: Последний прогон подбора
       tags:
       - matching
@@ -1343,6 +1966,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/Project'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
@@ -1355,6 +1990,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Conflict
+      security:
+      - bearerAuth: []
       summary: Обновить снимок
       tags:
       - projects
@@ -1381,6 +2018,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/Project'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
@@ -1399,6 +2048,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Unprocessable Entity
+      security:
+      - bearerAuth: []
       summary: Выбрать конфигурацию
       tags:
       - projects
@@ -1418,12 +2069,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProjectSnapshot'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - {}
+      - bearerAuth: []
       summary: Снимок входных данных проекта
       tags:
       - projects
@@ -1556,6 +2222,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
+      security:
+      - {}
+      - bearerAuth: []
       summary: Каталог решений
       tags:
       - catalog
@@ -1574,6 +2255,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/Solution'
           description: Created
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "409":
           content:
             application/problem+json:
@@ -1586,6 +2279,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Unprocessable Entity
+      security:
+      - bearerAuth: []
       summary: Добавить решение
       tags:
       - catalog
@@ -1602,12 +2297,26 @@ paths:
       responses:
         "204":
           description: No Content
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - bearerAuth: []
       summary: Скрыть решение
       tags:
       - catalog
@@ -1627,12 +2336,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/Solution'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - {}
+      - bearerAuth: []
       summary: Карточка решения
       tags:
       - catalog
@@ -1658,6 +2382,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/Solution'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
@@ -1676,6 +2412,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Unprocessable Entity
+      security:
+      - bearerAuth: []
       summary: Изменить решение
       tags:
       - catalog
@@ -1695,12 +2433,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/CapabilityList'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - {}
+      - bearerAuth: []
       summary: Классы операций робота
       tags:
       - catalog
@@ -1726,6 +2479,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/Capability'
           description: Created
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
@@ -1744,6 +2509,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Unprocessable Entity
+      security:
+      - bearerAuth: []
       summary: Добавить строку класса с атрибутами
       tags:
       - catalog
@@ -1768,6 +2535,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/CapabilityList'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
@@ -1786,6 +2565,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Unprocessable Entity
+      security:
+      - bearerAuth: []
       summary: Задать набор классов робота
       tags:
       - catalog
@@ -1807,12 +2588,26 @@ paths:
       responses:
         "204":
           description: No Content
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - bearerAuth: []
       summary: Скрыть строку класса
       tags:
       - catalog
@@ -1844,6 +2639,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/Capability'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
@@ -1862,6 +2669,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Unprocessable Entity
+      security:
+      - bearerAuth: []
       summary: Изменить строку класса
       tags:
       - catalog
@@ -1885,6 +2694,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/Comparison'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
@@ -1897,6 +2718,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Unprocessable Entity
+      security:
+      - {}
+      - bearerAuth: []
       summary: Сравнение решений
       tags:
       - catalog
@@ -1917,12 +2741,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/DeleteTaskResult'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - bearerAuth: []
       summary: Удалить задачу с локации
       tags:
       - tasks
@@ -1942,12 +2780,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/Task'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - {}
+      - bearerAuth: []
       summary: Задача на локации
       tags:
       - tasks
@@ -1973,6 +2826,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/Task'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
@@ -1991,6 +2856,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Unprocessable Entity
+      security:
+      - bearerAuth: []
       summary: Изменить задачу
       tags:
       - tasks
@@ -2011,12 +2878,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/Run'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - {}
+      - bearerAuth: []
       summary: Подходящие роботы для задачи
       tags:
       - matching
@@ -2030,6 +2912,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/VersionList'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
+      security:
+      - {}
+      - bearerAuth: []
       summary: Текущие версии каталога и справочников
       tags:
       - dictionaries
@@ -2050,6 +2947,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/WorkTypeList'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
+      security:
+      - {}
+      - bearerAuth: []
       summary: Классы операций (ключ подбора)
       tags:
       - work-types
@@ -2067,6 +2979,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/WorkType'
           description: Created
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "409":
           content:
             application/problem+json:
@@ -2079,6 +3003,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Unprocessable Entity
+      security:
+      - bearerAuth: []
       summary: Создать класс операции
       tags:
       - work-types
@@ -2095,12 +3021,26 @@ paths:
       responses:
         "204":
           description: No Content
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - bearerAuth: []
       summary: Скрыть класс операции
       tags:
       - work-types
@@ -2119,12 +3059,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/WorkType'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+      security:
+      - {}
+      - bearerAuth: []
       summary: Класс операции
       tags:
       - work-types
@@ -2150,6 +3105,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/WorkType'
           description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
         "404":
           content:
             application/problem+json:
@@ -2168,6 +3135,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Unprocessable Entity
+      security:
+      - bearerAuth: []
       summary: Изменить класс операции
       tags:
       - work-types
@@ -2203,6 +3172,17 @@ paths:
       - service
 components:
   schemas:
+    AuthError:
+      properties:
+        code:
+          enum:
+          - unauthorized
+          - forbidden
+          type: string
+        message:
+          description: Что случилось и как исправить, на русском
+          type: string
+      type: object
     Badges:
       properties:
         inRegistry719:
@@ -4416,3 +5396,9 @@ components:
           format: double
           type: number
       type: object
+  securitySchemes:
+    bearerAuth:
+      bearerFormat: JWT
+      description: Access token Keycloak realm rav5
+      scheme: bearer
+      type: http

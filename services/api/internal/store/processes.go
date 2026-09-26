@@ -12,7 +12,7 @@ import (
 
 var processSelect = `
 SELECT p.id, p.code, p.name, p.description, w.id, w.code, w.name, w.unit_label, p.work_category_code, p.kpi_unit,
-       p.is_custom, p.created_from_location_id, p.default_worker_role, p.default_worker_time_share, p.is_active,
+       p.is_custom, p.created_from_location_id, p.owner_id, p.default_worker_role, p.default_worker_time_share, p.is_active,
        p.created_at, p.updated_at,
        (SELECT count(*) FROM robot_capability c JOIN solution s ON s.id = c.solution_id
          WHERE c.work_type_id = p.work_type_id AND c.is_active AND s.is_active AND s.kind = 'robot'),
@@ -24,7 +24,7 @@ FROM process p JOIN work_type w ON w.id = p.work_type_id`
 func scanProcess(r pgx.Row) (domain.Process, error) {
 	var p domain.Process
 	targets := []any{&p.ID, &p.Code, &p.Name, &p.Description, &p.WorkType.ID, &p.WorkType.Code, &p.WorkType.Name,
-		&p.WorkType.UnitLabel, &p.WorkCategoryCode, &p.KpiUnit, &p.IsCustom, &p.CreatedFromLocationID,
+		&p.WorkType.UnitLabel, &p.WorkCategoryCode, &p.KpiUnit, &p.IsCustom, &p.CreatedFromLocationID, &p.OwnerID,
 		&p.DefaultWorkerRole, &p.DefaultWorkerTimeShare, &p.IsActive, &p.CreatedAt, &p.UpdatedAt,
 		&p.RobotsCount, &p.LocationsCount}
 	targets = append(targets, p.Defaults.Targets()...)
@@ -156,6 +156,8 @@ func (q Q) SaveProcess(ctx context.Context, p domain.Process) error {
 	for _, c := range cols[1:] {
 		update = append(update, c+" = EXCLUDED."+c)
 	}
+	// The owner is set on insert only.
+	cols, args = append(cols, "owner_id"), append(args, p.OwnerID)
 	sql := `INSERT INTO process (` + joinCols(cols) + `) VALUES (` + placeholders(1, len(cols)) + `)
 		ON CONFLICT (id) DO UPDATE SET ` + joinCols(update) + `, updated_at = now()`
 	if _, err := q.db.Exec(ctx, sql, args...); err != nil {

@@ -102,3 +102,76 @@ def test_log_filter_redacts_password_in_message_args_and_traceback():
     assert "secret" not in text
     assert "***" in text
     assert "ValueError" in text
+
+
+_OIDC = {
+    "OIDC_ISSUER": "http://localhost/auth/realms/rav5",
+    "OIDC_JWKS_URL": "http://keycloak:8080/auth/realms/rav5/protocol/"
+    "openid-connect/certs",
+    "OIDC_AUDIENCE": "rav5-sim",
+}
+
+
+def test_oidc_settings_are_read():
+    settings = config.Settings.from_env({"DATABASE_URL": _URL, **_OIDC})
+
+    settings.require_oidc()
+    assert settings.oidc_audience == "rav5-sim"
+    assert settings.internal_caller_azp == "rav5-api-internal"
+
+
+def test_worker_does_not_need_oidc():
+    settings = config.Settings.from_env({"DATABASE_URL": _URL})
+
+    assert settings.oidc_issuer == ""
+
+
+@pytest.mark.parametrize("missing", sorted(_OIDC))
+def test_server_requires_every_oidc_setting(missing):
+    env = {"DATABASE_URL": _URL, **_OIDC}
+    del env[missing]
+
+    with pytest.raises(config.ConfigError, match=missing):
+        config.Settings.from_env(env).require_oidc()
+
+
+def test_issuer_with_trailing_slash_is_rejected():
+    env = {"DATABASE_URL": _URL, **_OIDC}
+    env["OIDC_ISSUER"] += "/"
+
+    with pytest.raises(config.ConfigError, match="OIDC_ISSUER"):
+        config.Settings.from_env(env)
+
+
+# --- dev-режим. TODO(dev-auth): удалить вместе с dev-режимом ---------------
+def test_dev_mode_does_not_need_keycloak():
+    settings = config.Settings.from_env(
+        {"DATABASE_URL": _URL, "AUTH_DEV_MODE": "true"}
+    )
+
+    settings.require_oidc()
+    assert not settings.oidc_enabled
+    assert settings.auth_dev_sub == config.DEFAULT_DEV_SUB
+    assert settings.auth_dev_roles == ("user", "admin")
+
+
+def test_dev_mode_with_keycloak_still_needs_every_oidc_setting():
+    env = {"DATABASE_URL": _URL, "AUTH_DEV_MODE": "1", **_OIDC}
+    del env["OIDC_AUDIENCE"]
+
+    with pytest.raises(config.ConfigError, match="OIDC_AUDIENCE"):
+        config.Settings.from_env(env).require_oidc()
+
+
+@pytest.mark.parametrize(
+    "env, match",
+    [
+        ({"AUTH_DEV_MODE": "true", "APP_ENV": "stand"}, "APP_ENV"),
+        ({"AUTH_DEV_MODE": "yes"}, "AUTH_DEV_MODE"),
+        ({"AUTH_DEV_MODE": "true", "AUTH_DEV_SUB": "dev"}, "AUTH_DEV_SUB"),
+    ],
+    ids=["outside local", "not a boolean", "sub not a UUID"],
+)
+def test_dev_mode_is_refused(env, match):
+    with pytest.raises(config.ConfigError, match=match):
+        config.Settings.from_env({"DATABASE_URL": _URL, **env})

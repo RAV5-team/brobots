@@ -29,11 +29,14 @@ class SubmitVerification:
         self._jobs = jobs
         self._new_id = new_id
 
-    def __call__(self, body: Mapping[str, Any]) -> str:
+    def __call__(
+        self, body: Mapping[str, Any], owner_sub: str | None = None
+    ) -> str:
         """Ставит задание в очередь.
 
         Args:
             body: Тело запроса: конфигурация, площадка, задача и 1–2 сценария.
+            owner_sub: Владелец — sub пользователя; None — гость.
 
         Returns:
             Номер задания.
@@ -61,7 +64,13 @@ class SubmitVerification:
                 "Проверьте входные данные.", problems
             )
         job_id = self._new_id()
-        self._jobs.create_job(job_id, request, scenarios, version.SIM_VERSION)
+        self._jobs.create_job(
+            job_id,
+            request,
+            scenarios,
+            version.SIM_VERSION,
+            owner_sub=owner_sub,
+        )
         return job_id
 
 

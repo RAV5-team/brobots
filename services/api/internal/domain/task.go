@@ -51,25 +51,28 @@ type TaskReadiness struct {
 
 // Task is a process instantiated on a location: the unit of matching and calculation.
 type Task struct {
-	ID               uuid.UUID             `json:"id"`
-	LocationID       uuid.UUID             `json:"locationId"`
-	LocationName     string                `json:"locationName"`
-	FacilityTypeCode string                `json:"facilityTypeCode"`
-	ProcessID        uuid.UUID             `json:"processId"`
-	ProcessName      string                `json:"processName"`
-	WorkType         WorkTypeRef           `json:"workType"`
-	KpiUnit          *string               `json:"kpiUnit"`
-	Name             string                `json:"name"`
-	Params           TaskParams            `json:"params"`
-	HandlingMethods  []HandlingShare       `json:"handlingMethods"`
-	Workers          []TaskWorker          `json:"workers"`
-	Provenance       map[string]Provenance `json:"provenance"`
-	Derived          TaskDerived           `json:"derived"`
-	Readiness        TaskReadiness         `json:"readiness"`
-	RobotsCount      int                   `json:"robotsCount"`
-	CreatedAt        time.Time             `json:"createdAt"`
-	UpdatedAt        time.Time             `json:"updatedAt"`
-	ArchivedAt       *time.Time            `json:"archivedAt"`
+	ID               uuid.UUID `json:"id"`
+	LocationID       uuid.UUID `json:"locationId"`
+	LocationName     string    `json:"locationName"`
+	FacilityTypeCode string    `json:"facilityTypeCode"`
+	// LocationOwnerID and LocationIsDemo decide access: a task belongs to its location. Not exposed.
+	LocationOwnerID *uuid.UUID            `json:"-"`
+	LocationIsDemo  bool                  `json:"-"`
+	ProcessID       uuid.UUID             `json:"processId"`
+	ProcessName     string                `json:"processName"`
+	WorkType        WorkTypeRef           `json:"workType"`
+	KpiUnit         *string               `json:"kpiUnit"`
+	Name            string                `json:"name"`
+	Params          TaskParams            `json:"params"`
+	HandlingMethods []HandlingShare       `json:"handlingMethods"`
+	Workers         []TaskWorker          `json:"workers"`
+	Provenance      map[string]Provenance `json:"provenance"`
+	Derived         TaskDerived           `json:"derived"`
+	Readiness       TaskReadiness         `json:"readiness"`
+	RobotsCount     int                   `json:"robotsCount"`
+	CreatedAt       time.Time             `json:"createdAt"`
+	UpdatedAt       time.Time             `json:"updatedAt"`
+	ArchivedAt      *time.Time            `json:"archivedAt"`
 }
 
 // CargoHandling are handling methods that move a physical load.

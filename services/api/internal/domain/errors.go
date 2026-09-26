@@ -35,6 +35,19 @@ func Conflict(code, message string) error {
 	return &ConflictError{Code: code, Message: message}
 }
 
+// ForbiddenError reports a visible entity the caller may not change, such as demo data.
+type ForbiddenError struct {
+	Code    string
+	Message string
+}
+
+func (e *ForbiddenError) Error() string { return e.Message }
+
+// Forbidden builds a ForbiddenError with a user-facing Russian message.
+func Forbidden(code, message string) error {
+	return &ForbiddenError{Code: code, Message: message}
+}
+
 // FieldError describes one invalid input field in user-facing Russian.
 type FieldError struct {
 	Field   string `json:"field"`

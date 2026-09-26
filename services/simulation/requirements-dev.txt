@@ -7,3 +7,4 @@ pyink>=26.5
 isort>=9.0
 pylint>=4.0
 mypy>=2.3
+httpx>=0.28

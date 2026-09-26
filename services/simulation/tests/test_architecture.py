@@ -82,18 +82,48 @@ APPLICATION_ALLOWED = frozenset(
 )
 # Адаптер → модули адаптеров, которые ему запрещены.
 ADAPTER_BOUNDARIES = {
-    "web": ("adapters.postgres", "adapters.processes", "adapters.worker"),
-    "worker": ("adapters.postgres", "adapters.processes", "adapters.web"),
-    "postgres": ("adapters.processes", "adapters.web", "adapters.worker"),
-    "processes": ("adapters.postgres", "adapters.web", "adapters.worker"),
+    "auth": (
+        "adapters.postgres",
+        "adapters.processes",
+        "adapters.web",
+        "adapters.worker",
+    ),
+    "web": (
+        "adapters.auth",
+        "adapters.postgres",
+        "adapters.processes",
+        "adapters.worker",
+    ),
+    "worker": (
+        "adapters.auth",
+        "adapters.postgres",
+        "adapters.processes",
+        "adapters.web",
+    ),
+    "postgres": (
+        "adapters.auth",
+        "adapters.processes",
+        "adapters.web",
+        "adapters.worker",
+    ),
+    "processes": (
+        "adapters.auth",
+        "adapters.postgres",
+        "adapters.web",
+        "adapters.worker",
+    ),
 }
 # Внешние библиотеки, которые адаптеру запрещены.
 ADAPTER_FORBIDDEN_LIBS = {
-    "web": ("psycopg", "psycopg_pool", "multiprocessing"),
+    # Веб-адаптер — ASGI-приложение; HTTP-сервер запускает только app/.
+    # Токены веб-адаптер проверяет только через порт TokenVerifier.
+    "web": ("psycopg", "psycopg_pool", "multiprocessing", "uvicorn", "jwt"),
+    "auth": ("psycopg", "psycopg_pool", "multiprocessing", "fastapi"),
     "worker": ("psycopg", "psycopg_pool", "multiprocessing"),
     "processes": ("psycopg", "psycopg_pool"),
 }
 CONCRETE_ADAPTERS = (
+    "adapters.auth",
     "adapters.postgres",
     "adapters.processes",
     "adapters.worker",

@@ -31,7 +31,11 @@ func (s *Service) ListProjects(ctx context.Context, f ProjectQuery) (Page[domain
 		return Page[domain.Project]{}, err
 	}
 	out := []domain.Project{}
+	a := accessOf(ctx)
 	for _, p := range list {
+		if !a.sees(p.OwnerID, p.IsDemo) {
+			continue
+		}
 		if f.Q != "" && !containsFold(p.Name+" "+p.LocationName+" "+p.Task.Name, f.Q) {
 			continue
 		}
@@ -47,7 +51,20 @@ func (s *Service) ListProjects(ctx context.Context, f ProjectQuery) (Page[domain
 
 // GetProject returns a project.
 func (s *Service) GetProject(ctx context.Context, id uuid.UUID) (domain.Project, error) {
-	return s.st.Q().GetProject(ctx, id)
+	p, err := s.st.Q().GetProject(ctx, id)
+	if err != nil {
+		return p, err
+	}
+	return p, accessOf(ctx).project(p.ID, p.OwnerID, p.IsDemo, false)
+}
+
+// visibleProject loads the writable part of a project the caller may read, or change when write is set.
+func (s *Service) visibleProject(ctx context.Context, q store.Q, id uuid.UUID, write bool) (store.ProjectRecord, error) {
+	rec, err := q.ProjectRecordOf(ctx, id)
+	if err != nil {
+		return rec, err
+	}
+	return rec, accessOf(ctx).project(rec.ID, rec.OwnerID, rec.IsDemo, write)
 }
 
 // ProjectCreateInput creates a project for exactly one task.
@@ -62,7 +79,7 @@ type ProjectCreateInput struct {
 func (s *Service) buildSnapshot(ctx context.Context, q store.Q, locationID, taskID uuid.UUID) (domain.ProjectSnapshot, domain.Versions, error) {
 	var snap domain.ProjectSnapshot
 	var ver domain.Versions
-	l, err := q.GetLocation(ctx, locationID)
+	l, err := s.visibleLocation(ctx, q, locationID, false) // own or demo location
 	if err != nil {
 		return snap, ver, err
 	}
@@ -115,14 +132,16 @@ func (s *Service) CreateProject(ctx context.Context, body []byte) (domain.Projec
 	if err := v.Err(); err != nil {
 		return domain.Project{}, err
 	}
+	a := accessOf(ctx)
 	rec := store.ProjectRecord{ID: store.NewID(), LocationID: *in.LocationID, TaskID: *in.TaskID, Status: "params",
-		PinnedSolutionID: in.PinnedSolutionID, SnapshotTakenAt: time.Now()}
+		PinnedSolutionID: in.PinnedSolutionID, SnapshotTakenAt: time.Now(), OwnerID: a.owner()}
 	err := s.st.Tx(ctx, func(q store.Q) error {
 		snap, ver, err := s.buildSnapshot(ctx, q, *in.LocationID, *in.TaskID)
 		if err != nil {
 			return err
 		}
-		rec.Snapshot, rec.Versions, rec.IsDemo = snap, ver, snap.Location.IsDemo
+		// Only seed data is demo: a user project on a demo location is the user's own.
+		rec.Snapshot, rec.Versions, rec.IsDemo = snap, ver, a.system && snap.Location.IsDemo
 		rec.Name = fmt.Sprintf("Роботизация · %s · %s", snap.Task.Name, snap.Location.Name)
 		if n := trimPtr(in.Name); n != nil {
 			rec.Name = *n
@@ -160,7 +179,7 @@ type ProjectPatchInput struct {
 // PatchProject updates name, status and horizon.
 func (s *Service) PatchProject(ctx context.Context, id uuid.UUID, body []byte) (domain.Project, error) {
 	q := s.st.Q()
-	rec, err := q.ProjectRecordOf(ctx, id)
+	rec, err := s.visibleProject(ctx, q, id, true)
 	if err != nil {
 		return domain.Project{}, err
 	}
@@ -186,14 +205,20 @@ func (s *Service) PatchProject(ctx context.Context, id uuid.UUID, body []byte) (
 
 // DeleteProject hides a project.
 func (s *Service) DeleteProject(ctx context.Context, id uuid.UUID) error {
-	return s.st.Q().SoftDeleteProject(ctx, id)
+	return s.st.Tx(ctx, func(q store.Q) error {
+		if _, err := s.visibleProject(ctx, q, id, true); err != nil {
+			return err
+		}
+		return q.SoftDeleteProject(ctx, id)
+	})
 }
 
 // CopyProject duplicates a project with its snapshot, conditions and manual candidates.
 func (s *Service) CopyProject(ctx context.Context, id uuid.UUID) (domain.Project, error) {
 	var newID uuid.UUID
+	a := accessOf(ctx)
 	err := s.st.Tx(ctx, func(q store.Q) error {
-		rec, err := q.ProjectRecordOf(ctx, id)
+		rec, err := s.visibleProject(ctx, q, id, false)
 		if err != nil {
 			return err
 		}
@@ -207,6 +232,7 @@ func (s *Service) CopyProject(ctx context.Context, id uuid.UUID) (domain.Project
 		}
 		src := rec.ID
 		rec.ID, rec.Name, rec.CopiedFromID, rec.Status = store.NewID(), "Копия · "+rec.Name, &src, "params"
+		rec.OwnerID, rec.IsDemo = a.owner(), a.system && rec.IsDemo // a copy of a demo project is the user's own
 		newID = rec.ID
 		if err := q.SaveProject(ctx, rec); err != nil {
 			return err
@@ -230,7 +256,7 @@ func (s *Service) CopyProject(ctx context.Context, id uuid.UUID) (domain.Project
 // RefreshSnapshot re-reads the location and task and pins the current versions.
 func (s *Service) RefreshSnapshot(ctx context.Context, id uuid.UUID) (domain.Project, error) {
 	err := s.st.Tx(ctx, func(q store.Q) error {
-		rec, err := q.ProjectRecordOf(ctx, id)
+		rec, err := s.visibleProject(ctx, q, id, true)
 		if err != nil {
 			return err
 		}
@@ -254,12 +280,12 @@ func (s *Service) RefreshSnapshot(ctx context.Context, id uuid.UUID) (domain.Pro
 
 // Snapshot returns the frozen inputs of a project.
 func (s *Service) Snapshot(ctx context.Context, id uuid.UUID) (domain.ProjectSnapshot, error) {
-	rec, err := s.st.Q().ProjectRecordOf(ctx, id)
+	rec, err := s.visibleProject(ctx, s.st.Q(), id, false)
 	return rec.Snapshot, err
 }
 
-func (s *Service) projectConditions(ctx context.Context, q store.Q, id uuid.UUID) (store.ProjectRecord, matching.Conditions, error) {
-	rec, err := q.ProjectRecordOf(ctx, id)
+func (s *Service) projectConditions(ctx context.Context, q store.Q, id uuid.UUID, write bool) (store.ProjectRecord, matching.Conditions, error) {
+	rec, err := s.visibleProject(ctx, q, id, write)
 	if err != nil {
 		return rec, matching.Conditions{}, err
 	}
@@ -272,7 +298,7 @@ func (s *Service) projectConditions(ctx context.Context, q store.Q, id uuid.UUID
 
 // Conditions returns the matching conditions of a project with their sources.
 func (s *Service) Conditions(ctx context.Context, id uuid.UUID) ([]matching.Condition, error) {
-	_, c, err := s.projectConditions(ctx, s.st.Q(), id)
+	_, c, err := s.projectConditions(ctx, s.st.Q(), id, false)
 	return c.List(), err
 }
 
@@ -281,7 +307,7 @@ func (s *Service) PutConditions(ctx context.Context, id uuid.UUID, items []match
 	var v domain.Validator
 	seen := map[string]bool{}
 	err := s.st.Tx(ctx, func(q store.Q) error {
-		if _, err := q.ProjectRecordOf(ctx, id); err != nil {
+		if _, err := s.visibleProject(ctx, q, id, true); err != nil {
 			return err
 		}
 		for i, o := range items {
@@ -332,7 +358,7 @@ func (s *Service) PutConditions(ctx context.Context, id uuid.UUID, items []match
 func (s *Service) RunMatching(ctx context.Context, id uuid.UUID) (matching.Run, error) {
 	var run matching.Run
 	err := s.st.Tx(ctx, func(q store.Q) error {
-		rec, conds, err := s.projectConditions(ctx, q, id)
+		rec, conds, err := s.projectConditions(ctx, q, id, true)
 		if err != nil {
 			return err
 		}
@@ -370,7 +396,7 @@ func (s *Service) RunMatching(ctx context.Context, id uuid.UUID) (matching.Run, 
 // LatestRun returns the latest saved run of a project.
 func (s *Service) LatestRun(ctx context.Context, projectID uuid.UUID) (matching.Run, error) {
 	q := s.st.Q()
-	if _, err := q.ProjectRecordOf(ctx, projectID); err != nil {
+	if _, err := s.visibleProject(ctx, q, projectID, false); err != nil {
 		return matching.Run{}, err
 	}
 	id, err := q.LatestRunID(ctx, projectID)
@@ -385,13 +411,22 @@ func (s *Service) LatestRun(ctx context.Context, projectID uuid.UUID) (matching.
 
 // GetRun returns a saved run.
 func (s *Service) GetRun(ctx context.Context, id uuid.UUID) (matching.Run, error) {
-	return s.st.Q().GetRun(ctx, id)
+	q := s.st.Q()
+	run, err := q.GetRun(ctx, id)
+	if err != nil {
+		return run, err
+	}
+	// A run is seen through its project; a run of a hidden or deleted project is not found.
+	if _, err := s.visibleProject(ctx, q, *run.ProjectID, false); err != nil {
+		return matching.Run{}, domain.NotFound("matching_run", id.String())
+	}
+	return run, nil
 }
 
 // ManualCandidates returns the solutions added by hand.
 func (s *Service) ManualCandidates(ctx context.Context, projectID uuid.UUID) ([]domain.ManualCandidate, error) {
 	q := s.st.Q()
-	if _, err := q.ProjectRecordOf(ctx, projectID); err != nil {
+	if _, err := s.visibleProject(ctx, q, projectID, false); err != nil {
 		return nil, err
 	}
 	return q.ManualCandidates(ctx, projectID)
@@ -413,7 +448,7 @@ func (s *Service) AddManualCandidate(ctx context.Context, projectID uuid.UUID, b
 		return nil, &domain.ValidationError{Errors: []domain.FieldError{{Field: "solutionId", Code: "required", Message: "Не выбрано решение", Hint: "Укажите solutionId из каталога"}}}
 	}
 	q := s.st.Q()
-	if _, err := q.ProjectRecordOf(ctx, projectID); err != nil {
+	if _, err := s.visibleProject(ctx, q, projectID, true); err != nil {
 		return nil, err
 	}
 	if _, err := q.GetSolution(ctx, *in.SolutionID); err != nil {
@@ -427,7 +462,12 @@ func (s *Service) AddManualCandidate(ctx context.Context, projectID uuid.UUID, b
 
 // RemoveManualCandidate removes a hand-added solution.
 func (s *Service) RemoveManualCandidate(ctx context.Context, projectID, solutionID uuid.UUID) error {
-	return s.st.Q().RemoveManualCandidate(ctx, projectID, solutionID)
+	return s.st.Tx(ctx, func(q store.Q) error {
+		if _, err := s.visibleProject(ctx, q, projectID, true); err != nil {
+			return err
+		}
+		return q.RemoveManualCandidate(ctx, projectID, solutionID)
+	})
 }
 
 // SelectionInput chooses the configuration of the project.
@@ -450,7 +490,7 @@ func (s *Service) PutSelection(ctx context.Context, id uuid.UUID, body []byte) (
 		return domain.Project{}, err
 	}
 	q := s.st.Q()
-	rec, err := q.ProjectRecordOf(ctx, id)
+	rec, err := s.visibleProject(ctx, q, id, true)
 	if err != nil {
 		return domain.Project{}, err
 	}
@@ -487,11 +527,11 @@ type EvaluationContext struct {
 // EvaluationContext returns the inputs for calculation: snapshot and eligible candidates of the latest run.
 func (s *Service) EvaluationContext(ctx context.Context, id uuid.UUID) (EvaluationContext, error) {
 	q := s.st.Q()
-	p, err := q.GetProject(ctx, id)
+	p, err := s.GetProject(ctx, id)
 	if err != nil {
 		return EvaluationContext{}, err
 	}
-	rec, conds, err := s.projectConditions(ctx, q, id)
+	rec, conds, err := s.projectConditions(ctx, q, id, false)
 	if err != nil {
 		return EvaluationContext{}, err
 	}
@@ -531,11 +571,12 @@ func (s *Service) Dashboard(ctx context.Context) (domain.Dashboard, error) {
 		d.Locations.ByFacilityType[l.FacilityTypeCode]++
 		d.ManualLaborCostRubYear += l.Summary.LaborCostRubYear
 	}
-	projects, err := s.st.Q().ListProjects(ctx, store.ProjectFilter{})
+	page, err := s.ListProjects(ctx, ProjectQuery{Limit: 500})
 	if err != nil {
 		return d, err
 	}
-	d.Projects.Total = len(projects)
+	projects := page.Items
+	d.Projects.Total = page.Total
 	for _, p := range projects {
 		if p.Status == "result" {
 			d.Projects.Calculated++

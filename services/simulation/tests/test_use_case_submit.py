@@ -79,9 +79,29 @@ def test_valid_body_is_queued_with_request_split_from_scenarios():
 def test_job_records_the_simulation_version():
     store = fakes.FakeJobStore()
     recorded = []
-    store.create_job = lambda *args: recorded.append(args)
+    store.create_job = lambda *args, **kwargs: recorded.append(args)
     use_case = submit.SubmitVerification(store, fakes.SequentialIds())
 
     use_case(dict(conftest.request_body(), scenarios=[conftest.scenario()]))
 
     assert recorded[0][3] == version.SIM_VERSION
+
+
+def test_job_is_owned_by_the_submitter():
+    use_case, store = _submit()
+    body = dict(conftest.request_body(), scenarios=[conftest.scenario()])
+
+    job_id = use_case(body, "alice")
+
+    assert store.get_job(job_id, viewer="alice") is not None
+    assert store.get_job(job_id, viewer="bob") is None
+    assert store.get_job(job_id) is None
+
+
+def test_guest_job_has_no_owner():
+    use_case, store = _submit()
+    body = dict(conftest.request_body(), scenarios=[conftest.scenario()])
+
+    job_id = use_case(body, None)
+
+    assert store.get_job(job_id, viewer="bob") is not None

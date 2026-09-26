@@ -212,21 +212,23 @@ type LocationReadiness struct {
 
 // Location is a reusable facility profile.
 type Location struct {
-	ID               uuid.UUID          `json:"id"`
-	Name             string             `json:"name"`
-	FacilityTypeCode string             `json:"facilityTypeCode"`
-	City             string             `json:"city"`
-	Address          *string            `json:"address"`
-	CapexBudget      Budget             `json:"capexBudget"`
-	HorizonYears     *int               `json:"horizonYears"`
-	IsDemo           bool               `json:"isDemo"`
-	IsDraft          bool               `json:"isDraft"`
-	UpdatedBy        *string            `json:"updatedBy"`
-	StaffGroups      []StaffGroup       `json:"staffGroups"`
-	Summary          *LocationSummary   `json:"summary,omitempty"`
-	Readiness        *LocationReadiness `json:"readiness,omitempty"`
-	CreatedAt        time.Time          `json:"createdAt"`
-	UpdatedAt        time.Time          `json:"updatedAt"`
+	ID               uuid.UUID `json:"id"`
+	Name             string    `json:"name"`
+	FacilityTypeCode string    `json:"facilityTypeCode"`
+	City             string    `json:"city"`
+	Address          *string   `json:"address"`
+	CapexBudget      Budget    `json:"capexBudget"`
+	HorizonYears     *int      `json:"horizonYears"`
+	IsDemo           bool      `json:"isDemo"`
+	IsDraft          bool      `json:"isDraft"`
+	UpdatedBy        *string   `json:"updatedBy"`
+	// OwnerID is the Keycloak sub of the author; nil for demo data. Not exposed.
+	OwnerID     *uuid.UUID         `json:"-"`
+	StaffGroups []StaffGroup       `json:"staffGroups"`
+	Summary     *LocationSummary   `json:"summary,omitempty"`
+	Readiness   *LocationReadiness `json:"readiness,omitempty"`
+	CreatedAt   time.Time          `json:"createdAt"`
+	UpdatedAt   time.Time          `json:"updatedAt"`
 }
 
 // ParameterItem is a definition with the location value, for the parameters tab.

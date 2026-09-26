@@ -54,6 +54,40 @@ docker run -d -e DATABASE_URL=… simulation python -m app.worker
 | `SIM_POLL_INTERVAL_S` | 1 | пауза между проверками очереди |
 | `SIM_HEARTBEAT_S` | 5 | как часто воркер подтверждает, что жив |
 | `SIM_STALE_AFTER_S` | 60 | через сколько без подтверждения задание возвращается в очередь (больше трёх `SIM_HEARTBEAT_S`) |
+| `OIDC_ISSUER` | — (обязательна серверу) | издатель токенов Keycloak: `${PUBLIC_URL}/auth/realms/rav5`, без `/` в конце |
+| `OIDC_JWKS_URL` | — (обязательна серверу) | ключи Keycloak по внутреннему адресу |
+| `OIDC_AUDIENCE` | — (обязательна серверу) | аудитория сервиса: `rav5-sim` |
+| `INTERNAL_CALLER_AZP` | `rav5-api-internal` | клиент, которому открыты внутренние пути |
+
+Воркеру (`python -m app.worker`) `OIDC_*` не нужны.
+
+### Доступ
+
+Токены проверяются по JWKS Keycloak (`adapters/auth/jwks.py`, зависимости FastAPI —
+`adapters/web/auth.py`, правила — [docs/keycloak/middleware.md](../../docs/keycloak/middleware.md)).
+`GET /`, `/index.html` и `/api/health` открыты всем; остальные пути — гостю (без
+`Authorization`) или пользователю с токеном `aud rav5-sim`. Присланный токен обязан
+быть валидным (401), сервисный токен здесь — 403. Ошибки доступа — `{"code", "message"}`.
+Ключи загружаются в фоне; до первой загрузки `/api/health` отвечает 503.
+
+#### Dev-режим (временно)
+
+> TODO(dev-auth): временный режим для ручного тестирования, будет удалён. Искать по `TODO(dev-auth)`.
+
+`AUTH_DEV_MODE=true` (в `.env` или окружении) — запросы без `Authorization` выполняются от
+пользователя `AUTH_DEV_SUB` (UUID, по умолчанию `11111111-1111-4111-8111-111111111111`) с ролями
+`AUTH_DEV_ROLES` (по умолчанию `user,admin`). Заголовок `X-Dev-User: <uuid>` подменяет пользователя —
+так изоляция проверяется двумя пользователями без Keycloak. Присланный токен по-прежнему проверяется.
+Без `OIDC_*` сервис стартует без Keycloak (тогда любой присланный токен — 401).
+
+Режим разрешён только при `APP_ENV=local`: с другим значением сервис не стартует, на стенде
+(`docker-compose.stand.yml`) он принудительно выключен. При старте в журнал пишется предупреждение.
+
+Владение: задание, поставленное пользователем, записывается с его `sub`
+(`jobs.owner_sub`); его ход, прогоны и трассы видит только он, для остальных
+и для гостя — 404, как у несуществующего. Задание гостя владельца не имеет и
+открыто любому, кто знает номер. Условие владения — в SQL-запросах
+репозитория, двойник повторяет его, контрактный тест сверяет обе реализации.
 
 ## Экран шага
 
@@ -74,6 +108,11 @@ docker run -d -e DATABASE_URL=… simulation python -m app.worker
 
 Полное описание — [`docs/openapi.json`](docs/openapi.json) (OpenAPI 3.1), в
 работающем сервисе — `GET /api/openapi.json`.
+
+API — приложение FastAPI (`adapters/web/server.py`), сервер — uvicorn
+(`app/server.py`). Контракт ведётся вручную в `adapters/web/openapi.py`:
+автоматическая схема и `/docs` FastAPI отключены. Ошибки — `{"error", "errors"?}`,
+в том числе 404 на неизвестный путь и 405 на неверный метод.
 
 | Метод и путь | Назначение | Ответы |
 |---|---|---|
@@ -232,7 +271,7 @@ curl -s localhost:8765/api/simulations/jobs/<job_id>
 
 | Таблица | Что хранит |
 |---|---|
-| `jobs` | задания: статус, запрос и сценарии (jsonb), журнал хода, попытки, ошибки |
+| `jobs` | задания: статус, запрос и сценарии (jsonb), журнал хода, попытки, ошибки, владелец (`owner_sub`) |
 | `runs` | прогоны сценариев: SimulationRun целиком (jsonb) и основные поля отдельно |
 | `run_traces` | 2D-трассы: gzip компактного JSON, ~130 КБ на прогон |
 
@@ -284,13 +323,13 @@ app/           корень сборки: настройки, связывани
 | `application/process_job.py` | выполнение задания: подтверждения, ограждение `lease`, итог |
 | `application/ports.py`, `models.py`, `errors.py` | порты, данные между слоями, ошибки |
 | `application/input_policy.py` | строки, которые хранилище не примет |
-| `adapters/web/` | HTTP API (`server.py`), тела ответов, OpenAPI и JSON Schema, демо-вход, экран (`static/index.html`) |
+| `adapters/web/` | HTTP API на FastAPI (`server.py`), тела ответов, OpenAPI и JSON Schema, демо-вход, экран (`static/index.html`) |
 | `adapters/worker/loop.py` | потоки воркеров: опрос очереди, возврат зависших заданий |
 | `adapters/postgres/` | пул соединений и репозиторий заданий (весь SQL) |
 | `adapters/processes/` | расчёт сценариев в дочерних процессах |
 | `adapters/json_codec.py` | JSON без NaN, gzip трасс |
 | `app/runtime.py` | запуск, проверка схемы, связывание слоёв |
-| `app/server.py`, `app/worker.py` | точки входа `python -m app.server` и `python -m app.worker` |
+| `app/server.py`, `app/worker.py` | точки входа `python -m app.server` (uvicorn) и `python -m app.worker` |
 | `app/config.py` | настройки из окружения |
 | `migrations/`, `alembic.ini` | миграции схемы базы |
 | `gen_docs.py` | перегенерация `docs/openapi.json` |

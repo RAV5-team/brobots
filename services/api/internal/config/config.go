@@ -18,7 +18,19 @@ type Config struct {
 	MigrateOnStart bool
 	SeedDemo       bool
 	SwaggerEnabled bool
+	// Keycloak access token verification (docs/keycloak/middleware.md).
+	OIDCIssuer   string
+	OIDCJWKSURL  string
+	OIDCAudience string
+	// TODO(dev-auth): удалить dev-режим вместе с AUTH_DEV_*. Запросы без токена идут от AuthDevSub
+	// с ролями AuthDevRoles; OIDC_* необязательны. Только при APP_ENV=local.
+	AuthDevMode  bool
+	AuthDevSub   string
+	AuthDevRoles []string
 }
+
+// DefaultDevSub is the dev user of AUTH_DEV_MODE when AUTH_DEV_SUB is not set.
+const DefaultDevSub = "11111111-1111-4111-8111-111111111111"
 
 // Load reads the configuration from the environment and applies defaults.
 func Load() (Config, error) {
@@ -26,10 +38,43 @@ func Load() (Config, error) {
 		HTTPAddr:    getenv("HTTP_ADDR", ":8000"),
 		DatabaseURL: os.Getenv("DATABASE_URL"),
 		AppEnv:      getenv("APP_ENV", "local"),
+		// No defaults: iss must match the tokens byte for byte, a guess would reject them all.
+		OIDCIssuer:   os.Getenv("OIDC_ISSUER"),
+		OIDCJWKSURL:  os.Getenv("OIDC_JWKS_URL"),
+		OIDCAudience: os.Getenv("OIDC_AUDIENCE"),
 	}
 	if c.DatabaseURL == "" {
 		return Config{}, fmt.Errorf("DATABASE_URL is not set")
 	}
+	var err error
+	if c.AuthDevMode, err = parseBool("AUTH_DEV_MODE", false); err != nil {
+		return Config{}, err
+	}
+	if c.AuthDevMode { // TODO(dev-auth): удалить вместе с dev-режимом
+		if c.AppEnv != "local" {
+			return Config{}, fmt.Errorf("AUTH_DEV_MODE is allowed only with APP_ENV=local, got %q", c.AppEnv)
+		}
+		c.AuthDevSub = getenv("AUTH_DEV_SUB", DefaultDevSub)
+		c.AuthDevRoles = splitList(getenv("AUTH_DEV_ROLES", "user,admin"))
+		if c.OIDCIssuer == "" && c.OIDCJWKSURL == "" && c.OIDCAudience == "" {
+			return c.finish()
+		}
+	}
+	for _, v := range [][2]string{{"OIDC_ISSUER", c.OIDCIssuer}, {"OIDC_JWKS_URL", c.OIDCJWKSURL}, {"OIDC_AUDIENCE", c.OIDCAudience}} {
+		if v[1] == "" {
+			return Config{}, fmt.Errorf("%s is not set", v[0])
+		}
+	}
+	if strings.HasSuffix(c.OIDCIssuer, "/") {
+		return Config{}, fmt.Errorf("OIDC_ISSUER: %q must not end with a slash (it is compared with iss byte for byte)", c.OIDCIssuer)
+	}
+	return c.finish()
+}
+
+// OIDCEnabled reports whether tokens can be verified; false only in dev mode without Keycloak.
+func (c Config) OIDCEnabled() bool { return c.OIDCIssuer != "" }
+
+func (c Config) finish() (Config, error) {
 	var err error
 	if c.LogLevel, err = parseLevel(getenv("LOG_LEVEL", "info")); err != nil {
 		return Config{}, err
@@ -44,6 +89,16 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	return c, nil
+}
+
+func splitList(v string) []string {
+	var out []string
+	for _, part := range strings.Split(v, ",") {
+		if p := strings.TrimSpace(part); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func getenv(key, def string) string {

@@ -11,6 +11,7 @@ from collections.abc import Callable, Mapping, Sequence
 import dataclasses
 from typing import Any
 
+from application import errors
 from application import models
 
 _INTERRUPTED = "Задание прервано: сервис перезапускался во время расчёта."
@@ -61,6 +62,7 @@ class _Job:
     error: str | None = None
     errors: tuple[Mapping[str, str], ...] | None = None
     detail: str | None = None
+    owner_sub: str | None = None
 
 
 class FakeJobStore:
@@ -86,6 +88,8 @@ class FakeJobStore:
         request: Mapping[str, Any],
         scenarios: Sequence[Mapping[str, Any]],
         simulation_version: str,
+        *,
+        owner_sub: str | None = None,
     ) -> None:
         if job_id in self._jobs:
             raise ValueError(f"задание уже есть: {job_id=}")
@@ -95,6 +99,7 @@ class FakeJobStore:
             scenarios=tuple(scenarios),
             simulation_version=simulation_version,
             created_at=self._clock(),
+            owner_sub=owner_sub,
         )
 
     # --- JobQueue --------------------------------------------------------
@@ -215,8 +220,17 @@ class FakeJobStore:
         return len(stale)
 
     # --- ResultReader ----------------------------------------------------
-    def get_job(self, job_id: str) -> models.JobSnapshot | None:
+    def _visible(self, job_id: str, viewer: str | None) -> _Job | None:
+        """Задание, если viewer его видит: без владельца — все, иначе он."""
         job = self._jobs.get(job_id)
+        if job is None or job.owner_sub not in (None, viewer):
+            return None
+        return job
+
+    def get_job(
+        self, job_id: str, *, viewer: str | None = None
+    ) -> models.JobSnapshot | None:
+        job = self._visible(job_id, viewer)
         if job is None:
             return None
         end = job.finished_at if job.finished_at is not None else self._clock()
@@ -237,13 +251,25 @@ class FakeJobStore:
             runs=tuple(r.result for r in runs) if done else (),
         )
 
-    def get_run(self, simulation_id: str) -> Mapping[str, Any] | None:
+    def _visible_run(
+        self, simulation_id: str, viewer: str | None
+    ) -> models.FinishedRun | None:
         found = self._runs.get(simulation_id)
-        return found[1].result if found else None
+        if found is None or self._visible(found[0], viewer) is None:
+            return None
+        return found[1]
 
-    def get_traces_gz(self, simulation_id: str) -> bytes | None:
-        found = self._runs.get(simulation_id)
-        return found[1].traces.gzip_json if found else None
+    def get_run(
+        self, simulation_id: str, *, viewer: str | None = None
+    ) -> Mapping[str, Any] | None:
+        run = self._visible_run(simulation_id, viewer)
+        return run.result if run else None
+
+    def get_traces_gz(
+        self, simulation_id: str, *, viewer: str | None = None
+    ) -> bytes | None:
+        run = self._visible_run(simulation_id, viewer)
+        return run.traces.gzip_json if run else None
 
     # --- StorageHealth ---------------------------------------------------
     def is_ready(self) -> bool:
@@ -325,3 +351,38 @@ class ScriptedRunner:
             outputs=tuple(output(t) for t in tasks),
             trailing_lines=self._trailing,
         )
+
+
+class FakeTokenVerifier:
+    """Проверка токенов по словарю «токен → вызывающий».
+
+    Attributes:
+        tokens: Принимаемые токены; любой другой — InvalidTokenError.
+        ready: Что отвечает is_ready.
+        calls: Сколько раз вызывался verify.
+    """
+
+    def __init__(
+        self, tokens: Mapping[str, models.Principal] | None = None
+    ) -> None:
+        self.tokens = dict(tokens or {})
+        self.ready = True
+        self.calls = 0
+
+    def verify(self, token: str) -> models.Principal:
+        """Вызывающий по токену или отказ."""
+        self.calls += 1
+        if token not in self.tokens:
+            raise errors.InvalidTokenError("неизвестный токен")
+        return self.tokens[token]
+
+    def is_ready(self) -> bool:
+        """Ключи «загружены», пока ready."""
+        return self.ready
+
+
+def principal(sub: str, *roles: str, azp: str = "rav5-web") -> models.Principal:
+    """Вызывающий для тестов доступа."""
+    return models.Principal(
+        sub=sub, email=f"{sub}@example.com", roles=frozenset(roles), azp=azp
+    )

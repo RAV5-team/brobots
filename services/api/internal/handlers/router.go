@@ -7,9 +7,11 @@ import (
 	"time"
 
 	"github.com/brobots/api/internal/apispec"
+	"github.com/brobots/api/internal/auth"
 	"github.com/brobots/api/internal/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/google/uuid"
 	"github.com/swaggest/swgui/v5emb"
 )
 
@@ -23,11 +25,25 @@ type API struct {
 type Options struct {
 	Version        string
 	SwaggerEnabled bool
+	// Auth verifies Keycloak access tokens on /api/v1; required.
+	Auth *auth.Middleware
+	// AuthReady reports whether the Keycloak keys are loaded; nil means ready.
+	AuthReady func() bool
 }
 
 // NewRouter builds the HTTP router.
+//
+// Access on /api/v1 (docs/keycloak/middleware.md): reads are open to guests, writes need a
+// signed-in user, catalog changes need the admin role. Which records a caller sees and changes
+// (own, demo, reference) is decided by the service, see service/access.go. A token that is sent
+// must be valid even on guest routes.
 func NewRouter(svc *service.Service, log *slog.Logger, opts Options) http.Handler {
+	if opts.Auth == nil {
+		panic("handlers: Options.Auth is required")
+	}
 	a := &API{svc: svc, log: log}
+	user := auth.RequireUser
+	admin := auth.RequireRole(auth.RoleAdmin)
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, a.logRequests, middleware.Recoverer)
 
@@ -35,6 +51,10 @@ func NewRouter(svc *service.Service, log *slog.Logger, opts Options) http.Handle
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "version": opts.Version})
 	})
 	r.Get("/readyz", func(w http.ResponseWriter, r *http.Request) {
+		if opts.AuthReady != nil && !opts.AuthReady() {
+			writeProblem(w, Problem{Type: "about:blank", Title: "Ключи Keycloak ещё не загружены", Status: http.StatusServiceUnavailable})
+			return
+		}
 		if err := svc.Ping(r.Context()); err != nil {
 			writeProblem(w, Problem{Type: "about:blank", Title: "База данных недоступна", Status: http.StatusServiceUnavailable})
 			return
@@ -50,85 +70,87 @@ func NewRouter(svc *service.Service, log *slog.Logger, opts Options) http.Handle
 	}
 
 	r.Route("/api/v1", func(r chi.Router) {
+		r.Use(opts.Auth.Authenticate, withActor)
 		r.Get("/dictionaries", a.dictionaries)
 		r.Get("/versions", a.versions)
 		r.Get("/dashboard/summary", a.dashboard)
 
 		r.Route("/work-types", func(r chi.Router) {
 			r.Get("/", a.listWorkTypes)
-			r.Post("/", a.createWorkType)
+			r.With(admin).Post("/", a.createWorkType)
 			r.Get("/{id}", a.getWorkType)
-			r.Patch("/{id}", a.patchWorkType)
-			r.Delete("/{id}", a.hideWorkType)
+			r.With(admin).Patch("/{id}", a.patchWorkType)
+			r.With(admin).Delete("/{id}", a.hideWorkType)
 		})
 		r.Route("/data-sources", func(r chi.Router) {
 			r.Get("/", a.listSources)
-			r.Post("/", a.createSource)
+			r.With(admin).Post("/", a.createSource)
 			r.Get("/{id}", a.getSource)
-			r.Patch("/{id}", a.patchSource)
-			r.Delete("/{id}", a.deleteSource)
+			r.With(admin).Patch("/{id}", a.patchSource)
+			r.With(admin).Delete("/{id}", a.deleteSource)
 		})
 		r.Route("/solutions", func(r chi.Router) {
 			r.Get("/", a.listSolutions)
-			r.Post("/", a.createSolution)
+			r.With(admin).Post("/", a.createSolution)
 			r.Get("/compare", a.compareSolutions)
 			r.Get("/{id}", a.getSolution)
-			r.Patch("/{id}", a.patchSolution)
-			r.Delete("/{id}", a.hideSolution)
+			r.With(admin).Patch("/{id}", a.patchSolution)
+			r.With(admin).Delete("/{id}", a.hideSolution)
 			r.Get("/{id}/capabilities", a.listCapabilities)
-			r.Put("/{id}/capabilities", a.replaceCapabilities)
-			r.Post("/{id}/capabilities", a.addCapability)
-			r.Patch("/{id}/capabilities/{capId}", a.patchCapability)
-			r.Delete("/{id}/capabilities/{capId}", a.hideCapability)
+			r.With(admin).Put("/{id}/capabilities", a.replaceCapabilities)
+			r.With(admin).Post("/{id}/capabilities", a.addCapability)
+			r.With(admin).Patch("/{id}/capabilities/{capId}", a.patchCapability)
+			r.With(admin).Delete("/{id}/capabilities/{capId}", a.hideCapability)
 		})
 		r.Route("/processes", func(r chi.Router) {
 			r.Get("/", a.listProcesses)
-			r.Post("/", a.createProcess)
+			r.With(user).Post("/", a.createProcess)
 			r.Get("/{id}", a.getProcess)
-			r.Patch("/{id}", a.patchProcess)
-			r.Delete("/{id}", a.hideProcess)
+			// Reference processes need admin, own processes their author: the service decides.
+			r.With(user).Patch("/{id}", a.patchProcess)
+			r.With(user).Delete("/{id}", a.hideProcess)
 			r.Get("/{id}/robots", a.processRobots)
-			r.Post("/{id}/duplicate", a.duplicateProcess)
+			r.With(user).Post("/{id}/duplicate", a.duplicateProcess)
 		})
 		r.Get("/facility-types/{code}/parameters", a.facilityParameters)
 		r.Route("/locations", func(r chi.Router) {
 			r.Get("/", a.listLocations)
-			r.Post("/", a.createLocation)
+			r.With(user).Post("/", a.createLocation)
 			r.Get("/templates", a.locationTemplates)
-			r.Post("/from-template", a.createLocationFromTemplate)
+			r.With(user).Post("/from-template", a.createLocationFromTemplate)
 			r.Get("/{id}", a.getLocation)
-			r.Patch("/{id}", a.patchLocation)
-			r.Delete("/{id}", a.deleteLocation)
+			r.With(user).Patch("/{id}", a.patchLocation)
+			r.With(user).Delete("/{id}", a.deleteLocation)
 			r.Get("/{id}/parameters", a.locationParameters)
-			r.Put("/{id}/parameters", a.putLocationParameters)
-			r.Put("/{id}/staff-groups", a.putStaffGroups)
+			r.With(user).Put("/{id}/parameters", a.putLocationParameters)
+			r.With(user).Put("/{id}/staff-groups", a.putStaffGroups)
 			r.Get("/{id}/tasks", a.listLocationTasks)
-			r.Post("/{id}/tasks", a.createTask)
+			r.With(user).Post("/{id}/tasks", a.createTask)
 		})
 		r.Route("/tasks", func(r chi.Router) {
 			r.Get("/{id}", a.getTask)
-			r.Patch("/{id}", a.patchTask)
-			r.Delete("/{id}", a.deleteTask)
+			r.With(user).Patch("/{id}", a.patchTask)
+			r.With(user).Delete("/{id}", a.deleteTask)
 			r.Get("/{id}/match-preview", a.matchPreview)
 		})
 		r.Route("/projects", func(r chi.Router) {
 			r.Get("/", a.listProjects)
-			r.Post("/", a.createProject)
+			r.With(user).Post("/", a.createProject)
 			r.Get("/{id}", a.getProject)
-			r.Patch("/{id}", a.patchProject)
-			r.Delete("/{id}", a.deleteProject)
-			r.Post("/{id}/copy", a.copyProject)
-			r.Post("/{id}/refresh-snapshot", a.refreshSnapshot)
+			r.With(user).Patch("/{id}", a.patchProject)
+			r.With(user).Delete("/{id}", a.deleteProject)
+			r.With(user).Post("/{id}/copy", a.copyProject)
+			r.With(user).Post("/{id}/refresh-snapshot", a.refreshSnapshot)
 			r.Get("/{id}/snapshot", a.snapshot)
 			r.Get("/{id}/conditions", a.conditions)
-			r.Put("/{id}/conditions", a.putConditions)
-			r.Delete("/{id}/conditions", a.resetConditions)
-			r.Post("/{id}/matching-runs", a.runMatching)
+			r.With(user).Put("/{id}/conditions", a.putConditions)
+			r.With(user).Delete("/{id}/conditions", a.resetConditions)
+			r.With(user).Post("/{id}/matching-runs", a.runMatching)
 			r.Get("/{id}/matching-runs/latest", a.latestRun)
 			r.Get("/{id}/manual-candidates", a.manualCandidates)
-			r.Post("/{id}/manual-candidates", a.addManualCandidate)
-			r.Delete("/{id}/manual-candidates/{solutionId}", a.removeManualCandidate)
-			r.Put("/{id}/selection", a.putSelection)
+			r.With(user).Post("/{id}/manual-candidates", a.addManualCandidate)
+			r.With(user).Delete("/{id}/manual-candidates/{solutionId}", a.removeManualCandidate)
+			r.With(user).Put("/{id}/selection", a.putSelection)
 			r.Get("/{id}/evaluation-context", a.evaluationContext)
 		})
 		r.Get("/matching-runs/{id}", a.getRun)
@@ -136,13 +158,34 @@ func NewRouter(svc *service.Service, log *slog.Logger, opts Options) http.Handle
 	return r
 }
 
+// withActor passes the signed-in user to the service, which checks data ownership.
+func withActor(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p, ok := auth.FromContext(r.Context())
+		if !ok {
+			next.ServeHTTP(w, r)
+			return
+		}
+		id, err := uuid.Parse(p.Subject) // the verifier accepts UUID subs only
+		if err != nil {
+			http.Error(w, "invalid subject", http.StatusUnauthorized)
+			return
+		}
+		ctx := service.WithActor(r.Context(), service.Actor{UserID: id, Admin: p.HasRole(auth.RoleAdmin)})
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
 func (a *API) logRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
-		next.ServeHTTP(ww, r)
+		ctx, caller := auth.Track(r.Context())
+		next.ServeHTTP(ww, r.WithContext(ctx))
+		// The token itself is never logged, only its sub.
 		a.log.InfoContext(r.Context(), "http",
 			slog.String("method", r.Method), slog.String("path", r.URL.Path), slog.Int("status", ww.Status()),
-			slog.Duration("duration", time.Since(start)), slog.String("request_id", middleware.GetReqID(r.Context())))
+			slog.Duration("duration", time.Since(start)), slog.String("request_id", middleware.GetReqID(r.Context())),
+			slog.String("sub", caller.Subject()))
 	})
 }

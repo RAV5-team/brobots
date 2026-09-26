@@ -132,6 +132,15 @@ services:
       SEED_DEMO: ${API_SEED_DEMO:-true}
       SWAGGER_ENABLED: ${API_SWAGGER_ENABLED:-true}
       SIMULATION_URL: http://simulation:8765
+      # Проверка токенов Keycloak (docs/keycloak/middleware.md): iss публичный, JWKS — внутренний.
+      OIDC_ISSUER: ${PUBLIC_URL:?}/auth/realms/rav5
+      OIDC_JWKS_URL: http://keycloak:8080/auth/realms/rav5/protocol/openid-connect/certs
+      OIDC_AUDIENCE: rav5-api
+      # TODO(dev-auth): dev-режим для ручного тестирования — запросы без токена идут от AUTH_DEV_SUB;
+      # только при APP_ENV=local. Удалить вместе с dev-режимом.
+      AUTH_DEV_MODE: ${AUTH_DEV_MODE:-false}
+      AUTH_DEV_SUB: ${AUTH_DEV_SUB:-}
+      AUTH_DEV_ROLES: ${AUTH_DEV_ROLES:-}
     ports: ["${API_PORT:-8000}:8000"]
     # edge — для публикации порта и вызовов simulation, internal — для Postgres.
     networks: [edge, internal]
@@ -159,6 +168,17 @@ services:
       PORT: 8765
       # Воркеры заданий в процессе сервера; 0 — только API (воркеры отдельно: python -m app.worker).
       SIM_WORKERS: ${SIM_WORKERS:-1}
+      # Проверка токенов Keycloak (docs/keycloak/middleware.md): до загрузки ключей /api/health — 503.
+      OIDC_ISSUER: ${PUBLIC_URL:?}/auth/realms/rav5
+      OIDC_JWKS_URL: http://keycloak:8080/auth/realms/rav5/protocol/openid-connect/certs
+      OIDC_AUDIENCE: rav5-sim
+      INTERNAL_CALLER_AZP: rav5-api-internal
+      APP_ENV: ${APP_ENV:-local}
+      # TODO(dev-auth): dev-режим для ручного тестирования — запросы без токена идут от AUTH_DEV_SUB;
+      # только при APP_ENV=local. Удалить вместе с dev-режимом.
+      AUTH_DEV_MODE: ${AUTH_DEV_MODE:-false}
+      AUTH_DEV_SUB: ${AUTH_DEV_SUB:-}
+      AUTH_DEV_ROLES: ${AUTH_DEV_ROLES:-}
     ports: ["${SIMULATION_PORT:-8765}:8765"]
     networks: [edge, internal]
     depends_on:

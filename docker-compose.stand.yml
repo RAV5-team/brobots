@@ -15,3 +15,14 @@ services:
       # Тот же путь в контейнере — шаблон stand заменяет шаблон local.
       - ./infra/nginx/templates/gateway.stand.conf.template:/etc/nginx/templates/default.conf.template:ro
       - ./infra/nginx/certs:/etc/nginx/certs:ro
+
+  # TODO(dev-auth): на стенде dev-режим запрещён — сервисы с ним не стартуют вне APP_ENV=local.
+  api:
+    environment:
+      APP_ENV: stand
+      AUTH_DEV_MODE: "false"
+
+  simulation:
+    environment:
+      APP_ENV: stand
+      AUTH_DEV_MODE: "false"

@@ -33,6 +33,7 @@ COPY --from=build /out/api /usr/local/bin/api
 USER app
 EXPOSE 8000
 ENV HTTP_ADDR=:8000
+# Готов — база доступна и ключи Keycloak загружены (/readyz).
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=5 \
-  CMD wget -qO- http://127.0.0.1:8000/healthz >/dev/null 2>&1 || exit 1
+  CMD wget -qO- http://127.0.0.1:8000/readyz >/dev/null 2>&1 || exit 1
 ENTRYPOINT ["/usr/local/bin/api"]

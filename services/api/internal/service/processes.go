@@ -30,7 +30,11 @@ func (s *Service) ListProcesses(ctx context.Context, f ProcessQuery) ([]domain.P
 		return nil, err
 	}
 	out := []domain.Process{}
+	a := accessOf(ctx)
 	for _, p := range all {
+		if a.process(p, false) != nil {
+			continue
+		}
 		if f.Q != "" && !containsFold(p.Name+" "+p.WorkType.Code+" "+p.WorkType.Name+" "+domain.Deref(p.Description), f.Q) {
 			continue
 		}
@@ -53,8 +57,7 @@ func (s *Service) ListProcesses(ctx context.Context, f ProcessQuery) ([]domain.P
 
 // GetProcess returns a process with its usage on locations.
 func (s *Service) GetProcess(ctx context.Context, id uuid.UUID) (domain.ProcessDetail, error) {
-	q := s.st.Q()
-	p, err := q.GetProcess(ctx, id)
+	p, err := s.visibleProcess(ctx, s.st.Q(), id, false)
 	if err != nil {
 		return domain.ProcessDetail{}, err
 	}
@@ -63,7 +66,11 @@ func (s *Service) GetProcess(ctx context.Context, id uuid.UUID) (domain.ProcessD
 		return domain.ProcessDetail{}, err
 	}
 	d := domain.ProcessDetail{Process: p, Usage: []domain.ProcessUsage{}}
+	a := accessOf(ctx)
 	for _, t := range tasks {
+		if a.task(t, false) != nil { // usage on locations of other users stays hidden
+			continue
+		}
 		workers := []string{}
 		for _, w := range t.Workers {
 			workers = append(workers, fmt.Sprintf("%d · %s", w.Headcount, w.RoleName))
@@ -91,7 +98,7 @@ type RobotGroups struct {
 
 // ProcessRobots screens the robots of the process class against the process defaults.
 func (s *Service) ProcessRobots(ctx context.Context, id uuid.UUID) (RobotGroups, error) {
-	p, err := s.st.Q().GetProcess(ctx, id)
+	p, err := s.visibleProcess(ctx, s.st.Q(), id, false)
 	if err != nil {
 		return RobotGroups{}, err
 	}
@@ -149,12 +156,30 @@ func (s *Service) CreateProcess(ctx context.Context, body []byte) (domain.Proces
 	if err := MergePatch(&in, body); err != nil {
 		return domain.Process{}, err
 	}
-	return s.saveProcess(ctx, domain.Process{ID: store.NewID(), IsActive: true}, in, true)
+	return s.saveProcess(ctx, s.newProcess(ctx, &in), in, true)
+}
+
+// newProcess starts a process of the caller: the admin adds reference processes, a user own ones.
+func (s *Service) newProcess(ctx context.Context, in *ProcessInput) domain.Process {
+	owner := accessOf(ctx).newProcessOwner()
+	if owner != nil {
+		in.IsCustom = true
+	}
+	return domain.Process{ID: store.NewID(), IsActive: true, OwnerID: owner}
+}
+
+// visibleProcess loads a process the caller may read, or change when write is set.
+func (s *Service) visibleProcess(ctx context.Context, q store.Q, id uuid.UUID, write bool) (domain.Process, error) {
+	p, err := q.GetProcess(ctx, id)
+	if err != nil {
+		return p, err
+	}
+	return p, accessOf(ctx).process(p, write)
 }
 
 // PatchProcess updates a process; tasks already created keep their copied values.
 func (s *Service) PatchProcess(ctx context.Context, id uuid.UUID, body []byte) (domain.Process, error) {
-	p, err := s.st.Q().GetProcess(ctx, id)
+	p, err := s.visibleProcess(ctx, s.st.Q(), id, true)
 	if err != nil {
 		return p, err
 	}
@@ -178,14 +203,14 @@ func (s *Service) HideProcess(ctx context.Context, id uuid.UUID) error {
 
 // DuplicateProcess copies a process with the «копия» prefix.
 func (s *Service) DuplicateProcess(ctx context.Context, id uuid.UUID) (domain.Process, error) {
-	p, err := s.st.Q().GetProcess(ctx, id)
+	p, err := s.visibleProcess(ctx, s.st.Q(), id, false)
 	if err != nil {
 		return p, err
 	}
 	in := processInput(p)
 	in.Code = nil
 	in.Name = "Копия · " + p.Name
-	return s.saveProcess(ctx, domain.Process{ID: store.NewID(), IsActive: true}, in, true)
+	return s.saveProcess(ctx, s.newProcess(ctx, &in), in, true)
 }
 
 func (s *Service) saveProcess(ctx context.Context, p domain.Process, in ProcessInput, isNew bool) (domain.Process, error) {

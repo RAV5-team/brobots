@@ -183,3 +183,43 @@ def test_finished_job_accepts_no_more_writes(store):
     assert not store.heartbeat(_FIRST, job.lease, ["после конца"])
     assert not store.fail_job(_FIRST, job.lease, "поздно", None, None)
     assert store.get_job(_FIRST).status == "done"
+
+
+# --- владение: одинаково у двойника и PostgreSQL ----------------------------
+def _finished(store, job_id: str, owner_sub: str | None) -> str:
+    """Завершённое задание владельца с одним прогоном; номер прогона."""
+    store.create_job(
+        job_id, {"task": {}}, [{"name": "S"}], "sim-test", owner_sub=owner_sub
+    )
+    job = store.claim_next_job("w")
+    run = _run(simulation_id=job_id[:31] + "f")
+    assert store.finish_job(job_id, job.lease, [run])
+    return run.simulation_id
+
+
+@pytest.mark.parametrize(
+    "viewer, visible",
+    [("alice", True), ("bob", False), (None, False)],
+    ids=["owner", "other user", "guest"],
+)
+def test_owned_job_and_its_run_are_visible_only_to_the_owner(
+    store, viewer, visible
+):
+    sim_id = _finished(store, _FIRST, owner_sub="alice")
+
+    found = [
+        store.get_job(_FIRST, viewer=viewer),
+        store.get_run(sim_id, viewer=viewer),
+        store.get_traces_gz(sim_id, viewer=viewer),
+    ]
+
+    assert all(x is not None for x in found) if visible else found == [None] * 3
+
+
+@pytest.mark.parametrize("viewer", ["alice", None], ids=["user", "guest"])
+def test_guest_job_is_visible_to_anyone_with_its_id(store, viewer):
+    sim_id = _finished(store, _FIRST, owner_sub=None)
+
+    assert store.get_job(_FIRST, viewer=viewer) is not None
+    assert store.get_run(sim_id, viewer=viewer) is not None
+    assert store.get_traces_gz(sim_id, viewer=viewer) is not None

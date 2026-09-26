@@ -67,8 +67,11 @@ func (s *Service) loadLocationContext(ctx context.Context, id *uuid.UUID) (locat
 	if err != nil {
 		return lc, err
 	}
+	a := accessOf(ctx)
 	for _, p := range projects {
-		lc.projects[p.LocationID] = append(lc.projects[p.LocationID], p)
+		if a.sees(p.OwnerID, p.IsDemo) {
+			lc.projects[p.LocationID] = append(lc.projects[p.LocationID], p)
+		}
 	}
 	return lc, nil
 }
@@ -116,8 +119,12 @@ func (s *Service) ListLocations(ctx context.Context, f LocationQuery) (Page[doma
 		return Page[domain.Location]{}, err
 	}
 	out := []domain.Location{}
+	a := accessOf(ctx)
 	for i := range list {
 		l := list[i]
+		if a.location(l, false) != nil {
+			continue
+		}
 		lc.enrich(&l)
 		if f.Q != "" && !containsFold(l.Name+" "+l.City+" "+l.FacilityTypeCode+" "+domain.Deref(l.Address), f.Q) {
 			continue
@@ -183,7 +190,7 @@ func compareFloat(a, b float64) int {
 
 // GetLocation returns a location with summary and readiness.
 func (s *Service) GetLocation(ctx context.Context, id uuid.UUID) (domain.Location, error) {
-	l, err := s.st.Q().GetLocation(ctx, id)
+	l, err := s.visibleLocation(ctx, s.st.Q(), id, false)
 	if err != nil {
 		return l, err
 	}
@@ -224,7 +231,7 @@ func (s *Service) CreateLocation(ctx context.Context, body []byte) (domain.Locat
 	if err := MergePatch(&in, body); err != nil {
 		return domain.Location{}, err
 	}
-	l := domain.Location{ID: store.NewID()}
+	l := domain.Location{ID: store.NewID(), OwnerID: accessOf(ctx).owner()}
 	if err := s.saveLocation(ctx, &l, in, true); err != nil {
 		return l, err
 	}
@@ -233,7 +240,7 @@ func (s *Service) CreateLocation(ctx context.Context, body []byte) (domain.Locat
 
 // PatchLocation updates a location; parameters and staff groups in the body are upserted.
 func (s *Service) PatchLocation(ctx context.Context, id uuid.UUID, body []byte) (domain.Location, error) {
-	l, err := s.st.Q().GetLocation(ctx, id)
+	l, err := s.visibleLocation(ctx, s.st.Q(), id, true)
 	if err != nil {
 		return l, err
 	}
@@ -259,7 +266,21 @@ func (s *Service) PatchLocation(ctx context.Context, id uuid.UUID, body []byte) 
 
 // DeleteLocation hides a location and archives its tasks; projects keep their snapshots.
 func (s *Service) DeleteLocation(ctx context.Context, id uuid.UUID) error {
-	return s.st.Q().SoftDeleteLocation(ctx, id)
+	return s.st.Tx(ctx, func(q store.Q) error {
+		if _, err := s.visibleLocation(ctx, q, id, true); err != nil {
+			return err
+		}
+		return q.SoftDeleteLocation(ctx, id)
+	})
+}
+
+// visibleLocation loads a location the caller may read, or change when write is set.
+func (s *Service) visibleLocation(ctx context.Context, q store.Q, id uuid.UUID, write bool) (domain.Location, error) {
+	l, err := q.GetLocation(ctx, id)
+	if err != nil {
+		return l, err
+	}
+	return l, accessOf(ctx).location(l, write)
 }
 
 func (s *Service) saveLocation(ctx context.Context, l *domain.Location, in LocationInput, isNew bool) error {
@@ -418,7 +439,7 @@ func defaultStaffGroups(defs []domain.ParameterDefinition) []domain.StaffGroup {
 // LocationParameters returns the parameters tab grouped as in the dataset.
 func (s *Service) LocationParameters(ctx context.Context, id uuid.UUID) (domain.LocationParameters, error) {
 	q := s.st.Q()
-	l, err := q.GetLocation(ctx, id)
+	l, err := s.visibleLocation(ctx, q, id, false)
 	if err != nil {
 		return domain.LocationParameters{}, err
 	}
@@ -457,7 +478,7 @@ func (s *Service) LocationParameters(ctx context.Context, id uuid.UUID) (domain.
 func (s *Service) PutLocationParameters(ctx context.Context, id uuid.UUID, items []domain.ParameterInput) (domain.LocationParameters, error) {
 	var v domain.Validator
 	err := s.st.Tx(ctx, func(q store.Q) error {
-		l, err := q.GetLocation(ctx, id)
+		l, err := s.visibleLocation(ctx, q, id, true)
 		if err != nil {
 			return err
 		}
@@ -487,7 +508,7 @@ func (s *Service) PutStaffGroups(ctx context.Context, id uuid.UUID, items []Staf
 	var v domain.Validator
 	var out []domain.StaffGroup
 	err := s.st.Tx(ctx, func(q store.Q) error {
-		l, err := q.GetLocation(ctx, id)
+		l, err := s.visibleLocation(ctx, q, id, true)
 		if err != nil {
 			return err
 		}
@@ -556,7 +577,7 @@ func (s *Service) CreateLocationFromTemplate(ctx context.Context, body []byte) (
 		return domain.Location{}, err
 	}
 	q := s.st.Q()
-	src, err := q.GetLocation(ctx, in.TemplateLocationID)
+	src, err := s.visibleLocation(ctx, q, in.TemplateLocationID, false)
 	if err != nil {
 		return src, err
 	}
@@ -569,7 +590,7 @@ func (s *Service) CreateLocationFromTemplate(ctx context.Context, body []byte) (
 		return src, err
 	}
 	dst := src
-	dst.ID, dst.IsDemo, dst.IsDraft = store.NewID(), false, false
+	dst.ID, dst.IsDemo, dst.IsDraft, dst.OwnerID = store.NewID(), false, false, accessOf(ctx).owner()
 	dst.Name = src.Name + " · копия"
 	if n := trimPtr(in.Name); n != nil {
 		dst.Name = *n

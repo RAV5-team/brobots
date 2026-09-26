@@ -22,6 +22,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/brobots/api/internal/auth"
+	"github.com/brobots/api/internal/auth/authtest"
 	"github.com/brobots/api/internal/handlers"
 	"github.com/brobots/api/internal/seed"
 	"github.com/brobots/api/internal/service"
@@ -34,9 +36,18 @@ import (
 )
 
 type env struct {
-	pool *pgxpool.Pool
-	srv  *httptest.Server
-	st   *store.Store
+	pool  *pgxpool.Pool
+	srv   *httptest.Server
+	st    *store.Store
+	iss   *authtest.Issuer
+	token string // "" — guest
+}
+
+// as returns the environment acting with another token; "" is a guest.
+func (e *env) as(token string) *env {
+	c := *e
+	c.token = token
+	return &c
 }
 
 func setup(t *testing.T) *env {
@@ -89,9 +100,12 @@ func setup(t *testing.T) *env {
 	if err := seed.Load(ctx, st, log); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	srv := httptest.NewServer(handlers.NewRouter(service.New(st, log), log, handlers.Options{}))
+	iss := authtest.New(t)
+	srv := httptest.NewServer(handlers.NewRouter(service.New(st, log), log, handlers.Options{Auth: iss.Middleware(t)}))
 	t.Cleanup(srv.Close)
-	return &env{pool: pool, srv: srv, st: st}
+	// The flows here are the admin's: catalog changes need the role, the rest a signed-in user.
+	token := iss.User(t, "integration-admin", auth.RoleUser, auth.RoleAdmin)
+	return &env{pool: pool, srv: srv, st: st, iss: iss, token: token}
 }
 
 func (e *env) do(t *testing.T, method, path string, body any, wantStatus int, out any) {
@@ -109,6 +123,9 @@ func (e *env) do(t *testing.T, method, path string, body any, wantStatus int, ou
 		t.Fatal(err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if e.token != "" {
+		req.Header.Set("Authorization", "Bearer "+e.token)
+	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
