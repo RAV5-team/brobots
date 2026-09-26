@@ -1,0 +1,17 @@
+# Профиль stand: https://<домен>, TLS на nginx, HSTS, allowlist админки Keycloak.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.stand.yml up -d --build
+#
+# Нужен Docker Compose 2.24+ (тег !override). Сертификат — в infra/nginx/certs/
+# (fullchain.pem, privkey.pem): Let's Encrypt или mkcert.
+
+services:
+  gateway:
+    # Без !override Compose объединит списки и порт 80 окажется объявлен дважды.
+    ports: !override ["80:80", "443:443"]
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:?задайте PUBLIC_HOST в .env}
+    volumes:
+      # Тот же путь в контейнере — шаблон stand заменяет шаблон local.
+      - ./infra/nginx/templates/gateway.stand.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./infra/nginx/certs:/etc/nginx/certs:ro

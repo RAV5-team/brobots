@@ -1,0 +1,142 @@
+{
+  "realm": "rav5",
+  "enabled": true,
+  "displayName": "RAV5",
+  "sslRequired": "external",
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "verifyEmail": false,
+  "rememberMe": true,
+  "bruteForceProtected": true,
+  "passwordPolicy": "length(8) and notUsername",
+  "internationalizationEnabled": true,
+  "supportedLocales": ["ru", "en"],
+  "defaultLocale": "ru",
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 7200,
+  "ssoSessionMaxLifespan": 36000,
+  "eventsEnabled": true,
+  "eventsExpiration": 604800,
+  "roles": {
+    "realm": [
+      { "name": "user", "description": "Пользователь платформы" },
+      { "name": "admin", "description": "Администратор платформы" },
+      { "name": "service", "description": "Межсервисные вызовы" },
+      {
+        "name": "default-roles-rav5",
+        "composite": true,
+        "composites": { "realm": ["user"] }
+      }
+    ]
+  },
+  "defaultRole": { "name": "default-roles-rav5" },
+  "clients": [
+    {
+      "clientId": "rav5-web",
+      "name": "RAV5",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "rootUrl": "${PUBLIC_URL}",
+      "baseUrl": "${PUBLIC_URL}/",
+      "redirectUris": ["${PUBLIC_URL}/*"],
+      "webOrigins": ["+"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "+"
+      },
+      "protocolMappers": [
+        {
+          "name": "aud-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "rav5-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        },
+        {
+          "name": "aud-sim",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "rav5-sim",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "rav5-api-internal",
+      "name": "RAV5 api (service account)",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${KC_API_INTERNAL_SECRET}",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "protocolMappers": [
+        {
+          "name": "aud-sim",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "rav5-sim",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        },
+        {
+          "name": "aud-economics",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "rav5-economics",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "user@example.com",
+      "email": "user@example.com",
+      "firstName": "Демо",
+      "lastName": "Пользователь",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        { "type": "password", "value": "${DEMO_USER_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["default-roles-rav5"]
+    },
+    {
+      "username": "admin@example.com",
+      "email": "admin@example.com",
+      "firstName": "Демо",
+      "lastName": "Администратор",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        { "type": "password", "value": "${DEMO_ADMIN_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["default-roles-rav5", "admin"]
+    },
+    {
+      "username": "service-account-rav5-api-internal",
+      "enabled": true,
+      "serviceAccountClientId": "rav5-api-internal",
+      "realmRoles": ["service"]
+    }
+  ]
+}

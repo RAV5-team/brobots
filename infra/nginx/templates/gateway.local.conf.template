@@ -1,0 +1,23 @@
+# Профиль local: http://localhost. Монтируется как /etc/nginx/templates/default.conf.template,
+# при старте превращается в conf.d/default.conf с подстановкой ${ADMIN_ALLOW_CIDR}.
+include /etc/nginx/snippets/http-common.conf;
+
+server {
+    listen 80 default_server;
+    server_name _;
+
+    location ^~ /auth/admin/ {
+        allow ${ADMIN_ALLOW_CIDR};
+        deny all;
+        include /etc/nginx/snippets/proxy-headers.conf;
+        proxy_pass http://kc;
+    }
+    location ^~ /auth/realms/master/ {
+        allow ${ADMIN_ALLOW_CIDR};
+        deny all;
+        include /etc/nginx/snippets/proxy-headers.conf;
+        proxy_pass http://kc;
+    }
+
+    include /etc/nginx/snippets/keycloak.conf;
+}
