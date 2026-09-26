@@ -132,6 +132,10 @@ services:
       SEED_DEMO: ${API_SEED_DEMO:-true}
       SWAGGER_ENABLED: ${API_SWAGGER_ENABLED:-true}
       SIMULATION_URL: http://simulation:8765
+      # Проверка токенов Keycloak (docs/keycloak/middleware.md): iss публичный, JWKS — внутренний.
+      OIDC_ISSUER: ${PUBLIC_URL:?}/auth/realms/rav5
+      OIDC_JWKS_URL: http://keycloak:8080/auth/realms/rav5/protocol/openid-connect/certs
+      OIDC_AUDIENCE: rav5-api
     ports: ["${API_PORT:-8000}:8000"]
     # edge — для публикации порта и вызовов simulation, internal — для Postgres.
     networks: [edge, internal]
@@ -159,6 +163,11 @@ services:
       PORT: 8765
       # Воркеры заданий в процессе сервера; 0 — только API (воркеры отдельно: python -m app.worker).
       SIM_WORKERS: ${SIM_WORKERS:-1}
+      # Проверка токенов Keycloak (docs/keycloak/middleware.md): до загрузки ключей /api/health — 503.
+      OIDC_ISSUER: ${PUBLIC_URL:?}/auth/realms/rav5
+      OIDC_JWKS_URL: http://keycloak:8080/auth/realms/rav5/protocol/openid-connect/certs
+      OIDC_AUDIENCE: rav5-sim
+      INTERNAL_CALLER_AZP: rav5-api-internal
     ports: ["${SIMULATION_PORT:-8765}:8765"]
     networks: [edge, internal]
     depends_on:

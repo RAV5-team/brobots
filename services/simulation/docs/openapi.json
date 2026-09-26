@@ -3,7 +3,7 @@
   "info": {
     "title": "RAV5 Simulation Service",
     "version": "sim-0.14.0",
-    "description": "Шаг «Симуляция»: проверяет конфигурацию из подбора на имитации рабочего дня и предлагает изменение парка и поправки для следующих шагов. Денег не принимает и не считает."
+    "description": "Шаг «Симуляция»: проверяет конфигурацию из подбора на имитации рабочего дня и предлагает изменение парка и поправки для следующих шагов. Денег не принимает и не считает.\n\nДоступ — access token Keycloak (realm rav5, aud rav5-sim) в заголовке Authorization: Bearer. Без токена — гость; присланный токен обязан быть валидным."
   },
   "paths": {
     "/": {
@@ -63,8 +63,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Присланный токен невалиден или просрочен.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Прислан сервисный токен.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthError"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/api/openapi.json": {
@@ -80,8 +106,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Присланный токен невалиден или просрочен.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Прислан сервисный токен.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthError"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/api/simulations/schema": {
@@ -97,8 +149,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Присланный токен невалиден или просрочен.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Прислан сервисный токен.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthError"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/api/simulations/preview": {
@@ -154,8 +232,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Присланный токен невалиден или просрочен.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Прислан сервисный токен.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthError"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/api/simulations": {
@@ -221,8 +325,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Присланный токен невалиден или просрочен.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Прислан сервисный токен.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthError"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/api/simulations/jobs/{job_id}": {
@@ -258,6 +388,26 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Присланный токен невалиден или просрочен.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Прислан сервисный токен.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthError"
+                }
+              }
+            }
           }
         },
         "parameters": [
@@ -268,6 +418,12 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {},
+          {
+            "bearerAuth": []
           }
         ]
       }
@@ -305,6 +461,26 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Присланный токен невалиден или просрочен.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Прислан сервисный токен.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthError"
+                }
+              }
+            }
           }
         },
         "parameters": [
@@ -315,6 +491,12 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {},
+          {
+            "bearerAuth": []
           }
         ]
       }
@@ -355,6 +537,26 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Присланный токен невалиден или просрочен.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Прислан сервисный токен.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthError"
+                }
+              }
+            }
           }
         },
         "parameters": [
@@ -365,6 +567,12 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "security": [
+          {},
+          {
+            "bearerAuth": []
           }
         ]
       }
@@ -1188,6 +1396,26 @@
             }
           }
         }
+      },
+      "AuthError": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "enum": [
+              "unauthorized",
+              "forbidden"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "description": "Что случилось и как исправить, на русском."
+          }
+        },
+        "description": "Отказ в доступе (docs/keycloak/middleware.md)."
       },
       "FieldError": {
         "type": "object",
@@ -2281,6 +2509,14 @@
             }
           }
         }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Access token Keycloak realm rav5."
       }
     }
   }

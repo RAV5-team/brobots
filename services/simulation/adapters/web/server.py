@@ -25,6 +25,11 @@
     GET  /api/simulations/{simulation_id}/traces
         записи прогона для 2D-сравнения (JSON, gzip)
 
+Доступ (adapters.web.auth, docs/keycloak/middleware.md): экран и /api/health
+открыты всем; остальное — гостю или пользователю с access token Keycloak
+(aud rav5-sim). Присланный токен обязан быть валидным, сервисный токен здесь —
+403.
+
 Контракт ведётся вручную в adapters.web.openapi: автоматическая схема FastAPI
 отключена, чтобы docs/openapi.json оставался единственным описанием API.
 Обработчики с вызовами хранилища — синхронные: FastAPI выполняет их в пуле
@@ -49,6 +54,7 @@ from starlette import exceptions as starlette_exceptions
 from starlette import types as starlette_types
 
 from adapters import json_codec
+from adapters.web import auth
 from adapters.web import demo_input
 from adapters.web import form_spec
 from adapters.web import openapi
@@ -82,12 +88,17 @@ class Services:
         preview: Потребность по часам без имитации.
         reader: Чтение заданий и прогонов.
         health: Готовность хранилища.
+        verifier: Проверка access token Keycloak.
+        internal_caller_azp: Клиент Keycloak, которому открыты внутренние
+            пути (INTERNAL_CALLER_AZP).
     """
 
     submit: Callable[[Mapping[str, Any]], str]
     preview: Callable[[Mapping[str, Any]], dict]
     reader: ports.ResultReader
     health: ports.StorageHealth
+    verifier: ports.TokenVerifier
+    internal_caller_azp: str = "rav5-api-internal"
 
 
 class ApiError(Exception):
@@ -230,8 +241,8 @@ def _require_id(value: str, message: str) -> None:
         raise ApiError(404, message)
 
 
-def _add_pages(app: fastapi.FastAPI) -> None:
-    """Страница шага, готовность и справочники."""
+def _add_public(app: fastapi.FastAPI) -> None:
+    """Страница шага и готовность — без проверки токена."""
 
     @app.get("/", response_class=responses.HTMLResponse)
     @app.get("/index.html", response_class=responses.HTMLResponse)
@@ -240,9 +251,14 @@ def _add_pages(app: fastapi.FastAPI) -> None:
 
     @app.get("/api/health")
     def health(services: Deps) -> JsonResponse:
-        if services.health.is_ready():
+        """Готов, когда доступна база и загружены ключи Keycloak."""
+        if services.health.is_ready() and services.verifier.is_ready():
             return JsonResponse({"status": "ok"})
         return JsonResponse({"status": "unavailable"}, 503)
+
+
+def _add_reference(app: fastapi.APIRouter) -> None:
+    """Справочники формы, схема запроса и контракт."""
 
     @app.get("/api/meta")
     def meta() -> JsonResponse:
@@ -257,7 +273,7 @@ def _add_pages(app: fastapi.FastAPI) -> None:
         return JsonResponse(request_schema.request_schema())
 
 
-def _add_simulations(app: fastapi.FastAPI) -> None:
+def _add_simulations(app: fastapi.APIRouter) -> None:
     """Предпросмотр, постановка в очередь, задания и прогоны.
 
     Точные пути объявлены раньше шаблонных: /api/simulations/{simulation_id}
@@ -329,7 +345,20 @@ def _add_simulations(app: fastapi.FastAPI) -> None:
 
 
 def _add_error_handlers(app: fastapi.FastAPI) -> None:
-    """Ошибки — в формате {"error", "errors"?}; база недоступна — 503."""
+    """Ошибки — в формате {"error", "errors"?}; база недоступна — 503.
+
+    Отказ в доступе — {"code", "message"}, как во всех сервисах RAV5.
+    """
+
+    @app.exception_handler(auth.AuthError)
+    async def auth_error(
+        _: fastapi.Request, exc: auth.AuthError
+    ) -> JsonResponse:
+        return JsonResponse(
+            {"code": exc.code, "message": exc.message},
+            exc.status,
+            exc.headers(),
+        )
 
     @app.exception_handler(ApiError)
     async def api_error(_: fastapi.Request, exc: ApiError) -> JsonResponse:
@@ -391,6 +420,12 @@ def create_app(
     app.state.services = services
     _add_error_handlers(app)
     _no_store(app)
-    _add_pages(app)
-    _add_simulations(app)
+    _add_public(app)
+    # Проверка токена раньше чтения тела: без доступа тело не читается.
+    guarded = fastapi.APIRouter(
+        dependencies=[fastapi.Depends(auth.optional_user)]
+    )
+    _add_reference(guarded)
+    _add_simulations(guarded)
+    app.include_router(guarded)
     return app

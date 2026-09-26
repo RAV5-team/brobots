@@ -11,6 +11,7 @@ from collections.abc import Callable, Mapping, Sequence
 import dataclasses
 from typing import Any
 
+from application import errors
 from application import models
 
 _INTERRUPTED = "Задание прервано: сервис перезапускался во время расчёта."
@@ -325,3 +326,35 @@ class ScriptedRunner:
             outputs=tuple(output(t) for t in tasks),
             trailing_lines=self._trailing,
         )
+
+
+class FakeTokenVerifier:
+    """Проверка токенов по словарю «токен → вызывающий».
+
+    Attributes:
+        tokens: Принимаемые токены; любой другой — InvalidTokenError.
+        ready: Что отвечает is_ready.
+    """
+
+    def __init__(
+        self, tokens: Mapping[str, models.Principal] | None = None
+    ) -> None:
+        self.tokens = dict(tokens or {})
+        self.ready = True
+
+    def verify(self, token: str) -> models.Principal:
+        """Вызывающий по токену или отказ."""
+        if token not in self.tokens:
+            raise errors.InvalidTokenError("неизвестный токен")
+        return self.tokens[token]
+
+    def is_ready(self) -> bool:
+        """Ключи «загружены», пока ready."""
+        return self.ready
+
+
+def principal(sub: str, *roles: str, azp: str = "rav5-web") -> models.Principal:
+    """Вызывающий для тестов доступа."""
+    return models.Principal(
+        sub=sub, email=f"{sub}@example.com", roles=frozenset(roles), azp=azp
+    )

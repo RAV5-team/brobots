@@ -18,6 +18,10 @@ type Config struct {
 	MigrateOnStart bool
 	SeedDemo       bool
 	SwaggerEnabled bool
+	// Keycloak access token verification (docs/keycloak/middleware.md).
+	OIDCIssuer   string
+	OIDCJWKSURL  string
+	OIDCAudience string
 }
 
 // Load reads the configuration from the environment and applies defaults.
@@ -26,9 +30,21 @@ func Load() (Config, error) {
 		HTTPAddr:    getenv("HTTP_ADDR", ":8000"),
 		DatabaseURL: os.Getenv("DATABASE_URL"),
 		AppEnv:      getenv("APP_ENV", "local"),
+		// No defaults: iss must match the tokens byte for byte, a guess would reject them all.
+		OIDCIssuer:   os.Getenv("OIDC_ISSUER"),
+		OIDCJWKSURL:  os.Getenv("OIDC_JWKS_URL"),
+		OIDCAudience: os.Getenv("OIDC_AUDIENCE"),
 	}
 	if c.DatabaseURL == "" {
 		return Config{}, fmt.Errorf("DATABASE_URL is not set")
+	}
+	for _, v := range [][2]string{{"OIDC_ISSUER", c.OIDCIssuer}, {"OIDC_JWKS_URL", c.OIDCJWKSURL}, {"OIDC_AUDIENCE", c.OIDCAudience}} {
+		if v[1] == "" {
+			return Config{}, fmt.Errorf("%s is not set", v[0])
+		}
+	}
+	if strings.HasSuffix(c.OIDCIssuer, "/") {
+		return Config{}, fmt.Errorf("OIDC_ISSUER: %q must not end with a slash (it is compared with iss byte for byte)", c.OIDCIssuer)
 	}
 	var err error
 	if c.LogLevel, err = parseLevel(getenv("LOG_LEVEL", "info")); err != nil {

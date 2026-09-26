@@ -17,6 +17,7 @@ import urllib.request
 import uuid
 
 import conftest
+import fakes
 import pytest
 import uvicorn
 
@@ -36,7 +37,9 @@ class _Served:
     """uvicorn с приложением сервиса в фоновом потоке на свободном порту."""
 
     def __init__(self, repo) -> None:
-        app = server_lib.create_app(runtime.http_services(repo))
+        app = server_lib.create_app(
+            runtime.http_services(repo, fakes.FakeTokenVerifier())
+        )
         self._sock = socket.create_server(("127.0.0.1", 0))
         self._server = uvicorn.Server(
             uvicorn.Config(app, log_config=None, lifespan="off", ws="none")

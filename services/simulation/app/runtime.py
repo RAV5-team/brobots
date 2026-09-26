@@ -16,6 +16,7 @@ import uuid
 
 import psycopg_pool
 
+from adapters.auth import jwks
 from adapters.postgres import pool as pg_pool
 from adapters.postgres import repository
 from adapters.processes import child
@@ -24,6 +25,7 @@ from adapters.web import server as web_server
 from adapters.worker import loop
 from app import config
 from application import errors
+from application import ports
 from application import preview
 from application import process_job
 from application import submit
@@ -92,8 +94,26 @@ def new_id() -> str:
     return uuid.uuid4().hex
 
 
+def token_verifier(settings: config.Settings) -> jwks.JwksTokenVerifier:
+    """Проверка токенов Keycloak по настройкам OIDC_*.
+
+    Raises:
+        SystemExit: OIDC_* не заданы (код EXIT_CONFIG).
+    """
+    try:
+        settings.require_oidc()
+    except config.ConfigError as e:
+        _log.error("настройки: %s", e)
+        sys.exit(EXIT_CONFIG)
+    return jwks.JwksTokenVerifier.from_url(
+        settings.oidc_issuer, settings.oidc_audience, settings.oidc_jwks_url
+    )
+
+
 def http_services(
     repo: repository.PostgresJobRepository,
+    verifier: ports.TokenVerifier,
+    internal_caller_azp: str = "rav5-api-internal",
 ) -> web_server.Services:
     """Сценарии и порты для HTTP API поверх хранилища."""
     return web_server.Services(
@@ -101,6 +121,8 @@ def http_services(
         preview=preview.preview_demand,
         reader=repo,
         health=repo,
+        verifier=verifier,
+        internal_caller_azp=internal_caller_azp,
     )
 
 

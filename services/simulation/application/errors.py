@@ -33,3 +33,7 @@ class InvalidSubmissionError(ValueError):
     ) -> None:
         super().__init__(message)
         self.errors = [dict(e) for e in errors]
+
+
+class InvalidTokenError(Exception):
+    """Токен доступа невалиден, просрочен или не является access token."""

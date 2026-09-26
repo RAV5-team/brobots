@@ -120,3 +120,17 @@ class ScenarioRunner(Protocol):
             inputs.RequestError: Во входе сценария есть ошибки.
             errors.ScenarioFailedError: Расчёт сценария упал.
         """
+
+
+class TokenVerifier(Protocol):
+    """Проверка access token Keycloak (docs/keycloak/middleware.md).
+
+    verify синхронный: при неизвестном kid он загружает JWKS по сети, поэтому
+    из асинхронного кода его вызывают в пуле потоков.
+    """
+
+    def verify(self, token: str) -> models.Principal:
+        """Проверяет токен; errors.InvalidTokenError — токен не принят."""
+
+    def is_ready(self) -> bool:
+        """Ключи Keycloak загружены хотя бы раз."""

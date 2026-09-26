@@ -124,3 +124,30 @@ class JobSnapshot:
     errors: Sequence[Mapping[str, str]] | None
     simulation_ids: tuple[str, ...]
     runs: tuple[Mapping[str, Any], ...]
+
+
+@dataclasses.dataclass(frozen=True)
+class Principal:
+    """Вызывающий из проверенного access token Keycloak.
+
+    Attributes:
+        sub: Неизменный ID пользователя или сервисного аккаунта.
+        email: Почта — только для отображения, пользователь может её сменить.
+        roles: Роли realm (realm_access.roles).
+        azp: Клиент, которому выдан токен: rav5-web — браузер,
+            rav5-api-internal — сервисный.
+    """
+
+    sub: str
+    email: str | None
+    roles: frozenset[str]
+    azp: str | None
+
+    @property
+    def is_service(self) -> bool:
+        """Сервисный токен (client credentials), а не пользователь."""
+        return "service" in self.roles
+
+    def has_role(self, role: str) -> bool:
+        """Есть ли у вызывающего роль realm."""
+        return role in self.roles

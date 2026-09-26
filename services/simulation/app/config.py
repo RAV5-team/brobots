@@ -1,7 +1,8 @@
 """Настройки сервиса из переменных окружения.
 
-DATABASE_URL обязателен: без базы сервис не работает. Остальное — с
-умолчаниями; неверные значения останавливают запуск с понятным сообщением.
+DATABASE_URL обязателен: без базы сервис не работает. OIDC_* нужны серверу
+(проверка токенов Keycloak), воркеру — нет. Остальное — с умолчаниями;
+неверные значения останавливают запуск с понятным сообщением.
 """
 
 from __future__ import annotations
@@ -83,6 +84,12 @@ class Settings:
             (SIM_HEARTBEAT_S).
         stale_after_s: Через сколько без подтверждения задание возвращается
             в очередь, с (SIM_STALE_AFTER_S).
+        oidc_issuer: Издатель токенов, сверяется с iss побайтно
+            (OIDC_ISSUER).
+        oidc_jwks_url: Внутренний адрес JWKS Keycloak (OIDC_JWKS_URL).
+        oidc_audience: Аудитория сервиса в aud (OIDC_AUDIENCE).
+        internal_caller_azp: Клиент, которому открыты внутренние пути
+            (INTERNAL_CALLER_AZP).
     """
 
     database_url: str
@@ -95,6 +102,10 @@ class Settings:
     poll_interval_s: float = 1.0
     heartbeat_s: float = 5.0
     stale_after_s: float = 60.0
+    oidc_issuer: str = ""
+    oidc_jwks_url: str = ""
+    oidc_audience: str = ""
+    internal_caller_azp: str = "rav5-api-internal"
 
     @classmethod
     def from_env(cls, env: Mapping[str, str]) -> Settings:
@@ -125,7 +136,17 @@ class Settings:
             poll_interval_s=_read(env, "SIM_POLL_INTERVAL_S", float, 1, 0.05),
             heartbeat_s=_read(env, "SIM_HEARTBEAT_S", float, 5, 0.1),
             stale_after_s=_read(env, "SIM_STALE_AFTER_S", float, 60, 1),
+            oidc_issuer=env.get("OIDC_ISSUER", ""),
+            oidc_jwks_url=env.get("OIDC_JWKS_URL", ""),
+            oidc_audience=env.get("OIDC_AUDIENCE", ""),
+            internal_caller_azp=env.get(
+                "INTERNAL_CALLER_AZP", "rav5-api-internal"
+            ),
         )
+        if settings.oidc_issuer.endswith("/"):
+            raise ConfigError(
+                "OIDC_ISSUER: без слэша в конце — iss сверяется побайтно"
+            )
         if settings.stale_after_s <= 3 * settings.heartbeat_s:
             raise ConfigError(
                 "SIM_STALE_AFTER_S: должен быть больше трёх SIM_HEARTBEAT_S"
@@ -133,6 +154,22 @@ class Settings:
         if settings.db_pool_min > settings.db_pool_max:
             raise ConfigError("SIM_DB_POOL_MIN: больше SIM_DB_POOL_MAX")
         return settings
+
+    def require_oidc(self) -> None:
+        """Проверяет, что заданы настройки проверки токенов (для сервера).
+
+        Raises:
+            ConfigError: Не задана одна из OIDC_*.
+        """
+        for name, value in (
+            ("OIDC_ISSUER", self.oidc_issuer),
+            ("OIDC_JWKS_URL", self.oidc_jwks_url),
+            ("OIDC_AUDIENCE", self.oidc_audience),
+        ):
+            if not value:
+                raise ConfigError(
+                    f"{name}: не задан — нужен для проверки токенов"
+                )
 
     def secret_filter(self) -> SecretFilter:
         """Фильтр журнала, вычищающий пароль базы из всех записей."""

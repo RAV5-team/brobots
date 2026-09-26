@@ -6,7 +6,8 @@
 при SIM_WORKERS > 0 или отдельно: python -m app.worker). Маршруты — в
 adapters.web.server, HTTP-сервер — uvicorn. SIGTERM и Ctrl+C обрабатывает
 uvicorn: он завершает запросы и вызывает остановку lifespan, где воркеры
-возвращают задания в очередь.
+возвращают задания в очередь. Ключи Keycloak загружаются в фоне; до первой
+загрузки /api/health отвечает 503.
 """
 
 from __future__ import annotations
@@ -30,11 +31,23 @@ _log = logging.getLogger(__name__)
 def main() -> None:
     """Запускает сервис и встроенные воркеры до SIGTERM или Ctrl+C."""
     settings, pool, repo = runtime.start()
+    try:
+        verifier = runtime.token_verifier(settings)
+    except SystemExit:
+        pool.close()
+        raise
 
     @contextlib.asynccontextmanager
     async def lifespan(app: fastapi.FastAPI) -> AsyncIterator[None]:
         del app  # воркерам приложение не нужно
         stop = threading.Event()
+        keys = threading.Thread(
+            target=verifier.preload_until_ready,
+            args=(stop,),
+            name="jwks-preload",
+            daemon=True,
+        )
+        keys.start()
         started = runtime.start_workers(repo, settings, stop, settings.workers)
         _log.info(
             "Шаг «Симуляция»: http://localhost:%d (воркеров: %d, %s)",
@@ -50,7 +63,10 @@ def main() -> None:
                 thread.join()
             pool.close()
 
-    app = web_server.create_app(runtime.http_services(repo), lifespan)
+    services = runtime.http_services(
+        repo, verifier, settings.internal_caller_azp
+    )
+    app = web_server.create_app(services, lifespan)
     try:
         # log_config=None: журнал uvicorn идёт через настройки runtime.start —
         # общий формат и фильтр секретов.

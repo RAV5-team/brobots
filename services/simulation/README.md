@@ -54,6 +54,21 @@ docker run -d -e DATABASE_URL=… simulation python -m app.worker
 | `SIM_POLL_INTERVAL_S` | 1 | пауза между проверками очереди |
 | `SIM_HEARTBEAT_S` | 5 | как часто воркер подтверждает, что жив |
 | `SIM_STALE_AFTER_S` | 60 | через сколько без подтверждения задание возвращается в очередь (больше трёх `SIM_HEARTBEAT_S`) |
+| `OIDC_ISSUER` | — (обязательна серверу) | издатель токенов Keycloak: `${PUBLIC_URL}/auth/realms/rav5`, без `/` в конце |
+| `OIDC_JWKS_URL` | — (обязательна серверу) | ключи Keycloak по внутреннему адресу |
+| `OIDC_AUDIENCE` | — (обязательна серверу) | аудитория сервиса: `rav5-sim` |
+| `INTERNAL_CALLER_AZP` | `rav5-api-internal` | клиент, которому открыты внутренние пути |
+
+Воркеру (`python -m app.worker`) `OIDC_*` не нужны.
+
+### Доступ
+
+Токены проверяются по JWKS Keycloak (`adapters/auth/jwks.py`, зависимости FastAPI —
+`adapters/web/auth.py`, правила — [docs/keycloak/middleware.md](../../docs/keycloak/middleware.md)).
+`GET /`, `/index.html` и `/api/health` открыты всем; остальные пути — гостю (без
+`Authorization`) или пользователю с токеном `aud rav5-sim`. Присланный токен обязан
+быть валидным (401), сервисный токен здесь — 403. Ошибки доступа — `{"code", "message"}`.
+Ключи загружаются в фоне; до первой загрузки `/api/health` отвечает 503.
 
 ## Экран шага
 

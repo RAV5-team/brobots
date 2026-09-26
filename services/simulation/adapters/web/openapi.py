@@ -73,6 +73,16 @@ def _request_schemas() -> dict:
 
 def _error_schemas() -> dict:
     return {
+        "AuthError": _obj(
+            {
+                "code": {"enum": ["unauthorized", "forbidden"]},
+                "message": {
+                    **_STR,
+                    "description": "Что случилось и как исправить, на русском.",
+                },
+            },
+            "Отказ в доступе (docs/keycloak/middleware.md).",
+        ),
         "FieldError": _obj({"field": _STR, "message": _STR}),
         "Error": {
             "type": "object",
@@ -547,6 +557,27 @@ def _paths() -> dict:
     }
 
 
+# Пути без проверки токена; остальные — гостю или пользователю.
+_PUBLIC_PATHS = frozenset({"/", "/api/health"})
+_BEARER = "bearerAuth"
+
+
+def _with_access(paths: dict) -> dict:
+    """Требования доступа: токен необязателен, присланный — проверяется."""
+    for path, item in paths.items():
+        if path in _PUBLIC_PATHS:
+            continue
+        for operation in item.values():
+            operation["security"] = [{}, {_BEARER: []}]
+            operation["responses"]["401"] = _json(
+                _ref("AuthError"), "Присланный токен невалиден или просрочен."
+            )
+            operation["responses"]["403"] = _json(
+                _ref("AuthError"), "Прислан сервисный токен."
+            )
+    return paths
+
+
 def spec() -> dict:
     """Возвращает OpenAPI 3.1 сервиса симуляции."""
     schemas = {
@@ -566,8 +597,21 @@ def spec() -> dict:
             "version": version.SIM_VERSION,
             "description": "Шаг «Симуляция»: проверяет конфигурацию из "
             "подбора на имитации рабочего дня и предлагает изменение парка "
-            "и поправки для следующих шагов. Денег не принимает и не считает.",
+            "и поправки для следующих шагов. Денег не принимает и не считает."
+            "\n\nДоступ — access token Keycloak (realm rav5, aud rav5-sim) "
+            "в заголовке Authorization: Bearer. Без токена — гость; "
+            "присланный токен обязан быть валидным.",
         },
-        "paths": _paths(),
-        "components": {"schemas": schemas},
+        "paths": _with_access(_paths()),
+        "components": {
+            "schemas": schemas,
+            "securitySchemes": {
+                _BEARER: {
+                    "type": "http",
+                    "scheme": "bearer",
+                    "bearerFormat": "JWT",
+                    "description": "Access token Keycloak realm rav5.",
+                }
+            },
+        },
     }

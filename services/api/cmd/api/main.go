@@ -18,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/brobots/api/internal/auth"
 	"github.com/brobots/api/internal/config"
 	"github.com/brobots/api/internal/handlers"
 	"github.com/brobots/api/internal/seed"
@@ -81,9 +82,20 @@ func run() error {
 			return fmt.Errorf("seed: %w", err)
 		}
 	}
+	keys := auth.NewKeySet(cfg.OIDCJWKSURL)
+	// Until the first successful fetch /readyz answers 503; Keycloak may start after the api.
+	go keys.RefreshUntilReady(ctx, 2*time.Second, func(err error) {
+		log.Warn("keycloak keys are not loaded yet", slog.Any("error", err))
+	})
+	opts := handlers.Options{
+		Version:        version,
+		SwaggerEnabled: cfg.SwaggerEnabled,
+		Auth:           auth.NewMiddleware(auth.NewVerifier(cfg.OIDCIssuer, cfg.OIDCAudience, keys)),
+		AuthReady:      keys.Ready,
+	}
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           handlers.NewRouter(service.New(st, log), log, handlers.Options{Version: version, SwaggerEnabled: cfg.SwaggerEnabled}),
+		Handler:           handlers.NewRouter(service.New(st, log), log, opts),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	errCh := make(chan error, 1)

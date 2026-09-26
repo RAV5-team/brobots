@@ -6,7 +6,7 @@ Go-сервис `services/api` закрывает три логических б
 - **Catalog and work-type service** — классы операций OP-01…OP-10, каталог роботов и позиций для запуска, ТТХ, строки «робот × класс», предложения с ценой, источники данных, справочник процессов.
 - **Work-type matching and hard checks** — кандидаты по совпадению класса операции и жёсткие проверки со значениями, источниками и причинами.
 
-Авторизации и оркестрации пока нет. Экономику, скоринг и симуляцию считают соседние сервисы; этот сервис отдаёт им контекст оценки (`GET /api/v1/projects/{id}/evaluation-context`).
+Оркестрации пока нет. Доступ — по access token Keycloak (см. «Доступ» ниже). Экономику, скоринг и симуляцию считают соседние сервисы; этот сервис отдаёт им контекст оценки (`GET /api/v1/projects/{id}/evaluation-context`).
 
 Документы рядом:
 
@@ -55,6 +55,26 @@ go run ./cmd/api        # сервер на :8000
 | `SEED_DEMO` | `false` (в compose `true`) | Загрузить демо-данные; существующие записи не перезаписываются |
 | `SWAGGER_ENABLED` | `true` | Swagger UI на `/docs` |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
+| `OIDC_ISSUER` | — | Издатель токенов, обязателен: `${PUBLIC_URL}/auth/realms/rav5`, без `/` в конце, сверяется с `iss` побайтно |
+| `OIDC_JWKS_URL` | — | Ключи Keycloak по внутреннему адресу, обязателен: `http://keycloak:8080/auth/realms/rav5/protocol/openid-connect/certs` |
+| `OIDC_AUDIENCE` | — | Аудитория сервиса, обязательна: `rav5-api` |
+
+## Доступ
+
+Токены проверяет сам сервис по JWKS Keycloak (`internal/auth`, правила — [docs/keycloak/middleware.md](../keycloak/middleware.md)).
+Ключи загружаются в фоне; до первой загрузки `/readyz` отвечает 503.
+
+| Пути | Кто |
+|---|---|
+| `/healthz`, `/readyz`, `/api/v1/openapi.yaml`, `/docs` | все, токен не проверяется |
+| `GET /api/v1/...` | гость (без `Authorization`) или пользователь |
+| `POST/PUT/PATCH/DELETE` локаций, задач, проектов, `POST /processes`, `POST /processes/{id}/duplicate` | пользователь |
+| запись в `/work-types`, `/data-sources`, `/solutions`, `PATCH/DELETE /processes/{id}` | роль `admin` |
+
+Присланный токен обязан быть валидным и на гостевых путях (401). Сервисный токен на этих путях — 403;
+у сервисного клиента нет `aud rav5-api`, поэтому на деле он получает 401. Ошибки доступа — `{"code", "message"}`
+с `WWW-Authenticate` у 401. Изоляции данных по владельцу пока нет: вошедшие пользователи видят и меняют общие данные.
+В журнале запросов — `sub`, сам токен не пишется.
 
 ## Тесты и контракт
 

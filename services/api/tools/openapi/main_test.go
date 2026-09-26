@@ -11,6 +11,8 @@ import (
 	"testing"
 
 	"github.com/brobots/api/internal/apispec"
+	"github.com/brobots/api/internal/auth"
+	"github.com/brobots/api/internal/auth/authtest"
 	"github.com/brobots/api/internal/handlers"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/go-chi/chi/v5"
@@ -18,7 +20,7 @@ import (
 
 // TestRoutesMatchOperations keeps the router and the contract in sync.
 func TestRoutesMatchOperations(t *testing.T) {
-	router, ok := handlers.NewRouter(nil, slog.New(slog.DiscardHandler), handlers.Options{}).(chi.Routes)
+	router, ok := newRouter(t, authtest.New(t)).(chi.Routes)
 	if !ok {
 		t.Fatal("router is not chi.Routes")
 	}
@@ -56,6 +58,79 @@ func TestRoutesMatchOperations(t *testing.T) {
 	}
 	if len(extra) > 0 {
 		t.Errorf("contract operations without route: %v", extra)
+	}
+}
+
+func newRouter(t *testing.T, iss *authtest.Issuer) http.Handler {
+	t.Helper()
+	return handlers.NewRouter(nil, slog.New(slog.DiscardHandler), handlers.Options{Auth: iss.Middleware(t)})
+}
+
+// TestRouterEnforcesAccess keeps the router guards and the documented access in sync: every
+// operation is called without a token and with user, admin and service tokens.
+func TestRouterEnforcesAccess(t *testing.T) {
+	iss := authtest.New(t)
+	router := newRouter(t, iss)
+	tokens := map[string]string{
+		"guest":   "",
+		"user":    iss.User(t, "alice", auth.RoleUser),
+		"admin":   iss.User(t, "root", auth.RoleUser, auth.RoleAdmin),
+		"service": iss.Service(t),
+	}
+	// Handlers run with a nil service and may fail; only the auth statuses matter here.
+	want := map[Access]map[string]int{
+		Public: {},
+		Guest:  {"service": 403},
+		User:   {"guest": 401, "service": 403},
+		Admin:  {"guest": 401, "user": 403, "service": 403},
+	}
+	id := "00000000-0000-0000-0000-000000000001"
+	for _, o := range Operations() {
+		path := strings.NewReplacer("{id}", id, "{capId}", id, "{solutionId}", id, "{code}", "warehouse").Replace(o.path)
+		access := AccessOf(o.method, o.path)
+		for who, token := range tokens {
+			status := call(router, o.method, path, token)
+			expected, denied := want[access][who]
+			if denied && status != expected {
+				t.Errorf("%s %s as %s: status %d, want %d", o.method, o.path, who, status, expected)
+			}
+			if !denied && (status == 401 || status == 403) {
+				t.Errorf("%s %s as %s: status %d, want access", o.method, o.path, who, status)
+			}
+		}
+	}
+}
+
+func call(h http.Handler, method, path, token string) (status int) {
+	req, _ := http.NewRequest(method, path, strings.NewReader("{}"))
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	rec := &statusRecorder{header: http.Header{}}
+	defer func() {
+		if recover() != nil { // nil service: the request passed the guards
+			status = http.StatusInternalServerError
+		}
+	}()
+	h.ServeHTTP(rec, req)
+	return rec.status
+}
+
+type statusRecorder struct {
+	header http.Header
+	status int
+}
+
+func (r *statusRecorder) Header() http.Header { return r.header }
+func (r *statusRecorder) Write(b []byte) (int, error) {
+	if r.status == 0 {
+		r.status = http.StatusOK
+	}
+	return len(b), nil
+}
+func (r *statusRecorder) WriteHeader(code int) {
+	if r.status == 0 {
+		r.status = code
 	}
 }
 

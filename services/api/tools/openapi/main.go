@@ -103,6 +103,11 @@ type (
 		Status  string `json:"status"`
 		Version string `json:"version,omitempty"`
 	}
+	// AuthError is the 401/403 body of docs/keycloak/middleware.md.
+	AuthError struct {
+		Code    string `json:"code" enum:"unauthorized,forbidden"`
+		Message string `json:"message" description:"Что случилось и как исправить, на русском"`
+	}
 	Problem struct {
 		Type   string              `json:"type"`
 		Title  string              `json:"title"`
@@ -294,6 +299,50 @@ func Operations() []op {
 	}
 }
 
+// Access is who may call an operation.
+type Access int
+
+// Access levels of the router (internal/handlers/router.go).
+const (
+	Public Access = iota // no token check: health, readiness
+	Guest                // no token or a valid user token
+	User                 // a valid user token
+	Admin                // a valid user token with the admin role
+)
+
+// adminPrefixes hold the catalog and reference data: only the admin changes them.
+var adminPrefixes = []string{"/api/v1/work-types", "/api/v1/data-sources", "/api/v1/solutions"}
+
+// AccessOf is the access policy of an operation; the router test checks the router enforces it.
+func AccessOf(method, path string) Access {
+	switch {
+	case !strings.HasPrefix(path, "/api/v1/"):
+		return Public
+	case method == http.MethodGet:
+		return Guest
+	case strings.HasPrefix(path, "/api/v1/processes/{id}") && (method == http.MethodPatch || method == http.MethodDelete):
+		return Admin // reference processes are shared by everyone
+	}
+	for _, prefix := range adminPrefixes {
+		if strings.HasPrefix(path, prefix) {
+			return Admin
+		}
+	}
+	return User
+}
+
+// security is the OpenAPI requirement of an access level; {} makes the token optional.
+func security(a Access) []map[string][]string {
+	bearer := map[string][]string{"bearerAuth": {}}
+	switch a {
+	case Guest:
+		return []map[string][]string{{}, bearer}
+	case User, Admin:
+		return []map[string][]string{bearer}
+	}
+	return nil
+}
+
 // Build renders the specification.
 func Build() ([]byte, error) {
 	r := openapi3.NewReflector()
@@ -301,8 +350,13 @@ func Build() ([]byte, error) {
 	r.Spec.Info.WithTitle("RAV5 API · локации, каталог, подбор").WithVersion("0.1.0").WithDescription(
 		"Сервис api: локации, задачи и проекты; каталог и классы операций; подбор по классу операции и жёсткие проверки.\n\n" +
 			"Ошибки — application/problem+json (RFC 7807) с полем errors: поле, код, сообщение и подсказка на русском.\n" +
+			"Доступ — access token Keycloak (realm rav5, aud rav5-api) в заголовке Authorization: Bearer. " +
+			"Чтение открыто гостю; присланный токен обязан быть валидным. Запись — вошедшему пользователю, " +
+			"каталог, классы операций, источники и справочные процессы — роли admin. " +
+			"401 и 403 — {code, message}; сервисный токен на этих путях — 403.\n" +
 			"PATCH — JSON merge patch: переданные поля заменяются, null очищает, вложенные объекты сливаются; неизвестные поля отклоняются.\n" +
 			"Доли (automationShare, timeShare и т.п.) — от 0 до 1. Деньги — рубли с НДС.")
+	r.Spec.SetHTTPBearerTokenSecurity("bearerAuth", "JWT", "Access token Keycloak realm rav5")
 	jr := r.JSONSchemaReflector()
 	uuidType := reflect.TypeOf(uuid.UUID{})
 	dateType := reflect.TypeOf(domain.Date{})
@@ -362,8 +416,24 @@ func Build() ([]byte, error) {
 				cu.ContentType = "application/problem+json"
 			})
 		}
+		access := AccessOf(o.method, o.path)
+		authErrors := map[Access][]int{Guest: {401, 403}, User: {401, 403}, Admin: {401, 403}}[access]
+		for _, code := range authErrors {
+			oc.AddRespStructure(new(AuthError), func(cu *openapi.ContentUnit) {
+				cu.HTTPStatus = code
+				cu.Description = map[int]string{401: "Токен не прислан (где он обязателен), невалиден или просрочен", 403: "Нет нужной роли или прислан сервисный токен"}[code]
+			})
+		}
 		if err := r.AddOperation(oc); err != nil {
 			return nil, fmt.Errorf("%s %s: %w", o.method, o.path, err)
+		}
+		if sec := security(access); sec != nil {
+			if err := r.Spec.SetupOperation(o.method, o.path, func(op *openapi3.Operation) error {
+				op.Security = sec
+				return nil
+			}); err != nil {
+				return nil, fmt.Errorf("%s %s: %w", o.method, o.path, err)
+			}
 		}
 	}
 	return r.Spec.MarshalYAML()
