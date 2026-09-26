@@ -13,7 +13,7 @@ init: ## Подготовить .env из шаблона (профиль local)
 secrets: ## Сгенерировать случайные секреты в .env (для stand)
 	./scripts/gen-secrets.sh
 
-up: init ## Поднять Postgres + Keycloak + шлюз, профиль local (http://localhost/auth/)
+up: init ## Поднять весь контур, профиль local (http://localhost/auth/, :8000, :8765)
 	$(COMPOSE) up -d --build
 
 up-stand: ## Поднять профиль stand (https, сертификат в infra/nginx/certs)

@@ -1,0 +1,2287 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "RAV5 Simulation Service",
+    "version": "sim-0.14.0",
+    "description": "Шаг «Симуляция»: проверяет конфигурацию из подбора на имитации рабочего дня и предлагает изменение парка и поправки для следующих шагов. Денег не принимает и не считает."
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "summary": "Экран шага «Симуляция»",
+        "responses": {
+          "200": {
+            "description": "HTML-страница.",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "summary": "Доступность базы и ревизия её схемы",
+        "responses": {
+          "200": {
+            "description": "База доступна.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "База недоступна.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/meta": {
+      "get": {
+        "summary": "Справочники формы, примеры сценариев, демо-вход из подбора",
+        "responses": {
+          "200": {
+            "description": "Справочники.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Meta"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/openapi.json": {
+      "get": {
+        "summary": "Эта спецификация",
+        "responses": {
+          "200": {
+            "description": "OpenAPI 3.1.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/simulations/schema": {
+      "get": {
+        "summary": "JSON Schema запроса POST /api/simulations",
+        "responses": {
+          "200": {
+            "description": "JSON Schema (draft 2020-12).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/simulations/preview": {
+      "post": {
+        "summary": "Потребность по часам и сверка со следом расчёта — без имитации",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Потребность по часам.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preview"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибки входа по полям.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Тело запроса — не JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Тело запроса больше 1 МБ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/simulations": {
+      "post": {
+        "summary": "Постановка проверки 1–2 сценариев в очередь",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Задание в очереди (status queued).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobAccepted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибки входа по полям.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Тело запроса — не JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Тело запроса больше 1 МБ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Хранилище недоступно, повторите позже.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/simulations/jobs/{job_id}": {
+      "get": {
+        "summary": "Ход задания и, когда готово, его прогоны",
+        "responses": {
+          "200": {
+            "description": "Задание. Опрашивать, пока status — queued или running; elapsed считается от постановки в очередь.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Хранилище недоступно, повторите позже.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/simulations/{simulation_id}": {
+      "get": {
+        "summary": "Прогон целиком",
+        "responses": {
+          "200": {
+            "description": "Прогон.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationRun"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Хранилище недоступно, повторите позже.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "simulation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/simulations/{simulation_id}/traces": {
+      "get": {
+        "summary": "Трассы прогона для 2D-плеера",
+        "responses": {
+          "200": {
+            "description": "Трассы: «из подбора» и итоговый состав. Сжаты gzip (Content-Encoding), если клиент передал Accept-Encoding: gzip.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Хранилище недоступно, повторите позже.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "simulation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "SimulationRequest": {
+        "title": "Запуск симуляции выбранной конфигурации",
+        "type": "object",
+        "required": [
+          "configuration",
+          "task",
+          "scenarios"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "configuration": {
+            "type": "object",
+            "description": "Конфигурация, выбранная на шаге «Подбор», и след расчёта.",
+            "required": [
+              "robot_count",
+              "charger_count",
+              "robot"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "robot_count": {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 500
+              },
+              "charger_count": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 500
+              },
+              "configuration_id": {
+                "type": "string"
+              },
+              "robot": {
+                "type": "object",
+                "description": "Паспорт робота.",
+                "required": [
+                  "v_max",
+                  "autonomy_h",
+                  "charge_time_min",
+                  "t_load_s",
+                  "t_unload_s",
+                  "width_mm"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "v_max": {
+                    "type": "number",
+                    "minimum": 0.1,
+                    "maximum": 10
+                  },
+                  "autonomy_h": {
+                    "type": "number",
+                    "minimum": 0.5,
+                    "maximum": 48
+                  },
+                  "charge_time_min": {
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 600
+                  },
+                  "t_load_s": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1800
+                  },
+                  "t_unload_s": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1800
+                  },
+                  "width_mm": {
+                    "type": "number",
+                    "minimum": 200,
+                    "maximum": 4000
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "calc": {
+                "type": "object",
+                "description": "След расчёта шага «Подбор». Значений по умолчанию нет: от этих полей зависят вердикт и поправки.",
+                "required": [
+                  "peak_trips_h",
+                  "route_len_m",
+                  "eff_prod",
+                  "n_util",
+                  "n_kv",
+                  "n_avail",
+                  "n_reserve"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "peak_trips_h": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "avg_trips_h": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Средний поток; для сверки с задачей (порог 1 %)."
+                  },
+                  "route_len_m": {
+                    "type": "number",
+                    "minimum": 1
+                  },
+                  "cycle_s": {
+                    "type": "number",
+                    "minimum": 1,
+                    "description": "Время цикла, с. Нужно cycle_s либо cycles_h."
+                  },
+                  "cycles_h": {
+                    "type": "number",
+                    "minimum": 0.1,
+                    "description": "Циклов в час. Альтернатива cycle_s."
+                  },
+                  "eff_prod": {
+                    "type": "number",
+                    "minimum": 0.01
+                  },
+                  "n_util": {
+                    "type": "number",
+                    "minimum": 0.01,
+                    "maximum": 1.0
+                  },
+                  "n_kv": {
+                    "type": "number",
+                    "minimum": 0.01,
+                    "maximum": 1.0
+                  },
+                  "n_avail": {
+                    "type": "number",
+                    "minimum": 0.5,
+                    "maximum": 0.999
+                  },
+                  "n_reserve": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 2.0
+                  }
+                }
+              }
+            }
+          },
+          "location": {
+            "type": "object",
+            "description": "Площадка.",
+            "required": [],
+            "additionalProperties": false,
+            "properties": {
+              "active_area_m2": {
+                "type": "number",
+                "minimum": 100
+              },
+              "aisle_main_m": {
+                "type": "number",
+                "minimum": 0.8
+              },
+              "aisle_rack_m": {
+                "type": "number",
+                "minimum": 0.8
+              },
+              "speed_limit_m_s": {
+                "type": "number",
+                "minimum": 0.1
+              }
+            }
+          },
+          "task": {
+            "type": "object",
+            "description": "Задача проекта: источник значений по умолчанию для simulation_params.schedule и flows.",
+            "additionalProperties": false,
+            "properties": {
+              "in_per_day": {
+                "type": "number"
+              },
+              "manual_share": {
+                "type": "number"
+              },
+              "out_per_day": {
+                "type": "number"
+              },
+              "peak_k": {
+                "type": "number"
+              },
+              "shift_h": {
+                "type": "number"
+              },
+              "shift_start_h": {
+                "type": "number"
+              },
+              "shifts": {
+                "type": "number"
+              }
+            }
+          },
+          "scenarios": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 2,
+            "items": {
+              "type": "object",
+              "required": [
+                "simulation_params"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "simulation_params": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "$id": "rav5/simulation_params",
+                  "title": "Параметры шага «Симуляция»",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "schedule": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "shift_start_h": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 23,
+                          "description": "Начало первой смены, ч (по умолчанию — из задачи: shift_start_h)",
+                          "default": 7
+                        },
+                        "shifts": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 3,
+                          "description": "Смен в сутки (по умолчанию — из задачи: shifts)",
+                          "default": 2
+                        },
+                        "shift_h": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 24,
+                          "description": "Длительность смены, ч (по умолчанию — из задачи: shift_h)",
+                          "default": 11
+                        },
+                        "peak_k": {
+                          "type": "number",
+                          "minimum": 1,
+                          "maximum": 5,
+                          "description": "Коэффициент пика (по умолчанию — из задачи: peak_k)",
+                          "default": 1.5
+                        },
+                        "peaks": {
+                          "description": "Пиковые часы по потокам (null — как в расчёте: совпадают)",
+                          "oneOf": [
+                            {
+                              "type": "null"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "required": [
+                                  "flow",
+                                  "start_h",
+                                  "dur_h"
+                                ],
+                                "additionalProperties": false,
+                                "properties": {
+                                  "flow": {
+                                    "enum": [
+                                      "in",
+                                      "out"
+                                    ]
+                                  },
+                                  "start_h": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 23
+                                  },
+                                  "dur_h": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 24
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "flows": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "in_per_day": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 100000,
+                          "description": "Приёмка, паллет в сутки (по умолчанию — из задачи: in_per_day)"
+                        },
+                        "out_per_day": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 100000,
+                          "description": "Отгрузка, паллет в сутки (по умолчанию — из задачи: out_per_day)"
+                        },
+                        "manual_share": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 0.9,
+                          "description": "Остаётся вручную, доля (по умолчанию — из задачи: manual_share)",
+                          "default": 0.0
+                        }
+                      }
+                    },
+                    "service": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "wait_limit_min": {
+                          "type": "number",
+                          "minimum": 1,
+                          "maximum": 240,
+                          "description": "Паллета ждёт робота не дольше, мин",
+                          "default": 15
+                        },
+                        "on_time_target": {
+                          "type": "number",
+                          "minimum": 0.5,
+                          "maximum": 1.0,
+                          "description": "Доля паллет в срок",
+                          "default": 0.95
+                        }
+                      }
+                    },
+                    "growth": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1.0,
+                      "description": "Запас на рост объёма, доля",
+                      "default": 0.2
+                    },
+                    "site_conditions": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "traffic": {
+                          "enum": [
+                            "none",
+                            "low",
+                            "mid",
+                            "high"
+                          ],
+                          "description": "Люди и погрузчики в проездах",
+                          "default": "mid"
+                        },
+                        "abc": {
+                          "enum": [
+                            "none",
+                            "part",
+                            "full"
+                          ],
+                          "description": "Ходовые паллеты у ворот",
+                          "default": "none"
+                        },
+                        "mttr_h": {
+                          "type": "number",
+                          "minimum": 0.1,
+                          "maximum": 72,
+                          "description": "Ремонт после поломки, ч",
+                          "default": 2.0
+                        }
+                      }
+                    },
+                    "verification": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "tolerance": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 0.5,
+                          "description": "Допуск расхождения с расчётом (норматив 34)",
+                          "default": 0.1
+                        },
+                        "fleet_policy": {
+                          "enum": [
+                            "add_only",
+                            "add_and_reduce"
+                          ],
+                          "description": "Может ли симуляция предлагать уменьшение парка",
+                          "default": "add_and_reduce"
+                        },
+                        "design_volume": {
+                          "enum": [
+                            "current",
+                            "growth"
+                          ],
+                          "description": "Докупку считать на текущий объём или на рост",
+                          "default": "current"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "PreviewRequest": {
+        "title": "Предпросмотр потребности одного сценария",
+        "type": "object",
+        "required": [
+          "configuration",
+          "task",
+          "scenario"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "configuration": {
+            "type": "object",
+            "description": "Конфигурация, выбранная на шаге «Подбор», и след расчёта.",
+            "required": [
+              "robot_count",
+              "charger_count",
+              "robot"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "robot_count": {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 500
+              },
+              "charger_count": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 500
+              },
+              "configuration_id": {
+                "type": "string"
+              },
+              "robot": {
+                "type": "object",
+                "description": "Паспорт робота.",
+                "required": [
+                  "v_max",
+                  "autonomy_h",
+                  "charge_time_min",
+                  "t_load_s",
+                  "t_unload_s",
+                  "width_mm"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "v_max": {
+                    "type": "number",
+                    "minimum": 0.1,
+                    "maximum": 10
+                  },
+                  "autonomy_h": {
+                    "type": "number",
+                    "minimum": 0.5,
+                    "maximum": 48
+                  },
+                  "charge_time_min": {
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 600
+                  },
+                  "t_load_s": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1800
+                  },
+                  "t_unload_s": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1800
+                  },
+                  "width_mm": {
+                    "type": "number",
+                    "minimum": 200,
+                    "maximum": 4000
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "calc": {
+                "type": "object",
+                "description": "След расчёта шага «Подбор». Значений по умолчанию нет: от этих полей зависят вердикт и поправки.",
+                "required": [
+                  "peak_trips_h",
+                  "route_len_m",
+                  "eff_prod",
+                  "n_util",
+                  "n_kv",
+                  "n_avail",
+                  "n_reserve"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "peak_trips_h": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "avg_trips_h": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Средний поток; для сверки с задачей (порог 1 %)."
+                  },
+                  "route_len_m": {
+                    "type": "number",
+                    "minimum": 1
+                  },
+                  "cycle_s": {
+                    "type": "number",
+                    "minimum": 1,
+                    "description": "Время цикла, с. Нужно cycle_s либо cycles_h."
+                  },
+                  "cycles_h": {
+                    "type": "number",
+                    "minimum": 0.1,
+                    "description": "Циклов в час. Альтернатива cycle_s."
+                  },
+                  "eff_prod": {
+                    "type": "number",
+                    "minimum": 0.01
+                  },
+                  "n_util": {
+                    "type": "number",
+                    "minimum": 0.01,
+                    "maximum": 1.0
+                  },
+                  "n_kv": {
+                    "type": "number",
+                    "minimum": 0.01,
+                    "maximum": 1.0
+                  },
+                  "n_avail": {
+                    "type": "number",
+                    "minimum": 0.5,
+                    "maximum": 0.999
+                  },
+                  "n_reserve": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 2.0
+                  }
+                }
+              }
+            }
+          },
+          "location": {
+            "type": "object",
+            "description": "Площадка.",
+            "required": [],
+            "additionalProperties": false,
+            "properties": {
+              "active_area_m2": {
+                "type": "number",
+                "minimum": 100
+              },
+              "aisle_main_m": {
+                "type": "number",
+                "minimum": 0.8
+              },
+              "aisle_rack_m": {
+                "type": "number",
+                "minimum": 0.8
+              },
+              "speed_limit_m_s": {
+                "type": "number",
+                "minimum": 0.1
+              }
+            }
+          },
+          "task": {
+            "type": "object",
+            "description": "Задача проекта: источник значений по умолчанию для simulation_params.schedule и flows.",
+            "additionalProperties": false,
+            "properties": {
+              "in_per_day": {
+                "type": "number"
+              },
+              "manual_share": {
+                "type": "number"
+              },
+              "out_per_day": {
+                "type": "number"
+              },
+              "peak_k": {
+                "type": "number"
+              },
+              "shift_h": {
+                "type": "number"
+              },
+              "shift_start_h": {
+                "type": "number"
+              },
+              "shifts": {
+                "type": "number"
+              }
+            }
+          },
+          "scenario": {
+            "type": "object",
+            "required": [
+              "simulation_params"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "simulation_params": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "$id": "rav5/simulation_params",
+                "title": "Параметры шага «Симуляция»",
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "schedule": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "shift_start_h": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 23,
+                        "description": "Начало первой смены, ч (по умолчанию — из задачи: shift_start_h)",
+                        "default": 7
+                      },
+                      "shifts": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 3,
+                        "description": "Смен в сутки (по умолчанию — из задачи: shifts)",
+                        "default": 2
+                      },
+                      "shift_h": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 24,
+                        "description": "Длительность смены, ч (по умолчанию — из задачи: shift_h)",
+                        "default": 11
+                      },
+                      "peak_k": {
+                        "type": "number",
+                        "minimum": 1,
+                        "maximum": 5,
+                        "description": "Коэффициент пика (по умолчанию — из задачи: peak_k)",
+                        "default": 1.5
+                      },
+                      "peaks": {
+                        "description": "Пиковые часы по потокам (null — как в расчёте: совпадают)",
+                        "oneOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "required": [
+                                "flow",
+                                "start_h",
+                                "dur_h"
+                              ],
+                              "additionalProperties": false,
+                              "properties": {
+                                "flow": {
+                                  "enum": [
+                                    "in",
+                                    "out"
+                                  ]
+                                },
+                                "start_h": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 23
+                                },
+                                "dur_h": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 24
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "flows": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "in_per_day": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100000,
+                        "description": "Приёмка, паллет в сутки (по умолчанию — из задачи: in_per_day)"
+                      },
+                      "out_per_day": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100000,
+                        "description": "Отгрузка, паллет в сутки (по умолчанию — из задачи: out_per_day)"
+                      },
+                      "manual_share": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 0.9,
+                        "description": "Остаётся вручную, доля (по умолчанию — из задачи: manual_share)",
+                        "default": 0.0
+                      }
+                    }
+                  },
+                  "service": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "wait_limit_min": {
+                        "type": "number",
+                        "minimum": 1,
+                        "maximum": 240,
+                        "description": "Паллета ждёт робота не дольше, мин",
+                        "default": 15
+                      },
+                      "on_time_target": {
+                        "type": "number",
+                        "minimum": 0.5,
+                        "maximum": 1.0,
+                        "description": "Доля паллет в срок",
+                        "default": 0.95
+                      }
+                    }
+                  },
+                  "growth": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1.0,
+                    "description": "Запас на рост объёма, доля",
+                    "default": 0.2
+                  },
+                  "site_conditions": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "traffic": {
+                        "enum": [
+                          "none",
+                          "low",
+                          "mid",
+                          "high"
+                        ],
+                        "description": "Люди и погрузчики в проездах",
+                        "default": "mid"
+                      },
+                      "abc": {
+                        "enum": [
+                          "none",
+                          "part",
+                          "full"
+                        ],
+                        "description": "Ходовые паллеты у ворот",
+                        "default": "none"
+                      },
+                      "mttr_h": {
+                        "type": "number",
+                        "minimum": 0.1,
+                        "maximum": 72,
+                        "description": "Ремонт после поломки, ч",
+                        "default": 2.0
+                      }
+                    }
+                  },
+                  "verification": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "tolerance": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 0.5,
+                        "description": "Допуск расхождения с расчётом (норматив 34)",
+                        "default": 0.1
+                      },
+                      "fleet_policy": {
+                        "enum": [
+                          "add_only",
+                          "add_and_reduce"
+                        ],
+                        "description": "Может ли симуляция предлагать уменьшение парка",
+                        "default": "add_and_reduce"
+                      },
+                      "design_volume": {
+                        "enum": [
+                          "current",
+                          "growth"
+                        ],
+                        "description": "Докупку считать на текущий объём или на рост",
+                        "default": "current"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "FieldError": {
+        "type": "object",
+        "required": [
+          "field",
+          "message"
+        ],
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          }
+        }
+      },
+      "Throughput": {
+        "type": "object",
+        "required": [
+          "required_h",
+          "served_h",
+          "ratio",
+          "peak_hours"
+        ],
+        "properties": {
+          "required_h": {
+            "type": "number"
+          },
+          "served_h": {
+            "type": "number"
+          },
+          "ratio": {
+            "type": "number"
+          },
+          "peak_hours": {
+            "type": "integer"
+          }
+        },
+        "description": "Вывезено против потребности в среднем по пиковым часам."
+      },
+      "Check": {
+        "type": "object",
+        "required": [
+          "code",
+          "name",
+          "value",
+          "target",
+          "ok",
+          "unit"
+        ],
+        "properties": {
+          "code": {
+            "enum": [
+              "throughput",
+              "wait",
+              "completion",
+              "battery"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "type": "number"
+          },
+          "target": {
+            "type": "number"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "unit": {
+            "type": "string"
+          }
+        }
+      },
+      "Checks": {
+        "type": "object",
+        "required": [
+          "ok",
+          "checks",
+          "throughput",
+          "layout_flag",
+          "blocked_share"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Check"
+            }
+          },
+          "throughput": {
+            "$ref": "#/components/schemas/Throughput"
+          },
+          "layout_flag": {
+            "type": "boolean"
+          },
+          "blocked_share": {
+            "type": "number"
+          }
+        }
+      },
+      "Fleet": {
+        "type": "object",
+        "required": [
+          "robots",
+          "chargers"
+        ],
+        "properties": {
+          "robots": {
+            "type": "integer"
+          },
+          "chargers": {
+            "type": "integer"
+          }
+        }
+      },
+      "FleetChange": {
+        "type": "object",
+        "required": [
+          "robots",
+          "chargers",
+          "from_",
+          "to"
+        ],
+        "properties": {
+          "robots": {
+            "type": "integer"
+          },
+          "chargers": {
+            "type": "integer"
+          },
+          "from_": {
+            "$ref": "#/components/schemas/Fleet"
+          },
+          "to": {
+            "$ref": "#/components/schemas/Fleet"
+          }
+        }
+      },
+      "Reduction": {
+        "type": "object",
+        "required": [
+          "target_volume",
+          "checked",
+          "possible",
+          "original_passes_growth"
+        ],
+        "properties": {
+          "target_volume": {
+            "type": "number"
+          },
+          "checked": {
+            "type": "boolean"
+          },
+          "possible": {
+            "type": "boolean"
+          },
+          "original_passes_growth": {
+            "type": "boolean"
+          }
+        }
+      },
+      "GrowthCheck": {
+        "type": "object",
+        "required": [
+          "growth",
+          "ok",
+          "on_time_min",
+          "days",
+          "throughput_ratio",
+          "extra_robots",
+          "extra_chargers"
+        ],
+        "properties": {
+          "growth": {
+            "type": "number"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "on_time_min": {
+            "type": "number"
+          },
+          "days": {
+            "type": "integer"
+          },
+          "throughput_ratio": {
+            "type": "number"
+          },
+          "extra_robots": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "extra_chargers": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "CurvePoint": {
+        "type": "object",
+        "required": [
+          "n",
+          "c",
+          "days",
+          "on_time",
+          "on_time_min",
+          "throughput_ratio",
+          "util_peak",
+          "ok"
+        ],
+        "properties": {
+          "n": {
+            "type": "integer"
+          },
+          "c": {
+            "type": "integer"
+          },
+          "days": {
+            "type": "integer"
+          },
+          "on_time": {
+            "type": "number"
+          },
+          "on_time_min": {
+            "type": "number"
+          },
+          "throughput_ratio": {
+            "type": "number"
+          },
+          "util_peak": {
+            "type": "number"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        }
+      },
+      "StationRow": {
+        "type": "object",
+        "required": [
+          "c",
+          "days",
+          "on_time_min",
+          "charge_peak",
+          "depleted",
+          "ok"
+        ],
+        "properties": {
+          "c": {
+            "type": "integer"
+          },
+          "days": {
+            "type": "integer"
+          },
+          "on_time_min": {
+            "type": "number"
+          },
+          "charge_peak": {
+            "type": "number"
+          },
+          "depleted": {
+            "type": "number"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Evidence": {
+        "type": "object",
+        "required": [
+          "volume_k",
+          "curve",
+          "stations"
+        ],
+        "properties": {
+          "volume_k": {
+            "type": "number"
+          },
+          "curve": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CurvePoint"
+            }
+          },
+          "stations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StationRow"
+            }
+          }
+        }
+      },
+      "Kpis": {
+        "type": "object",
+        "required": [
+          "on_time",
+          "on_time_min",
+          "util_peak",
+          "util_day",
+          "charge_peak",
+          "queue_peak",
+          "depleted",
+          "throughput",
+          "fleet_shares",
+          "completion",
+          "blocked_share",
+          "breakdowns",
+          "charger_util"
+        ],
+        "properties": {
+          "on_time": {
+            "type": "number"
+          },
+          "on_time_min": {
+            "type": "number"
+          },
+          "util_peak": {
+            "type": "number"
+          },
+          "util_day": {
+            "type": "number"
+          },
+          "charge_peak": {
+            "type": "number"
+          },
+          "queue_peak": {
+            "type": "number"
+          },
+          "depleted": {
+            "type": "number"
+          },
+          "throughput": {
+            "$ref": "#/components/schemas/Throughput"
+          },
+          "fleet_shares": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "completion": {
+            "type": "number"
+          },
+          "blocked_share": {
+            "type": "number"
+          },
+          "breakdowns": {
+            "type": "number"
+          },
+          "charger_util": {
+            "type": "number"
+          }
+        },
+        "description": "KPI рекомендуемого состава на текущем объёме."
+      },
+      "KpisBefore": {
+        "type": "object",
+        "required": [
+          "on_time",
+          "on_time_min",
+          "util_peak",
+          "util_day",
+          "charge_peak",
+          "queue_peak",
+          "depleted",
+          "throughput",
+          "fleet_shares"
+        ],
+        "properties": {
+          "on_time": {
+            "type": "number"
+          },
+          "on_time_min": {
+            "type": "number"
+          },
+          "util_peak": {
+            "type": "number"
+          },
+          "util_day": {
+            "type": "number"
+          },
+          "charge_peak": {
+            "type": "number"
+          },
+          "queue_peak": {
+            "type": "number"
+          },
+          "depleted": {
+            "type": "number"
+          },
+          "throughput": {
+            "$ref": "#/components/schemas/Throughput"
+          },
+          "fleet_shares": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          }
+        },
+        "description": "KPI исходного состава."
+      },
+      "HourlyRow": {
+        "type": "object",
+        "required": [
+          "clock",
+          "demand",
+          "done",
+          "on_time",
+          "wait_mean_min",
+          "work",
+          "charge",
+          "wait_charger",
+          "down",
+          "idle",
+          "util",
+          "backlog_max",
+          "chargers_busy"
+        ],
+        "properties": {
+          "clock": {
+            "type": "integer"
+          },
+          "demand": {
+            "type": "number"
+          },
+          "done": {
+            "type": "number"
+          },
+          "on_time": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "wait_mean_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "work": {
+            "type": "number"
+          },
+          "charge": {
+            "type": "number"
+          },
+          "wait_charger": {
+            "type": "number"
+          },
+          "down": {
+            "type": "number"
+          },
+          "idle": {
+            "type": "number"
+          },
+          "util": {
+            "type": "number"
+          },
+          "backlog_max": {
+            "type": "number"
+          },
+          "chargers_busy": {
+            "type": "number"
+          }
+        }
+      },
+      "Adjustment": {
+        "type": "object",
+        "required": [
+          "code",
+          "group",
+          "label",
+          "base",
+          "simulated",
+          "unit",
+          "apply",
+          "note",
+          "delta_rel",
+          "significant",
+          "source",
+          "default_selected"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "group": {
+            "enum": [
+              "fleet",
+              "coefficient"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "base": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "simulated": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unit": {
+            "type": "string"
+          },
+          "apply": {
+            "enum": [
+              "override",
+              "calibration"
+            ]
+          },
+          "note": {
+            "type": "string"
+          },
+          "delta_rel": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "significant": {
+            "type": "boolean"
+          },
+          "source": {
+            "const": "simulation"
+          },
+          "default_selected": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AdjustedInputSet": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Adjustment"
+            }
+          }
+        },
+        "description": "Предлагаемые поправки; какие из них принять, решает пользователь."
+      },
+      "ResolvedParam": {
+        "type": "object",
+        "required": [
+          "value",
+          "source",
+          "label"
+        ],
+        "properties": {
+          "value": {},
+          "source": {
+            "enum": [
+              "user",
+              "task",
+              "default"
+            ]
+          },
+          "label": {
+            "type": "string"
+          }
+        }
+      },
+      "SimulationRun": {
+        "type": "object",
+        "required": [
+          "simulation_id",
+          "configuration_id",
+          "simulation_version",
+          "scenario",
+          "resolved_params",
+          "status",
+          "label",
+          "tolerance",
+          "fleet_policy",
+          "design_volume",
+          "verdict",
+          "checks_before",
+          "checks_after",
+          "fleet_change",
+          "diagnosis",
+          "reduction",
+          "growth_check",
+          "evidence",
+          "kpis",
+          "kpis_before",
+          "hourly_before",
+          "hourly_after",
+          "demand",
+          "adjusted_input_set",
+          "warnings",
+          "timing"
+        ],
+        "properties": {
+          "simulation_id": {
+            "type": "string"
+          },
+          "configuration_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "simulation_version": {
+            "const": "sim-0.14.0"
+          },
+          "scenario": {
+            "type": "object",
+            "required": [
+              "name"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "resolved_params": {
+            "type": "object",
+            "description": "Значение и источник каждого параметра по группам.",
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ResolvedParam"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/ResolvedParam"
+                  }
+                }
+              ]
+            }
+          },
+          "status": {
+            "enum": [
+              "confirmed",
+              "can_reduce",
+              "needs_additions",
+              "layout_bottleneck",
+              "not_achievable"
+            ]
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tolerance": {
+            "type": "number"
+          },
+          "fleet_policy": {
+            "enum": [
+              "add_only",
+              "add_and_reduce"
+            ]
+          },
+          "design_volume": {
+            "enum": [
+              "current",
+              "growth"
+            ]
+          },
+          "verdict": {
+            "type": "object",
+            "required": [
+              "title",
+              "lines",
+              "justification",
+              "risks"
+            ],
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "lines": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "justification": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "risks": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "checks_before": {
+            "$ref": "#/components/schemas/Checks"
+          },
+          "checks_after": {
+            "$ref": "#/components/schemas/Checks"
+          },
+          "fleet_change": {
+            "$ref": "#/components/schemas/FleetChange"
+          },
+          "diagnosis": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "reduction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Reduction"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "growth_check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GrowthCheck"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/Evidence"
+          },
+          "kpis": {
+            "$ref": "#/components/schemas/Kpis"
+          },
+          "kpis_before": {
+            "$ref": "#/components/schemas/KpisBefore"
+          },
+          "hourly_before": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HourlyRow"
+            }
+          },
+          "hourly_after": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HourlyRow"
+            }
+          },
+          "demand": {
+            "type": "object",
+            "required": [
+              "hours",
+              "rate_in",
+              "rate_out",
+              "peak_in",
+              "peak_out",
+              "calc_peak_trips_h"
+            ],
+            "properties": {
+              "hours": {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                }
+              },
+              "rate_in": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              },
+              "rate_out": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              },
+              "peak_in": {
+                "type": "array",
+                "items": {
+                  "type": "boolean"
+                }
+              },
+              "peak_out": {
+                "type": "array",
+                "items": {
+                  "type": "boolean"
+                }
+              },
+              "calc_peak_trips_h": {
+                "type": "number"
+              }
+            }
+          },
+          "adjusted_input_set": {
+            "$ref": "#/components/schemas/AdjustedInputSet"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "timing": {
+            "type": "object",
+            "required": [
+              "total_s",
+              "runs",
+              "per_run_s",
+              "configs"
+            ],
+            "properties": {
+              "total_s": {
+                "type": "number"
+              },
+              "runs": {
+                "type": "integer"
+              },
+              "per_run_s": {
+                "type": "number"
+              },
+              "configs": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "description": "Итог проверки одного сценария. Денежных полей нет."
+      },
+      "Preview": {
+        "type": "object",
+        "required": [
+          "hours",
+          "rate_in",
+          "rate_out",
+          "peak_in",
+          "peak_out",
+          "calc_peak_trips_h",
+          "scenario_peak_trips_h",
+          "warnings"
+        ],
+        "properties": {
+          "hours": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "rate_in": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "rate_out": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "peak_in": {
+            "type": "array",
+            "items": {
+              "type": "boolean"
+            }
+          },
+          "peak_out": {
+            "type": "array",
+            "items": {
+              "type": "boolean"
+            }
+          },
+          "calc_peak_trips_h": {
+            "type": "number"
+          },
+          "scenario_peak_trips_h": {
+            "type": "number"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "JobAccepted": {
+        "type": "object",
+        "required": [
+          "job_id",
+          "status_url"
+        ],
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "status_url": {
+            "type": "string"
+          }
+        }
+      },
+      "Health": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "enum": [
+              "ok",
+              "unavailable"
+            ]
+          }
+        }
+      },
+      "Job": {
+        "type": "object",
+        "required": [
+          "job_id",
+          "status",
+          "log",
+          "elapsed"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "error"
+            ]
+          },
+          "log": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "workers": {
+            "type": "integer"
+          },
+          "elapsed": {
+            "type": "number"
+          },
+          "simulation_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "runs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SimulationRun"
+            }
+          },
+          "error": {
+            "type": "string"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          }
+        }
+      },
+      "Meta": {
+        "type": "object",
+        "required": [
+          "simulation_version",
+          "cpu",
+          "simulation_params_spec",
+          "demo"
+        ],
+        "properties": {
+          "simulation_version": {
+            "type": "string"
+          },
+          "cpu": {
+            "type": "integer"
+          },
+          "simulation_params_spec": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "demo": {
+            "type": "object",
+            "required": [
+              "configurations",
+              "location",
+              "task"
+            ],
+            "properties": {
+              "configurations": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "location": {
+                "type": "object"
+              },
+              "task": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
