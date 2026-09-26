@@ -4,16 +4,16 @@
 #   docker build -f services/api/Dockerfile .
 
 # --- зависимости отдельным слоем: правка кода не тянет go mod download ---
-FROM golang:1.23-alpine AS deps
+FROM golang:1.26-alpine AS deps
 WORKDIR /src
-# go.sum помечен как необязательный: пока зависимостей нет, файла не существует.
-COPY services/api/go.mod services/api/go.sum* ./
+COPY services/api/go.mod services/api/go.sum ./
 RUN go mod download
 
 FROM deps AS source
 COPY services/api/ ./
 
 # --- проверки: docker build --target test -f services/api/Dockerfile . ---
+# Интеграционные тесты (тег integration) идут в CI с отдельным Postgres.
 FROM source AS test
 RUN go vet ./... && go test ./...
 
