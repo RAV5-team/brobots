@@ -57,8 +57,11 @@ brobots/
 │   └── postgres/init/           роли и БД keycloak, api, simulation — при создании пустого тома
 │
 ├── docs/
-│   ├── keycloak.md              Keycloak: запуск, realm, адреса, проверка
-│   └── middleware.md            проверка токенов Keycloak в сервисах (Go, Python)
+│   ├── RAV5_PRD.docx            требования к продукту
+│   ├── api/                     сервис api: контракт, схема БД, подбор
+│   └── keycloak/
+│       ├── keycloak.md          Keycloak: запуск, realm, адреса, проверка
+│       └── middleware.md        проверка токенов Keycloak в сервисах (Go, Python)
 ├── scripts/                     секреты и smoke-тесты Keycloak
 │
 ├── docker-compose.yml           Postgres + Keycloak + шлюз + api + simulation, профиль local
@@ -119,8 +122,8 @@ api мигрирует себя сам при старте. economics и web п�
 - Порт 80 занят: `GATEWAY_PORT=8080` и `PUBLIC_URL=http://localhost:8080`, затем `down -v`.
 - HTTPS-стенд: `./scripts/gen-secrets.sh`, сертификат в `infra/nginx/certs/`,
   `docker compose -f docker-compose.yml -f docker-compose.stand.yml up -d --build`.
-- Проверка: `./scripts/auth-smoke.sh`. Подробности — [docs/keycloak.md](docs/keycloak.md),
-  проверка токенов в сервисах — [docs/middleware.md](docs/middleware.md),
+- Проверка: `./scripts/auth-smoke.sh`. Подробности — [docs/keycloak/keycloak.md](docs/keycloak/keycloak.md),
+  проверка токенов в сервисах — [docs/keycloak/middleware.md](docs/keycloak/middleware.md),
   команды — `make help`.
 
 ## Что дальше
