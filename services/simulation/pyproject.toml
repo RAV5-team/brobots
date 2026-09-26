@@ -1,0 +1,41 @@
+# Стиль кода: Google Python Style Guide
+# (https://google.github.io/styleguide/pyguide.html). Механические правила
+# решают инструменты, а не обсуждение в ревью:
+#   pyink .            (или black . — те же настройки строки и кавычек)
+#   isort .
+#   pylint --rcfile=pylintrc simcore application adapters app migrations tests *.py
+#   mypy simcore application adapters app migrations gen_docs.py
+
+[tool.pyink]
+line-length = 80
+pyink-indentation = 4
+target-version = ["py312"]
+
+[tool.black]
+line-length = 80
+target-version = ["py312"]
+
+[tool.isort]
+profile = "google"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+    "db: нужен PostgreSQL из TEST_DATABASE_URL",
+]
+
+[tool.coverage.run]
+source = ["app", "application", "adapters", "simcore"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+
+[tool.mypy]
+python_version = "3.12"
+# У simpy и networkx нет типовых стабов — это шум окружения,
+# а не свойство кода.
+[[tool.mypy.overrides]]
+module = ["simpy.*", "networkx.*"]
+ignore_missing_imports = true

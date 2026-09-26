@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Демо-контур · шаг «Симуляция»</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#eceee9; --panel:#f9faf7; --ink:#1f2933; --muted:#5d6873; --line:#cdd2c9; --soft:#e2e5de; --grid:#dde0d8;
+  --tape:#f2b705; --tape2:#2b2b2b; --in:#2f855a; --out:#2b6cb0; --bad:#c53030; --warn:#b7791f; --accent2:#c05621;
+  --bar-demand:#b8c0b3; --bar-ok:#8a958b; --bar-fail:#d9a3a3; --sel:#fff8dc; --heat:31,41,51; --heat-hi:#ffffff;
+  --ok-bg:#e3f1e8; --ok-ink:#22543d; --red-bg:#fde8e8; --red-ink:#822727; --amber-bg:#fff3d6; --amber-ink:#7b5a00;
+  --blue-bg:#e3ecf7; --blue-ink:#1e4e8c; --canvas:#f4f5f1; --edge:#c9cdc3; --edge-rack:#dcdfd7; --node:#b9beb3;
+  --hatch:repeating-linear-gradient(-45deg,var(--tape) 0 6px,var(--tape2) 6px 9px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#15191d; --panel:#1d2227; --ink:#e6e9ec; --muted:#9aa5ae; --line:#353c43; --soft:#2a3036; --grid:#2c3238;
+    --in:#48bb78; --out:#63a4e6; --bad:#fc8181; --warn:#f6c453; --accent2:#ed8936; --bar-demand:#56605a; --bar-ok:#7d8a80;
+    --bar-fail:#8f5555; --sel:#3a3420; --heat:230,233,236; --heat-hi:#15191d; --ok-bg:#1f3a2b; --ok-ink:#9ae6b4;
+    --red-bg:#3f1f1f; --red-ink:#feb2b2; --amber-bg:#3d3314; --amber-ink:#f6d57a; --blue-bg:#1f2f45; --blue-ink:#a3c4f3;
+    --canvas:#1a1f23; --edge:#3c444b; --edge-rack:#2f363c; --node:#4a535a;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#15191d; --panel:#1d2227; --ink:#e6e9ec; --muted:#9aa5ae; --line:#353c43; --soft:#2a3036; --grid:#2c3238;
+  --in:#48bb78; --out:#63a4e6; --bad:#fc8181; --warn:#f6c453; --accent2:#ed8936; --bar-demand:#56605a; --bar-ok:#7d8a80;
+  --bar-fail:#8f5555; --sel:#3a3420; --heat:230,233,236; --heat-hi:#15191d; --ok-bg:#1f3a2b; --ok-ink:#9ae6b4;
+  --red-bg:#3f1f1f; --red-ink:#feb2b2; --amber-bg:#3d3314; --amber-ink:#f6d57a; --blue-bg:#1f2f45; --blue-ink:#a3c4f3;
+  --canvas:#1a1f23; --edge:#3c444b; --edge-rack:#2f363c; --node:#4a535a;
+}
+*{box-sizing:border-box}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px);background:var(--paper)}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 "IBM Plex Sans","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;font-variant-numeric:tabular-nums}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+h1{font-size:24px;line-height:1.2;font-weight:600;margin:0}
+h2{font-size:19px;line-height:1.3;font-weight:600;margin:0 0 4px}
+h3{font-size:15px;font-weight:600;margin:0 0 6px}
+p{margin:0 0 8px;max-width:74ch}
+.muted{color:var(--muted)} .small{font-size:13px}
+.wrap{max-width:1280px;margin:0 auto;padding:0 24px}
+header{background:var(--panel);border-bottom:1px solid var(--line)}
+header .wrap{padding-top:18px;padding-bottom:12px;display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;align-items:flex-end}
+section{margin-top:30px}
+.sechead{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:12px}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px}
+.box{background:var(--panel);border:1px solid var(--line);padding:16px 18px}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:right;padding:6px 10px;border-bottom:1px solid var(--soft);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{font-weight:500;color:var(--muted);font-size:13px;border-bottom:1px solid var(--line)}
+.scroll{overflow-x:auto}
+.rating tbody tr{cursor:pointer}
+.rating tbody tr:hover{background:var(--soft)}
+.rating tbody tr[aria-selected=true]{background:var(--sel);box-shadow:inset 4px 0 0 var(--tape)}
+.rating td:nth-child(1),.rating th:nth-child(1){text-align:left;white-space:normal}
+.kv{display:grid;grid-template-columns:1fr auto;gap:3px 14px;font-size:13.5px}
+.kv span:nth-child(odd){color:var(--muted)}
+.tabs{display:flex;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tabs button{border:1px solid var(--line);border-bottom:0;background:var(--soft);padding:8px 14px;margin-right:-1px;border-radius:6px 6px 0 0;color:var(--muted);cursor:pointer}
+.tabs button[aria-selected=true]{background:var(--panel);color:var(--ink);font-weight:500;position:relative;top:1px}
+.tabs button[disabled]{opacity:.5;cursor:not-allowed}
+.tabbody{background:var(--panel);border:1px solid var(--line);border-top:0;padding:14px 18px}
+.src{font-size:11.5px;padding:0 6px;border-radius:3px;margin-left:6px;white-space:nowrap}
+.src.user{background:var(--sel);color:var(--ink)} .src.task{background:var(--blue-bg);color:var(--blue-ink)} .src.default{background:var(--soft);color:var(--muted)}
+details{margin-top:12px} summary{cursor:pointer;font-weight:500}
+pre{background:var(--soft);padding:10px 12px;overflow:auto;max-height:340px;font-size:12px;line-height:1.45;margin:8px 0 0}
+.verdict{background:var(--panel);border:1px solid var(--line);position:relative;padding:18px 20px 18px 28px}
+.verdict::before{content:"";position:absolute;left:0;top:0;bottom:0;width:8px;background:var(--hatch)}
+.verdict h2{font-size:22px;margin:4px 0 10px}
+.chip{display:inline-block;font-size:12.5px;padding:2px 8px;border-radius:3px;background:var(--soft)}
+.chip.confirmed{background:var(--ok-bg);color:var(--ok-ink)} .chip.can_reduce{background:var(--blue-bg);color:var(--blue-ink)}
+.chip.needs_additions{background:var(--amber-bg);color:var(--amber-ink)} .chip.layout_bottleneck,.chip.not_achievable{background:var(--red-bg);color:var(--red-ink)}
+ul{margin:0 0 10px;padding-left:18px} li{margin-bottom:6px;max-width:74ch}
+.risks{border-top:1px dashed var(--line);padding-top:8px;font-size:13.5px;color:var(--muted)}
+.vgrid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:26px}
+.fleet{display:flex;gap:26px;flex-wrap:wrap;margin:6px 0 14px}
+.fleet div{font-size:13px;color:var(--muted)}
+.fleet b{display:block;font-size:26px;line-height:1.15;color:var(--ink);font-weight:600}
+.fleet s{color:var(--muted);font-weight:400;text-decoration-thickness:1px}
+.adj td{white-space:normal;vertical-align:top} .adj td:nth-child(2),.adj th:nth-child(2){text-align:left}
+.adj .note{font-size:12px;color:var(--muted)} .adj tr.sig td{font-weight:500}
+.btn{border:1px solid var(--ink);background:var(--panel);border-radius:5px;padding:8px 14px;cursor:pointer;font-weight:500}
+.btn.primary{background:var(--ink);color:var(--paper)} .btn[disabled]{opacity:.55;cursor:default}
+.accepted{margin-top:10px;padding:10px 12px;background:var(--ok-bg);color:var(--ok-ink);border-left:3px solid var(--in);font-size:13.5px}
+.accepted code{font-size:12px}
+.warn{color:var(--warn);font-size:13.5px}
+.chart svg{display:block;width:100%;height:auto}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:6px}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:5px;overflow:hidden;background:var(--panel);flex-wrap:wrap}
+.seg button{border:0;background:transparent;padding:5px 11px;cursor:pointer;color:var(--muted);font-size:13.5px}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--paper)}
+svg text{fill:var(--muted);font-family:inherit}
+svg .t-ink{fill:var(--ink)}
+svg .grid{stroke:var(--grid)} svg .b-dem{fill:var(--bar-demand)} svg .b-done{fill:var(--ink)} svg .l-util{stroke:var(--accent2);fill:none}
+svg .p-util{fill:var(--accent2)} svg .b-ok{fill:var(--bar-ok)} svg .b-fail{fill:var(--bar-fail)} svg .thr{stroke:var(--bad)}
+svg .b-in{fill:var(--in)} svg .b-out{fill:var(--out)} svg .calc{stroke:var(--ink)} svg .tick{stroke:var(--ink)}
+.hourly{border-collapse:separate;border-spacing:2px}
+.hourly th,.hourly td{padding:3px;text-align:center;font-size:12px;border:0;min-width:38px}
+.hourly th:first-child,.hourly td:first-child{text-align:left;min-width:180px;position:sticky;left:0;background:var(--panel);color:var(--ink)}
+.hourly .pk{height:7px;padding:0} .hourly .pk span{display:block;height:7px;background:var(--hatch)}
+.hourly td.hi{color:var(--heat-hi)} .hourly td.bad{box-shadow:inset 0 0 0 2px var(--bad)}
+.stack{display:flex;height:22px;border-radius:3px;overflow:hidden;margin:4px 0}
+.stack span{display:block;height:100%}
+.clock{font-size:32px;font-weight:600;line-height:1}
+input[type=range]{width:100%;accent-color:var(--tape)}
+.slegend{display:grid;grid-template-columns:1fr 1fr;gap:2px 10px;font-size:12px;color:var(--muted)}
+.slegend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+footer{margin:40px 0 30px;font-size:13px;color:var(--muted)}
+@media (max-width:980px){.two,.vgrid{grid-template-columns:1fr}.wrap{padding:0 14px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.wizard{display:flex;gap:0;margin-top:14px;flex-wrap:wrap}
+.wizard button{border:0;background:none;padding:8px 14px 8px 0;color:var(--muted);cursor:pointer;font-size:14px;display:flex;align-items:center;gap:8px}
+.wizard button .n{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;border:1px solid var(--line);font-size:12.5px;background:var(--panel)}
+.wizard button.done{color:var(--ink)} .wizard button.done .n{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.wizard button.cur{color:var(--ink);font-weight:600} .wizard button.cur .n{background:var(--tape);color:#1f2933;border-color:var(--tape)}
+.wizard button[disabled]{cursor:default;opacity:.55}
+.wizard button+button::before{content:"";width:18px;height:1px;background:var(--line);margin-right:6px}
+.panel{display:none;margin-top:22px} .panel.on{display:block}
+.actions{display:flex;gap:12px;align-items:center;margin-top:18px;flex-wrap:wrap}
+.fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px 18px}
+fieldset{border:0;margin:0 0 16px;padding:0} legend{font-weight:600;margin-bottom:8px;padding:0}
+.f label{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted);margin-bottom:3px}
+.f .row{display:flex;gap:6px;align-items:center}
+.f input,.f select{width:100%;border:1px solid var(--line);border-radius:4px;background:var(--panel);padding:6px 8px}
+.f input[type=number]{max-width:130px}
+.f .unit{font-size:13px;color:var(--muted)}
+.f .help{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.35}
+.tape{display:grid;grid-template-columns:78px repeat(24,minmax(16px,1fr));gap:2px;align-items:center;user-select:none;touch-action:none}
+.tape .lbl{font-size:13px;color:var(--muted)} .tape .hh{font-size:10.5px;color:var(--muted);text-align:center}
+.cell{height:24px;border:0;border-radius:2px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);cursor:pointer;padding:0}
+.cell.closed{background:repeating-linear-gradient(45deg,var(--soft) 0 3px,var(--line) 3px 6px);box-shadow:none;cursor:not-allowed}
+.cell[aria-pressed=true]{background:var(--hatch);box-shadow:none}
+.cell.in[aria-pressed=true]{box-shadow:inset 0 -4px 0 var(--in)} .cell.out[aria-pressed=true]{box-shadow:inset 0 -4px 0 var(--out)}
+.linkbtn{border:0;background:none;color:var(--ink);text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:4px 2px}
+.editor{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:26px}
+.bar{height:8px;background:var(--soft);border-radius:4px;overflow:hidden} .bar i{display:block;height:100%;width:0;background:var(--ink);transition:width .4s}
+.log{font-size:13px;color:var(--muted);max-height:260px;overflow:auto;margin-top:10px;border-left:2px solid var(--line);padding-left:10px}
+.log div{padding:1px 0}
+.checks li{margin-bottom:4px}
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line);background:var(--panel)}
+.duo .pl{border-right:1px solid var(--line)} .duo .pl:last-child{border-right:0}
+.duo canvas{display:block;width:100%;height:420px;background:var(--canvas)}
+.duo .cap{padding:8px 12px;border-bottom:1px solid var(--line);font-weight:500}
+.duo .kv{padding:8px 12px}
+.pbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-bottom:0;padding:10px 12px}
+.pbar .clock{font-size:26px}
+.err{color:var(--bad);font-size:13.5px}
+@media (max-width:980px){.editor,.duo{grid-template-columns:1fr}.duo .pl{border-right:0;border-bottom:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div>
+    <h1>Шаг «Симуляция»: проверка конфигурации из подбора</h1>
+    <p class="muted" style="margin-top:4px">Демо-контур: интерфейс и сервис симуляции работают локально. Параметры задаются здесь, расчёт выполняется сервисом.</p>
+    <nav class="wizard" id="wizard" aria-label="Порядок работы"></nav>
+  </div>
+  <div class="small muted" id="ver"></div>
+</div></header>
+<main class="wrap">
+
+<section class="panel" id="p1">
+  <div class="sechead"><h2>1. Конфигурация из подбора</h2><span class="small muted">Склад из датасета организатора · «Перемещение паллет» · 2000 паллет в сутки</span></div>
+  <p>Шаг «Подбор» выбрал решения и рассчитал для каждого состав парка. Выберите конфигурацию, которую проверяем в симуляции.</p>
+  <div class="box" style="padding:0"><div class="scroll"><table class="rating" id="rating"></table></div></div>
+  <div class="actions"><button class="btn primary" id="to2">Перейти к симуляции</button></div>
+</section>
+
+<section class="panel" id="p2">
+  <div class="sechead"><h2>2. Переход к шагу симуляции</h2></div>
+  <div class="two">
+    <div class="box" id="cfgcard"></div>
+    <div class="box">
+      <h3>Что проверит симуляция</h3>
+      <ul class="checks">
+        <li>Вывозит ли эта конфигурация пиковый поток: не меньше потребности минус допуск (норматив 34, ±10 %).</li>
+        <li>Забираются ли паллеты в срок в каждый смоделированный день.</li>
+        <li>Выполняются ли все рейсы за сутки и хватает ли зарядных станций, чтобы роботы не разряжались.</li>
+        <li>Если не работает — что докупить. Если парк с запасом — можно ли меньше, сохранив запас на рост объёма.</li>
+      </ul>
+      <h3 style="margin-top:12px">Состав для проверки</h3>
+      <div class="fields" style="grid-template-columns:repeat(2,minmax(0,160px))">
+        <div class="f"><label for="ovn">Роботов</label><input id="ovn" type="number" min="1" max="200"></div>
+        <div class="f"><label for="ovc">Станций</label><input id="ovc" type="number" min="0" max="100"></div>
+      </div>
+      <p class="small muted" style="margin-top:6px">По умолчанию — как в подборе. Можно изменить, например, чтобы показать ветку «докупить».</p>
+      <div class="small warn" id="ovnote"></div>
+    </div>
+  </div>
+  <div class="actions"><button class="btn" data-go="1">Назад</button><button class="btn primary" data-go="3">Задать параметры симуляции</button></div>
+</section>
+
+<section class="panel" id="p3">
+  <div class="sechead"><h2>3. Параметры шага симуляции</h2><span class="small muted">Передаются в блоке simulation_params; незаданные берутся из задачи или по умолчанию</span></div>
+  <div class="tabs" role="tablist" id="sctabs"></div>
+  <div class="tabbody"><div class="editor"><div id="form"></div><div id="prev"></div></div></div>
+  <div class="actions"><button class="btn" data-go="2">Назад</button><button class="btn primary" id="run">Запустить симуляцию</button><span class="small muted" id="runhint"></span></div>
+</section>
+
+<section class="panel" id="p4">
+  <div class="sechead"><h2>4. Запуск симуляции</h2><span class="small muted" id="jobmeta"></span></div>
+  <div class="box">
+    <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><b id="jobstate">Запускаю…</b><span class="small muted" id="elapsed"></span></div>
+    <div class="bar" style="margin-top:10px"><i id="pbar"></i></div>
+    <div class="log" id="log" aria-live="polite"></div>
+    <p class="small muted" style="margin-top:10px">Сервис прогоняет рабочие сутки по нескольку раз: конфигурацию из подбора, затем варианты с меньшим или большим парком. Каждый прогон — около 1 с; сценарий — 6–30 с.</p>
+  </div>
+</section>
+
+<section class="panel" id="p5">
+  <div class="sechead"><h2>5. Результат и рекомендация</h2><span class="small muted" id="runmeta"></span></div>
+  <div class="tabs" role="tablist" id="restabs"></div>
+  <div style="margin-top:12px" class="vgrid"><article class="verdict" id="verdict"></article><div id="vside"></div></div>
+  <div class="actions"><button class="btn" data-go="3">Изменить параметры</button><button class="btn primary" data-go="6">Графики и 2D-сравнение</button></div>
+</section>
+
+<section class="panel" id="p6">
+  <div class="sechead"><h2>6. Графики и 2D-сравнение</h2><div class="tabs" role="tablist" id="gtabs" style="border:0"></div></div>
+  <div class="two"><div class="box chart" id="c_curve"></div><div class="box" id="c_stations"></div></div>
+  <div class="box chart" style="margin-top:22px" id="c_hourly"></div>
+  <div class="box" style="margin-top:22px" id="c_time"></div>
+  <h3 style="margin-top:26px">2D-сравнение: один и тот же смоделированный день</h3>
+  <p class="small muted">Воспроизведение записанных прогонов — плеер ничего не считает. Слева конфигурация из подбора, справа рекомендация; время общее.</p>
+  <div class="pbar"><span class="clock" id="clock">07:00</span><span class="small muted" id="phase"></span>
+    <button class="btn primary" id="play">Запустить</button><button class="btn" id="restart">Сначала</button>
+    <label class="small">Скорость <select id="speed"><option value="30">×30</option><option value="60" selected>×60</option><option value="120">×120</option><option value="300">×300</option></select></label>
+    <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Положение во времени" style="flex:1;min-width:160px"></div>
+  <div class="duo" id="duo"></div>
+  <div class="legend" id="slegend" style="margin-top:8px"></div>
+  <div class="actions"><button class="btn" data-go="5">К результату</button></div>
+</section>
+
+<footer>Предварительная оценка. Схема склада построена по площади и ширине проездов из параметров локации; результаты требуют проверки при обследовании объекта и на пилоте (п. 3.7.5 ТЗ).</footer>
+</main>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const nf=(x,d=0)=>{ if(x==null||isNaN(x)) return '—'; x=Number(x); if(Math.abs(x)<Math.pow(10,-d)/2) x=0; return x.toLocaleString('ru-RU',{minimumFractionDigits:d,maximumFractionDigits:d}); };
+const pct=(x,d=0)=>x==null?'—':nf(x*100,d)+' %';
+const hh=h=>String(((h%24)+24)%24).padStart(2,'0');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const plural=(n,a,b,c)=>{n=Math.abs(n);const m10=n%10,m100=n%100;return (m10===1&&m100!==11)?a:(m10>=2&&m10<=4&&!(m100>=12&&m100<=14))?b:c;};
+const rob=n=>`${n} ${plural(n,'робот','робота','роботов')}`, stn=n=>`${n} ${plural(n,'станция','станции','станций')}`;
+const cssv=k=>getComputedStyle(document.documentElement).getPropertyValue(k).trim();
+const HATCH=`<defs><pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><rect width="8" height="8" fill="#f2b705"/><rect width="3" height="8" fill="#2b2b2b"/></pattern></defs>`;
+const api=async(m,p,b)=>{ const r=await fetch(p,{method:m,headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}); let j=null; try{ j=await r.json(); }catch(e){} return {ok:r.ok,status:r.status,j}; };
+
+const STEPS=['Конфигурация из подбора','Переход к симуляции','Параметры симуляции','Запуск','Результат и рекомендация','Графики и 2D'];
+let RUN_FROM=null, META, SCHEMA, cfgId, OV={n:null,c:null}, STEP=1, MAX=1, SC=[], ACT=0, RUNS=null, RI=0, GI=0, HVIEW='after';
+const TRACES={}, ACCEPTED={};
+const GROUPS={schedule:'Расписание',flows:'Потоки',service:'Требование к сервису',growth:'Запас на рост',site_conditions:'Условия склада',verification:'Проверка'};
+const SRC={user:['user','задано'],task:['task','из задачи'],default:['default','по умолчанию']};
+
+// ---------------- мастер ----------------
+function renderWizard(){ $('#wizard').innerHTML=STEPS.map((s,i)=>{ const n=i+1, cls=n===STEP?'cur':(n<=MAX?'done':''); return `<button class="${cls}" data-go="${n}" ${n>MAX?'disabled':''} ${n===STEP?'aria-current="step"':''}><span class="n">${n}</span>${s}</button>`; }).join(''); }
+function go(n){ n=+n; if(n>MAX) return; STEP=n; $$('.panel').forEach(p=>p.classList.toggle('on',p.id==='p'+n)); renderWizard();
+  if(n===1) renderRating(); if(n===2) renderCfg(); if(n===3){ renderTabs(); renderForm(); } if(n===5) renderResult(); if(n===6) renderGraphs(); window.scrollTo({top:0}); }
+document.addEventListener('click',e=>{ const b=e.target.closest('[data-go]'); if(b&&!b.disabled) go(b.dataset.go); });
+
+// ---------------- 1. конфигурация из подбора ----------------
+const cfg=()=>META.demo.configurations.find(c=>c.configuration_id===cfgId);
+function renderRating(){
+  $('#rating').innerHTML=`<thead><tr><th>Решение</th><th>Роботов</th><th>Станций</th><th>Пиковая потребность</th><th>Производительность робота</th></tr></thead><tbody>${
+    META.demo.configurations.map(c=>`<tr data-id="${c.configuration_id}" tabindex="0" aria-selected="${c.configuration_id===cfgId}"><td>${esc(c.robot.name)}</td><td>${c.robot_count}</td><td>${c.charger_count}</td>
+      <td>${nf(c.calc.peak_trips_h)} рейсов/ч</td><td>${nf(c.calc.eff_prod,1)} рейса/ч</td></tr>`).join('')}</tbody>`;
+  $$('#rating tbody tr').forEach(tr=>{ const pick=()=>{ if(cfgId!==tr.dataset.id){ cfgId=tr.dataset.id; OV={n:null,c:null}; MAX=Math.min(MAX,2); RUNS=null; } renderRating(); renderWizard(); };
+    tr.onclick=pick; tr.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();pick();} }; });
+}
+$('#to2').onclick=()=>{ MAX=Math.max(MAX,2); go(2); };
+
+// ---------------- 2. переход к симуляции ----------------
+function currentConfig(){ const c=JSON.parse(JSON.stringify(cfg())); if(OV.n) c.robot_count=OV.n; if(OV.c!=null) c.charger_count=OV.c; if(OV.n||OV.c!=null){ c.edited_manually=true; } return c; }
+function renderCfg(){
+  const c=cfg(), k=c.calc;
+  $('#cfgcard').innerHTML=`<h3>Проверяем: ${esc(c.robot.name)}</h3><div class="fleet"><div>Роботов<b>${c.robot_count}</b></div><div>Зарядных станций<b>${c.charger_count}</b></div></div>
+    <h3>Как рассчитал подбор</h3><div class="kv"><span>Пиковая потребность</span><span>${nf(k.peak_trips_h)} рейсов/ч</span>
+    <span>Время цикла (2 × ${nf(k.route_len_m)} м, погрузка и выгрузка)</span><span>${nf(k.cycle_s)} с</span>
+    <span>Производительность робота (загрузка ${nf(k.n_util,2)} × готовность ${nf(k.n_avail,2)}, скорость ${nf(k.n_kv,2)} от макс.)</span><span>${nf(k.eff_prod,1)} рейса/ч</span>
+    <span>Резерв парка · роботов на станцию</span><span>${pct(k.n_reserve)} · ${nf(k.robots_per_charger)}</span></div><p class="small muted" style="margin-top:8px">${esc(c.robot.note||'')}</p>`;
+  $('#ovn').value=OV.n||c.robot_count; $('#ovc').value=OV.c??c.charger_count; ovnote();
+}
+function ovnote(){ const c=cfg(); $('#ovnote').textContent=(OV.n||OV.c!=null)?`Состав изменён вручную: в подборе ${rob(c.robot_count)} и ${stn(c.charger_count)}.`:''; }
+$('#ovn').onchange=e=>{ const v=parseInt(e.target.value); OV.n=v&&v!==cfg().robot_count?v:null; ovnote(); };
+$('#ovc').onchange=e=>{ const v=parseInt(e.target.value); OV.c=!isNaN(v)&&v!==cfg().charger_count?v:null; ovnote(); };
+document.querySelector('#p2 [data-go="3"]').addEventListener('click',()=>{ MAX=Math.max(MAX,3); go(3); },true);
+
+// ---------------- 3. параметры ----------------
+const newSc=name=>({name, touched:{}});
+const pathOf=sp=>sp.group===sp.key?sp.group:sp.group+'.'+sp.key;
+const specs=()=>META.simulation_params_spec;
+const task=()=>META.demo.task;
+function val(sc,sp){ const p=pathOf(sp); if(p in sc.touched) return sc.touched[p]; if(sp.task&&task()[sp.task]!=null) return task()[sp.task]; return sp.default; }
+function src(sc,sp){ const p=pathOf(sp); return p in sc.touched?'user':(sp.task&&task()[sp.task]!=null?'task':'default'); }
+function simParams(sc){ const o={}; for(const p in sc.touched){ const [g,k]=p.split('.'); if(!k) o[g]=sc.touched[p]; else (o[g]=o[g]||{})[k]=sc.touched[p]; } return o; }
+const spec=key=>specs().find(s=>s.key===key);
+function effSchedule(sc){ return {start:val(sc,spec('shift_start_h')), shifts:val(sc,spec('shifts')), shift_h:val(sc,spec('shift_h'))}; }
+function defaultPeaks(e){ const out=[]; for(let k=0;k<e.shifts;k++){ const st=(e.start+k*e.shift_h+1)%24; out.push({flow:'in',start_h:st,dur_h:3},{flow:'out',start_h:st,dur_h:3}); } return out; }
+
+function renderTabs(){
+  const t=$('#sctabs'); t.innerHTML='';
+  SC.forEach((s,i)=>{ const b=document.createElement('button'); b.setAttribute('role','tab'); b.setAttribute('aria-selected',i===ACT); b.textContent=s.name; b.onclick=()=>{ACT=i;renderTabs();renderForm();}; t.appendChild(b); });
+  if(SC.length<2){ const b=document.createElement('button'); b.textContent='+ Второй сценарий'; b.title='Копия текущего сценария — измените в нём что-то одно'; b.onclick=()=>{ const c=JSON.parse(JSON.stringify(SC[ACT])); c.name='Сценарий 2'; SC.push(c); ACT=1; renderTabs(); renderForm(); }; t.appendChild(b); }
+  else { const b=document.createElement('button'); b.textContent='Удалить сценарий 2'; b.onclick=()=>{ SC.pop(); ACT=0; renderTabs(); renderForm(); }; t.appendChild(b); }
+}
+function fieldHtml(sc,sp){
+  const v=val(sc,sp), s=SRC[src(sc,sp)], id='f_'+sp.key, lab=sp.label.replace(/ \(.*\)$/,'').replace(/, (доля|ч|мин)$/,'');
+  const unit=sp.pct?'%':({wait_limit_min:'мин',mttr_h:'ч',shift_start_h:'ч',shift_h:'ч',in_per_day:'паллет/сут',out_per_day:'паллет/сут',peak_k:'раз'}[sp.key]||'');
+  let input;
+  if(sp.type==='enum') input=`<select id="${id}" data-key="${sp.key}">${sp.options.map(o=>`<option value="${o.value}" ${o.value===v?'selected':''}>${esc(o.label)}</option>`).join('')}</select>`;
+  else input=`<input id="${id}" data-key="${sp.key}" type="number" min="${sp.pct?sp.min*100:sp.min}" max="${sp.pct?sp.max*100:sp.max}" step="${sp.type==='int'?1:(sp.pct?1:0.1)}" value="${sp.pct?+(v*100).toFixed(2):v}">`;
+  return `<div class="f"><label for="${id}"><span>${esc(lab)}</span><span class="src ${s[0]}">${s[1]}</span></label><div class="row">${input}${unit?`<span class="unit">${unit}</span>`:''}</div>
+    ${src(sc,sp)==='user'?`<button class="linkbtn small" data-reset="${sp.key}">сбросить</button>`:''}${sp.help?`<div class="help">${esc(sp.help)}</div>`:''}</div>`;
+}
+function renderForm(){
+  const sc=SC[ACT]; let h=`<fieldset><legend>Название сценария</legend><div class="f"><input id="scname" value="${esc(sc.name)}"></div></fieldset>`;
+  for(const g in GROUPS){ const list=specs().filter(s=>s.group===g&&s.type!=='peaks'); h+=`<fieldset><legend>${GROUPS[g]}</legend><div class="fields">${list.map(sp=>fieldHtml(sc,sp)).join('')}</div>`;
+    if(g==='schedule') h+=`<div style="margin-top:12px"><div class="f"><label><span>Пиковые часы по потокам</span><span class="src ${SRC[src(sc,spec('peaks'))][0]}">${SRC[src(sc,spec('peaks'))][1]}</span></label></div><div id="tape"></div>
+      <div class="small muted" style="margin-top:4px">Кликом или протяжкой отметьте пиковые часы. По умолчанию — как в расчёте: пики приёмки и отгрузки совпадают. ${src(sc,spec('peaks'))==='user'?'<button class="linkbtn small" data-reset="peaks">вернуть как в расчёте</button>':''}</div></div>`;
+    h+='</fieldset>'; }
+  $('#form').innerHTML=h;
+  $('#scname').oninput=e=>{ sc.name=e.target.value||'Сценарий'; renderTabs(); refreshPreview(); };
+  $$('#form [data-key]').forEach(inp=>inp.onchange=()=>{ const sp=spec(inp.dataset.key); let v=inp.value; if(sp.type!=='enum'){ v=parseFloat(v); if(isNaN(v)) return; if(sp.pct) v=v/100; if(sp.type==='int') v=Math.round(v); }
+    sc.touched[pathOf(sp)]=v; renderForm(); });
+  $$('#form [data-reset]').forEach(b=>b.onclick=()=>{ delete sc.touched[pathOf(spec(b.dataset.reset))]; renderForm(); });
+  renderTape(); refreshPreview();
+}
+let PAINT=null; document.addEventListener('pointerup',()=>PAINT=null);
+function renderTape(){
+  const sc=SC[ACT], e=effSchedule(sc), H=Math.min(24,e.shifts*e.shift_h), pp=pathOf(spec('peaks'));
+  let peaks=sc.touched[pp]||defaultPeaks(e);
+  const mask=f=>{ const m=Array(24).fill(false); peaks.filter(p=>p.flow===f).forEach(p=>{ for(let d=0;d<p.dur_h;d++) m[(p.start_h+d)%24]=true; }); return m; };
+  const toPeaks=(f,m)=>{ const out=[]; let cur=null; for(let i=0;i<24;i++){ const h=(e.start+i)%24, on=i<H&&m[h]; if(on){ if(cur) cur.dur_h++; else cur={flow:f,start_h:h,dur_h:1}; } else if(cur){ out.push(cur); cur=null; } } if(cur) out.push(cur); return out; };
+  const box=$('#tape'); box.innerHTML=''; const grid=document.createElement('div'); grid.className='tape';
+  grid.appendChild(document.createElement('span')); for(let i=0;i<24;i++){ const s=document.createElement('span'); s.className='hh'; s.textContent=hh(e.start+i); grid.appendChild(s); }
+  [['in','Приёмка'],['out','Отгрузка']].forEach(([f,label])=>{ const m=mask(f), l=document.createElement('span'); l.className='lbl'; l.textContent=label; grid.appendChild(l);
+    for(let i=0;i<24;i++){ const h=(e.start+i)%24, open=i<H, b=document.createElement('button'); b.className='cell '+f+(open?'':' closed'); b.setAttribute('aria-pressed',open&&m[h]); b.setAttribute('aria-label',`${label}, ${hh(h)}:00`); b.title=open?`${label} ${hh(h)}:00–${hh(h+1)}:00`:'Склад не работает';
+      if(!open) b.disabled=true;
+      const apply=on=>{ m[h]=on; b.setAttribute('aria-pressed',on); peaks=peaks.filter(p=>p.flow!==f).concat(toPeaks(f,m)); sc.touched[pp]=peaks; refreshPreview(); };
+      b.addEventListener('pointerdown',ev=>{ if(!open) return; ev.preventDefault(); if(b.hasPointerCapture&&b.hasPointerCapture(ev.pointerId)) b.releasePointerCapture(ev.pointerId); PAINT=!m[h]; apply(PAINT); });
+      b.addEventListener('pointerup',()=>{ if(PAINT!==null){ PAINT=null; renderForm(); } });
+      b.addEventListener('pointerenter',()=>{ if(open&&PAINT!==null&&m[h]!==PAINT) apply(PAINT); });
+      b.addEventListener('keydown',ev=>{ if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); apply(!m[h]); renderForm(); } });
+      grid.appendChild(b); } });
+  box.appendChild(grid);
+}
+// В запрос уходят только поля контракта: схему отдаёт сервис (GET /api/simulations/schema).
+function pick(v,sch){
+  if(!sch||v==null) return v;
+  if(sch.type==='object'&&sch.properties&&typeof v==='object'&&!Array.isArray(v))
+    return Object.fromEntries(Object.entries(v).filter(([k])=>k in sch.properties).map(([k,x])=>[k,pick(x,sch.properties[k])]));
+  if(sch.type==='array'&&sch.items&&Array.isArray(v)) return v.map(x=>pick(x,sch.items));
+  return v;
+}
+function request(){ return pick({configuration:currentConfig(), location:META.demo.location, task:META.demo.task,
+  scenarios:SC.map(s=>({name:s.name, simulation_params:simParams(s)}))}, SCHEMA); }
+let prevT=null; function refreshPreview(){ clearTimeout(prevT); prevT=setTimeout(loadPreview,150); }
+async function loadPreview(){
+  const sc=SC[ACT], {scenarios, ...rest}=request(), body={...rest, scenario:{name:sc.name, simulation_params:simParams(sc)}};
+  const r=await api('POST','/api/simulations/preview',body); const box=$('#prev');
+  const full=request(), reqShow={configuration:{configuration_id:full.configuration.configuration_id, robot_count:full.configuration.robot_count, charger_count:full.configuration.charger_count, '…':'ТТХ робота и след расчёта из подбора'},
+    location:'… параметры локации', task:'… параметры задачи (источник значений «из задачи»)', scenarios:full.scenarios};
+  if(!r.ok){ box.innerHTML=`<h3>Потребность по часам</h3><div class="err">${(r.j.errors||[]).map(e=>esc(e.field+': '+e.message)).join('<br>')||esc(r.j.error)}</div>`; return; }
+  const p=r.j;
+  box.innerHTML=`<h3>Потребность по часам в этом сценарии</h3><div class="chart">${demandChart({hours:p.hours,rate_in:p.rate_in,rate_out:p.rate_out,peak_in:p.peak_in,peak_out:p.peak_out,calc_peak_trips_h:p.calc_peak_trips_h})}</div>
+    <div class="legend"><span><i style="background:var(--in)"></i>приёмка</span><span><i style="background:var(--out)"></i>отгрузка</span><span><i style="background:var(--hatch)"></i>пиковые часы</span><span>- - пик, на который рассчитан подбор</span></div>
+    <div class="kv" style="margin-top:10px"><span>Подбор рассчитан на</span><span>${nf(p.calc_peak_trips_h)} рейсов в пиковый час</span><span>Самый тяжёлый час в сценарии</span><span>${nf(p.scenario_peak_trips_h)} рейсов</span></div>
+    ${p.warnings.length?`<p class="warn" style="margin-top:8px">${p.warnings.map(esc).join('<br>')}</p>`:''}
+    <details open><summary>Что уйдёт в сервис: POST /api/simulations</summary><pre>${esc(JSON.stringify(reqShow,null,2))}</pre>
+    <p class="small muted">В simulation_params попадают только поля, помеченные «задано». Остальное сервис возьмёт из задачи или по умолчанию и вернёт в resolved_params.</p></details>`;
+}
+function demandChart(d){
+  const W=600,H=170,L=34,B=20,T=8,n=d.hours.length,bw=(W-L-4)/n,tot=d.rate_in.map((x,i)=>x+d.rate_out[i]),ym=Math.max(d.calc_peak_trips_h,...tot)*1.12,y=v=>T+(H-T-B)*(1-v/ym);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Потребность по часам">${HATCH}`;
+  for(let k=0;k<=3;k++){ const v=ym*k/3; s+=`<line class="grid" x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-4}" y="${y(v)+4}" font-size="10" text-anchor="end">${nf(v)}</text>`; }
+  d.hours.forEach((h,i)=>{ const x=L+2+i*bw; if(d.peak_in[i]||d.peak_out[i]) s+=`<rect x="${x}" y="${H-B+3}" width="${bw-1}" height="5" fill="url(#hatch)"/>`;
+    s+=`<rect class="b-in" x="${x}" y="${y(d.rate_in[i])}" width="${bw-2}" height="${y(0)-y(d.rate_in[i])}"/><rect class="b-out" x="${x}" y="${y(tot[i])}" width="${bw-2}" height="${y(d.rate_in[i])-y(tot[i])}"/>`;
+    if(i%2===0) s+=`<text x="${x+bw/2}" y="${H-1}" font-size="10" text-anchor="middle">${hh(h)}</text>`; });
+  return s+`<line class="calc" x1="${L}" x2="${W}" y1="${y(d.calc_peak_trips_h)}" y2="${y(d.calc_peak_trips_h)}" stroke-dasharray="5 4"/></svg>`;
+}
+
+// ---------------- 4. запуск ----------------
+$('#run').onclick=async()=>{
+  $('#runhint').textContent=''; const r=await api('POST','/api/simulations',request());
+  if(r.status!==202){ $('#runhint').innerHTML=`<span class="err">${esc(r.j.error)}${r.j.errors?'<br>'+r.j.errors.map(e=>esc(e.field+': '+e.message)).join('<br>'):''}</span>`; return; }
+  MAX=4; RUNS=null; RUN_FROM=null; go(4); $('#log').innerHTML=''; $('#jobstate').textContent='Симуляция выполняется'; poll(r.j.job_id, Date.now());
+};
+async function poll(id){
+  const r=await api('GET','/api/simulations/jobs/'+id), j=r.j, est=(SC.length>1&&META.cpu<2?60:32);
+  if(r.status===503){ $('#jobstate').textContent='Хранилище недоступно — повторяю…'; return setTimeout(()=>poll(id),2000); }
+  if(!r.ok){ $('#jobstate').innerHTML=`<span class="err">${esc(j.error||'Задание не найдено')}</span>`; return; }
+  $('#jobmeta').textContent=`Задание ${id} · сценариев: ${SC.length}${j.workers?` · ${j.workers>1?'параллельно':'по очереди'}`:''}`;
+  // elapsed считается от постановки в очередь; прогресс — от начала расчёта.
+  if(j.status==='queued') RUN_FROM=null; else if(RUN_FROM===null) RUN_FROM=j.elapsed;
+  const ran=RUN_FROM===null?0:j.elapsed-RUN_FROM;
+  $('#elapsed').textContent=`${nf(j.elapsed)} с`; $('#pbar').style.width=(j.status==='done'?100:Math.min(95,100*ran/est))+'%';
+  $('#log').innerHTML=(j.log||[]).map(s=>`<div>${esc(s)}</div>`).join(''); $('#log').scrollTop=1e9;
+  $('#jobstate').textContent=j.status==='queued'?'В очереди':'Симуляция выполняется';
+  if(j.status==='queued'||j.status==='running') return setTimeout(()=>poll(id),700);
+  if(j.status==='error'){ $('#jobstate').innerHTML=`<span class="err">Симуляция остановилась: ${esc(j.error)}</span>`; return; }
+  $('#jobstate').textContent=`Готово за ${nf(j.elapsed)} с`; RUNS=j.runs; RI=0; GI=0; HVIEW='after'; MAX=6; setTimeout(()=>go(5),600);
+}
+
+// ---------------- 5. результат ----------------
+const STATUS={confirmed:'Подтверждено',can_reduce:'Можно уменьшить',needs_additions:'Нужно докупить',layout_bottleneck:'Узкое место планировки',not_achievable:'Не достигается'};
+function tabsHtml(el,cur,cb){ el.innerHTML=''; RUNS.forEach((r,i)=>{ const b=document.createElement('button'); b.setAttribute('role','tab'); b.setAttribute('aria-selected',i===cur); b.textContent=`${r.scenario.name}: ${STATUS[r.status]}`; b.onclick=()=>cb(i); el.appendChild(b); }); }
+function fmtVal(it,v){ if(v==null) return '—'; if(it.unit==='шт.') return nf(v); if(it.unit==='коэф.') return nf(v,2); if(it.unit==='рейс/ч') return nf(v,1); return nf(v); }
+function renderResult(){
+  tabsHtml($('#restabs'),RI,i=>{RI=i;renderResult();});
+  const r=RUNS[RI], v=r.verdict, fc=r.fleet_change;
+  $('#runmeta').textContent=`Прогон ${r.simulation_id} · ${r.timing.runs} прогонов суток по ${nf(r.timing.per_run_s,1)} с · ${nf(r.timing.total_s)} с`;
+  $('#verdict').innerHTML=`<span class="chip ${r.status}">${STATUS[r.status]}${r.label?' · '+esc(r.label):''}</span><h2>${esc(v.title)}</h2>
+    <ul>${v.lines.map(l=>`<li>${esc(l)}</li>`).join('')}</ul>
+    ${v.justification&&v.justification.length?`<h3>Почему такая рекомендация</h3><ul>${v.justification.map(l=>`<li>${esc(l)}</li>`).join('')}</ul>`:''}
+    ${r.diagnosis.length&&r.status==='needs_additions'?`<h3>Где не хватает</h3><ul>${r.diagnosis.map(l=>`<li>${esc(l)}</li>`).join('')}</ul>`:''}
+    ${r.warnings.length?`<p class="warn">${r.warnings.map(esc).join('<br>')}</p>`:''}
+    <div class="risks"><b>Что проверить на пилоте.</b> ${v.risks.map(esc).join(' ')}</div>`;
+  const items=r.adjusted_input_set.items, shown=items.filter(x=>x.group==='fleet'||x.significant), acc=ACCEPTED[r.simulation_id];
+  const fb=(label,a,b)=>`<div>${label}<b>${a!==b?`<s>${a}</s> → `:''}${b}</b></div>`;
+  $('#vside').innerHTML=`<div class="box"><h3>Изменение парка</h3><div class="fleet">${fb('Роботов',fc.from_.robots,fc.to.robots)}${fb('Зарядных станций',fc.from_.chargers,fc.to.chargers)}</div>
+    </div>
+    <div class="box" style="margin-top:14px"><h3>Поправки для следующего шага</h3>
+    <p class="small muted">Состав парка заменяет значение из подбора. Коэффициенты — калибровка; по умолчанию не отмечены.</p>
+    <div class="scroll"><table class="adj"><thead><tr><th></th><th>Параметр</th><th>Подбор</th><th>Симуляция</th></tr></thead><tbody>
+    ${shown.map(x=>`<tr class="${x.significant?'sig':''}"><td><input type="checkbox" data-code="${x.code}" ${acc?(acc.includes(x.code)?'checked':''):(x.default_selected?'checked':'')} ${acc?'disabled':''} aria-label="Учесть: ${esc(x.label)}"></td>
+      <td>${esc(x.label)}<div class="note">${x.apply==='override'?'заменяет значение':'калибровка'}</div></td><td>${fmtVal(x,x.base)}</td><td>${fmtVal(x,x.simulated)}${x.delta_rel!=null&&x.group!=='fleet'?` <span class="note">${x.delta_rel>0?'+':''}${nf(x.delta_rel*100)} %</span>`:''}</td></tr>`).join('')}</tbody></table></div>
+    <div style="margin-top:10px"><button class="btn primary" id="accept" ${acc?'disabled':''}>${acc?'Учтено':'Учесть'}</button></div>
+    ${acc?`<div class="accepted">Учтено: ${items.filter(x=>acc.includes(x.code)).map(x=>`${esc(x.label.split(' (')[0].toLowerCase())} — ${fmtVal(x,x.simulated)}`).join('; ')||'без изменений'}. Выбор передаёт следующему шагу платформа.</div>`:''}</div>`;
+  const b=$('#accept'); if(b) b.onclick=()=>{ ACCEPTED[r.simulation_id]=$$('#vside input[type=checkbox]:checked').map(x=>x.dataset.code); renderResult(); };
+}
+
+// ---------------- 6. графики и 2D ----------------
+function renderGraphs(){ tabsHtml($('#gtabs'),GI,i=>{GI=i;HVIEW='after';renderGraphs();}); const r=RUNS[GI]; renderCurve(r); renderStations(r); renderHourly(r); renderTime(r); loadPlayers(r); }
+function renderCurve(r){
+  const ev=r.evidence, pts=ev.curve, tgt=r.resolved_params.service.on_time_target.value, lim=r.resolved_params.service.wait_limit_min.value;
+  const vol=ev.volume_k>1.001?`при росте объёма на ${nf((ev.volume_k-1)*100)} %`:'на текущем объёме';
+  if(!pts.length){ $('#c_curve').innerHTML='<h3>Почему столько роботов</h3><p class="muted">Нет точек для сравнения.</p>'; return; }
+  const W=560,H=250,L=44,B=40,T=12,R=10, ymin=Math.max(0,Math.floor(Math.min(...pts.map(p=>p.on_time_min),tgt)*10)/10-0.05);
+  const x=i=>L+(W-L-R)*((i+0.5)/pts.length), y=v=>T+(H-T-B)*(1-(v-ymin)/(1-ymin)), bw=Math.min(40,(W-L-R)/pts.length*0.55);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Доля паллет в срок по числу роботов">${HATCH}`;
+  for(let k=0;k<=4;k++){ const v=ymin+(1-ymin)*k/4; s+=`<line class="grid" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-5}" y="${y(v)+4}" font-size="11" text-anchor="end">${nf(v*100)}%</text>`; }
+  s+=`<line class="thr" x1="${L}" x2="${W-R}" y1="${y(tgt)}" y2="${y(tgt)}" stroke-dasharray="6 4"/>`;
+  pts.forEach((p,i)=>{ const cx=x(i), rec=p.n===r.fleet_change.to.robots, orig=p.n===r.fleet_change.from_.robots;
+    s+=`<rect class="${rec?'':(p.ok?'b-ok':'b-fail')}" ${rec?'fill="url(#hatch)"':''} x="${cx-bw/2}" y="${y(p.on_time)}" width="${bw}" height="${Math.max(0,y(ymin)-y(p.on_time))}"><title>${p.n} роботов: в среднем ${pct(p.on_time,1)}, худший день ${pct(p.on_time_min,1)}</title></rect>`;
+    s+=`<line class="tick" x1="${cx-bw/2-3}" x2="${cx+bw/2+3}" y1="${y(p.on_time_min)}" y2="${y(p.on_time_min)}" stroke-width="2.5"/><text class="t-ink" x="${cx}" y="${H-24}" font-size="12" text-anchor="middle" font-weight="${rec?600:400}">${p.n}</text>`;
+    if(orig||rec) s+=`<text x="${cx}" y="${H-10}" font-size="10.5" text-anchor="middle">${orig&&rec?'подбор = итог':orig?'подбор':'рекомендация'}</text>`; });
+  $('#c_curve').innerHTML=`<h3>Почему столько роботов</h3><p class="small muted">Доля паллет, забранных не позже ${nf(lim)} мин, ${vol}, при ${stn(pts[0].c)}. Столбец — среднее по дням, черта — худший день.</p>${s}</svg>
+    <div class="legend"><span><i style="background:var(--hatch)"></i>рекомендация</span><span><i style="background:var(--bar-ok)"></i>выполняет</span><span><i style="background:var(--bar-fail)"></i>не выполняет</span><span style="color:var(--bad)">- - требование ${nf(tgt*100)} %</span></div>`;
+}
+function renderStations(r){
+  const ev=r.evidence, rec=r.fleet_change.to.chargers;
+  $('#c_stations').innerHTML=`<h3>Почему столько станций</h3><p class="small muted">${r.fleet_policy==='add_and_reduce'?`Станции снимаются по одной, пока парк из ${rob(r.fleet_change.to.robots)} выполняет те же требования при росте объёма. Итог — наименьшее число станций, при котором все проверки выполнены.`:'Уменьшение парка не проверялось: политика «только докупка».'}</p>
+    <div class="scroll"><table><thead><tr><th>Станций</th><th>В срок, худший день</th><th>В пик на зарядке, роботов</th><th></th></tr></thead><tbody>
+    ${ev.stations.map(s=>`<tr style="${s.c===rec?'font-weight:600':''}"><td>${s.c}${s.c===rec?' — итог':''}</td><td>${pct(s.on_time_min,1)}</td><td>${nf(s.charge_peak,2)}</td><td>${s.ok?'выполняет':'не выполняет'}</td></tr>`).join('')||'<tr><td colspan="4">Станции не менялись</td></tr>'}</tbody></table></div>`;
+}
+function hourlyChart(hr){
+  const W=1000,H=210,L=40,R=40,B=22,T=10,n=hr.length,bw=(W-L-R)/n,ym=Math.max(...hr.map(h=>Math.max(h.demand||0,h.done||0)))*1.15||1,y=v=>T+(H-T-B)*(1-v/ym),yu=u=>T+(H-T-B)*(1-u);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Потребность, выполнение и загрузка по часам">`,path='';
+  for(let k=0;k<=4;k++){ const v=ym*k/4; s+=`<line class="grid" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-5}" y="${y(v)+4}" font-size="11" text-anchor="end">${nf(v)}</text><text x="${W-R+5}" y="${yu(k/4)+4}" font-size="11">${k*25}%</text>`; }
+  hr.forEach((h,i)=>{ const x=L+i*bw; s+=`<rect class="b-dem" x="${x+2}" y="${y(h.demand||0)}" width="${bw/2-2}" height="${y(0)-y(h.demand||0)}"/><rect class="b-done" x="${x+bw/2}" y="${y(h.done||0)}" width="${bw/2-2}" height="${y(0)-y(h.done||0)}"/>`;
+    path+=(i?'L':'M')+(x+bw/2)+' '+yu(Math.min(1,h.util||0)); s+=`<text x="${x+bw/2}" y="${H-5}" font-size="11" text-anchor="middle">${hh(h.clock)}</text>`; });
+  s+=`<path class="l-util" d="${path}" stroke-width="2.5"/>`; hr.forEach((h,i)=>{ s+=`<circle class="p-util" cx="${L+i*bw+bw/2}" cy="${yu(Math.min(1,h.util||0))}" r="3"><title>${hh(h.clock)}:00 — заняты работой ${pct(h.util)}</title></circle>`; });
+  return s+'</svg>';
+}
+function renderHourly(r){
+  const fc=r.fleet_change, ch=fc.robots||fc.chargers; if(!ch) HVIEW='after';
+  const hr=HVIEW==='before'?r.hourly_before:r.hourly_after, n=HVIEW==='before'?fc.from_.robots:fc.to.robots, c=HVIEW==='before'?fc.from_.chargers:fc.to.chargers;
+  const lim=r.resolved_params.service.wait_limit_min.value, tgt=r.resolved_params.service.on_time_target.value, tol=r.tolerance, pm=r.demand.peak_in.map((x,i)=>x||r.demand.peak_out[i]), mx=Math.max(...hr.map(h=>h.demand||0)), heat=cssv('--heat');
+  const cell=(v,lo,hi,inv,bad)=>{ if(v==null) return ['','']; let t=Math.max(0,Math.min(1,(v-lo)/(hi-lo))); if(inv) t=1-t; return [`background:rgba(${heat},${(0.06+0.8*t).toFixed(2)})`,(t>0.55?'hi ':'')+(bad?'bad':'')]; };
+  const rows=[['Потребность, рейсов',h=>nf(h.demand),h=>cell(h.demand,0,mx)],['Выполнено, рейсов',h=>nf(h.done),h=>cell(h.done,0,mx,false,(h.done||0)<(h.demand||0)*(1-tol))],
+    ['Роботы заняты работой, %',h=>nf((h.util||0)*100),h=>cell(h.util,0,1,false,h.util>0.9)],['Свободны, роботов',h=>nf(h.idle,1),h=>cell(h.idle,0,n)],
+    ['На зарядке, роботов',h=>nf(h.charge,1),h=>cell(h.charge,0,Math.max(1,n/3))],['Ждут станцию, роботов',h=>nf(h.wait_charger,1),h=>cell(h.wait_charger,0,2,false,h.wait_charger>0.5)],
+    ['Паллета ждёт в среднем, мин',h=>h.wait_mean_min==null?'—':nf(h.wait_mean_min,1),h=>cell(h.wait_mean_min,0,lim,false,h.wait_mean_min>lim)],
+    ['Паллет в срок, %',h=>h.on_time==null?'—':nf(h.on_time*100),h=>cell(h.on_time,tgt-0.2,1,true,h.on_time!=null&&h.on_time<tgt)]];
+  $('#c_hourly').innerHTML=`<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-end"><div><h3>Загрузка по часам</h3><p class="small muted">${rob(n)}, ${stn(c)}, текущий объём. Штриховка — пиковые часы; рамка — нарушение.</p></div>
+    ${ch?`<div class="seg" role="group"><button data-v="before" aria-pressed="${HVIEW==='before'}">Из подбора</button><button data-v="after" aria-pressed="${HVIEW==='after'}">${r.status==='can_reduce'?'Рекомендация':'С докупкой'}</button></div>`:''}</div>
+    ${hourlyChart(hr)}<div class="legend"><span><i style="background:var(--bar-demand)"></i>потребность</span><span><i style="background:var(--ink)"></i>выполнено</span><span><i style="background:var(--accent2)"></i>роботы заняты работой, %</span></div>
+    <div class="scroll" style="margin-top:12px"><table class="hourly"><thead><tr><th class="pk"></th>${hr.map((h,i)=>`<th class="pk">${pm[i]?'<span></span>':''}</th>`).join('')}</tr><tr><th>Час</th>${hr.map(h=>`<th>${hh(h.clock)}</th>`).join('')}</tr></thead><tbody>
+    ${rows.map(([k,f,st])=>`<tr><td>${k}</td>${hr.map(h=>{const [sty,cls]=st(h); return `<td class="${cls}" style="${sty}">${f(h)}</td>`;}).join('')}</tr>`).join('')}</tbody></table></div>`;
+  $$('#c_hourly .seg button').forEach(b=>b.onclick=()=>{ HVIEW=b.dataset.v; renderHourly(r); });
+}
+function renderTime(r){
+  const fc=r.fleet_change, ch=fc.robots||fc.chargers;
+  const grp=fs=>[['Везёт паллету, грузит, выгружает',fs.to_drop+fs.loading+fs.unloading,'var(--ink)'],['Едет за паллетой',fs.to_pickup,'var(--muted)'],['Ждёт проезд или место у ворот',fs.blocked+fs.queue,'var(--accent2)'],['Зарядка',fs.to_charger+fs.wait_charger+fs.charging,'var(--tape)'],['Ремонт',fs.down+fs.towed,'var(--bad)'],['Свободен, нет заявок',fs.idle,'var(--line)']];
+  const bar=(label,fs)=>{ const g=grp(fs); return `<div class="small" style="margin-top:10px">${label} — в рейсе ${pct(g[0][1]+g[1][1])} времени</div><div class="stack">${g.map(x=>`<span style="width:${(x[1]*100).toFixed(2)}%;background:${x[2]}" title="${x[0]}: ${pct(x[1],1)}"></span>`).join('')}</div>`; };
+  $('#c_time').innerHTML=`<h3>Куда уходит время роботов</h3><p class="small muted">Эффективность робота — доля времени, когда он выполняет рейс.</p>
+    ${ch?bar(`Из подбора: ${rob(fc.from_.robots)}, ${stn(fc.from_.chargers)}`,r.kpis_before.fleet_shares):''}${bar(`${ch?(r.status==='can_reduce'?'Рекомендация':'С докупкой'):'Конфигурация'}: ${rob(fc.to.robots)}, ${stn(fc.to.chargers)}`,r.kpis.fleet_shares)}
+    <div class="legend">${grp(r.kpis.fleet_shares).map(x=>`<span><i style="background:${x[2]}"></i>${x[0]}</span>`).join('')}</div>`;
+}
+
+// ---- синхронные 2D-плееры ----
+let PL=[], fi=0, frac=0, playing=false, last=null, speed=60;
+async function loadPlayers(r){
+  playing=false; $('#play').textContent='Запустить';
+  if(!TRACES[r.simulation_id]){ $('#duo').innerHTML='<div class="box">Загружаю записи прогонов…</div>'; const res=await api('GET',`/api/simulations/${r.simulation_id}/traces`); TRACES[r.simulation_id]=res.j||[]; }
+  const trs=TRACES[r.simulation_id]; if(!trs.length){ $('#duo').innerHTML='<div class="box">Нет записей.</div>'; return; }
+  $('#duo').style.gridTemplateColumns=trs.length>1?'1fr 1fr':'1fr';
+  $('#duo').innerHTML=trs.map((t,i)=>`<div class="pl"><div class="cap">${esc(t.name)}</div><canvas aria-label="${esc(t.name)}"></canvas><div class="kv" id="pk${i}"></div></div>`).join('');
+  PL=trs.map((t,i)=>{ const cv=$$('#duo canvas')[i], NODE={}; t.layout.nodes.forEach(n=>NODE[n.id]=n); return {t,cv,ctx:cv.getContext('2d'),NODE,kv:$('#pk'+i)}; });
+  const g=[['свободен','idle'],['едет за паллетой','to_pickup'],['с паллетой (квадрат)','to_drop'],['погрузка','loading'],['ждёт проезд','blocked'],['на зарядке','charging'],['ждёт станцию','wait_charger'],['отказ','down']];
+  $('#slegend').innerHTML=g.map(([l,s])=>`<span><i style="background:${trs[0].state_colors[s]};border-radius:50%"></i>${l}</span>`).join('');
+  const ps=r.demand.peak_in.findIndex(x=>x); fi=ps>0?Math.round(ps*3600/trs[0].step_s):0; frac=0; PL.forEach(fitP); drawAll();
+}
+function fitP(P){ const r=P.cv.getBoundingClientRect(); P.cv.width=Math.max(1,r.width*devicePixelRatio); P.cv.height=Math.max(1,r.height*devicePixelRatio);
+  const L=P.t.layout, xs=L.nodes.map(n=>n.x), ys=L.nodes.map(n=>n.y); (L.charger_slots||[]).forEach(p=>{xs.push(p[0]);ys.push(p[1]);});
+  const b={x0:Math.min(...xs)-6,x1:Math.max(...xs)+6,y0:Math.min(...ys)-8,y1:Math.max(...ys)+6}, bw=b.x1-b.x0, bh=b.y1-b.y0, rot=(bh>bw)!==(P.cv.height>P.cv.width);
+  const W=rot?bh:bw, H=rot?bw:bh, k=Math.min(P.cv.width/W,P.cv.height/H), ox=(P.cv.width-k*W)/2, oy=(P.cv.height-k*H)/2;
+  P.k=k; P.p=rot?((x,y)=>[ox+(y-b.y0)*k,oy+(x-b.x0)*k]):((x,y)=>[ox+(x-b.x0)*k,P.cv.height-(oy+(y-b.y0)*k)]); }
+const nFrames=()=>Math.min(...PL.map(P=>P.t.frames.length));
+function drawOne(P){
+  const {ctx,t,NODE}=P, L=t.layout; ctx.fillStyle=cssv('--canvas'); ctx.fillRect(0,0,P.cv.width,P.cv.height);
+  const eR=cssv('--edge-rack'), eM=cssv('--edge'), nC=cssv('--node'), ink=cssv('--ink');
+  L.edges.forEach(e=>{ const a=P.p(NODE[e.u].x,NODE[e.u].y), c=P.p(NODE[e.v].x,NODE[e.v].y); ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(c[0],c[1]); ctx.strokeStyle=e.kind==='rack'?eR:eM; ctx.lineWidth=Math.max(1,P.k*(e.kind==='rack'?0.6:1.4)); ctx.stroke(); });
+  L.nodes.forEach(n=>{ const [x,y]=P.p(n.x,n.y);
+    if(n.type==='storage'){ ctx.fillStyle=nC; ctx.beginPath(); ctx.arc(x,y,Math.max(1.3,P.k*0.3),0,7); ctx.fill(); }
+    else if(n.type==='dock_in'||n.type==='dock_out'){ const s=Math.max(10,P.k*3.2); ctx.fillStyle=n.type==='dock_in'?cssv('--in'):cssv('--out'); ctx.fillRect(x-s/2,y-s/2,s,s); ctx.fillStyle='#fff'; ctx.font=`${Math.max(9,P.k*2)}px "IBM Plex Sans",sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(n.type==='dock_in'?'П':'О',x,y); } });
+  (L.charger_slots||[]).slice(0,t.n_chargers).forEach(p=>{ const [x,y]=P.p(p[0],p[1]), s=Math.max(7,P.k*2.2); ctx.fillStyle='#f2b705'; ctx.beginPath(); ctx.moveTo(x,y-s); ctx.lineTo(x+s,y); ctx.lineTo(x,y+s); ctx.lineTo(x-s,y); ctx.closePath(); ctx.fill(); });
+  const f0=t.frames[fi], f1=t.frames[Math.min(fi+1,t.frames.length-1)], rr=Math.max(3.2,P.k*1.1);
+  f0.r.forEach((p,i)=>{ const q=f1.r[i]||p, jump=Math.hypot(q[0]-p[0],q[1]-p[1])>40, x0=jump?p[0]:p[0]+(q[0]-p[0])*frac, y0=jump?p[1]:p[1]+(q[1]-p[1])*frac, [x,y]=P.p(x0,y0), st=t.states[p[2]];
+    ctx.beginPath(); ctx.arc(x,y,rr,0,7); ctx.fillStyle=t.state_colors[st]; ctx.fill(); ctx.lineWidth=1; ctx.strokeStyle=ink; ctx.stroke(); if(st==='to_drop'||st==='unloading'){ ctx.fillStyle='#fff'; ctx.fillRect(x-rr*0.45,y-rr*0.45,rr*0.9,rr*0.9); } });
+  const cnt={}; t.states.forEach(s=>cnt[s]=0); f0.r.forEach(p=>cnt[t.states[p[2]]]++);
+  const work=['to_pickup','loading','to_drop','unloading','blocked','queue'].reduce((a,s)=>a+cnt[s],0);
+  P.kv.innerHTML=`<span>Роботов в работе</span><span>${work} из ${t.n_robots}</span><span>Свободны</span><span>${cnt.idle}</span><span>Зарядка · ждут станцию</span><span>${cnt.to_charger+cnt.charging+cnt.wait_charger} · ${cnt.wait_charger}</span><span>Паллет ждут робота</span><span>${f0.backlog}</span><span>Выполнено рейсов</span><span>${f0.done}</span>`;
+}
+function drawAll(){ if(!PL.length) return; fi=Math.min(fi,nFrames()-1); PL.forEach(drawOne); const t=PL[0].t, f0=t.frames[fi], s=f0.t+frac*t.step_s+(t.clock_offset_h||0)*3600;
+  $('#clock').textContent=`${hh(Math.floor(s/3600))}:${String(Math.floor(s%3600/60)).padStart(2,'0')}`; const pr=t.profile[Math.floor(f0.t/3600)]||0; $('#phase').textContent=pr>=0.95*Math.max(...t.profile)?'пиковый час':'обычная нагрузка';
+  $('#scrub').value=Math.round(1000*fi/Math.max(1,nFrames()-1)); }
+function tick(ts){ if(!playing) return; if(last==null) last=ts; frac+=(ts-last)/1000*speed/PL[0].t.step_s; last=ts; while(frac>=1){ frac-=1; fi++; }
+  if(fi>=nFrames()-1){ fi=nFrames()-1; frac=0; playing=false; $('#play').textContent='Запустить'; } drawAll(); if(playing) requestAnimationFrame(tick); }
+$('#play').onclick=()=>{ if(!PL.length) return; playing=!playing; $('#play').textContent=playing?'Пауза':'Запустить'; last=null; if(playing) requestAnimationFrame(tick); };
+$('#restart').onclick=()=>{ fi=0; frac=0; drawAll(); };
+$('#speed').onchange=e=>speed=+e.target.value;
+$('#scrub').oninput=e=>{ fi=Math.round(e.target.value/1000*(nFrames()-1)); frac=0; drawAll(); };
+window.addEventListener('resize',()=>{ PL.forEach(fitP); drawAll(); });
+
+// ---------------- старт ----------------
+(async()=>{
+  const [m,sch]=await Promise.all([api('GET','/api/meta'), api('GET','/api/simulations/schema')]); META=m.j; SCHEMA=sch.j;
+  $('#ver').textContent=`${META.simulation_version} · ядер на сервере: ${META.cpu}`;
+  cfgId=(META.demo.configurations.find(c=>c.robot.robot_id==='DMR-CARRIER-P')||META.demo.configurations[0]).configuration_id;
+  SC=[newSc('Сценарий 1')]; go(1);
+})();
+})();
+
+</script>
+</body>
+</html>

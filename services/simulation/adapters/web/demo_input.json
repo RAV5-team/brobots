@@ -1,0 +1,103 @@
+{
+  "location": {
+    "active_area_m2": 10000,
+    "aisle_main_m": 3.5,
+    "aisle_rack_m": 2.8,
+    "speed_limit_m_s": 1.5
+  },
+  "task": {
+    "in_per_day": 1000,
+    "out_per_day": 1000,
+    "manual_share": 0.05,
+    "peak_k": 1.5,
+    "shift_start_h": 7,
+    "shifts": 2,
+    "shift_h": 11
+  },
+  "configurations": [
+    {
+      "configuration_id": "cfg-ronavi-h1500",
+      "robot": {
+        "robot_id": "RONAVI-H1500",
+        "name": "Ronavi H1500 (подъёмный AMR)",
+        "v_max": 1.5,
+        "autonomy_h": 6,
+        "charge_time_min": 18,
+        "t_load_s": 30,
+        "t_unload_s": 30,
+        "width_mm": 654,
+        "note": "Не берёт паллету с пола: нужны станции передачи."
+      },
+      "robot_count": 16,
+      "charger_count": 4,
+      "calc": {
+        "peak_trips_h": 129.54545454545453,
+        "avg_trips_h": 86.36363636363636,
+        "route_len_m": 100.0,
+        "cycle_s": 282.2222222222223,
+        "eff_prod": 9.694488188976376,
+        "n_util": 0.8,
+        "n_kv": 0.6,
+        "n_avail": 0.95,
+        "n_reserve": 0.15,
+        "robots_per_charger": 4
+      }
+    },
+    {
+      "configuration_id": "cfg-ak-2000-2",
+      "robot": {
+        "robot_id": "AK-2000-2",
+        "name": "AK-2000-2 (вилочный AMR)",
+        "v_max": 1.5,
+        "autonomy_h": 10,
+        "charge_time_min": 90,
+        "t_load_s": 60,
+        "t_unload_s": 60,
+        "width_mm": 1000,
+        "note": "ТТХ приняты по аналогу DMR Carrier P — требуют проверки у производителя."
+      },
+      "robot_count": 19,
+      "charger_count": 5,
+      "calc": {
+        "peak_trips_h": 129.54545454545453,
+        "avg_trips_h": 86.36363636363636,
+        "route_len_m": 100.0,
+        "cycle_s": 342.2222222222223,
+        "eff_prod": 7.994805194805193,
+        "n_util": 0.8,
+        "n_kv": 0.6,
+        "n_avail": 0.95,
+        "n_reserve": 0.15,
+        "robots_per_charger": 4
+      }
+    },
+    {
+      "configuration_id": "cfg-dmr-carrier-p",
+      "robot": {
+        "robot_id": "DMR-CARRIER-P",
+        "name": "DMR Carrier P (вилочный AMR)",
+        "v_max": 1.5,
+        "autonomy_h": 10,
+        "charge_time_min": 90,
+        "t_load_s": 60,
+        "t_unload_s": 60,
+        "width_mm": 1000,
+        "note": "Забирает паллету с пола вилами."
+      },
+      "robot_count": 19,
+      "charger_count": 5,
+      "calc": {
+        "peak_trips_h": 129.54545454545453,
+        "avg_trips_h": 86.36363636363636,
+        "route_len_m": 100.0,
+        "cycle_s": 342.2222222222223,
+        "eff_prod": 7.994805194805193,
+        "n_util": 0.8,
+        "n_kv": 0.6,
+        "n_avail": 0.95,
+        "n_reserve": 0.15,
+        "robots_per_charger": 4
+      }
+    }
+  ]
+}

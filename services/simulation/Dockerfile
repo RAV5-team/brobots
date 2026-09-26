@@ -2,7 +2,12 @@
 #
 # Сервис simulation (Python). Контекст сборки — корень монорепозитория:
 #   docker build -f services/simulation/Dockerfile .
-# Корень нужен, чтобы в образ попал общий пакет packages/pycommon.
+#
+# Один образ для трёх ролей:
+#   сервер (по умолчанию):  python -m app.server
+#   воркеры отдельно:       python -m app.worker
+#   миграции (разово):      alembic upgrade head
+# Нужен DATABASE_URL — адрес базы сервиса в PostgreSQL.
 
 FROM python:3.12-slim AS base
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -14,24 +19,25 @@ WORKDIR /app
 # --- зависимости отдельным слоем ---
 FROM base AS deps
 COPY services/simulation/requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
-
-# --- код ---
-FROM deps AS source
-# Общий слой сервисов подключается через PYTHONPATH — отдельная сборка пакета не нужна.
-COPY packages/pycommon/ /opt/pycommon/
-ENV PYTHONPATH=/opt/pycommon
-COPY services/simulation/ ./
+RUN pip install -r requirements.txt
 
 # --- проверки: docker build --target test -f services/simulation/Dockerfile . ---
-FROM source AS test
-RUN pip install --no-cache-dir -r requirements-dev.txt && ruff check . && pytest
+# Тесты с базой (метка db) без TEST_DATABASE_URL пропускаются.
+FROM deps AS test
+COPY services/simulation/ ./
+RUN pip install -r requirements-dev.txt && pytest
 
-# --- рантайм ---
-FROM source AS runtime
-RUN useradd --uid 10001 --create-home app && chown -R app:app /app
-USER app
-EXPOSE 8001
-HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=5 \
-  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8001/healthz').status == 200 else 1)"
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]
+# --- рантайм: только код сервиса, без тестов и инструментов разработки ---
+FROM deps AS runtime
+COPY services/simulation/alembic.ini ./
+COPY services/simulation/migrations/ ./migrations/
+COPY services/simulation/simcore/ ./simcore/
+COPY services/simulation/application/ ./application/
+COPY services/simulation/adapters/ ./adapters/
+COPY services/simulation/app/ ./app/
+RUN useradd --system --uid 10001 sim
+USER sim
+EXPOSE 8765
+HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=5 CMD \
+    python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/api/health', timeout=3)"
+CMD ["python", "-m", "app.server"]

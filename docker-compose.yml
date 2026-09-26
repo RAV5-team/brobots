@@ -1,9 +1,12 @@
-# Keycloak для RAV5: Postgres (БД keycloak) + Keycloak + nginx-шлюз на /auth.
+# Контур RAV5: Postgres + Keycloak + nginx-шлюз на /auth + сервисы api и simulation.
 #
 #   cp .env.example .env && docker compose up -d --build            # профиль local, http://localhost
 #   docker compose -f docker-compose.yml -f docker-compose.stand.yml up -d --build   # stand, https
 #
-# Наружу публикуется только gateway.
+# Postgres — одна инстанция, у каждого потребителя своя роль и БД (keycloak, api, simulation);
+# их создают скрипты infra/postgres/init при первом запуске на пустом томе.
+# Наружу публикуются шлюз, api (API_PORT) и simulation (SIMULATION_PORT).
+# economics и web пока каркасы без кода — в контур не входят.
 
 name: rav5
 
@@ -14,6 +17,11 @@ x-service: &service
     options:
       max-size: "10m"
       max-file: "3"
+
+x-simulation-build: &simulation-build
+  context: .
+  dockerfile: services/simulation/Dockerfile
+  target: runtime
 
 networks:
   edge: {}
@@ -31,9 +39,13 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?переменная не задана, скопируйте .env.example в .env}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?переменная не задана, скопируйте .env.example в .env}
-      # Роль и БД keycloak создаёт infra/postgres/init/01-keycloak.sh (только на пустом томе).
-      KC_DB_USERNAME: ${KC_DB_USERNAME}
-      KC_DB_PASSWORD: ${KC_DB_PASSWORD}
+      # Роли и БД создают infra/postgres/init/*.sh (только на пустом томе).
+      KC_DB_USERNAME: ${KC_DB_USERNAME:?}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD:?}
+      API_DB_USERNAME: ${API_DB_USERNAME:?}
+      API_DB_PASSWORD: ${API_DB_PASSWORD:?}
+      SIM_DB_USERNAME: ${SIM_DB_USERNAME:?}
+      SIM_DB_PASSWORD: ${SIM_DB_PASSWORD:?}
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
@@ -50,18 +62,6 @@ services:
     # Схему своей БД Keycloak создаёт и обновляет сам (миграции Liquibase при старте).
     command: ["start", "--optimized", "--import-realm"]
     environment:
-      APP_ENV: ${APP_ENV:-local}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      HTTP_ADDR: ":8000"
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-brobots}?sslmode=disable
-      # Миграции goose при старте; демо-данные организатора загружаются один раз и не перезаписываются.
-      MIGRATE_ON_START: ${API_MIGRATE_ON_START:-true}
-      SEED_DEMO: ${API_SEED_DEMO:-true}
-      SWAGGER_ENABLED: ${API_SWAGGER_ENABLED:-true}
-      SIMULATION_URL: http://simulation:8001
-      ECONOMICS_URL: http://economics:8002
-    ports:
-      - "${API_PORT:-8000}:8000"
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
       KC_DB_USERNAME: ${KC_DB_USERNAME}
       KC_DB_PASSWORD: ${KC_DB_PASSWORD}
@@ -113,3 +113,53 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+
+  api:
+    <<: *service
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+      target: runtime
+      args:
+        VERSION: ${VERSION:-dev}
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      HTTP_ADDR: ":8000"
+      DATABASE_URL: postgres://${API_DB_USERNAME}:${API_DB_PASSWORD}@postgres:5432/api?sslmode=disable
+      # Миграции goose при старте; демо-данные организатора загружаются один раз и не перезаписываются.
+      MIGRATE_ON_START: ${API_MIGRATE_ON_START:-true}
+      SEED_DEMO: ${API_SEED_DEMO:-true}
+      SWAGGER_ENABLED: ${API_SWAGGER_ENABLED:-true}
+      SIMULATION_URL: http://simulation:8765
+    ports: ["${API_PORT:-8000}:8000"]
+    # edge — для публикации порта и вызовов simulation, internal — для Postgres.
+    networks: [edge, internal]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  # Разовый шаг: схема БД simulation. Сервер миграции не применяет и без нужной
+  # ревизии схемы не стартует (код выхода 3).
+  simulation-migrate:
+    <<: *service
+    build: *simulation-build
+    restart: "no"
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: postgresql://${SIM_DB_USERNAME}:${SIM_DB_PASSWORD}@postgres:5432/simulation
+    networks: [internal]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  simulation:
+    <<: *service
+    build: *simulation-build
+    environment:
+      DATABASE_URL: postgresql://${SIM_DB_USERNAME}:${SIM_DB_PASSWORD}@postgres:5432/simulation
+      PORT: 8765
+      # Воркеры заданий в процессе сервера; 0 — только API (воркеры отдельно: python -m app.worker).
+      SIM_WORKERS: ${SIM_WORKERS:-1}
+    ports: ["${SIMULATION_PORT:-8765}:8765"]
+    networks: [edge, internal]
+    depends_on:
+      simulation-migrate: { condition: service_completed_successfully }

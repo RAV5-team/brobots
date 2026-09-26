@@ -33,17 +33,16 @@ brobots/
 │   │   │   └── store/           репозитории поверх Postgres
 │   │   └── migrations/          SQL-миграции схемы
 │   │
-│   ├── simulation/              Python — прогон рабочего дня (SimPy)
-│   │   ├── Dockerfile
-│   │   ├── requirements.txt
-│   │   ├── app/
-│   │   │   ├── api/             маршруты FastAPI
-│   │   │   ├── core/            настройки, инфраструктура
-│   │   │   └── domain/          модель симуляции
+│   ├── simulation/              Python — прогон рабочего дня (SimPy), см. его README
+│   │   ├── Dockerfile           один образ: сервер, воркер, миграции
+│   │   ├── simcore/             модель симуляции
+│   │   ├── application/         сценарии: задание, прогон, предпросмотр
+│   │   ├── adapters/            Postgres, HTTP, воркер, дочерние процессы
+│   │   ├── app/                 настройки и точки входа (server, worker)
+│   │   ├── migrations/          Alembic
 │   │   └── tests/
 │   │
-│   └── economics/               Python — CAPEX, OPEX, эффект, окупаемость
-│       └── (структура та же, что у simulation)
+│   └── economics/               Python — CAPEX, OPEX, эффект, окупаемость (каркас)
 │
 ├── packages/                    общий код и контракты
 │   ├── pycommon/                общий слой Python-сервисов
@@ -55,14 +54,17 @@ brobots/
 ├── infra/
 │   ├── keycloak/                образ Keycloak и realm rav5 (роли, клиенты, демо-учётки)
 │   ├── nginx/                   шлюз к Keycloak на /auth: профили local и stand
-│   └── postgres/init/           роль и БД keycloak, выполняется при создании пустого тома
+│   └── postgres/init/           роли и БД keycloak, api, simulation — при создании пустого тома
 │
 ├── docs/
-│   ├── keycloak.md              Keycloak: запуск, realm, адреса, проверка
-│   └── middleware.md            проверка токенов Keycloak в сервисах (Go, Python)
+│   ├── RAV5_PRD.docx            требования к продукту
+│   ├── api/                     сервис api: контракт, схема БД, подбор
+│   └── keycloak/
+│       ├── keycloak.md          Keycloak: запуск, realm, адреса, проверка
+│       └── middleware.md        проверка токенов Keycloak в сервисах (Go, Python)
 ├── scripts/                     секреты и smoke-тесты Keycloak
 │
-├── docker-compose.yml           Postgres + Keycloak + шлюз, профиль local
+├── docker-compose.yml           Postgres + Keycloak + шлюз + api + simulation, профиль local
 ├── docker-compose.stand.yml     оверлей профиля stand: TLS, HSTS, allowlist админки
 ├── Makefile
 ├── .env.example
@@ -96,7 +98,16 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-Поднимаются Postgres, Keycloak и nginx-шлюз; Keycloak доступен на http://localhost/auth/.
+Поднимаются Postgres, Keycloak, nginx-шлюз, api и simulation:
+
+| Что | Адрес |
+|-----|-------|
+| Keycloak | http://localhost/auth/ |
+| api (Swagger — `/docs`) | http://localhost:8000 |
+| simulation (экран шага, API — `/api/...`) | http://localhost:8765 |
+
+Схему БД simulation применяет разовый контейнер `simulation-migrate` (`alembic upgrade head`),
+api мигрирует себя сам при старте. economics и web пока каркасы и в compose не входят.
 Первый старт — **1–2 минуты**: Keycloak создаёт схему в своей БД и импортирует realm.
 Дождитесь `healthy` в `docker compose ps`.
 
@@ -111,8 +122,8 @@ docker compose up -d --build
 - Порт 80 занят: `GATEWAY_PORT=8080` и `PUBLIC_URL=http://localhost:8080`, затем `down -v`.
 - HTTPS-стенд: `./scripts/gen-secrets.sh`, сертификат в `infra/nginx/certs/`,
   `docker compose -f docker-compose.yml -f docker-compose.stand.yml up -d --build`.
-- Проверка: `./scripts/auth-smoke.sh`. Подробности — [docs/keycloak.md](docs/keycloak.md),
-  проверка токенов в сервисах — [docs/middleware.md](docs/middleware.md),
+- Проверка: `./scripts/auth-smoke.sh`. Подробности — [docs/keycloak/keycloak.md](docs/keycloak/keycloak.md),
+  проверка токенов в сервисах — [docs/keycloak/middleware.md](docs/keycloak/middleware.md),
   команды — `make help`.
 
 ## Что дальше
@@ -126,8 +137,9 @@ docker compose up -d --build
    и прокси `/api` → `http://api:8000` в `server.proxy` внутри `vite.config.ts`.
 2. ~~**`services/api`**~~ — готов: локации, задачи, проекты, каталог, классы
    операций и подбор. Запуск, контракт и карта экранов — [docs/api](docs/api/README.md).
-3. **`services/simulation`, `services/economics`** — `app/main.py`, который
-   поднимает приложение FastAPI (Dockerfile запускает `app.main:app`).
+3. ~~**`services/simulation`**~~ — готов, см. [services/simulation/README.md](services/simulation/README.md).
+   **`services/economics`** — `app/main.py`, который поднимает приложение FastAPI
+   (Dockerfile запускает `app.main:app`).
 4. **`packages/pycommon/pycommon`** — общий слой; в образ попадает через
    `PYTHONPATH=/opt/pycommon`, отдельная сборка пакета не нужна.
 5. **`infra/postgres/init`** — скрипты создания ролей и БД. Выполняются **один раз**,

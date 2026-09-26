@@ -22,6 +22,8 @@ set_var() {
 
 set_var POSTGRES_PASSWORD "$(rand)"
 set_var KC_DB_PASSWORD "$(rand)"
+set_var API_DB_PASSWORD "$(rand)"
+set_var SIM_DB_PASSWORD "$(rand)"
 set_var KC_ADMIN_PASSWORD "$(rand 16)"
 set_var KC_API_INTERNAL_SECRET "$(rand 32)"
 chmod 600 .env
