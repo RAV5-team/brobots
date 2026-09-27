@@ -33,9 +33,9 @@ describe('DashboardPage (экран 06)', () => {
     const cards = kpis.getAllByRole('article').map((a) => plain(a.textContent))
     expect(cards).toEqual([
       'Локаций4склад, аэропорт, медучреждение',
-      'Проектов5из них рассчитано 1',
+      'Проектов7из них рассчитано 4',
       'Ручная работа на локациях591 млн ₽сумма по всем объектам, ₽/год',
-      'Найденная экономия9,2 млн ₽по лучшему проекту на каждый процесс, ₽/год',
+      'Найденная экономия17 млн ₽по лучшему проекту на каждый процесс, ₽/год',
     ])
   })
 
@@ -48,16 +48,17 @@ describe('DashboardPage (экран 06)', () => {
     expect(checks.getByRole('button', { name: 'Открыть проверки: 8' })).toBeDisabled()
   })
 
-  it('lists recent projects with status, result and a link to the step they stopped at', async () => {
+  it('lists recent projects with status, result and a link to the step or the saved assessment', async () => {
     renderPage()
     const panel = within(await screen.findByRole('region', { name: 'Продолжить' }))
     const rows = panel.getAllByRole('listitem').map((li) => plain(li.textContent))
     expect(rows).toEqual([
       'Роботизация паллетного потока · РЦ ХимкиРЦ Химки · изменён 15.09 14:32Результат0,7 года · 9,2 млн ₽/год',
       'Только уборка · РЦ ХимкиРЦ Химки · изменён 14.09 18:05Параметры—',
-      'Комплектация и инвентаризация · Даркстор ЮгДаркстор Юг · изменён 13.09 11:20Симуляция2,2 года',
+      'Комплектация заказов · Даркстор ЮгДаркстор Юг · изменён 13.09 11:20Результат1,6 года',
     ])
     expect(panel.getByRole('link', { name: 'Открыть проект «Только уборка · РЦ Химки»' })).toHaveAttribute('href', '/projects/PJ-02/params')
+    expect(panel.getByRole('link', { name: 'Открыть проект «Роботизация паллетного потока · РЦ Химки»' })).toHaveAttribute('href', '/projects/PJ-01/result')
     expect(panel.getByRole('link', { name: 'Все проекты' })).toHaveAttribute('href', '/projects')
   })
 
@@ -65,7 +66,7 @@ describe('DashboardPage (экран 06)', () => {
     renderPage()
     const panel = within(await screen.findByRole('region', { name: 'Локации' }))
     expect(panel.getAllByRole('listitem').map((li) => plain(li.textContent))).toEqual([
-      'РЦ Химки231 млн ₽ ручной работыскладпроектов: 2',
+      'РЦ Химки231 млн ₽ ручной работыскладпроектов: 4',
       'Даркстор Юг84 млн ₽ ручной работыскладпроектов: 1',
       'Терминал Внуково-2183 млн ₽ ручной работыаэропортпроектов: 1',
     ])

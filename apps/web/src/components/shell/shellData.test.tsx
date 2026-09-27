@@ -15,7 +15,7 @@ describe('useShellData', () => {
     const wrapper = ({ children }: { children: ReactNode }) => <ServicesProvider services={services}>{children}</ServicesProvider>
     const { result } = renderHook(() => useShellData('admin'), { wrapper })
     await waitFor(() => { expect(result.current.profile?.name).toBe('А. Соколова') })
-    expect(result.current.counts).toEqual({ projects: 5, processes: 12, locations: 4, catalog: ROBOTS.length })
+    expect(result.current.counts).toEqual({ projects: 7, processes: 12, locations: 4, catalog: ROBOTS.length })
   })
 
   it('keeps the menu working when data fails to load', async () => {

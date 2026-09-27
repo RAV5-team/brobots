@@ -49,6 +49,11 @@ describe('formatRubCompact', () => {
   it('appends a period suffix', () => {
     expect(plain(formatRubCompact(9_240_000, { perYear: true }))).toBe('9,2 млн ₽/год')
   })
+
+  it('keeps one decimal in a table column when asked (A1)', () => {
+    expect(plain(formatRubCompact(84_000_000, { fractionDigits: 1, fixed: true }))).toBe('84,0 млн ₽')
+    expect(plain(formatRubCompact(52_400_000, { fractionDigits: 1, fixed: true }))).toBe('52,4 млн ₽')
+  })
 })
 
 describe('formatRubMillions', () => {
@@ -92,6 +97,11 @@ describe('formatYears', () => {
     expect(plain(formatYears(2.2))).toBe('2,2 года')
     expect(plain(formatYears(1))).toBe('1 год')
     expect(plain(formatYears(5))).toBe('5 лет')
+  })
+
+  it('keeps the decimal in a table column when asked (A1)', () => {
+    expect(plain(formatYears(7, { fixed: true }))).toBe('7,0 лет')
+    expect(plain(formatYears(0.7, { fixed: true }))).toBe('0,7 года')
   })
 })
 
