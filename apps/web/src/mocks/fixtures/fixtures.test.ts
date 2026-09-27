@@ -96,6 +96,11 @@ describe('fixtures: resolved PRD 15 discrepancies (README)', () => {
     expect(LOCATION_PROCESSES.filter((lp) => lp.locationId === location('РЦ Химки')?.id)).toHaveLength(5)
   })
 
+  it('№45: РЦ Химки has two assumptions in its profile, as on the form', () => {
+    const params = Object.values(location('РЦ Химки')?.parameters ?? {})
+    expect(params.filter((p) => p.source === 'assumption')).toHaveLength(2)
+  })
+
   it('№7: portions per day use the dataset base 1 950', () => {
     expect(process('PR-0010')?.defaults.dailyVolume).toBe(base('med_portions_day'))
   })

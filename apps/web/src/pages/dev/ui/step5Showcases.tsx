@@ -9,6 +9,7 @@ import { ru } from '@/shared/i18n/ru'
 import { ShowcaseSection } from './StateGrid'
 
 const s = ru.dev.samples
+const r = ru.location.removeProcess
 const ignore = () => undefined
 
 export function ModalShowcase() {
@@ -26,6 +27,13 @@ export function ModalShowcase() {
         </Field>
         <Dropzone kind="document" title={s.dropPhotos} onFiles={ignore} />
       </Modal>
+      <Modal
+        size="sm"
+        title={r.title('Перемещение паллет', 'РЦ Химки')}
+        description={r.description}
+        trigger={<Button className="self-start">{s.openConfirm}</Button>}
+        footer={<><Button className="px-20">{r.cancel}</Button><Button variant="danger" className="px-20">{r.confirm}</Button></>}
+      />
     </ShowcaseSection>
   )
 }
@@ -48,6 +56,9 @@ export function StatesShowcase() {
     <div className="flex flex-col gap-24">
       <ShowcaseSection title="EmptyState">
         <EmptyState title={s.emptyTitle} description={s.emptyDescription} action={<Button variant="primary">{s.addProcess}</Button>} />
+      </ShowcaseSection>
+      <ShowcaseSection title="EmptyState · lg">
+        <EmptyState size="lg" title={s.emptyTitle} description={s.emptyDescription} action={<Button>{s.addProcess}</Button>} />
       </ShowcaseSection>
       <ShowcaseSection title="ErrorState">
         <ErrorState title={s.errorTitle} message={s.errorMessage} onRetry={ignore} />

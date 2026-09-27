@@ -5,7 +5,8 @@ import { Segmented } from '@/components/ui/Segmented'
 import { Select, type SelectOption } from '@/components/ui/Select'
 import type { HandlingMethod } from '@/domain'
 import { ru } from '@/shared/i18n/ru'
-import { FieldGrid, FormSection, NumberField, type SectionProps } from './FormParts'
+import { FieldGrid, FormSection } from '@/components/ui/FormSection'
+import { NumberField, type SectionProps } from './FormParts'
 import { toggleHandling } from './processForm'
 
 const t = ru.processNew
@@ -15,6 +16,8 @@ const DIVISIBLE_OPTIONS = [
 ] as const
 
 interface ProcessSectionProps extends SectionProps {
+  /** Копия на локации: класс задан шаблоном и не меняется (PRD 10.4). */
+  readonly classLocked?: boolean
   readonly classOptions: readonly SelectOption<string>[]
   readonly categoryOptions: readonly SelectOption<string>[]
   readonly carrierOptions: readonly SelectOption<string>[]
@@ -22,15 +25,20 @@ interface ProcessSectionProps extends SectionProps {
 }
 
 /** Секция 1 «Процесс и груз» (PRD 9.2; 15935:930). */
-export function ProcessSection({ classOptions, categoryOptions, carrierOptions, handlingMethods, ...props }: ProcessSectionProps) {
+export function ProcessSection({ classOptions, classLocked = false, categoryOptions, carrierOptions, handlingMethods, ...props }: ProcessSectionProps) {
   const { form, errors, update } = props
   const f = t.fields
   const s = t.sections.process
   return (
     <FormSection id="process" title={s.title} description={s.description}>
       <FieldGrid>
-        <Field label={f.operationClass.label} required hint={f.operationClass.hint}>
-          <Select options={classOptions} value={form.operationClass} onChange={(v) => { update({ operationClass: v as typeof form.operationClass }) }} />
+        <Field label={f.operationClass.label} required hint={classLocked ? f.operationClass.lockedHint : f.operationClass.hint}>
+          <Select
+            options={classOptions}
+            value={form.operationClass}
+            disabled={classLocked}
+            onChange={(v) => { update({ operationClass: v as typeof form.operationClass }) }}
+          />
         </Field>
         <Field label={f.name.label} required hint={f.name.hint} error={errors.name}>
           <Input value={form.name} autoComplete="off" onChange={(e) => { update({ name: e.target.value }) }} />

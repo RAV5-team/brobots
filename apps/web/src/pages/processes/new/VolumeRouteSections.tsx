@@ -2,7 +2,8 @@ import { Field } from '@/components/ui/Field'
 import { FormulaStats } from '@/components/ui/FormulaStats'
 import { Segmented } from '@/components/ui/Segmented'
 import { ru } from '@/shared/i18n/ru'
-import { FieldGrid, FormSection, NumberField, type SectionProps } from './FormParts'
+import { FieldGrid, FormSection } from '@/components/ui/FormSection'
+import { NumberField, type SectionProps } from './FormParts'
 import { volumeStats } from './processStats'
 
 const t = ru.processNew

@@ -7,7 +7,7 @@ import { WAREHOUSE_STAFF } from '../staffParameters'
 import { categoryValue, type ProcessForm, type StaffRow } from './processForm'
 
 /** Коэффициенты замещения труда по способам: вилы и платформа — из PR-0001, остальные — подсказка секции 4 макета. */
-const REPLACEMENT: Readonly<Record<Exclude<HandlingMethodCode, 'none'>, number>> = {
+export const REPLACEMENT: Readonly<Record<Exclude<HandlingMethodCode, 'none'>, number>> = {
   forks: 0.8,
   platform: 0.6,
   tow: 0.8,
@@ -16,7 +16,7 @@ const REPLACEMENT: Readonly<Record<Exclude<HandlingMethodCode, 'none'>, number>>
   brushes: 0.7,
 }
 
-const MACRO_DEFAULTS = {
+export const MACRO_DEFAULTS = {
   speedLimitMps: 1.5,
   widthMarginM: 0.6,
   liftTripPct: 0,

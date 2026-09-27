@@ -1,5 +1,8 @@
+import { Plus } from 'lucide-react'
 import { useState } from 'react'
+import { ROUTE_PATHS } from '@/app/routePaths'
 import { Button } from '@/components/ui/Button'
+import { MergedButtonLink } from '@/components/ui/MergedButton'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
 import { useRole } from '@/shared/auth/useRole'
 import { ru } from '@/shared/i18n/ru'
@@ -78,7 +81,7 @@ export function ProcessesPage() {
             operationClasses={state.operationClasses}
             facilityTypes={state.facilityTypes}
             // Гостю — демо-процессы без сохранения (PRD 9.1, D-14): своих процессов он не заводит (D-30).
-            canCreate={role !== 'guest'}
+            action={role !== 'guest' && <MergedButtonLink to={ROUTE_PATHS.processNew} label={t.create} icon={Plus} />}
           />
           <ProcessGrid data={state} filter={filter} onReset={() => { setFilter(EMPTY_FILTER) }} />
         </div>

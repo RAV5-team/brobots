@@ -28,6 +28,14 @@ export function formatDate(isoDate: string): string {
   return `${day}.${month}.${year}`
 }
 
+const DAY = new Intl.DateTimeFormat(LOCALE, { timeZone: ORG_TIME_ZONE, day: '2-digit', month: '2-digit', year: 'numeric' })
+
+/** День момента по Москве: «14.09.2026» — «обновлено …» в карточке локации (PRD 10.1). */
+export function formatDayOf(iso: string): string {
+  const parts = DAY.formatToParts(new Date(iso))
+  return `${part(parts, 'day')}.${part(parts, 'month')}.${part(parts, 'year')}`
+}
+
 const TIME = new Intl.DateTimeFormat(LOCALE, { timeZone: ORG_TIME_ZONE, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
 
 /** Время по Москве: «14:41» — плашка «Черновик сохранён» (D-21). */
