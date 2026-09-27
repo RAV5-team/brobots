@@ -1,5 +1,5 @@
 import { clsx } from 'clsx'
-import { createContext, use, type ReactNode, type TdHTMLAttributes, type ThHTMLAttributes } from 'react'
+import { createContext, use, type MouseEvent, type ReactNode, type TdHTMLAttributes, type ThHTMLAttributes } from 'react'
 
 /**
  * compact — строка 37 px: отступ 8 + текст 20 + разделитель, ячейки по центру (15997:402);
@@ -43,9 +43,27 @@ export function TableBody({ children }: { readonly children: ReactNode }) {
   return <tbody className={clsx((density === 'relaxed' || density === 'roomy') && '[&>tr:last-child]:border-b-0')}>{children}</tbody>
 }
 
-export function TableRow({ children, selected = false }: { readonly children: ReactNode; readonly selected?: boolean }) {
+interface TableRowProps {
+  readonly children: ReactNode
+  readonly selected?: boolean
+  /**
+   * Щелчок по всей строке — удобство для мыши (список проектов A1). С клавиатуры строку открывает
+   * ссылка внутри неё, поэтому щелчки по ссылкам и кнопкам строки сюда не передаются.
+   */
+  readonly onClick?: () => void
+}
+
+export function TableRow({ children, selected = false, onClick }: TableRowProps) {
+  const handleClick = onClick && ((event: MouseEvent<HTMLTableRowElement>) => {
+    if (event.target instanceof Element && event.target.closest('a, button')) return
+    onClick()
+  })
   return (
-    <tr aria-selected={selected || undefined} className={clsx('border-b border-border transition-colors hover:bg-surface-muted', selected && 'bg-surface-sunken')}>
+    <tr
+      aria-selected={selected || undefined}
+      onClick={handleClick}
+      className={clsx('border-b border-border transition-colors hover:bg-surface-muted', selected && 'bg-surface-sunken', onClick && 'cursor-pointer')}
+    >
       {children}
     </tr>
   )

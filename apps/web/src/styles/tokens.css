@@ -191,6 +191,16 @@
   --rav-solution-photo-width: 200px;
   --rav-solution-photo-height: 180px;
   --rav-solution-fact-height: 108px;
+  /*
+   * A1 «Проекты» (16362:8226): колонки 150 / 176 / 100 / 100 / 104 плюс зазор 16 таблицы roomy; действие 36 без зазора; «Название» — остаток.
+   * На макете статус 160, CAPEX и OPEX по 110, окупаемость 120, зазор 12: подпись «остановились на: Параметры» (169 px, D-83)
+   * не помещается в 160 — 16 px взяты у окупаемости; зазор 16 вместо 12 съедает 24 px — их отдают CAPEX и OPEX, чтобы «Название» осталось 280+.
+   */
+  --rav-projects-location-width: 166px;
+  --rav-projects-status-width: 192px;
+  --rav-projects-money-width: 116px;
+  --rav-projects-payback-width: 120px;
+  --rav-projects-action-width: 36px;
 
   /* --- Тени: неоморфные пары (blur Figma = blur CSS) --- */
   --rav-shadow-raised-sm: -2px -2px 6px rgb(255 255 255 / 0.85), 2px 2px 6px rgb(185 179 167 / 0.3);

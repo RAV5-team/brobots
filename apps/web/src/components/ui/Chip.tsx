@@ -2,7 +2,7 @@ import { clsx } from 'clsx'
 import { Check } from 'lucide-react'
 import { useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
 
-export type ChipTone = 'neutral' | 'muted' | 'unconfirmed' | 'inverse' | 'success' | 'accent'
+export type ChipTone = 'neutral' | 'muted' | 'unconfirmed' | 'inverse' | 'success' | 'accent' | 'ready'
 export type ChipSize = 'xs' | 'sm' | 'md'
 
 const TONES: Record<ChipTone, string> = {
@@ -14,6 +14,8 @@ const TONES: Record<ChipTone, string> = {
   success: 'border border-border-strong bg-bg text-on-accent',
   // Лаймовая плашка на светлом: статус «подтверждено» источника (А6 15966:7295, А7).
   accent: 'bg-accent-surface text-text drop-shadow-popover',
+  // Плоская лаймовая плашка без тени: статус «Оценка готова» в списке проектов A1 (16690:13).
+  ready: 'bg-accent text-text',
 }
 
 // xs — характеристики в таблицах (24 px, 11/16, «до 600 кг»), sm — классы и статусы (24 px), md — классы в карточках (32 px).

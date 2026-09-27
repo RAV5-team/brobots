@@ -100,16 +100,16 @@ describe('router', () => {
   })
 
   it('switches the role with ?as= and remembers it for the session', async () => {
-    const view = renderAt('/projects?as=admin')
+    const view = renderAt('/projects/PJ-01/params?as=admin')
     expect(screen.getByTestId('current-role')).toHaveTextContent('Администратор')
     await waitFor(() => { expect(sessionStorage.getItem('rav5.role')).toBe('admin') })
     view.unmount()
-    renderAt('/projects')
+    renderAt('/projects/PJ-01/params')
     expect(screen.getByTestId('current-role')).toHaveTextContent('Администратор')
   })
 
   it('defaults to the user role in dev without ?as=', () => {
-    renderAt('/projects')
+    renderAt('/projects/PJ-01/params')
     expect(screen.getByTestId('current-role')).toHaveTextContent('Пользователь')
   })
 

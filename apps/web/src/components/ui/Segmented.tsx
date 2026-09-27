@@ -6,6 +6,8 @@ export interface SegmentedOption<T extends string> {
   readonly label: string
   /** Вариант ещё недоступен: виден, но не выбирается. */
   readonly disabled?: boolean
+  /** Счётчик после подписи: «Все 7 · Черновики 3» (A1, 16362:8210). Вычисляется, не хранится. */
+  readonly count?: number
 }
 
 interface SegmentedProps<T extends string> {
@@ -47,7 +49,7 @@ export function Segmented<T extends string>({ label, options, value, onChange, s
           disabled={option.disabled}
           data-demo-state={option.value === demoTarget ? demo['data-demo-state'] : undefined}
           className={clsx(
-            'flex items-center justify-center rounded-full font-medium whitespace-nowrap text-text-secondary transition-colors',
+            'group flex items-center justify-center gap-8 rounded-full font-medium whitespace-nowrap text-text-secondary transition-colors',
             size === 40 ? 'h-32' : 'h-36',
             // А7: подпись 13/16 Medium и в выбранном сегменте (15966:7667); эталон 15935:976 — 12/16, выбранный 600.
             fit === 'fill' ? 'flex-1 px-10 type-caption data-[state=on]:px-16 data-[state=on]:font-semibold' : 'px-16 type-body-sm',
@@ -57,6 +59,11 @@ export function Segmented<T extends string>({ label, options, value, onChange, s
           )}
         >
           {option.label}
+          {/* Пробел — для чтения с экрана: «Все 7», а не «Все7»; на экране зазор даёт gap. */}
+          {option.count !== undefined && ' '}
+          {option.count !== undefined && (
+            <span className="type-caption font-medium text-text-secondary group-data-[state=on]:text-on-inverse">{option.count}</span>
+          )}
         </ToggleGroup.Item>
       ))}
     </ToggleGroup.Root>

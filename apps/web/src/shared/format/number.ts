@@ -9,9 +9,12 @@ export function roundHalfUp(value: number, digits = 0): number {
   return Math.sign(value) * Number(`${String(shifted)}e-${String(digits)}`)
 }
 
-/** Число по-русски: разряды через пробел, дробная часть через запятую, без хвостовых нулей. */
-export function formatNumber(value: number, maxFractionDigits = 0): string {
-  return new Intl.NumberFormat(LOCALE, { maximumFractionDigits: maxFractionDigits }).format(
+/**
+ * Число по-русски: разряды через пробел, дробная часть через запятую, без хвостовых нулей.
+ * `fixed` — хвостовые нули остаются: колонка таблицы с одним знаком («84,0», A1).
+ */
+export function formatNumber(value: number, maxFractionDigits = 0, { fixed = false }: { readonly fixed?: boolean } = {}): string {
+  return new Intl.NumberFormat(LOCALE, { maximumFractionDigits: maxFractionDigits, minimumFractionDigits: fixed ? maxFractionDigits : 0 }).format(
     roundHalfUp(value, maxFractionDigits),
   )
 }
