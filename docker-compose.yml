@@ -1,12 +1,12 @@
-# Контур RAV5: Postgres + Keycloak + nginx-шлюз на /auth + сервисы api и simulation.
+# Контур RAV5: Postgres + Keycloak + nginx-шлюз на /auth + сервисы api, simulation и economics.
 #
 #   cp .env.example .env && docker compose up -d --build            # профиль local, http://localhost
 #   docker compose -f docker-compose.yml -f docker-compose.stand.yml up -d --build   # stand, https
 #
-# Postgres — одна инстанция, у каждого потребителя своя роль и БД (keycloak, api, simulation);
+# Postgres — одна инстанция, у каждого потребителя своя роль и БД (keycloak, api, simulation, economics);
 # их создают скрипты infra/postgres/init при первом запуске на пустом томе.
 # Наружу публикуются шлюз, api (API_PORT) и simulation (SIMULATION_PORT).
-# economics и web пока каркасы без кода — в контур не входят.
+# Economics доступен только сервисам во внутренней сети; web остаётся каркасом.
 
 name: rav5
 
@@ -21,6 +21,11 @@ x-service: &service
 x-simulation-build: &simulation-build
   context: .
   dockerfile: services/simulation/Dockerfile
+  target: runtime
+
+x-economics-build: &economics-build
+  context: .
+  dockerfile: services/economics/Dockerfile
   target: runtime
 
 networks:
@@ -46,6 +51,8 @@ services:
       API_DB_PASSWORD: ${API_DB_PASSWORD:?}
       SIM_DB_USERNAME: ${SIM_DB_USERNAME:?}
       SIM_DB_PASSWORD: ${SIM_DB_PASSWORD:?}
+      ECON_DB_USERNAME: ${ECON_DB_USERNAME:?}
+      ECON_DB_PASSWORD: ${ECON_DB_PASSWORD:?}
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
@@ -183,3 +190,25 @@ services:
     networks: [edge, internal]
     depends_on:
       simulation-migrate: { condition: service_completed_successfully }
+
+  economics-migrate:
+    <<: *service
+    build:
+      <<: *economics-build
+    restart: "no"
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://${ECON_DB_USERNAME}:${ECON_DB_PASSWORD}@postgres:5432/economics
+    networks: [internal]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  economics:
+    <<: *service
+    build: *economics-build
+    environment:
+      DATABASE_URL: postgresql+psycopg://${ECON_DB_USERNAME}:${ECON_DB_PASSWORD}@postgres:5432/economics
+      ECONOMIC_SERVICE_ENV: ${ECONOMIC_SERVICE_ENV:-development}
+    networks: [internal]
+    depends_on:
+      economics-migrate: { condition: service_completed_successfully }

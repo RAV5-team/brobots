@@ -18,14 +18,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # --- код ---
 FROM deps AS source
-# Общий слой сервисов подключается через PYTHONPATH — отдельная сборка пакета не нужна.
 COPY packages/pycommon/ /opt/pycommon/
-ENV PYTHONPATH=/opt/pycommon
 COPY services/economics/ ./
+ENV PYTHONPATH=/app/src:/opt/pycommon
 
 # --- проверки: docker build --target test -f services/economics/Dockerfile . ---
 FROM source AS test
-RUN pip install --no-cache-dir -r requirements-dev.txt && ruff check . && pytest
+RUN pip install --no-cache-dir -r requirements-dev.txt \
+    && ruff check src tests \
+    && pytest
 
 # --- рантайм ---
 FROM source AS runtime
@@ -34,4 +35,4 @@ USER app
 EXPOSE 8002
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=5 \
   CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8002/healthz').status == 200 else 1)"
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002"]
+CMD ["uvicorn", "economic_service.main:app", "--host", "0.0.0.0", "--port", "8002"]
