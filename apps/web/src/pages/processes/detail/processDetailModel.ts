@@ -13,6 +13,7 @@ import type {
 import { ROUTE_PATHS } from '@/app/routePaths'
 import { formatCount, formatNumber, formatPercent, formatRubCompact } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
+import type { NewProjectContext } from '@/pages/projects/new/newProjectModel'
 import { rateUnit } from '../processesModel'
 import { numberParameter, staffing } from '../locationStaffing'
 import { PAYROLL_COEF_PARAMETER, PEAK_FACTOR_PARAMETER } from '../staffParameters'
@@ -147,9 +148,8 @@ export function locationUsages({ process, locations, locationProcesses, facility
 }
 
 /** Новый проект с уже выбранными локацией и процессом — короткий путь в оценку (PRD 9.3, 11.1; D-33). */
-export function newProjectHref(usage: Pick<LocationUsage, 'locationId' | 'locationProcessId'>): string {
-  const params = new URLSearchParams({ new: '1', locationId: usage.locationId, locationProcessId: usage.locationProcessId })
-  return `${ROUTE_PATHS.projects}?${params.toString()}`
+export function newProjectContext(usage: Pick<LocationUsage, 'locationId' | 'locationProcessId'>): NewProjectContext {
+  return { locationId: usage.locationId, locationProcessId: usage.locationProcessId }
 }
 
 /** Каталог с фильтром по классу процесса (PRD 9.3). Фильтр — в адресе, чтобы ссылкой можно было поделиться. */

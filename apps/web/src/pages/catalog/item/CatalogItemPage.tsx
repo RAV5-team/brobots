@@ -7,7 +7,7 @@ import type { LaunchItem, Robot } from '@/domain'
 import { ru } from '@/shared/i18n/ru'
 import { launchItemPrice } from '../catalogModel'
 import { robotCharacteristics, summarize } from '../characteristics'
-import { checkOnSitePath, typeLabelOf } from '../compare/comparePaths'
+import { checkOnSiteContext, typeLabelOf } from '../compare/comparePaths'
 import { LaunchItemCharacteristics, LaunchItemCompatibility } from './LaunchItemSections'
 import { RobotAllCharacteristics, RobotKeySection, RobotLaunchSection, RobotRequirementsSection } from './RobotSections'
 import { SolutionHero } from './SolutionHero'
@@ -31,7 +31,7 @@ function RobotSolution({ robot, data }: { readonly robot: Robot; readonly data: 
         typeLabel={typeLabelOf(entry)}
         description={robot.description || undefined}
         compareRef={{ kind: 'robot', id: robot.id }}
-        checkOnSitePath={checkOnSitePath(entry)}
+        checkOnSite={checkOnSiteContext(entry)}
         facts={[
           { key: 'price', value: robot.priceRub === null ? ru.catalog.card.noPrice : map.equipmentPrice.value?.split(' · ')[0] ?? '', note: t.priceNote },
           { key: 'trl', value: robot.trl === null ? t.noTrl : t.trl(robot.trl), note: t.readiness[robot.readiness] },

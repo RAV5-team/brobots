@@ -5,7 +5,8 @@ import { IconButton } from '@/components/ui/IconButton'
 import { formatRubMillions } from '@/shared/format/money'
 import { ru } from '@/shared/i18n/ru'
 import { entryName, type CatalogEntry } from '../catalogModel'
-import { checkOnSitePath, typeLabelOf } from './comparePaths'
+import { useNewProjectLink } from '@/pages/projects/new/useNewProjectLink'
+import { checkOnSiteContext, typeLabelOf } from './comparePaths'
 
 const t = ru.catalog.comparePage
 
@@ -16,6 +17,7 @@ interface CompareColumnHeadProps {
 
 /** Шапка колонки К-3 (16642:2503): тип, «×», название, производитель, цена, УГТ и «Проверить на объекте» (D-57). */
 export function CompareColumnHead({ entry, onRemove }: CompareColumnHeadProps) {
+  const newProjectLink = useNewProjectLink()
   const name = entryName(entry)
   const maker = entry.kind === 'robot' ? entry.robot.manufacturer : entry.item.supplier
   const price = entry.kind === 'robot'
@@ -33,7 +35,7 @@ export function CompareColumnHead({ entry, onRemove }: CompareColumnHeadProps) {
       <p className="type-caption text-text-secondary">{maker}</p>
       <p className="type-title-lg text-text">{price}</p>
       {trl !== null && <p className="px-12 py-4 type-caption font-medium text-text">{t.trl(trl)}</p>}
-      <ButtonLink to={checkOnSitePath(entry)} aria-label={t.checkOnSiteLabel(name)} className="mt-auto w-full">{t.checkOnSite}</ButtonLink>
+      <ButtonLink to={newProjectLink(checkOnSiteContext(entry))} aria-haspopup="dialog" aria-label={t.checkOnSiteLabel(name)} className="mt-auto w-full">{t.checkOnSite}</ButtonLink>
     </div>
   )
 }

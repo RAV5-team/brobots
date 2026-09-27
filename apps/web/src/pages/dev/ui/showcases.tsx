@@ -5,7 +5,7 @@ import { CheckboxShowcase, RadioShowcase, SegmentedShowcase, SelectShowcase } fr
 import { BadgeShowcase, ChipShowcase, ToggleShowcase } from './step3Showcases'
 import { CardShowcase, ProgressShowcase, SectionHeaderShowcase, TableShowcase } from './step4Showcases'
 import { DropzoneShowcase, FileInputShowcase, ModalShowcase, StatesShowcase } from './step5Showcases'
-import { CharacteristicRowShowcase, ChipListShowcase, CompareTableShowcase, MultiSelectShowcase } from './step7Showcases'
+import { CharacteristicRowShowcase, ChipListShowcase, CompareTableShowcase, MultiSelectShowcase, RadioTableShowcase } from './step7Showcases'
 import { FormulaStatsShowcase, SectionNavShowcase, StatusBannerShowcase, TabNavShowcase, TextLinkShowcase } from './step6Showcases'
 
 export interface Showcase {
@@ -26,6 +26,7 @@ export const SHOWCASES: readonly Showcase[] = [
   { slug: 'multi-select', title: 'MultiSelectFilter', Component: MultiSelectShowcase },
   { slug: 'checkbox', title: 'Checkbox', Component: CheckboxShowcase },
   { slug: 'radio', title: 'Radio', Component: RadioShowcase },
+  { slug: 'radio-table', title: 'RadioTable', Component: RadioTableShowcase },
   { slug: 'toggle', title: 'Toggle', Component: ToggleShowcase },
   { slug: 'chip', title: 'Chip', Component: ChipShowcase },
   { slug: 'chip-list', title: 'ChipList · MoreChip', Component: ChipListShowcase },

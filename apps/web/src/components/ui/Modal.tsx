@@ -4,15 +4,17 @@ import { clsx } from 'clsx'
 import type { ReactNode } from 'react'
 import { ru } from '@/shared/i18n/ru'
 
-export type ModalSize = 'md' | 'form' | 'sm'
+export type ModalSize = 'md' | 'form' | 'sm' | 'wide'
 
 // md — окно со списком (15а): 620, p28, gap16, футер без отступа снизу (15950:3082).
 // form — окно с формой (А7 15966:7697, А10 15966:8434): как md, футер 84 = 16 + кнопка 44 + 24 снизу.
 // sm — подтверждение (17в, 16036:573): 560, p32, gap20, под кнопками 24.
+// wide — выбор из таблицы (A2, 16429:2): 640, p32, gap20; футер отделён только зазором 20.
 const SIZES: Record<ModalSize, { readonly content: string; readonly header: string; readonly footer: string }> = {
-  md: { content: 'w-[620px] gap-16 p-28', header: 'gap-12', footer: '' },
-  form: { content: 'w-[620px] gap-16 p-28', header: 'gap-12', footer: 'pb-24' },
-  sm: { content: 'w-[560px] gap-20 p-32', header: 'gap-16', footer: 'pb-24' },
+  md: { content: 'w-[620px] gap-16 p-28', header: 'gap-12', footer: 'pt-16' },
+  form: { content: 'w-[620px] gap-16 p-28', header: 'gap-12', footer: 'pt-16 pb-24' },
+  sm: { content: 'w-[560px] gap-20 p-32', header: 'gap-16', footer: 'pt-16 pb-24' },
+  wide: { content: 'w-(--rav-modal-wide-width) gap-20 p-32', header: 'gap-16', footer: '' },
 }
 
 interface ModalProps {
@@ -31,7 +33,8 @@ interface ModalProps {
 }
 
 /**
- * Модальное окно (components.md: Modal): 620 px — со списком (15а) или формой (`size="form"`, А7, А10), 560 px — подтверждение (`size="sm"`, 16036:573).
+ * Модальное окно (components.md: Modal): 620 px — со списком (15а) или формой (`size="form"`, А7, А10), 560 px — подтверждение (`size="sm"`, 16036:573),
+ * 640 px — выбор строки таблицы (`size="wide"`, A2, 16429:2).
  * Radix держит фокус внутри, закрывает по Esc и клику по подложке, возвращает фокус на кнопку.
  */
 export function Modal({ title, size = 'md', description, trigger, open, onOpenChange, footer, onCloseAutoFocus, children }: ModalProps) {
@@ -61,7 +64,7 @@ export function Modal({ title, size = 'md', description, trigger, open, onOpenCh
             </Dialog.Close>
           </header>
           {children}
-          {footer && <footer className={clsx('flex items-center justify-end gap-12 pt-16', SIZES[size].footer)}>{footer}</footer>}
+          {footer && <footer className={clsx('flex items-center justify-end gap-12', SIZES[size].footer)}>{footer}</footer>}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

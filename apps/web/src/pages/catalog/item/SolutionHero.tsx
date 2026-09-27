@@ -3,6 +3,8 @@ import type { ReactNode } from 'react'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { COMPARE_LIMIT, hasEntry, type CompareEntry } from '@/domain'
+import type { NewProjectContext } from '@/pages/projects/new/newProjectModel'
+import { useNewProjectLink } from '@/pages/projects/new/useNewProjectLink'
 import { useCompare } from '@/shared/compare/useCompare'
 import { ru } from '@/shared/i18n/ru'
 
@@ -23,8 +25,8 @@ interface SolutionHeroProps {
   readonly typeLabel: string
   readonly description?: string | undefined
   readonly compareRef: CompareEntry
-  /** «Проверить на своём объекте» — адрес окна «Новый проект» с этим решением (D-57); нет — кнопки нет. */
-  readonly checkOnSitePath?: string | undefined
+  /** «Проверить на своём объекте» — окно «Новый проект» с этим решением поверх страницы (D-57, D-84); нет — кнопки нет. */
+  readonly checkOnSite?: NewProjectContext | undefined
   readonly facts: readonly SolutionFact[]
   readonly children?: ReactNode
 }
@@ -33,7 +35,8 @@ interface SolutionHeroProps {
  * Шапка страницы решения К-4 (16777:788): тип и классы, название, производитель и регион, фото или метка типа,
  * описание, «Добавить в сравнение» (как на К-1, D-67) и «Проверить на своём объекте», плитки фактов.
  */
-export function SolutionHero({ kicker, name, subtitle, photo, typeLabel, description, compareRef, checkOnSitePath, facts }: SolutionHeroProps) {
+export function SolutionHero({ kicker, name, subtitle, photo, typeLabel, description, compareRef, checkOnSite, facts }: SolutionHeroProps) {
+  const newProjectLink = useNewProjectLink()
   const { entries, toggle } = useCompare()
   const inCompare = hasEntry(entries, compareRef)
   const full = entries.length >= COMPARE_LIMIT && !inCompare
@@ -67,7 +70,7 @@ export function SolutionHero({ kicker, name, subtitle, photo, typeLabel, descrip
               {inCompare && <Check aria-hidden size={16} />}
               {inCompare ? t.inCompare : t.addToCompare}
             </Button>
-            {checkOnSitePath && <ButtonLink to={checkOnSitePath}>{t.checkOnSite}</ButtonLink>}
+            {checkOnSite && <ButtonLink to={newProjectLink(checkOnSite)} aria-haspopup="dialog">{t.checkOnSite}</ButtonLink>}
           </div>
         </div>
       </div>

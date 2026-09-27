@@ -1397,6 +1397,34 @@ export const ru = {
     },
   },
 
+  /** Окно A2 «Новый проект» (PRD 11.1; 16429:2). */
+  newProject: {
+    title: 'Выберите локацию нового проекта',
+    tableLabel: 'Локация нового проекта',
+    columns: { location: 'Локация', area: 'Площадь', staff: 'Персонал', labor: 'Ручной труд' },
+    caption: (facilityType: string, date: string) => `${facilityType} · данные от ${date}`,
+    area: (value: string) => `${value} м²`,
+    staff: (value: string) => `${value} чел`,
+    noValue: '—',
+    rowLabel: (row: { readonly name: string; readonly caption: string; readonly area: string; readonly staff: string; readonly labor: string }) =>
+      `${row.name}, ${row.caption}; площадь ${row.area}, персонал ${row.staff}, ручной труд ${row.labor}`,
+    cancel: 'Отменить',
+    continue: 'Продолжить',
+    creating: 'Создаём проект…',
+    /** До выбора процесса на шаге 1; потом — «Роботизация {процесс} · {локация}» (PRD 11.1, D-84). */
+    draftName: (location: string) => `Новый проект · ${location}`,
+    createError: 'Не удалось создать проект. Повторите — выбранная локация сохранится',
+    loadError: {
+      title: 'Не удалось загрузить локации',
+      message: 'Сервис данных не ответил. Проверьте подключение и повторите',
+    },
+    empty: {
+      title: 'Локаций пока нет',
+      description: 'Проект считается для локации: создайте её, чтобы начать оценку',
+      action: 'Создать локацию',
+    },
+  },
+
   projectSteps: {
     params: 'Параметры',
     matching: 'Подбор',

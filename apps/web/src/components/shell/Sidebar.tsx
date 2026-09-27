@@ -2,6 +2,7 @@ import { clsx } from 'clsx'
 import { Plus } from 'lucide-react'
 import { Link } from 'react-router'
 import { ROUTE_PATHS } from '@/app/routePaths'
+import { useNewProjectLink } from '@/pages/projects/new/useNewProjectLink'
 import type { DataVersion, Profile, Role } from '@/domain'
 import { ru } from '@/shared/i18n/ru'
 import { NavLinkItem } from './NavLinkItem'
@@ -20,6 +21,8 @@ export interface SidebarProps {
 /** Левое меню — один компонент с вариантами по роли (D-01; эталон 15935:207). */
 export function Sidebar({ role, activeKey, counts, profile, dataVersion }: SidebarProps) {
   const isGuest = role === 'guest'
+  // Пользователь и администратор открывают окно A2 поверх текущей страницы; гость — демо-проект (D-26, D-84).
+  const newProjectLink = useNewProjectLink()()
 
   return (
     <aside className="sticky top-0 flex h-screen w-sidebar shrink-0 flex-col gap-16 rounded-r-3xl border border-highlight bg-bg px-16 py-20 shadow-raised-lg">
@@ -29,7 +32,8 @@ export function Sidebar({ role, activeKey, counts, profile, dataVersion }: Sideb
       </div>
 
       <Link
-        to={ROUTE_PATHS.projects}
+        to={isGuest ? ROUTE_PATHS.projects : newProjectLink}
+        {...(isGuest ? {} : { 'aria-haspopup': 'dialog' as const })}
         className={clsx(
           'flex h-48 items-center justify-between gap-8 rounded-full border border-highlight bg-bg py-8 pr-16 font-medium whitespace-nowrap text-text shadow-raised-sm transition-shadow hover:shadow-raised-md active:shadow-inset-sm',
           // «Открыть демо-проект» не помещается в 14 px при отступе 20 — как в макете гостя, плотнее (D-26).

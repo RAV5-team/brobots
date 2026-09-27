@@ -62,9 +62,9 @@ describe('ComparePage (экран К-3)', () => {
     expect(screen.getByRole('button', { name: 'Очистить сравнение' })).toBeDisabled()
   })
 
-  it('leads «Проверить на объекте» to a new project with the chosen solution (D-57, D-75)', async () => {
+  it('opens «Новый проект» over the comparison with the chosen solution (D-57, D-84)', async () => {
     renderPage(TWO)
-    expect((await table()).getByRole('link', { name: 'Проверить на объекте: AMR 800' })).toHaveAttribute('href', '/projects?new=1&solution=RB-0008')
+    expect((await table()).getByRole('link', { name: 'Проверить на объекте: AMR 800' })).toHaveAttribute('href', '/catalog/compare?new=1&solution=RB-0008')
   })
 
   it('returns to the catalog selection it came from', async () => {
