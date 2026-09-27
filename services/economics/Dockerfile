@@ -26,7 +26,7 @@ ENV PYTHONPATH=/app/src:/opt/pycommon
 FROM source AS test
 RUN pip install --no-cache-dir -r requirements-dev.txt \
     && ruff check src tests \
-    && pytest
+    && pytest -m "not postgres"
 
 # --- рантайм ---
 FROM source AS runtime
