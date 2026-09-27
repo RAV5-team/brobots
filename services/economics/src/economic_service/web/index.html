@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Economic model workbench</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        color: #1d2939;
+        background: #f4f6f8;
+        font-synthesis: none;
+      }
+
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      header {
+        padding: 22px clamp(18px, 4vw, 48px);
+        background: #fff;
+        border-bottom: 1px solid #e4e7ec;
+      }
+      h1 { margin: 0; font-size: 22px; letter-spacing: -0.03em; }
+      header p { margin: 7px 0 0; color: #667085; font-size: 14px; }
+      main {
+        display: grid;
+        grid-template-columns: minmax(340px, 0.85fr) minmax(420px, 1.15fr);
+        gap: 18px;
+        max-width: 1500px;
+        margin: 0 auto;
+        padding: 22px clamp(14px, 3vw, 36px) 44px;
+      }
+      .panel {
+        min-width: 0;
+        background: #fff;
+        border: 1px solid #e4e7ec;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgb(16 24 40 / 4%);
+      }
+      .panel-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 16px 18px;
+        border-bottom: 1px solid #eaecf0;
+      }
+      h2 { margin: 0; font-size: 15px; }
+      .panel-body { padding: 16px 18px 18px; }
+      .hint { color: #667085; font-size: 12px; line-height: 1.55; }
+      .hint code, code { color: #344054; }
+      .toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
+      button {
+        min-height: 36px;
+        padding: 8px 12px;
+        color: #344054;
+        background: #fff;
+        border: 1px solid #d0d5dd;
+        border-radius: 7px;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button.primary { color: #fff; background: #175cd3; border-color: #175cd3; }
+      button:disabled { opacity: 0.55; cursor: wait; }
+      textarea {
+        width: 100%;
+        min-height: 620px;
+        resize: vertical;
+        padding: 12px;
+        color: #101828;
+        background: #fcfcfd;
+        border: 1px solid #d0d5dd;
+        border-radius: 8px;
+        font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        tab-size: 2;
+      }
+      .input-label { display: block; margin: 16px 0 7px; font-size: 12px; font-weight: 650; }
+      .endpoint { color: #475467; font-size: 12px; }
+      .health { font-size: 12px; font-weight: 600; }
+      .health[data-state="ok"] { color: #067647; }
+      .health[data-state="error"] { color: #b42318; }
+      #message { margin: 0 0 14px; color: #667085; font-size: 13px; }
+      #message.error { color: #b42318; }
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 9px;
+        margin-bottom: 16px;
+      }
+      .summary-card {
+        padding: 11px 12px;
+        background: #f9fafb;
+        border: 1px solid #eaecf0;
+        border-radius: 8px;
+      }
+      .summary-card span { display: block; color: #667085; font-size: 11px; }
+      .summary-card strong { display: block; margin-top: 5px; font-size: 13px; }
+      .candidate-card { margin-top: 12px; border: 1px solid #eaecf0; border-radius: 9px; }
+      .candidate-card > summary {
+        padding: 12px;
+        color: #344054;
+        background: #f9fafb;
+        border-radius: 9px;
+        font-size: 13px;
+        font-weight: 650;
+        cursor: pointer;
+      }
+      .candidate-content { padding: 3px 12px 12px; }
+      .stage { margin-top: 10px; border-top: 1px solid #eaecf0; }
+      .stage > summary { padding: 10px 0 6px; font-size: 13px; font-weight: 650; cursor: pointer; }
+      .metric { padding: 8px 0; border-top: 1px solid #f2f4f7; }
+      .metric-line { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+      .metric-name { overflow-wrap: anywhere; color: #344054; font-size: 12px; }
+      .metric-value { flex: 0 0 auto; color: #101828; font-size: 12px; font-weight: 650; text-align: right; }
+      .metric-value small { color: #667085; font-weight: 400; }
+      .trace { margin-top: 6px; }
+      .trace summary { color: #667085; font-size: 11px; cursor: pointer; }
+      .trace ul { margin: 6px 0 0; padding-left: 18px; color: #667085; font: 11px/1.6 ui-monospace, monospace; }
+      .risks { margin: 8px 0; padding-left: 18px; color: #b54708; font-size: 12px; }
+      pre.error-body, pre.raw-snapshot {
+        overflow: auto;
+        max-height: 320px;
+        padding: 12px;
+        color: #344054;
+        background: #f9fafb;
+        border: 1px solid #eaecf0;
+        border-radius: 8px;
+        font: 11px/1.5 ui-monospace, monospace;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      @media (max-width: 900px) {
+        main { grid-template-columns: 1fr; }
+        textarea { min-height: 420px; }
+      }
+      @media (max-width: 520px) {
+        .summary-grid { grid-template-columns: 1fr; }
+        .panel-heading { align-items: flex-start; flex-direction: column; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Economic model workbench</h1>
+      <p>Change the request, call the API, and inspect each metric with its formula inputs.</p>
+    </header>
+    <main>
+      <section class="panel" aria-labelledby="request-title">
+        <div class="panel-heading">
+          <h2 id="request-title">Evaluation request</h2>
+          <div class="toolbar">
+            <button id="load-example" type="button">Load example</button>
+            <button id="run" class="primary" type="button">Run calculation</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <p class="hint">
+            This editable example runs purchase and RaaS scenarios for one candidate.
+            Change any input in the JSON. Each run gets a new evaluation ID.
+          </p>
+          <label class="input-label" for="request-json">Request JSON · RUB · economic-v1.1</label>
+          <textarea id="request-json" spellcheck="false" aria-describedby="request-help"></textarea>
+          <p id="request-help" class="hint">
+            The page sends <code>POST /api/v1/evaluations</code>, then retrieves the saved
+            snapshot with <code>GET /api/v1/evaluations/{id}</code>.
+          </p>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="results-title">
+        <div class="panel-heading">
+          <h2 id="results-title">Calculation results</h2>
+          <span id="health" class="health" data-state="checking">Checking API…</span>
+        </div>
+        <div class="panel-body">
+          <p id="message" role="status">Run the example to see calculated metrics and traces.</p>
+          <div id="summary"></div>
+          <div id="results"></div>
+          <details id="raw-details" hidden>
+            <summary class="hint">Show retrieved snapshot JSON</summary>
+            <pre id="raw-snapshot" class="raw-snapshot"></pre>
+          </details>
+          <pre id="error-body" class="error-body" hidden></pre>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      "use strict";
+
+      const source = {
+        source: "manual-workbench-example",
+        origin: "user",
+        confirmation: "confirmed",
+        version: "economic-v1.1",
+        note: "Demonstration inputs; edit before using for an assessment."
+      };
+      const money = (amount) => ({ amount: String(amount), currency: "RUB", scale: 0 });
+      const examplePayload = {
+        evaluation_id: "manual-example",
+        project_id: "manual-project",
+        model_version: "economic-v1.1",
+        task: {
+          project_id: "manual-project",
+          task_id: "warehouse-pallet-movement",
+          operations_per_day: "100",
+          peak_factor: "2",
+          automatable_share: "1",
+          operating_hours_per_day: "10",
+          one_way_route_m: "100",
+          site_speed_limit_mps: "2",
+          load_unit_mass_kg: "100",
+          load_is_divisible: false,
+          available_charging_power_kw: "5",
+          target_fte: "10",
+          target_annual_payroll: money("100000"),
+          baseline_annual_opex: money("120000"),
+          fleet_operators_per_shift: "0.5",
+          shifts_per_day: "2",
+          staff_time_loss_share: "0.1",
+          fleet_operator_monthly_salary: money("1000"),
+          target_monthly_salary: money("1000"),
+          annual_staff_turnover: "0.1",
+          annual_other_benefits: money("1000"),
+          replacement_by_handling: [["forks", "0.5"]],
+          horizon_years: 5,
+          budget: money("100000"),
+          source,
+          lift_trip_share: "0",
+          one_way_lift_seconds: "0",
+          integration_cost: money("0"),
+          annual_consumables_per_robot: money("0")
+        },
+        candidates: [{
+          candidate_id: "manual-robot-1",
+          robot_code: "DEMO-ROBOT",
+          price: money("10000"),
+          payload_kg: "100",
+          max_speed_mps: "2",
+          loading_seconds: "10",
+          unloading_seconds: "20",
+          average_power_kw: "1",
+          handling_method: "forks",
+          catalog_status: "operation",
+          confirmation: "confirmed",
+          source
+        }],
+        norms: {
+          payroll_multiplier: "1",
+          productive_time_share: "0.8",
+          technical_availability: "0.9",
+          fleet_reserve_share: "0.1",
+          operating_speed_factor: "1",
+          robots_per_charger: "2",
+          charger_installed_price: money("1000"),
+          charger_power_kw: "2.5",
+          fms_upfront_share: "0.1",
+          delivery_share: "0.05",
+          commissioning_share: "0.1",
+          training_cost: money("500"),
+          capex_contingency_share: "0.1",
+          annual_service_share: "0.05",
+          annual_license_share: "0.02",
+          annual_repair_share: "0.03",
+          electricity_price: money("0.2"),
+          battery_life_years: "4",
+          battery_replacement_share: "0.1",
+          annual_connectivity_cost: money("100"),
+          equipment_life_years: "10",
+          discount_rate: "0.1",
+          loan_share: "0.5",
+          loan_interest_rate: "0.1",
+          loan_term_years: "5",
+          monthly_raas_share: "0.02",
+          raas_setup_share: "0.1",
+          recruitment_months_salary: "1",
+          good_payback_years: "2",
+          medium_payback_years: "4",
+          site_preparation_share: "0.05",
+          source
+        },
+        scenarios: [
+          {
+            acquisition_model: "purchase",
+            price_factor: "1",
+            volume_factor: "1",
+            labor_factor: "1",
+            model_version: "economic-v1.1"
+          },
+          {
+            acquisition_model: "raas",
+            price_factor: "1",
+            volume_factor: "1",
+            labor_factor: "1",
+            model_version: "economic-v1.1"
+          }
+        ]
+      };
+
+      const stageNames = {
+        demand: "1 · Demand",
+        labor: "2 · Labor",
+        productivity: "3 · Productivity",
+        fleet: "4 · Fleet",
+        price: "5 · Price",
+        capex: "6 · CAPEX",
+        opex: "7 · OPEX",
+        effects: "8 · Effects",
+        returns: "9 · Returns",
+        budget: "10 · Budget",
+        interpretation: "11 · Interpretation"
+      };
+      const editor = document.getElementById("request-json");
+      const runButton = document.getElementById("run");
+      const healthLabel = document.getElementById("health");
+      const message = document.getElementById("message");
+
+      function setExample() {
+        editor.value = JSON.stringify(examplePayload, null, 2);
+      }
+
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, (char) => ({
+          "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+        })[char]);
+      }
+
+      function displayValue(value) {
+        if (value === null || value === undefined) return "—";
+        if (typeof value === "object") return JSON.stringify(value);
+        return String(value);
+      }
+
+      function renderSnapshot(snapshot) {
+        const result = snapshot.result;
+        const summary = document.getElementById("summary");
+        const results = document.getElementById("results");
+        const errorBody = document.getElementById("error-body");
+        const rawDetails = document.getElementById("raw-details");
+        document.getElementById("raw-snapshot").textContent = JSON.stringify(snapshot, null, 2);
+        rawDetails.hidden = false;
+        errorBody.hidden = true;
+        summary.innerHTML = `<div class="summary-grid">
+          <div class="summary-card"><span>Evaluation</span><strong>${escapeHtml(snapshot.evaluation_id)}</strong></div>
+          <div class="summary-card"><span>Economic status</span><strong>${escapeHtml(result.status)}</strong></div>
+          <div class="summary-card"><span>Ranking</span><strong>${escapeHtml(result.ranking.status)} · ${escapeHtml(result.ranking.model_version)}</strong></div>
+        </div>`;
+        results.replaceChildren();
+
+        for (const candidate of result.candidates) {
+          const card = document.createElement("details");
+          card.className = "candidate-card";
+          card.open = true;
+          const heading = document.createElement("summary");
+          heading.textContent = `${candidate.candidate_id} · ${candidate.acquisition_model} · ${candidate.status}`;
+          card.append(heading);
+          const content = document.createElement("div");
+          content.className = "candidate-content";
+          if (candidate.risks.length) {
+            const risks = document.createElement("ul");
+            risks.className = "risks";
+            for (const risk of candidate.risks) {
+              const item = document.createElement("li");
+              item.textContent = risk;
+              risks.append(item);
+            }
+            content.append(risks);
+          }
+
+          const traces = new Map(candidate.traces.map((trace) => [trace.formula_id, trace]));
+          const stages = new Map();
+          for (const metric of candidate.metrics) {
+            const stage = metric.code.split(".")[1] || "other";
+            if (!stages.has(stage)) stages.set(stage, []);
+            stages.get(stage).push(metric);
+          }
+          for (const [stage, metrics] of stages) {
+            const group = document.createElement("details");
+            group.className = "stage";
+            group.open = true;
+            const stageHeading = document.createElement("summary");
+            stageHeading.textContent = stageNames[stage] || stage;
+            group.append(stageHeading);
+            for (const metric of metrics) {
+              const row = document.createElement("div");
+              row.className = "metric";
+              const line = document.createElement("div");
+              line.className = "metric-line";
+              const name = document.createElement("span");
+              name.className = "metric-name";
+              name.textContent = metric.code;
+              const value = document.createElement("span");
+              value.className = "metric-value";
+              value.textContent = displayValue(metric.value);
+              const unit = document.createElement("small");
+              unit.textContent = ` ${metric.unit}`;
+              value.append(unit);
+              line.append(name, value);
+              row.append(line);
+              const trace = traces.get(metric.code);
+              if (trace) {
+                const traceDetails = document.createElement("details");
+                traceDetails.className = "trace";
+                const traceLabel = document.createElement("summary");
+                traceLabel.textContent = `Formula inputs · ${trace.source.source}`;
+                traceDetails.append(traceLabel);
+                const inputs = document.createElement("ul");
+                for (const input of trace.inputs) {
+                  const item = document.createElement("li");
+                  item.textContent = `${input.name} = ${displayValue(input.value)}`;
+                  inputs.append(item);
+                }
+                traceDetails.append(inputs);
+                row.append(traceDetails);
+              }
+              group.append(row);
+            }
+            content.append(group);
+          }
+          card.append(content);
+          results.append(card);
+        }
+        message.className = "";
+        message.textContent = `Retrieved saved snapshot · ${new Date(snapshot.created_at).toLocaleString()}`;
+      }
+
+      async function checkApi() {
+        try {
+          const response = await fetch("/healthz");
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const health = await response.json();
+          healthLabel.textContent = `API ${health.status}`;
+          healthLabel.dataset.state = "ok";
+        } catch (error) {
+          healthLabel.textContent = "API unavailable";
+          healthLabel.dataset.state = "error";
+        }
+      }
+
+      async function runCalculation() {
+        const errorBody = document.getElementById("error-body");
+        const summary = document.getElementById("summary");
+        const results = document.getElementById("results");
+        const rawDetails = document.getElementById("raw-details");
+        runButton.disabled = true;
+        errorBody.hidden = true;
+        rawDetails.hidden = true;
+        summary.replaceChildren();
+        results.replaceChildren();
+        message.className = "";
+        try {
+          const payload = JSON.parse(editor.value);
+          payload.evaluation_id = crypto.randomUUID();
+          editor.value = JSON.stringify(payload, null, 2);
+          message.textContent = "Sending evaluation request…";
+
+          const created = await fetch("/api/v1/evaluations", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          if (!created.ok) {
+            const body = await created.json();
+            throw new Error(`POST returned HTTP ${created.status}\n${JSON.stringify(body, null, 2)}`);
+          }
+          message.textContent = "Evaluation created. Retrieving saved snapshot…";
+          const saved = await fetch(`/api/v1/evaluations/${encodeURIComponent(payload.evaluation_id)}`);
+          if (!saved.ok) {
+            const body = await saved.json();
+            throw new Error(`GET returned HTTP ${saved.status}\n${JSON.stringify(body, null, 2)}`);
+          }
+          renderSnapshot(await saved.json());
+        } catch (error) {
+          message.className = "error";
+          message.textContent = "Calculation failed. Check the request or API response below.";
+          errorBody.textContent = error instanceof SyntaxError
+            ? `Request JSON is invalid: ${error.message}`
+            : error.message;
+          errorBody.hidden = false;
+        } finally {
+          runButton.disabled = false;
+        }
+      }
+
+      document.getElementById("load-example").addEventListener("click", setExample);
+      runButton.addEventListener("click", runCalculation);
+      setExample();
+      checkApi();
+    </script>
+  </body>
+</html>

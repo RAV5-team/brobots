@@ -1,5 +1,6 @@
-# Каркас сервиса. Доменные зависимости добавляются по мере написания кода.
+alembic>=1.14,<2.0
 fastapi==0.115.6
+psycopg[binary]>=3.2,<4.0
 uvicorn[standard]==0.34.0
 pydantic==2.10.4
-pydantic-settings==2.7.0
+sqlalchemy>=2.0,<3.0
