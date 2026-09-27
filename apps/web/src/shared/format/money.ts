@@ -1,4 +1,4 @@
-import { formatNumber } from './number'
+import { formatNumber, roundHalfUp } from './number'
 
 const RUB = '\u00a0₽'
 
@@ -31,4 +31,12 @@ export function formatRubCompact(value: number, { perYear = false, fractionDigit
   const scaled = value / scale.from
   const digits = fractionDigits ?? (Math.abs(scaled) < COMPACT_PRECISION_LIMIT ? 1 : 0)
   return `${formatNumber(scaled, digits)}\u00a0${scale.label}${RUB}${suffix}`
+}
+
+const MILLION = 1_000_000
+const MILLIONS = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+/** Цена в каталоге — миллионы с двумя знаками: «3,75 млн ₽», «4,00 млн ₽» (А1). */
+export function formatRubMillions(value: number): string {
+  return `${MILLIONS.format(roundHalfUp(value / MILLION, 2))}\u00a0млн${RUB}`
 }

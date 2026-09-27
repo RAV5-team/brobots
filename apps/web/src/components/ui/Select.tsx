@@ -12,7 +12,8 @@ export interface SelectOption<T extends string> {
 
 interface SelectProps<T extends string> {
   readonly options: readonly SelectOption<T>[]
-  readonly value?: T
+  /** '' — ничего не выбрано, видна подсказка: поле остаётся управляемым до выбора. */
+  readonly value?: T | ''
   readonly defaultValue?: T
   readonly onChange?: (value: T) => void
   readonly placeholder?: string
@@ -62,10 +63,11 @@ export function Select<T extends string>({
         </RadixSelect.Icon>
       </RadixSelect.Trigger>
       <RadixSelect.Portal>
+        {/* Выше окна Modal (подложка z-30, окно z-40): список открывается и в форме внутри окна (А7). */}
         <RadixSelect.Content
           position="popper"
           sideOffset={8}
-          className="z-20 max-h-(--radix-select-content-available-height) min-w-(--radix-select-trigger-width) overflow-hidden rounded-xl bg-bg py-8 shadow-raised-lg"
+          className="z-50 max-h-(--radix-select-content-available-height) min-w-(--radix-select-trigger-width) overflow-hidden rounded-xl bg-bg py-8 shadow-raised-lg"
         >
           <RadixSelect.Viewport className="flex flex-col gap-4 px-8">
             {options.map((option) => (

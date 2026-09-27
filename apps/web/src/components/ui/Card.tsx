@@ -14,7 +14,7 @@ interface CardProps extends HTMLAttributes<HTMLElement> {
   readonly variant?: CardVariant
   /** Внутренний отступ; по умолчанию 20. Карточки экрана входа — 28, лаймовые панели — 16 и 8. */
   readonly padding?: 8 | 16 | 20 | 28
-  /** Промежуток между детьми; по умолчанию 12 у panel, 8 у остальных. */
+  /** Промежуток между детьми; по умолчанию 12 у panel, 8 у остальных. Справочник А8 — 16. */
   readonly gap?: 0 | 4 | 8 | 12 | 16 | 20 | 28
   readonly as?: 'section' | 'article' | 'div' | 'ul'
   /** Высота выпуклости panel и tile; по умолчанию lg у panel и md у tile. Панели дашборда 06 — md (15935:147). */

@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
+import { NORM_GROUPS, specsCompleteness } from '@/domain'
+import { formatCount } from '@/shared/format'
+import { ru } from '@/shared/i18n/ru'
+import { DATA_SOURCES } from './dataSources'
 import { FACILITY_PARAMETERS } from './facilityParameters'
 import { LOCATION_PROCESSES } from './locationProcesses'
 import { LOCATIONS } from './locations'
+import { NORMS } from './norms'
 import { OPERATION_CLASSES } from './operationClasses'
 import { PROCESSES } from './processes'
 import { PROJECTS } from './projects'
@@ -72,6 +77,32 @@ describe('fixtures: integrity', () => {
 })
 
 describe('fixtures: resolved PRD 15 discrepancies (README)', () => {
+  it('№10: the norms reference has 34 rows in 6 groups, 12 norms and 22 assumptions (PRD 6.8, D-49)', () => {
+    expect(NORMS).toHaveLength(34)
+    expect(new Set(NORMS.map((n) => n.code)).size).toBe(34)
+    const countOf = (group: string) => NORMS.filter((n) => n.group === group).length
+    expect(Object.fromEntries(NORM_GROUPS.map((group) => [group, countOf(group)]))).toEqual({
+      staff: 3, fleet: 5, capex: 7, opex: 7, finance: 8, interpretation: 4,
+    })
+    expect(NORMS.filter((n) => n.kind === 'norm')).toHaveLength(12)
+  })
+
+  it('№10: the norms source on А6 counts the same 34 rows as А5', () => {
+    const norms = DATA_SOURCES.find((s) => s.kind === 'norms')
+    expect(norms?.provides).toBe(formatCount(NORMS.length, ru.plural.norms))
+  })
+
+  it('№16: ТТХ completeness is counted from the eight А2 parameters (D-46)', () => {
+    const amr800 = robot('AMR 800')
+    expect(amr800?.specs).toMatchObject({ chargeTimeMin: 60, avgPowerKw: 1, loadTimeS: 45, unloadTimeS: 45 })
+    expect(amr800 && specsCompleteness(amr800.specs)).toBe(1)
+    expect(amr800?.updatedAt.startsWith('2026-09-19')).toBe(true)
+  })
+
+  it('№53: only DMR 600 and Сёмабот await confirmation (D-46)', () => {
+    expect(ROBOTS.filter((r) => r.needsConfirmation).map((r) => r.name).sort()).toEqual(['DMR 600', 'Сёмабот'])
+  })
+
   it('№37, №67: pallet mass is the dataset value 800 kg', () => {
     expect(base('wh_pallet_mass')).toBe(800)
     expect(process('PR-0001')?.defaults.unitMassKg).toBe(800)

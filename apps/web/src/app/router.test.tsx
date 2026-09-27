@@ -18,6 +18,30 @@ describe('router', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Процессы' })).toBeInTheDocument()
   })
 
+  it('renders the operation classes screen А8 for an admin', async () => {
+    renderAt('/admin/operation-classes?as=admin')
+    expect(screen.getByRole('heading', { level: 1, name: 'Администрирование' })).toBeInTheDocument()
+    expect(await screen.findByRole('table', { name: 'Классы операций' })).toBeInTheDocument()
+  })
+
+  it('renders the norms screen А5 for an admin', async () => {
+    renderAt('/admin/norms?as=admin')
+    expect(screen.getByRole('heading', { level: 1, name: 'Администрирование' })).toBeInTheDocument()
+    expect(await screen.findByRole('table', { name: 'Нормативы и допущения по умолчанию' })).toBeInTheDocument()
+  })
+
+  it('renders the solutions catalog screen А1 for an admin', async () => {
+    renderAt('/admin/catalog?as=admin')
+    expect(screen.getByRole('heading', { level: 1, name: 'Администрирование' })).toBeInTheDocument()
+    expect(await screen.findByRole('table', { name: 'Каталог решений' })).toBeInTheDocument()
+  })
+
+  it('renders the catalog refresh state А1а for an admin', async () => {
+    renderAt('/admin/catalog/import?as=admin')
+    expect(screen.getByRole('heading', { level: 1, name: 'Администрирование' })).toBeInTheDocument()
+    expect(await screen.findByText('Опрашиваем источники · 1 из 3')).toBeInTheDocument()
+  })
+
   it('renders the locations screen on /locations', () => {
     renderAt('/locations')
     expect(screen.getByRole('heading', { level: 1, name: 'Локации' })).toBeInTheDocument()
@@ -29,10 +53,10 @@ describe('router', () => {
   })
 
   it('renders a stub with the Figma link on routes without a screen yet', () => {
-    renderAt('/admin/norms?as=admin')
-    expect(screen.getByRole('link', { name: /15997:371/ })).toHaveAttribute(
+    renderAt('/admin/journal?as=admin')
+    expect(screen.getByRole('link', { name: /14581:50271/ })).toHaveAttribute(
       'href',
-      'https://www.figma.com/design/sd1kJRdpW6RBFzSi1ztXYK/?node-id=15997-371',
+      'https://www.figma.com/design/sd1kJRdpW6RBFzSi1ztXYK/?node-id=14581-50271',
     )
   })
 
@@ -53,9 +77,9 @@ describe('router', () => {
     expect(screen.getByRole('link', { name: 'Процессы локации' })).toHaveAttribute('aria-current', 'page')
   })
 
-  it('prefers the static /admin/catalog/new over /admin/catalog/:robotId', () => {
-    renderAt('/admin/catalog/new')
-    expect(screen.getByRole('heading', { level: 1, name: 'Администрирование · новый робот' })).toBeInTheDocument()
+  it('renders the new robot card А2 on the static /admin/catalog/new, not /admin/catalog/:robotId', async () => {
+    renderAt('/admin/catalog/new?as=admin')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Новый робот' })).toBeInTheDocument()
   })
 
   it('shows the screen index on /dev/screens', () => {
@@ -90,7 +114,7 @@ describe('router', () => {
   })
 
   it('marks sections closed for the role (PRD 5.3)', () => {
-    renderAt('/admin/norms?as=guest')
+    renderAt('/admin/journal?as=guest')
     expect(screen.getByTestId('route-access')).toHaveTextContent('Раздел недоступен для роли «Гость»')
   })
 

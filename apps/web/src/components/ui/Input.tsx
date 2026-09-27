@@ -1,8 +1,18 @@
 import { clsx } from 'clsx'
 import type { InputHTMLAttributes, ReactNode } from 'react'
+import { INLINE_ACTION_CLASSES } from './buttonStyles'
 import { useFieldControl } from './useFieldControl'
 
 export type InputSize = 'lg' | 'md' | 'compact'
+
+/** Текстовое действие справа в капсуле: «Проверить» у ссылки (А7б, 15966:7933). */
+export interface InputAction {
+  readonly label: string
+  /** Имя для чтения с экрана, если видимой подписи мало: «Проверить ссылку на источник». */
+  readonly ariaLabel?: string
+  readonly onClick: () => void
+  readonly disabled?: boolean
+}
 
 interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> {
   /** lg — 60 px (форма входа 05, 15935:95), md — 44 px (формы), compact — 38 px (таблицы, 15997:428). */
@@ -15,12 +25,14 @@ interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'>
   readonly computed?: boolean
   /** Ошибка без Field; внутри Field берётся из него. */
   readonly invalid?: boolean
+  /** Действие справа внутри капсулы; не отправляет форму. */
+  readonly action?: InputAction
   /** Пусто, но понадобится позже: лаймовая обводка (оклад группы без данных, 15950:2125). Ошибка важнее. */
   readonly attention?: boolean
 }
 
 /** Текстовое поле во вдавленной капсуле (components.md: Input; 15935:946). */
-export function Input({ size = 'md', suffix, leading, computed = false, invalid, attention = false, className, id, ...rest }: InputProps) {
+export function Input({ size = 'md', suffix, leading, computed = false, invalid, attention = false, action, className, id, ...rest }: InputProps) {
   const field = useFieldControl()
   const isInvalid = invalid ?? field?.invalid ?? false
   const SIZES: Record<InputSize, string> = {
@@ -34,7 +46,8 @@ export function Input({ size = 'md', suffix, leading, computed = false, invalid,
       className={clsx(
         'flex w-full items-center gap-8 rounded-full transition-colors',
         'focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-(--rav-focus-ring-color)',
-        'has-disabled:cursor-not-allowed has-disabled:opacity-(--rav-disabled-opacity)',
+        // Только само поле: занятое действие («Проверяем…») не гасит капсулу.
+        'has-[input:disabled]:cursor-not-allowed has-[input:disabled]:opacity-(--rav-disabled-opacity)',
         SIZES[size],
         computed
           ? 'bg-surface-sunken'
@@ -62,6 +75,11 @@ export function Input({ size = 'md', suffix, leading, computed = false, invalid,
         {...rest}
       />
       {suffix && <span className="shrink-0 type-body text-text-muted">{suffix}</span>}
+      {action && (
+        <button type="button" aria-label={action.ariaLabel} disabled={action.disabled} onClick={action.onClick} className={INLINE_ACTION_CLASSES}>
+          {action.label}
+        </button>
+      )}
     </span>
   )
 }

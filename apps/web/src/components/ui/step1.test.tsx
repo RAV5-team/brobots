@@ -59,6 +59,24 @@ describe('Field + Input', () => {
     render(<Field label="Коэффициент начислений"><Input value="1,302" computed /></Field>)
     expect(screen.getByLabelText('Коэффициент начислений')).toHaveAttribute('readonly')
   })
+
+  it('puts a text action inside the capsule that never submits the form (А7б «Проверить»)', () => {
+    const onClick = vi.fn()
+    const onSubmit = vi.fn((event: { preventDefault: () => void }) => { event.preventDefault() })
+    render(
+      <form onSubmit={onSubmit}>
+        <Field label="Ссылка на источник"><Input defaultValue="https://moros.ru" action={{ label: 'Проверить', ariaLabel: 'Проверить ссылку', onClick }} /></Field>
+      </form>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Проверить ссылку' }))
+    expect(onClick).toHaveBeenCalledOnce()
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('blocks the action while it runs', () => {
+    render(<Input aria-label="Ссылка" action={{ label: 'Проверяем…', onClick: vi.fn(), disabled: true }} />)
+    expect(screen.getByRole('button', { name: 'Проверяем…' })).toBeDisabled()
+  })
 })
 
 describe('Search', () => {

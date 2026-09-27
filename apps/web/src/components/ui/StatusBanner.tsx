@@ -2,22 +2,47 @@ import { clsx } from 'clsx'
 import { Check } from 'lucide-react'
 import { useId, type ReactNode } from 'react'
 
+/**
+ * outline — светлая плашка с границей, галочка у заголовка («status · локация создана», 12а, 15950:2251);
+ * inverse — тёмная плашка с лаймовым кругом ✓ («status · каталог обновлён», А3, 15966:6274).
+ */
+export type StatusBannerVariant = 'outline' | 'inverse'
+
 interface StatusBannerProps {
-  /** «Локация „РЦ Химки“ создана» — без «✓»: галочка рисуется иконкой (D-03). */
+  /** «Локация „РЦ Химки“ создана», «Каталог обновлён» — без «✓»: галочка рисуется иконкой (D-03). */
   readonly title: string
-  /** Что получилось и что делать дальше — одной строкой. */
+  /** Что получилось и что делать дальше — одной строкой (только outline, 12а). */
   readonly description?: string
-  /** Следующий шаг справа: «Открыть локацию». */
+  /** Следующий шаг справа: «Открыть локацию» (secondary), «Открыть в каталоге» (`ButtonLink variant="accent"`). */
   readonly action?: ReactNode
+  readonly variant?: StatusBannerVariant
   readonly className?: string
 }
 
-/**
- * Плашка успеха над списком после сохранения (components.md: StatusBanner; 15950:2251 «status · локация создана»):
- * граница border-strong, радиус 16, заголовок цветом on-accent. Объявляется скринридером как статус.
- */
-export function StatusBanner({ title, description, action, className }: StatusBannerProps) {
+function InverseBanner({ title, action, className }: Omit<StatusBannerProps, 'variant' | 'description'>) {
   const titleId = useId()
+  return (
+    <section
+      role="status"
+      aria-labelledby={titleId}
+      className={clsx('surface-inverse flex items-center gap-16 rounded-xl bg-inverse px-20 py-16', className)}
+    >
+      <span aria-hidden className="flex size-40 shrink-0 items-center justify-center rounded-full bg-accent text-text">
+        <Check size={20} strokeWidth={3} />
+      </span>
+      <h2 id={titleId} className="flex-1 type-title-md text-bg">{title}</h2>
+      {action}
+    </section>
+  )
+}
+
+/**
+ * Плашка успеха над списком после сохранения (components.md: StatusBanner; 15950:2251, 15966:6274).
+ * Объявляется скринридером как статус.
+ */
+export function StatusBanner({ title, description, action, variant = 'outline', className }: StatusBannerProps) {
+  const titleId = useId()
+  if (variant === 'inverse') return <InverseBanner title={title} action={action} {...(className ? { className } : {})} />
   return (
     <section
       role="status"

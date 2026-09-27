@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatCount, formatNumber, formatPercent, formatRub, formatRubCompact, formatYears, pluralize, roundHalfUp } from './index'
+import { formatCount, formatFileSize, formatNumber, formatPercent, formatRub, formatRubCompact, formatRubMillions, formatYears, pluralize, roundHalfUp } from './index'
 
 // Intl вставляет неразрывные пробелы: U+00A0 перед ₽ и U+202F в разрядах.
 const plain = (s: string) => s.replace(/[\u00a0\u202f]/g, ' ')
@@ -51,6 +51,19 @@ describe('formatRubCompact', () => {
   })
 })
 
+describe('formatRubMillions', () => {
+  it('prints millions with exactly two decimals, as in the catalog (А1)', () => {
+    expect(plain(formatRubMillions(3_750_000))).toBe('3,75 млн ₽')
+    expect(plain(formatRubMillions(2_500_000))).toBe('2,50 млн ₽')
+    expect(plain(formatRubMillions(950_000))).toBe('0,95 млн ₽')
+    expect(plain(formatRubMillions(4_000_000))).toBe('4,00 млн ₽')
+  })
+
+  it('rounds halves up', () => {
+    expect(plain(formatRubMillions(1_005_000))).toBe('1,01 млн ₽')
+  })
+})
+
 describe('pluralize (Intl.PluralRules ru)', () => {
   const robots = ['робот', 'робота', 'роботов'] as const
 
@@ -86,5 +99,17 @@ describe('formatPercent', () => {
   it('formats shares as percents', () => {
     expect(plain(formatPercent(0.95))).toBe('95 %')
     expect(plain(formatPercent(0.125, 1))).toBe('12,5 %')
+  })
+})
+
+describe('formatFileSize', () => {
+  it('prints megabytes with one decimal, like «2,4 МБ» in А7', () => {
+    expect(formatFileSize(2.4 * 1024 * 1024)).toBe('2,4 МБ')
+    expect(formatFileSize(20 * 1024 * 1024)).toBe('20 МБ')
+  })
+
+  it('prints small files in kilobytes, never «0 МБ»', () => {
+    expect(formatFileSize(350 * 1024)).toBe('350 КБ')
+    expect(formatFileSize(10)).toBe('1 КБ')
   })
 })

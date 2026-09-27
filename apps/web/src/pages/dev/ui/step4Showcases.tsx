@@ -2,6 +2,7 @@ import { Badge, type BadgeKind } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card, CardStat, CardTitle, KpiCard } from '@/components/ui/Card'
 import { Progress } from '@/components/ui/Progress'
+import { ProgressPanel } from '@/components/ui/ProgressPanel'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from '@/components/ui/Table'
 import type { ValueSource } from '@/domain'
@@ -112,6 +113,9 @@ export function ProgressShowcase() {
             <Progress label={s.sourcesPolling} value={v} />
           </div>
         ))}
+      </div>
+      <div className="w-[660px]">
+        <ProgressPanel title={s.pollingTitle} label={s.sourcesPolling} value={66}>{s.pollingDetail}</ProgressPanel>
       </div>
     </ShowcaseSection>
   )

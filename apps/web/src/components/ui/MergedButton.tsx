@@ -1,6 +1,6 @@
 import { clsx } from 'clsx'
 import type { LucideIcon } from 'lucide-react'
-import type { ButtonHTMLAttributes } from 'react'
+import type { ButtonHTMLAttributes, Ref } from 'react'
 import { Link, type LinkProps } from 'react-router'
 
 interface BridgeProps {
@@ -45,6 +45,8 @@ interface MergedButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>
   readonly icon: LucideIcon
   /** На всю ширину колонки: капсула растягивается, круг остаётся справа (09а «Сохранить процесс →», 15935:1270). */
   readonly block?: boolean
+  /** Возврат фокуса после окна, открытого этой кнопкой (А7). */
+  readonly ref?: Ref<HTMLButtonElement>
 }
 
 /** То же главное действие, но кнопкой: отправка формы, сохранение (components.md: MergedButton). */

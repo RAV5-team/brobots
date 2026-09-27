@@ -1,12 +1,14 @@
 import { ArrowLeft } from 'lucide-react'
 import { useState } from 'react'
-import { ButtonLink } from '@/components/ui/Button'
+import { ROUTE_PATHS } from '@/app/routePaths'
+import { Button, ButtonLink } from '@/components/ui/Button'
 import { FormulaStats } from '@/components/ui/FormulaStats'
 import { SectionNav } from '@/components/ui/SectionNav'
 import { StatusBanner } from '@/components/ui/StatusBanner'
 import { TabNav } from '@/components/ui/TabNav'
 import { TextLink } from '@/components/ui/TextLink'
 import { ru } from '@/shared/i18n/ru'
+import { ADMIN_TABS } from '../../admin/adminTabs'
 import { ShowcaseSection, StateGrid } from './StateGrid'
 
 // Образцы — тексты экрана 09а: у примитивов нет своих подписей.
@@ -48,14 +50,21 @@ export function TextLinkShowcase() {
 
 export function StatusBannerShowcase() {
   const c = ru.locations.created
+  const a = ru.adminCatalog.added
   return (
     <ShowcaseSection title="StatusBanner">
-      <StatusBanner
-        title={c.title('РЦ Химки')}
-        description={c.profile(['Склад', 'Москва', '20 000 м²', '180 сотрудников'], '78%')}
-        action={<ButtonLink to="/locations">{c.open}</ButtonLink>}
-      />
-      <StatusBanner title={c.title('РЦ Химки')} />
+      <div className="flex w-[1000px] flex-col gap-16">
+        {/* outline — 12а «локация создана» (15950:2251). */}
+        <StatusBanner
+          title={c.title('РЦ Химки')}
+          description={c.profile(['Склад', 'Москва', '20 000 м²', '180 сотрудников'], '78%')}
+          action={<ButtonLink to="/locations">{c.open}</ButtonLink>}
+        />
+        <StatusBanner title={c.title('РЦ Химки')} />
+        {/* inverse — А3 «каталог обновлён» (15966:6274). */}
+        <StatusBanner variant="inverse" title={a.title} action={<Button variant="accent" className="h-40 px-20">{a.open}</Button>} />
+        <StatusBanner variant="inverse" title={a.title} />
+      </div>
     </ShowcaseSection>
   )
 }
@@ -74,10 +83,14 @@ export function TabNavShowcase() {
     <ShowcaseSection title="TabNav">
       <StateGrid
         states={['default']}
-        rows={TAB_STATES.map((state) => ({
-          label: ru.dev.states[state],
-          render: () => <TabNav label={l.tabsLabel} items={items} activeTo="/locations/LOC-01/processes" data-demo-state={state} />,
-        }))}
+        rows={[
+          ...TAB_STATES.map((state) => ({
+            label: ru.dev.states[state],
+            render: () => <TabNav label={l.tabsLabel} items={items} activeTo="/locations/LOC-01/processes" data-demo-state={state} />,
+          })),
+          // Вкладки «Администрирование» (А8, 15966:8024), активная — «Классы операций».
+          { label: ru.admin.title, render: () => <TabNav label={ru.admin.tabsLabel} items={ADMIN_TABS} activeTo={ROUTE_PATHS.adminOperationClasses} /> },
+        ]}
       />
     </ShowcaseSection>
   )

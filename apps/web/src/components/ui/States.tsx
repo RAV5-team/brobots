@@ -1,6 +1,6 @@
 import { clsx } from 'clsx'
 import { CircleAlert, Inbox } from 'lucide-react'
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { ru } from '@/shared/i18n/ru'
 import { Button } from './Button'
 
@@ -59,6 +59,6 @@ export function ErrorState({ title, message, onRetry }: ErrorStateProps) {
 }
 
 /** Заглушка на время загрузки (D-07). Мигание — только если пользователь не отключил анимацию. */
-export function Skeleton({ className }: { readonly className?: string }) {
-  return <div aria-hidden="true" className={clsx('rounded-md bg-surface-sunken motion-safe:animate-pulse', className)} />
+export function Skeleton({ className, style }: { readonly className?: string; readonly style?: CSSProperties }) {
+  return <div aria-hidden="true" className={clsx('rounded-md bg-surface-sunken motion-safe:animate-pulse', className)} style={style} />
 }
