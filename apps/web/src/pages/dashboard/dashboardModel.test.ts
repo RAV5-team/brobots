@@ -1,0 +1,76 @@
+import { describe, expect, it } from 'vitest'
+import type { Project } from '@/domain'
+import { DASHBOARD_INPUTS } from '@/mocks/fixtures/dashboard'
+import { LOCATIONS } from '@/mocks/fixtures/locations'
+import { PROJECTS } from '@/mocks/fixtures/projects'
+import { buildDashboard, foundSavingsRub } from './dashboardModel'
+
+const project = (id: string, processIds: string[], annualEffectRub: number | null): Project => ({
+  id: `PJ-${id}`,
+  name: id,
+  locationId: 'LOC-01',
+  processIds: processIds.map((p) => `LP-${p}` as const),
+  status: 'draft',
+  step: 'economics',
+  updatedAt: '2026-09-15T11:32:00Z',
+  preliminary: { paybackYears: 1, annualEffectRub },
+})
+
+describe('foundSavingsRub (PRD 8.2: лучший проект на каждый процесс)', () => {
+  it('takes the best project of a process once', () => {
+    expect(foundSavingsRub([project('a', ['01'], 5), project('b', ['01'], 9)])).toBe(9)
+  })
+
+  it('sums projects over different processes', () => {
+    expect(foundSavingsRub([project('a', ['01'], 5), project('b', ['02'], 9)])).toBe(14)
+  })
+
+  it('does not count a process twice when a bigger project already covers it', () => {
+    expect(foundSavingsRub([project('a', ['01', '02'], 20), project('b', ['02'], 9), project('c', ['03'], 1)])).toBe(21)
+  })
+
+  it('ignores projects without an annual effect', () => {
+    expect(foundSavingsRub([project('a', ['01'], null)])).toBe(0)
+  })
+})
+
+describe('buildDashboard on the demo fixtures', () => {
+  const dashboard = buildDashboard({ locations: LOCATIONS, projects: PROJECTS, inputs: DASHBOARD_INPUTS })
+
+  it('counts locations and lists their facility types once, in order', () => {
+    expect(dashboard.locationCount).toBe(4)
+    expect(dashboard.facilityTypes).toEqual(['warehouse', 'airport', 'medical'])
+  })
+
+  it('counts projects and those with a result (PRD 8.2)', () => {
+    expect(dashboard.projectCount).toBe(5)
+    expect(dashboard.calculatedCount).toBe(1)
+  })
+
+  it('sums manual labor over all locations, not only the visible ones (PRD 15 · 12)', () => {
+    expect(dashboard.manualLaborRub).toBe(591_000_000)
+  })
+
+  it('shows the three most recent projects with their location', () => {
+    expect(dashboard.recentProjects.map((p) => p.project.id)).toEqual(['PJ-01', 'PJ-02', 'PJ-03'])
+    expect(dashboard.recentProjects[2]?.locationName).toBe('Даркстор Юг')
+  })
+
+  it('shows three locations with labor cost and computed project count', () => {
+    expect(dashboard.locations.map((l) => [l.location.name, l.laborRub, l.projectCount])).toEqual([
+      ['РЦ Химки', 231_000_000, 2],
+      ['Даркстор Юг', 84_000_000, 1],
+      ['Терминал Внуково-2', 183_000_000, 1],
+    ])
+  })
+
+  it('passes the checks through', () => {
+    expect(dashboard.checks.total).toBe(8)
+  })
+
+  it('shows no labor cost for a location missing from the inputs', () => {
+    const partial = buildDashboard({ locations: LOCATIONS, projects: [], inputs: { ...DASHBOARD_INPUTS, laborCosts: [] } })
+    expect(partial.locations[0]?.laborRub).toBeNull()
+    expect(partial.manualLaborRub).toBe(0)
+  })
+})

@@ -1,0 +1,161 @@
+/*
+ * Дизайн-токены RAV5 — источник: apps/web/docs/design/tokens.md (аудит audit.json, экраны секции dev).
+ * Префикс --rav- отделяет токены от переменных Tailwind: theme.css ссылается на них без самоссылок.
+ * Компоненты используют токены только через утилиты Tailwind (theme.css) и type-* (typography.css).
+ */
+:root {
+  /* --- Цвета: поверхности --- */
+  --rav-color-bg: #f0eee9;
+  --rav-color-surface-sunken: #e6e2da;
+  --rav-color-surface-muted: #e9e5de;
+
+  /* --- Цвета: границы --- */
+  --rav-color-border: #ddd8cf;
+  --rav-color-border-strong: #b9b3a7;
+  --rav-color-border-control: #8a867d;
+  --rav-color-highlight: rgb(255 255 255 / 0.6);
+
+  /* --- Цвета: текст --- */
+  --rav-color-text: #111111;
+  --rav-color-text-secondary: #5e5e59;
+  --rav-color-text-muted: #8a867d; /* контраст 3.13 — D-23 */
+  --rav-color-text-disabled: #b9b3a7;
+
+  /* --- Цвета: инверсия и акцент --- */
+  --rav-color-inverse: #111111;
+  /* Наведение на тёмный элемент — на шаг светлее (D-02); значение из макета (неактивные сегменты). */
+  --rav-color-inverse-hover: #3f3f3b;
+  --rav-color-on-inverse: #d9f24a;
+  --rav-color-accent: #d9f24a;
+  --rav-color-accent-surface: #e4f33d;
+  --rav-color-on-accent: #4a4f16;
+  --rav-color-accent-border: #c9d62a;
+
+  /* --- Цвета: статусы и слои --- */
+  --rav-color-danger: #ce2c31;
+  --rav-color-danger-border: #e5484d;
+  --rav-color-danger-bg: #f7e3de;
+  --rav-color-scrim: rgb(17 17 17 / 0.32);
+
+  /* --- Типографика: семейства --- */
+  --rav-font-sans: 'Onest', system-ui, sans-serif;
+  --rav-font-display: 'Unbounded', 'Onest', system-ui, sans-serif;
+
+  /* --- Типографика: веса (Onest 400/500/600, Unbounded 300) --- */
+  --rav-font-weight-light: 300;
+  --rav-font-weight-regular: 400;
+  --rav-font-weight-medium: 500;
+  --rav-font-weight-semibold: 600;
+
+  /* --- Типографика: размер / межстрочный / межбуквенный --- */
+  /* display-xl — заголовок экрана входа 05 (15935:30); в аудите его нет — D-28. */
+  --rav-text-display-xl-size: 64px;
+  --rav-text-display-xl-line: 72px;
+  --rav-text-display-xl-tracking: -0.02em;
+  --rav-text-display-lg-size: 32px;
+  --rav-text-display-lg-line: 40px;
+  --rav-text-display-lg-tracking: -0.02em;
+  --rav-text-display-md-size: 28px;
+  --rav-text-display-md-line: 38px;
+  --rav-text-display-md-tracking: -0.01em;
+  --rav-text-display-sm-size: 24px;
+  --rav-text-display-sm-line: 32px;
+  /* Логотип «R5» (15935:24): не токен текста, только для Logo. */
+  --rav-text-logo-size: 14px;
+  --rav-text-logo-line: 22px;
+
+  --rav-text-title-lg-size: 24px;
+  --rav-text-title-lg-line: 32px;
+  --rav-text-title-md-size: 20px;
+  --rav-text-title-md-line: 28px;
+  --rav-text-title-sm-size: 18px;
+  --rav-text-title-sm-line: 24px;
+  --rav-text-heading-size: 16px;
+  --rav-text-heading-line: 24px;
+  --rav-text-body-size: 14px;
+  --rav-text-body-line: 20px;
+  --rav-text-label-size: 14px;
+  --rav-text-label-line: 18px;
+  --rav-text-body-sm-size: 13px;
+  --rav-text-body-sm-line: 18px;
+  --rav-text-caption-size: 12px;
+  --rav-text-caption-line: 16px;
+  --rav-text-overline-size: 11px;
+  --rav-text-overline-line: 16px;
+  --rav-text-overline-tracking: 0.08em;
+  --rav-text-caption-xs-size: 11px;
+  --rav-text-caption-xs-line: 16px;
+  --rav-text-caption-xs-tracking: 0.04em;
+
+  /* --- Радиусы --- */
+  --rav-radius-xs: 4px;
+  --rav-radius-sm: 7px;
+  --rav-radius-md: 12px;
+  --rav-radius-lg: 16px;
+  --rav-radius-xl: 24px;
+  --rav-radius-2xl: 28px;
+  /* Правые углы sidebar (15935:207). Аудит не видит радиусы отдельных углов — добавлено на этапе 3, D-25. */
+  --rav-radius-3xl: 32px;
+  --rav-radius-full: 999px;
+
+  /* --- Отступы (шкала из аудита) --- */
+  --rav-space-2: 2px;
+  --rav-space-4: 4px;
+  --rav-space-6: 6px;
+  --rav-space-8: 8px;
+  --rav-space-10: 10px;
+  --rav-space-12: 12px;
+  --rav-space-14: 14px;
+  --rav-space-16: 16px;
+  --rav-space-20: 20px;
+  --rav-space-24: 24px;
+  --rav-space-28: 28px;
+  --rav-space-32: 32px;
+  --rav-space-40: 40px;
+
+  /* Размеры контролов из components.md (высоты полей и кнопок, чекбоксы, иконки-кнопки). */
+  --rav-size-18: 18px;
+  --rav-size-36: 36px;
+  --rav-size-38: 38px;
+  --rav-size-44: 44px;
+  --rav-size-48: 48px;
+  /* Ширина колонки экрана входа 05: 1366 − 2 × 200 (15935:17). */
+  --rav-login-width: 966px;
+
+  /* --- Разметка --- */
+  --rav-sidebar-width: 240px;
+  /* Дашборд 06: колонка «Результат» в строке проекта (15935:158) и правая панель «Локации» (15935:179). */
+  --rav-dashboard-result-width: 168px;
+  --rav-dashboard-aside-width: 380px;
+  /* Формы 09а, 14, 16, А2: правая панель проверки (15935:1254) и колонки таблицы исполнителей 09а (15935:1132). */
+  --rav-form-rail-width: 300px;
+  /* Ширина ячейки = колонка макета + зазор 12 справа (у последней зазора нет). */
+  --rav-staff-count-width: 102px;
+  --rav-staff-salary-width: 122px;
+  --rav-staff-share-width: 152px;
+  /* Отступ якоря секции под липкой навигацией формы: 16 сверху + 40 капсула + 16. */
+  --rav-form-nav-offset: 72px;
+
+  /* --- Тени: неоморфные пары (blur Figma = blur CSS) --- */
+  --rav-shadow-raised-sm: -2px -2px 6px rgb(255 255 255 / 0.85), 2px 2px 6px rgb(185 179 167 / 0.3);
+  --rav-shadow-raised-md: -5px -5px 14px rgb(255 255 255 / 0.85), 5px 5px 14px rgb(185 179 167 / 0.3);
+  --rav-shadow-raised-lg: -8px -8px 22px rgb(255 255 255 / 0.85), 8px 8px 22px rgb(185 179 167 / 0.3);
+  --rav-shadow-inset-sm: inset 2px 2px 4px rgb(185 179 167 / 0.6), inset -2px -2px 4px rgb(255 255 255 / 0.95);
+  --rav-shadow-inset-md: inset 3px 3px 8px rgb(185 179 167 / 0.3), inset -3px -3px 8px rgb(255 255 255 / 0.8);
+  --rav-shadow-popover: 0 3px 8px rgb(0 0 0 / 0.18);
+  --rav-shadow-accent-raised: -2px -2px 6px rgb(246 255 158 / 0.3), 2px 2px 6px rgb(174 187 31 / 0.3);
+  /* filter: drop-shadow для составных фигур (активный пункт меню со счётчиком): box-shadow двоился бы на перемычке. D-25. */
+  --rav-drop-shadow-popover: 0 3px 4px rgb(0 0 0 / 0.18);
+  --rav-shadow-accent-inset: inset 4px 4px 8px rgb(174 187 31 / 0.6), inset -4px -4px 8px rgb(246 255 158 / 0.95);
+
+  /* --- Состояния (D-02) --- */
+  --rav-focus-ring-width: 2px;
+  --rav-focus-ring-offset: 2px;
+  --rav-focus-ring-color: var(--rav-color-text);
+  --rav-disabled-opacity: 0.4;
+}
+
+/* Внутри тёмных контейнеров кольцо фокуса — акцентное (D-02). Вокруг самих тёмных кнопок на светлом фоне — #111. */
+.surface-inverse {
+  --rav-focus-ring-color: var(--rav-color-on-inverse);
+}

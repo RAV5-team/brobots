@@ -1,0 +1,23 @@
+@import 'tailwindcss';
+@import './tokens.css';
+@import './theme.css';
+@import './typography.css';
+@import './states.css';
+
+@layer base {
+  body {
+    background: var(--rav-color-bg);
+    color: var(--rav-color-text);
+    font-family: var(--rav-font-sans);
+    font-size: var(--rav-text-body-size);
+    line-height: var(--rav-text-body-line);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* D-02: кольцо фокуса; цвет меняется на тёмных поверхностях (.surface-inverse). */
+  :focus-visible,
+  [data-demo-state~='focus']:not(:has(input, textarea)) {
+    outline: var(--rav-focus-ring-width) solid var(--rav-focus-ring-color);
+    outline-offset: var(--rav-focus-ring-offset);
+  }
+}

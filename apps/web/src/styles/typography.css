@@ -1,0 +1,126 @@
+/*
+ * Составные типографические утилиты: семейство + вес + размер + межстрочный + межбуквенный в одном классе.
+ * Текст — только через type-* (AGENTS.md). Вес по умолчанию можно переопределить font-medium / font-semibold.
+ */
+
+@utility type-display-xl {
+  font-family: var(--rav-font-display);
+  font-weight: var(--rav-font-weight-light);
+  font-size: var(--rav-text-display-xl-size);
+  line-height: var(--rav-text-display-xl-line);
+  letter-spacing: var(--rav-text-display-xl-tracking);
+}
+
+@utility type-display-lg {
+  font-family: var(--rav-font-display);
+  font-weight: var(--rav-font-weight-light);
+  font-size: var(--rav-text-display-lg-size);
+  line-height: var(--rav-text-display-lg-line);
+  letter-spacing: var(--rav-text-display-lg-tracking);
+}
+
+@utility type-display-md {
+  font-family: var(--rav-font-display);
+  font-weight: var(--rav-font-weight-light);
+  font-size: var(--rav-text-display-md-size);
+  line-height: var(--rav-text-display-md-line);
+  letter-spacing: var(--rav-text-display-md-tracking);
+}
+
+@utility type-display-sm {
+  font-family: var(--rav-font-display);
+  font-weight: var(--rav-font-weight-light);
+  font-size: var(--rav-text-display-sm-size);
+  line-height: var(--rav-text-display-sm-line);
+  letter-spacing: normal;
+}
+
+@utility type-title-lg {
+  font-family: var(--rav-font-sans);
+  font-weight: var(--rav-font-weight-semibold);
+  font-size: var(--rav-text-title-lg-size);
+  line-height: var(--rav-text-title-lg-line);
+  letter-spacing: normal;
+}
+
+@utility type-title-md {
+  font-family: var(--rav-font-sans);
+  font-weight: var(--rav-font-weight-semibold);
+  font-size: var(--rav-text-title-md-size);
+  line-height: var(--rav-text-title-md-line);
+  letter-spacing: normal;
+}
+
+@utility type-title-sm {
+  font-family: var(--rav-font-sans);
+  font-weight: var(--rav-font-weight-semibold);
+  font-size: var(--rav-text-title-sm-size);
+  line-height: var(--rav-text-title-sm-line);
+  letter-spacing: normal;
+}
+
+@utility type-heading {
+  font-family: var(--rav-font-sans);
+  font-weight: var(--rav-font-weight-semibold);
+  font-size: var(--rav-text-heading-size);
+  line-height: var(--rav-text-heading-line);
+  letter-spacing: normal;
+}
+
+@utility type-body {
+  font-family: var(--rav-font-sans);
+  font-weight: var(--rav-font-weight-regular);
+  font-size: var(--rav-text-body-size);
+  line-height: var(--rav-text-body-line);
+  letter-spacing: normal;
+}
+
+@utility type-label {
+  font-family: var(--rav-font-sans);
+  font-weight: var(--rav-font-weight-medium);
+  font-size: var(--rav-text-label-size);
+  line-height: var(--rav-text-label-line);
+  letter-spacing: normal;
+}
+
+@utility type-body-sm {
+  font-family: var(--rav-font-sans);
+  font-weight: var(--rav-font-weight-regular);
+  font-size: var(--rav-text-body-sm-size);
+  line-height: var(--rav-text-body-sm-line);
+  letter-spacing: normal;
+}
+
+@utility type-caption {
+  font-family: var(--rav-font-sans);
+  font-weight: var(--rav-font-weight-regular);
+  font-size: var(--rav-text-caption-size);
+  line-height: var(--rav-text-caption-line);
+  letter-spacing: normal;
+}
+
+@utility type-overline {
+  font-family: var(--rav-font-sans);
+  font-weight: var(--rav-font-weight-medium);
+  font-size: var(--rav-text-overline-size);
+  line-height: var(--rav-text-overline-line);
+  letter-spacing: var(--rav-text-overline-tracking);
+  text-transform: uppercase;
+}
+
+@utility type-caption-xs {
+  font-family: var(--rav-font-sans);
+  font-weight: var(--rav-font-weight-regular);
+  font-size: var(--rav-text-caption-xs-size);
+  line-height: var(--rav-text-caption-xs-line);
+  letter-spacing: var(--rav-text-caption-xs-tracking);
+}
+
+/* Только для компонента Logo: в макете Unbounded Regular, у нас загружен лишь Unbounded 300 (D-08, D-28). */
+@utility type-logo {
+  font-family: var(--rav-font-display);
+  font-weight: var(--rav-font-weight-light);
+  font-size: var(--rav-text-logo-size);
+  line-height: var(--rav-text-logo-line);
+  letter-spacing: normal;
+}

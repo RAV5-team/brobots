@@ -37,3 +37,10 @@ htmlcov/
 infra/nginx/certs/
 infra/keycloak/export/
 *realm-export*.json
+
+# --- tooling ---
+# Снимки, логи и скриншоты Playwright MCP.
+.playwright-mcp/
+
+.claude
+.figma-cache
