@@ -54,6 +54,14 @@ export function CardShowcase() {
           </Card>
         </div>
       </ShowcaseSection>
+      <ShowcaseSection title="Card · well">
+        <div className="w-[491px]">
+          <Card variant="well" padding={16} gap={4}>
+            <p className="type-title-lg text-text">{s.wellValue}</p>
+            <p className="type-caption text-text-secondary">{s.wellCaption}</p>
+          </Card>
+        </div>
+      </ShowcaseSection>
     </div>
   )
 }

@@ -133,6 +133,17 @@
   --rav-staff-count-width: 102px;
   --rav-staff-salary-width: 122px;
   --rav-staff-share-width: 152px;
+  /* Форма локации 14: колонки таблицы групп персонала (15950:2091) — численность и оклад. */
+  --rav-location-staff-count-width: 120px;
+  --rav-location-staff-salary-width: 160px;
+  /* Список локаций 12: высота карточки (15950:1666) — минимум карточки и скелетон загрузки. */
+  --rav-location-card-height: 408px;
+  /* Окно 15а «Процесс из шаблона»: высота списка шаблонов, дальше — прокрутка (15950:3033). */
+  --rav-template-list-height: 396px;
+  /* Пустой раздел целиком (EmptyState lg, 15919:552): отступы 64 / 88 и наименьшая высота панели. */
+  --rav-empty-panel-pad-x: 64px;
+  --rav-empty-panel-pad-y: 88px;
+  --rav-empty-panel-min-height: 450px;
   /* Отступ якоря секции под липкой навигацией формы: 16 сверху + 40 капсула + 16. */
   --rav-form-nav-offset: 72px;
 

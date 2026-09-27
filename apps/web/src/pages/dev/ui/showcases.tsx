@@ -5,7 +5,7 @@ import { CheckboxShowcase, RadioShowcase, SegmentedShowcase, SelectShowcase } fr
 import { BadgeShowcase, ChipShowcase, ToggleShowcase } from './step3Showcases'
 import { CardShowcase, ProgressShowcase, SectionHeaderShowcase, TableShowcase } from './step4Showcases'
 import { DropzoneShowcase, ModalShowcase, StatesShowcase } from './step5Showcases'
-import { FormulaStatsShowcase, SectionNavShowcase, TextLinkShowcase } from './step6Showcases'
+import { FormulaStatsShowcase, SectionNavShowcase, StatusBannerShowcase, TabNavShowcase, TextLinkShowcase } from './step6Showcases'
 
 export interface Showcase {
   readonly slug: string
@@ -37,4 +37,6 @@ export const SHOWCASES: readonly Showcase[] = [
   { slug: 'section-nav', title: 'SectionNav', Component: SectionNavShowcase },
   { slug: 'formula-stats', title: 'FormulaStats', Component: FormulaStatsShowcase },
   { slug: 'text-link', title: 'TextLink', Component: TextLinkShowcase },
+  { slug: 'status-banner', title: 'StatusBanner', Component: StatusBannerShowcase },
+  { slug: 'tab-nav', title: 'TabNav', Component: TabNavShowcase },
 ]

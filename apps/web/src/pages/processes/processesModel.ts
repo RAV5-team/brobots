@@ -17,8 +17,11 @@ function normalize(text: string): string {
   return text.toLocaleLowerCase('ru-RU').replaceAll('ё', 'е').trim()
 }
 
+/** Что нужно фильтру: процесс библиотеки или процесс на локации со своим названием. */
+export type FilterableProcess = Pick<Process, 'name' | 'description' | 'operationClass' | 'facilityTypes'>
+
 /** Поиск — по названию и описанию (PRD 9.1); фильтры — по классу операции и типу объекта. */
-export function filterProcesses(processes: readonly Process[], filter: ProcessFilter): readonly Process[] {
+export function filterProcesses<T extends FilterableProcess>(processes: readonly T[], filter: ProcessFilter): readonly T[] {
   const query = normalize(filter.query)
   return processes.filter((p) =>
     (filter.operationClass === null || p.operationClass === filter.operationClass) &&

@@ -1,12 +1,15 @@
 /**
  * Правила загрузки файлов — в одном месте (D-18).
- * Документы локации 17б (.dwg, группа из 10 фото) правилу противоречат — D-18 open, PRD 15 · №55.
+ * Документы локации 17б (.dwg, группа из 10 фото) общему правилу противоречат — для них своё правило
+ * `locationDocument` (предложение, D-18 open, PRD 15 · №55).
  */
 
 const MB = 1024 * 1024
 
 const DOCUMENT_EXTENSIONS = ['pdf', 'xlsx', 'xls', 'csv', 'png', 'jpg', 'jpeg', 'webp'] as const
-const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'] as const
+export const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'] as const
+/** Материалы обследования локации: к общему правилу добавлен CAD-план .dwg (PRD 10.3). */
+const LOCATION_DOCUMENT_EXTENSIONS = [...DOCUMENT_EXTENSIONS, 'dwg'] as const
 
 export interface UploadRule {
   readonly extensions: readonly string[]
@@ -35,6 +38,20 @@ export const UPLOAD_RULES = {
     emptyMessage: 'Добавьте файл',
     countNoun: 'файлов',
   },
+  /**
+   * Документы локации 17б: план .dwg и группа фото за раз (PRD 10.3). Предложение до решения команды (D-18, D-42):
+   * 20 МБ на файл, как у общего правила; до 20 файлов за одну загрузку — группа из 10 фото помещается с запасом.
+   */
+  locationDocument: {
+    extensions: LOCATION_DOCUMENT_EXTENSIONS,
+    maxSizeMb: 20,
+    minFiles: 1,
+    maxFiles: 20,
+    hint: 'PDF, Excel, CSV, DWG или изображения, каждый файл до 20 МБ',
+    formatFix: 'Загрузите PDF, Excel, CSV, DWG или изображение',
+    emptyMessage: 'Добавьте файл',
+    countNoun: 'файлов',
+  },
   /** Фото робота в карточке А2: минимум 1, максимум 8. */
   robotPhoto: {
     extensions: IMAGE_EXTENSIONS,
@@ -56,7 +73,8 @@ export interface UploadError {
   readonly message: string
 }
 
-const extensionOf = (name: string) => name.slice(name.lastIndexOf('.') + 1).toLowerCase()
+/** Расширение файла строчными без точки: «План.DWG» → «dwg». */
+export const extensionOf = (name: string): string => name.slice(name.lastIndexOf('.') + 1).toLowerCase()
 
 function validateCount(rule: UploadRule, count: number): UploadError | null {
   if (count < rule.minFiles) return { file: null, message: rule.emptyMessage }

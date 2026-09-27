@@ -46,7 +46,7 @@ const CLEAN: readonly ScreenRow[] = [
   ['12а', '12а', 'Локации · список · локация добавлена', '15950:2245', '10.1', 'state', R.locations],
   ['14', '14', 'Локации · новая локация · форма', '15950:1952', '10.2', 'page', R.locationNew],
   ['15', '15', 'Локации · локация создана', '15950:2489', '10.3, 10.4', 'page', R.location],
-  ['15а', '15а', 'Локации · выбрать процесс', '15950:2818', '10.4', 'modal', R.locationProcesses],
+  ['15а', '15а', 'Локации · выбрать процесс', '15950:2818', '10.4', 'modal', R.location],
   ['16', '16', 'Локации · процесс на локации', '15950:3096', '10.4', 'page', R.locationProcess],
   ['17', '17', 'Локации · процессы локации', '15950:4324', '10.4', 'page', R.locationProcesses],
   ['17а', '17а', 'Локации · параметры объекта', '16005:291', '10.3, 10.5', 'page', R.locationParams],
@@ -86,6 +86,7 @@ const FIRST: readonly ScreenRow[] = [
   ['first-14c', '14c', 'Экономика · состав CAPEX и OPEX', '14588:1407', '11.4.6', 'modal', R.projectEconomics],
   ['first-14d', '14d', 'Экономика · анализ устойчивости', '14588:2', '11.4.5', 'modal', R.projectEconomics],
   ['first-14e', '14e', 'Экономика · журнал изменений расчёта', '14588:1104', '11.4.9', 'modal', R.projectEconomics],
+  ['first-locprocsempty', '—', 'Локации · процессы · пусто (D-07)', '15919:241', '14', 'state', R.locationProcesses],
 ]
 
 const PENDING: readonly ScreenRow[] = [

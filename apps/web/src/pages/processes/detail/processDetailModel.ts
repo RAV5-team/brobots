@@ -14,7 +14,8 @@ import { ROUTE_PATHS } from '@/app/routePaths'
 import { formatCount, formatNumber, formatPercent, formatRubCompact } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { rateUnit } from '../processesModel'
-import { PAYROLL_COEF_PARAMETER, PEAK_FACTOR_PARAMETER, STAFF_PARAMETERS } from '../staffParameters'
+import { numberParameter, staffing } from '../locationStaffing'
+import { PAYROLL_COEF_PARAMETER, PEAK_FACTOR_PARAMETER } from '../staffParameters'
 
 const t = ru.processCard
 const MONTHS_PER_YEAR = 12
@@ -81,37 +82,6 @@ export function robotCard(robot: Robot): RobotCardView {
     vendor: `${shortManufacturer(robot.manufacturer)} · ${robot.subtype}`,
     trl: t.robots.trl(robot.trl === null ? t.requirements.noUnit : formatNumber(robot.trl)),
     price: robot.priceRub === null ? t.robots.noPrice : formatRubCompact(robot.priceRub, { fractionDigits: 2 }),
-  }
-}
-
-/** Значение параметра на локации; нет переопределения — база датасета (как в фикстурах локаций). */
-function numberParameter(location: Location, parameters: readonly FacilityParameter[], code: string | null): number | null {
-  if (code === null) return null
-  const value = location.parameters[code]?.value ?? parameters.find((p) => p.code === code)?.base
-  return typeof value === 'number' ? value : null
-}
-
-interface Staffing {
-  readonly role: string
-  readonly headcount: number | null
-  readonly salaryRub: number | null
-  readonly timeShare: number
-}
-
-/** Кто выполняет процесс: группа из профиля локации, иначе — численность и оклад из датасета типа объекта. */
-function staffing(process: Process, lp: LocationProcess, location: Location, parameters: readonly FacilityParameter[]): Staffing | null {
-  const worker = lp.workers[0]
-  const role = worker?.role ?? process.defaultWorkerRole
-  if (role === null) return null
-  const timeShare = worker?.timeShare ?? 1
-  const group = location.staffGroups.find((g) => g.role === role)
-  if (group) return { role, headcount: group.headcount, salaryRub: group.salaryGrossMonthRub, timeShare }
-  const fromDataset = STAFF_PARAMETERS[location.facilityType].find((g) => g.role === role)
-  return {
-    role,
-    headcount: fromDataset ? numberParameter(location, parameters, fromDataset.headcount) : null,
-    salaryRub: fromDataset ? numberParameter(location, parameters, fromDataset.salary) : null,
-    timeShare,
   }
 }
 

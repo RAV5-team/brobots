@@ -60,7 +60,10 @@ describe('samplePath', () => {
 
 describe('screensByRoute', () => {
   it('groups several screens living on one route', () => {
+    // 15а — окно над вкладкой «Процессы локации» на маршруте локации (D-38).
+    expect(screensByRoute(ROUTE_PATHS.location).map((s) => s.code)).toEqual(['15', '15а'])
     const codes = screensByRoute(ROUTE_PATHS.locationProcesses).map((s) => s.code)
-    expect(codes).toEqual(['15а', '17', '17в'])
+    // Пустая вкладка (locprocsempty) — состояние того же адреса.
+    expect(codes).toEqual(['17', '17в', '—'])
   })
 })

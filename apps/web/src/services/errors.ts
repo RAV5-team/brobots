@@ -7,3 +7,8 @@ export class NotFoundError extends Error {
 export class InvalidCredentialsError extends Error {
   override readonly name = 'InvalidCredentialsError'
 }
+
+/** Действие противоречит текущему состоянию: например, шаблон уже на локации. Текст — для пользователя. */
+export class ConflictError extends Error {
+  override readonly name = 'ConflictError'
+}
