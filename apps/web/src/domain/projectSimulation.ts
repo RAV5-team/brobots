@@ -1,0 +1,79 @@
+import type { Fleet } from './projectInputs'
+
+/**
+ * Вердикт симуляции (PRD 11.4). В API симуляции — `confirmed | can_reduce | needs_additions | layout_bottleneck | not_achievable`.
+ */
+export type SimulationVerdict = 'confirmed' | 'can_reduce' | 'need_more' | 'layout_bottleneck' | 'unreachable'
+export const SIMULATION_VERDICTS: readonly SimulationVerdict[] = ['confirmed', 'can_reduce', 'need_more', 'layout_bottleneck', 'unreachable']
+
+/** Строка «Что происходило по часам» (PRD 11.4): рейсы, срок, состояния парка. */
+export interface HourlyStat {
+  /** Час на часах объекта, 0–23. */
+  readonly hour: number
+  /** Рейсов потребности за час. */
+  readonly demand: number
+  /** Рейсов выполнено. */
+  readonly done: number
+  /** Доля паллет в срок 0–1; null — потребности не было. */
+  readonly onTime: number | null
+  /** Паллета ждёт робота в среднем, мин; null — не было подборов. */
+  readonly waitMeanMin: number | null
+  /** Среднее число роботов в работе, на зарядке, в очереди к станции, в ремонте, свободных. */
+  readonly working: number
+  readonly charging: number
+  readonly waitingCharger: number
+  readonly down: number
+  readonly idle: number
+  /** Доля парка в работе 0–1. */
+  readonly utilization: number
+  readonly backlogMax: number
+  /** Доля занятых станций 0–1. */
+  readonly chargersBusy: number
+}
+
+/** Пиковая пропускная способность: требуется и вывезено рейсов в час. */
+export interface PeakThroughput {
+  readonly requiredPerHour: number
+  readonly servedPerHour: number
+}
+
+/** Прогон симуляции (в API — SimulationRun). */
+export interface SimulationRun {
+  readonly id: string
+  readonly verdict: SimulationVerdict
+  /** «обновлено по 2D-модели», если итоговый состав отличается от проверенного. */
+  readonly label: string | null
+  readonly title: string
+  readonly lines: readonly string[]
+  readonly justification: readonly string[]
+  readonly risks: readonly string[]
+  readonly diagnosis: readonly string[]
+  /** Проверенный состав и итоговый (рекомендация симуляции). */
+  readonly from: Fleet
+  readonly to: Fleet
+  readonly peak: PeakThroughput
+  /** Доля паллет в срок в худший смоделированный день 0–1. */
+  readonly onTimeWorstDay: number
+  /** Средняя загрузка парка в пиковые часы 0–1. */
+  readonly utilizationPeak: number
+  readonly hourlyBefore: readonly HourlyStat[]
+  readonly hourlyAfter: readonly HourlyStat[]
+  readonly warnings: readonly string[]
+}
+
+/** Ход задания на прогон (этап 3). */
+export interface SimulationJob {
+  readonly id: string
+  readonly status: 'queued' | 'running' | 'done' | 'error'
+  /** Журнал прогона строками. */
+  readonly log: readonly string[]
+  readonly elapsedS: number
+  /** Готовый прогон; null — ещё идёт или ошибка. */
+  readonly runId: string | null
+  readonly error: string | null
+}
+
+/** Переход к экономике закрыт при узком месте планировки и недостижимом составе (PRD 11.4). */
+export function canProceedToEconomics(verdict: SimulationVerdict): boolean {
+  return verdict !== 'layout_bottleneck' && verdict !== 'unreachable'
+}

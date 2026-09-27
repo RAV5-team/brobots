@@ -26,8 +26,9 @@ import { ScreenStub } from '@/pages/_stub/ScreenStub'
 import { ScreensIndex } from '@/pages/dev/ScreensIndex'
 import { TokensShowcase } from '@/pages/dev/TokensShowcase'
 import { UiShowcase } from '@/pages/dev/ui/UiShowcase'
+import { ProjectResultRedirect } from './ProjectResultRedirect'
 import { RootLayout } from './RootLayout'
-import { DEV_PATHS, ROUTE_PATHS, type RoutePath } from './routePaths'
+import { DEV_PATHS, LEGACY_PATHS, ROUTE_PATHS, type RoutePath } from './routePaths'
 
 // Экран входа 05 живёт без меню; остальные разделы — внутри каркаса кабинета.
 const OUTSIDE_SHELL: readonly RoutePath[] = [ROUTE_PATHS.login]
@@ -50,6 +51,7 @@ export const routes: RouteObject[] = [
         children: [
           { path: ROUTE_PATHS.dashboard, element: <DashboardPage /> },
           { path: ROUTE_PATHS.projects, element: <ProjectsPage /> },
+          { path: LEGACY_PATHS.projectResult, element: <ProjectResultRedirect /> },
           { path: ROUTE_PATHS.catalog, element: <CatalogPage /> },
           { path: ROUTE_PATHS.catalogCompare, element: <ComparePage /> },
           { path: ROUTE_PATHS.catalogItem, element: <CatalogItemPage /> },

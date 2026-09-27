@@ -1,4 +1,4 @@
-import type { DataVersion } from '@/domain'
+import type { DataVersion, ProjectStep } from '@/domain'
 import type { PluralForms } from '@/shared/format'
 import { robotNew } from './robotNew'
 
@@ -1430,14 +1430,23 @@ export const ru = {
     matching: 'Подбор',
     simulation: 'Симуляция',
     economics: 'Итог и экономика',
-  },
+  } satisfies Record<ProjectStep, string>,
 
   /** Короткие названия стадий черновика (PRD 11.1: «Параметры · Подбор · Симуляция · Итог»). */
+  /** Короткое название стадии черновика: «остановились на: Итог» (PRD 11.1). Ключи — ProjectStep. */
   projectStages: {
-    parameters: 'Параметры',
-    selection: 'Подбор',
+    params: 'Параметры',
+    matching: 'Подбор',
     simulation: 'Симуляция',
-    result: 'Итог',
+    economics: 'Итог',
+  } satisfies Record<ProjectStep, string>,
+
+  /** Заголовок шага проекта и подпись в степпере (PRD 0.9, 4 шага). Ключи — ProjectStep. */
+  projectStepTitles: {
+    params: 'Параметры проекта',
+    matching: 'Подбор решения',
+    simulation: 'Симуляция',
+    economics: 'Итог и экономика',
   },
 
   plural: {

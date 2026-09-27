@@ -13,6 +13,13 @@ describe('router', () => {
     expect(screen.queryByTestId('current-role')).not.toBeInTheDocument()
   })
 
+  it('redirects the old saved-assessment path /result to the result step /economics with the same query', async () => {
+    const router = createMemoryRouter(routes, { initialEntries: ['/projects/PJ-01/result?as=user'] })
+    render(<RouterProvider router={router} />)
+    await waitFor(() => { expect(router.state.location.pathname).toBe('/projects/PJ-01/economics') })
+    expect(router.state.location.search).toBe('?as=user')
+  })
+
   it('renders the processes screen on /processes', () => {
     renderAt('/processes')
     expect(screen.getByRole('heading', { level: 1, name: 'Процессы' })).toBeInTheDocument()

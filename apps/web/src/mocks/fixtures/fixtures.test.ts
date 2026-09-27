@@ -62,7 +62,7 @@ describe('fixtures: integrity', () => {
   it('builds projects from processes of their own location', () => {
     for (const pj of PROJECTS) {
       const own = LOCATION_PROCESSES.filter((lp) => lp.locationId === pj.locationId).map((lp) => lp.id)
-      expect(pj.processIds.every((id) => own.includes(id)), pj.id).toBe(true)
+      expect(pj.locationProcessId === null || own.includes(pj.locationProcessId), pj.id).toBe(true)
     }
   })
 

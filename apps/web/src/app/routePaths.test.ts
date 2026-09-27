@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PROJECTS } from '@/mocks/fixtures/projects'
-import { projectOpenPath } from './routePaths'
+import { projectOpenPath, projectStepPath } from './routePaths'
 
 const byId = (id: string) => {
   const project = PROJECTS.find((p) => p.id === id)
@@ -14,7 +14,14 @@ describe('projectOpenPath', () => {
     expect(projectOpenPath(byId('PJ-04'))).toBe('/projects/PJ-04/matching')
   })
 
-  it('opens a saved assessment read-only (D-17)', () => {
-    expect(projectOpenPath(byId('PJ-01'))).toBe('/projects/PJ-01/result')
+  it('opens a saved assessment on the result step, read-only (D-17): one route for the result', () => {
+    expect(projectOpenPath(byId('PJ-01'))).toBe('/projects/PJ-01/economics')
+  })
+})
+
+describe('projectStepPath', () => {
+  it('builds the path of a step by ProjectStep', () => {
+    expect(projectStepPath('PJ-DEMO', 'params')).toBe('/projects/PJ-DEMO/params')
+    expect(projectStepPath('PJ-DEMO', 'economics')).toBe('/projects/PJ-DEMO/economics')
   })
 })

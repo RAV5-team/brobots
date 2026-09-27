@@ -80,7 +80,7 @@ describe('NewProjectDialog (A2)', () => {
     expect(create).toHaveBeenCalledWith({ name: 'Новый проект · Даркстор Юг', locationId: 'LOC-02', solutionId: 'RB-0008' })
     const draft = await (create.mock.results[0]?.value as ReturnType<typeof services.projects.createDraft> | undefined)
     expect(location()).toBe(`/projects/${draft?.id ?? ''}/params`)
-    expect(draft).toMatchObject({ status: 'draft', step: 'params', solutionId: 'RB-0008' })
+    expect(draft).toMatchObject({ status: 'draft', step: 'params', pinnedSolutionId: 'RB-0008' })
   })
 
   it('preselects the location and passes the process when opened from a process card', async () => {

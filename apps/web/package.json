@@ -13,6 +13,7 @@
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint .",
     "gen:api": "node scripts/genApi.ts",
+    "gen:fixtures": "node scripts/genSimulationFixtures.ts",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test --project=e2e",

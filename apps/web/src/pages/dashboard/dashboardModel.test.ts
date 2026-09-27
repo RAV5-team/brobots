@@ -1,15 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import type { Project } from '@/domain'
+import { emptyInputs } from '@/domain'
 import { DASHBOARD_INPUTS } from '@/mocks/fixtures/dashboard'
 import { LOCATIONS } from '@/mocks/fixtures/locations'
 import { PROJECTS } from '@/mocks/fixtures/projects'
 import { buildDashboard, foundSavingsRub } from './dashboardModel'
 
-const project = (id: string, processIds: string[], annualEffectRub: number | null): Project => ({
+const BASE = {
+  locationId: 'LOC-01',
+  versions: { snapshotAt: '2026-09-15', catalog: 4, model: '2.1', norms: 3 },
+  inputs: emptyInputs('2026-09-15T11:32:00Z'),
+} as const
+
+const project = (id: string, processId: string, annualEffectRub: number | null): Project => ({
+  ...BASE,
   id: `PJ-${id}`,
   name: id,
-  locationId: 'LOC-01',
-  processIds: processIds.map((p) => `LP-${p}` as const),
+  locationProcessId: `LP-${processId}`,
   status: 'saved',
   updatedAt: '2026-09-15T11:32:00Z',
   savedAt: '2026-09-15T11:32:00Z',
@@ -18,24 +25,20 @@ const project = (id: string, processIds: string[], annualEffectRub: number | nul
 
 describe('foundSavingsRub (PRD 8.2: лучший проект на каждый процесс)', () => {
   it('takes the best project of a process once', () => {
-    expect(foundSavingsRub([project('a', ['01'], 5), project('b', ['01'], 9)])).toBe(9)
+    expect(foundSavingsRub([project('a', '01', 5), project('b', '01', 9)])).toBe(9)
   })
 
   it('sums projects over different processes', () => {
-    expect(foundSavingsRub([project('a', ['01'], 5), project('b', ['02'], 9)])).toBe(14)
-  })
-
-  it('does not count a process twice when a bigger project already covers it', () => {
-    expect(foundSavingsRub([project('a', ['01', '02'], 20), project('b', ['02'], 9), project('c', ['03'], 1)])).toBe(21)
+    expect(foundSavingsRub([project('a', '01', 5), project('b', '02', 9)])).toBe(14)
   })
 
   it('ignores projects without an annual effect', () => {
-    expect(foundSavingsRub([project('a', ['01'], null)])).toBe(0)
+    expect(foundSavingsRub([project('a', '01', null)])).toBe(0)
   })
 
   it('ignores drafts: their numbers are not saved yet (PRD 11.1)', () => {
-    const draft: Project = { id: 'PJ-d', name: 'd', locationId: 'LOC-01', processIds: ['LP-02'], status: 'draft', step: 'economics', updatedAt: '2026-09-15T11:32:00Z' }
-    expect(foundSavingsRub([draft, project('a', ['01'], 5)])).toBe(5)
+    const draft: Project = { ...BASE, id: 'PJ-d', name: 'd', locationProcessId: 'LP-02', status: 'draft', step: 'economics', updatedAt: '2026-09-15T11:32:00Z' }
+    expect(foundSavingsRub([draft, project('a', '01', 5)])).toBe(5)
   })
 })
 

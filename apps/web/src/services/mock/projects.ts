@@ -1,33 +1,205 @@
-import type { DraftProject, Project, ProjectId } from '@/domain'
-import { PROJECTS } from '@/mocks/fixtures/projects'
+import type { ApiSchemas, SimulationSchemas } from '@/api/contract'
+import { toEconomics } from '@/api/mappers/economics'
+import { toMatchingEvaluation } from '@/api/mappers/matching'
+import { toProject, type ProjectLocalState } from '@/api/mappers/project'
+import { toSimulationJob, toSimulationRun } from '@/api/mappers/simulation'
+import {
+  applyInputsPatch,
+  canOpenStep,
+  emptyInputs,
+  furthestStep,
+  markFresh,
+  type DraftProject,
+  type Project,
+  type ProjectId,
+  type SavedProject,
+} from '@/domain'
+import { CONDITIONS_LP01_RAAS, OPERATIONS_PER_DAY_LP01, SENSITIVITY_LP01_RAAS } from '@/mocks/fixtures/projectEconomics'
+import { EVALUATIONS_BY_PROCESS } from '@/mocks/fixtures/projectMatching'
+import { DEMO_PROJECT_DTO, PROJECT_DTOS, PROJECT_LOCAL_STATE } from '@/mocks/fixtures/projects'
+import { SIMULATION_RUNS } from '@/mocks/fixtures/simulationRuns.generated'
+import { ConflictError, NotFoundError } from '../errors'
 import type { ProjectService } from '../projects'
-import { findOrReject, respond, type MockOptions } from './respond'
+import { respond, type MockOptions } from './respond'
 
-/** Id проекта — следующий за наибольшим: PJ-06 после пяти демо-проектов. */
-function nextId(projects: readonly Project[]): ProjectId {
-  const last = Math.max(0, ...projects.map((p) => Number(p.id.slice('PJ-'.length)) || 0))
+type ProjectDto = ApiSchemas['Project']
+interface StoredProject {
+  readonly dto: ProjectDto
+  readonly local: ProjectLocalState
+}
+
+const READ_ONLY = 'Сохранённая оценка открывается только для просмотра — измените её в новом проекте на её основе'
+const DEFAULT_RUN_ID = 'SIM-0926-01'
+
+/** Журнал прогона строками (этап 3): мок продвигает его на строку за опрос. */
+const RUN_LOG = [
+  'Смоделированы сутки: 2 000 операций, пик 130 рейсов/ч',
+  'Маршруты и зарядка: роботы, станции, доступность 0,92',
+  'Проверяем запас в пиковые часы',
+  'Сводный вердикт по худшему дню',
+]
+
+/** Id проекта — следующий за наибольшим: PJ-08 после семи демо-проектов. */
+function nextId(ids: readonly string[]): ProjectId {
+  const last = Math.max(0, ...ids.map((id) => Number(id.slice('PJ-'.length)) || 0))
   return `PJ-${String(last + 1).padStart(2, '0')}`
 }
 
+const now = (): string => new Date().toISOString()
+
+/** Прогон, который мок «насчитает» для состава: у кого проверенный состав совпал, иначе — основной (confirmed). */
+function runForFleet(robots: number, stations: number): SimulationSchemas['SimulationRun'] {
+  const match = SIMULATION_RUNS.find((r) => r.fleet_change.from_.robots === robots && r.fleet_change.from_.chargers === stations)
+  const fallback = SIMULATION_RUNS.find((r) => r.simulation_id === DEFAULT_RUN_ID)
+  const run = match ?? fallback
+  if (!run) throw new Error(`Фикстура прогона ${DEFAULT_RUN_ID} не найдена`)
+  return run
+}
+
 export function createMockProjects(options: MockOptions): ProjectService {
-  // Созданные черновики живут до перезагрузки страницы: фикстуры не меняются.
-  let projects: readonly Project[] = PROJECTS
+  // Созданные и изменённые проекты живут до перезагрузки страницы: фикстуры не меняются.
+  let store: ReadonlyMap<string, StoredProject> = new Map(
+    [...PROJECT_DTOS, DEMO_PROJECT_DTO].map((dto) => {
+      const local = PROJECT_LOCAL_STATE[dto.id ?? '']
+      if (!local) throw new Error(`Фикстура проекта ${String(dto.id)}: нет состояния`)
+      return [dto.id ?? '', { dto, local }] as const
+    }),
+  )
+  let jobs: ReadonlyMap<string, { readonly projectId: ProjectId; readonly runId: string; readonly polls: number }> = new Map()
+
+  const put = (id: string, next: StoredProject) => { store = new Map([...store, [id, next]]) }
+  const find = (id: string): StoredProject => {
+    const found = store.get(id)
+    if (!found) throw new NotFoundError(`Проект ${id} не найден`)
+    return found
+  }
+  const toDomain = ({ dto, local }: StoredProject): Project => toProject(dto, local)
+  const editable = (id: ProjectId): StoredProject => {
+    const found = find(id)
+    if (found.dto.status === 'saved') throw new ConflictError(READ_ONLY)
+    return found
+  }
+  const evaluationOf = (stored: StoredProject): ApiSchemas['Evaluation'] => {
+    const evaluation = EVALUATIONS_BY_PROCESS[stored.dto.task?.id ?? '']
+    if (!evaluation) throw new NotFoundError('Подбор для этого проекта ещё не рассчитан')
+    return evaluation
+  }
+  /** Ошибки — отказом промиса, как у настоящего запроса. */
+  const attempt = <T>(action: () => T): Promise<T> => {
+    try {
+      return respond(action(), options)
+    } catch (error: unknown) {
+      return Promise.reject(error instanceof Error ? error : new Error(String(error)))
+    }
+  }
+
   return {
-    listProjects: () => respond([...projects].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)), options),
-    getProject: (id) => findOrReject(projects, (p) => p.id === id, `Проект ${id} не найден`, options),
-    createDraft: ({ name, locationId, locationProcessId, solutionId }) => {
-      const draft: DraftProject = {
-        id: nextId(projects),
-        name,
-        locationId,
-        processIds: locationProcessId ? [locationProcessId] : [],
-        status: 'draft',
-        step: 'params',
-        updatedAt: new Date().toISOString(),
-        ...(solutionId ? { solutionId } : {}),
+    listProjects: () => attempt(() => [...store.values()]
+      .filter((p) => !p.dto.isDemo)
+      .map(toDomain)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))),
+
+    getProject: (id) => attempt(() => toDomain(find(id))),
+
+    createDraft: ({ name, locationId, locationProcessId, solutionId }) => attempt(() => {
+      const id = nextId([...store.keys()])
+      const at = now()
+      const dto: ProjectDto = {
+        id, name, locationId, status: 'draft', updatedAt: at, snapshotTakenAt: at,
+        versions: { catalog: 4, model: '2.1', norms: 3, dictionaries: 1 },
+        ...(locationProcessId ? { task: { id: locationProcessId } } : {}),
+        ...(solutionId ? { pinnedSolutionId: solutionId } : {}),
       }
-      projects = [...projects, draft]
-      return respond(draft, options)
-    },
+      put(id, { dto, local: { step: 'params', inputs: emptyInputs(at), result: null } })
+      return toDomain(find(id)) as DraftProject
+    }),
+
+    updateInputs: (id, patch) => attempt(() => {
+      const stored = editable(id)
+      const at = now()
+      put(id, { dto: { ...stored.dto, updatedAt: at }, local: { ...stored.local, inputs: applyInputsPatch(stored.local.inputs, patch, at) } })
+      return toDomain(find(id))
+    }),
+
+    openStep: (id, step) => attempt(() => {
+      const stored = find(id)
+      const project = toDomain(stored)
+      if (!canOpenStep(project, step)) throw new ConflictError('Этот шаг откроется, когда будут пройдены предыдущие')
+      if (project.status === 'draft') put(id, { ...stored, local: { ...stored.local, step: furthestStep(project.step, step) } })
+      return toDomain(find(id))
+    }),
+
+    getMatching: (id) => attempt(() => {
+      const stored = find(id)
+      return { ...toMatchingEvaluation(evaluationOf(stored)), stale: stored.local.inputs.stale.matching }
+    }),
+
+    startSimulation: (id) => attempt(() => {
+      const stored = editable(id)
+      const fleet = stored.local.inputs.simulation?.fleet
+      const run = fleet ? runForFleet(fleet.robots, fleet.stations) : runForFleet(-1, -1)
+      const jobId = `JOB-${String(jobs.size + 1)}`
+      jobs = new Map([...jobs, [jobId, { projectId: id, runId: run.simulation_id, polls: 0 }]])
+      return toSimulationJob({ job_id: jobId, status: 'queued', log: [], elapsed: 0 })
+    }),
+
+    getSimulationJob: (jobId) => attempt(() => {
+      const job = jobs.get(jobId)
+      if (!job) throw new NotFoundError(`Задание ${jobId} не найдено`)
+      const polls = job.polls + 1
+      jobs = new Map([...jobs, [jobId, { ...job, polls }]])
+      const done = polls > RUN_LOG.length
+      if (done) {
+        const stored = find(job.projectId)
+        const at = now()
+        const inputs = applyInputsPatch(stored.local.inputs, { simulation: { runId: job.runId } }, at)
+        put(job.projectId, { ...stored, local: { ...stored.local, inputs: markFresh(inputs, 'simulation', at) } })
+      }
+      return toSimulationJob({
+        job_id: jobId,
+        status: done ? 'done' : 'running',
+        log: RUN_LOG.slice(0, Math.min(polls, RUN_LOG.length)),
+        elapsed: polls * 3,
+        ...(done ? { simulation_ids: [job.runId] } : {}),
+      })
+    }),
+
+    getSimulationRun: (runId) => attempt(() => {
+      const run = SIMULATION_RUNS.find((r) => r.simulation_id === runId)
+      if (!run) throw new NotFoundError(`Прогон ${runId} не найден`)
+      return toSimulationRun(run)
+    }),
+
+    getEconomics: (id) => attempt(() => {
+      const stored = find(id)
+      const selection = stored.local.inputs.matching?.selection
+      if (!selection) throw new NotFoundError('Итог появится, когда на подборе выбран вариант')
+      return toEconomics(evaluationOf(stored), selection.solutionId, {
+        sensitivity: SENSITIVITY_LP01_RAAS,
+        conditions: CONDITIONS_LP01_RAAS,
+        operationsPerDay: OPERATIONS_PER_DAY_LP01,
+      })
+    }),
+
+    save: (id) => attempt(() => {
+      const stored = editable(id)
+      const { inputs } = stored.local
+      const selection = inputs.matching?.selection
+      if (!selection) throw new ConflictError('Сохранить можно, когда на подборе выбран вариант')
+      const scenarioModel = inputs.economics?.scenario ?? selection.acquisition
+      const economics = toEconomics(evaluationOf(stored), selection.solutionId, { sensitivity: [], conditions: [], operationsPerDay: OPERATIONS_PER_DAY_LP01 })
+      const scenario = economics.scenarios.find((s) => s.acquisition === scenarioModel)
+      if (!scenario || scenario.paybackYears === null) throw new ConflictError('У выбранного сценария нет окупаемости — сохранить нельзя')
+      const at = now()
+      put(id, {
+        dto: { ...stored.dto, status: 'saved', savedAt: at, updatedAt: at, task: stored.dto.task ?? {} },
+        local: {
+          ...stored.local,
+          step: 'economics',
+          result: { capexRub: scenario.capexRub, opexRubPerYear: scenario.opexRubPerYear, paybackYears: scenario.paybackYears, annualEffectRub: scenario.annualEffectRub },
+        },
+      })
+      return toDomain(find(id)) as SavedProject
+    }),
   }
 }
