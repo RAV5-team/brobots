@@ -113,7 +113,7 @@ describe('mock location service', () => {
     // РЦ Химки: 20 000 м², 180 чел, 2 × 11 ч, 5 процессов, 231 млн ₽; допущений 2 — как в форме (PRD 15 · №45).
     expect(pick('LOC-01')).toMatchObject({
       totalAreaM2: 20000, staffTotal: 180, shiftsPerDay: 2, shiftHours: 11, processesCount: 5,
-      laborCostRubYear: 231_000_000, workersInProcesses: 145, assumptionsCount: 2, projectsCount: 2, projectsCompleted: 0,
+      laborCostRubYear: 231_000_000, workersInProcesses: 145, assumptionsCount: 2, projectsCount: 4, projectsCompleted: 2,
     })
     // Аэропорт: персонал — сумма групп 320 + 180, смены — из PRD 10.1 (в датасете режима нет).
     expect(pick('LOC-03')).toMatchObject({ staffTotal: 500, shiftsPerDay: 3, shiftHours: 8, processesCount: 3 })
@@ -177,7 +177,7 @@ describe('mock process, project and admin services', () => {
   })
 
   it('returns a project by id', async () => {
-    await expect(services.projects.getProject('PJ-03')).resolves.toMatchObject({ step: 'simulation' })
+    await expect(services.projects.getProject('PJ-03')).resolves.toMatchObject({ status: 'saved' })
     await expect(services.projects.getProject('PJ-99')).rejects.toThrow('Проект PJ-99 не найден')
   })
 

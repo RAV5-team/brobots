@@ -35,8 +35,8 @@ interface DashboardSources {
   readonly inputs: DashboardInputs
 }
 
-/** Проект рассчитан, когда дошёл до итога и экономики: статус «Результат» (PRD 8.2, D-29). */
-const isCalculated = (project: Project): boolean => project.step === 'economics'
+/** Проект рассчитан, когда оценка сохранена: у черновика цифр результата нет (PRD 8.2, 11.1; D-29). */
+const isCalculated = (project: Project): boolean => project.status === 'saved'
 
 /**
  * Найденная экономия (PRD 8.2): у каждого процесса — лучший проект, и ни один процесс не считается дважды.
@@ -45,7 +45,7 @@ const isCalculated = (project: Project): boolean => project.step === 'economics'
  */
 export function foundSavingsRub(projects: readonly Project[]): number {
   const withEffect = projects
-    .map((p) => ({ processIds: p.processIds, effect: p.preliminary?.annualEffectRub ?? null }))
+    .map((p) => ({ processIds: p.processIds, effect: p.status === 'saved' ? p.result.annualEffectRub : null }))
     .filter((p): p is { processIds: readonly LocationProcessId[]; effect: number } => p.effect !== null)
     .sort((a, b) => b.effect - a.effect)
 

@@ -1,26 +1,29 @@
 import { ArrowRight } from 'lucide-react'
-import { generatePath } from 'react-router'
-import { PROJECT_STEP_PATHS, ROUTE_PATHS } from '@/app/routePaths'
+import { ROUTE_PATHS, projectOpenPath } from '@/app/routePaths'
 import { ButtonLink } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Chip } from '@/components/ui/Chip'
 import { IconButtonLink } from '@/components/ui/IconButton'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { EmptyState } from '@/components/ui/States'
-import type { ProjectPreliminary } from '@/domain'
+import type { Project } from '@/domain'
 import { formatDayTime, formatRubCompact, formatYears } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import type { RecentProject } from './dashboardModel'
 
 const t = ru.dashboard.continue
 
-/** «0,7 года · 9,2 млн ₽/год», «2,2 года» или прочерк, если расчёта ещё нет. */
-function resultText(preliminary: ProjectPreliminary | null): string {
-  if (!preliminary) return t.noResult
-  const payback = formatYears(preliminary.paybackYears)
-  if (preliminary.annualEffectRub === null) return payback
-  return `${payback} · ${formatRubCompact(preliminary.annualEffectRub, { perYear: true })}`
+/** «0,7 года · 9,2 млн ₽/год» или «1,6 года» из снимка сохранённой оценки; у черновика — прочерк. */
+function resultText(project: Project): string {
+  if (project.status === 'draft') return t.noResult
+  const { paybackYears, annualEffectRub } = project.result
+  const payback = formatYears(paybackYears)
+  if (annualEffectRub === null) return payback
+  return `${payback} · ${formatRubCompact(annualEffectRub, { perYear: true })}`
 }
+
+const statusText = (project: Project): string =>
+  project.status === 'draft' ? ru.dashboard.projectStatus[project.step] : ru.dashboard.projectStatus.saved
 
 function ProjectRow({ project, locationName }: RecentProject) {
   return (
@@ -29,12 +32,12 @@ function ProjectRow({ project, locationName }: RecentProject) {
         <h3 className="type-body font-semibold text-text">{project.name}</h3>
         <p className="type-caption text-text-secondary">{t.changed(locationName, formatDayTime(project.updatedAt))}</p>
       </div>
-      <Chip size="md">{ru.dashboard.projectStatus[project.step]}</Chip>
-      <p className="w-(--rav-dashboard-result-width) shrink-0 type-body font-semibold text-text">{resultText(project.preliminary)}</p>
+      <Chip size="md">{statusText(project)}</Chip>
+      <p className="w-(--rav-dashboard-result-width) shrink-0 type-body font-semibold text-text">{resultText(project)}</p>
       <IconButtonLink
         icon={ArrowRight}
         label={t.open(project.name)}
-        to={generatePath(PROJECT_STEP_PATHS[project.step], { projectId: project.id })}
+        to={projectOpenPath(project)}
       />
     </li>
   )

@@ -41,7 +41,7 @@ describe('LocationsPage (экран 12)', () => {
     expect(card.getByText('231 млн ₽ / год')).toBeInTheDocument()
     expect(card.getByText('затраты на персонал · 145 человек в операционных процессах')).toBeInTheDocument()
     expect(card.getByText('78 %')).toBeInTheDocument()
-    expect(card.getByText('2 (0 завершено)')).toBeInTheDocument()
+    expect(card.getByText('4 (2 завершено)')).toBeInTheDocument()
     expect(card.getByText('обновлено 14.09.2026')).toBeInTheDocument()
     expect(card.getByRole('link', { name: 'Подробнее о локации «РЦ Химки»' })).toHaveAttribute('href', '/locations/LOC-01')
   })

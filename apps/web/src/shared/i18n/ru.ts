@@ -109,6 +109,8 @@ export const ru = {
       matching: 'Подбор',
       simulation: 'Симуляция',
       economics: 'Результат',
+      /** Сохранённая оценка — как на макете 06 у рассчитанного проекта. */
+      saved: 'Результат',
     },
     locations: {
       title: 'Локации',
@@ -1361,6 +1363,14 @@ export const ru = {
     matching: 'Подбор',
     simulation: 'Симуляция',
     economics: 'Итог и экономика',
+  },
+
+  /** Короткие названия стадий черновика (PRD 11.1: «Параметры · Подбор · Симуляция · Итог»). */
+  projectStages: {
+    parameters: 'Параметры',
+    selection: 'Подбор',
+    simulation: 'Симуляция',
+    result: 'Итог',
   },
 
   plural: {

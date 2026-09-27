@@ -148,9 +148,19 @@ describe('fixtures: resolved PRD 15 discrepancies (README)', () => {
     expect(robot('DMR Carrier P')?.subtype).toBe('FMR')
   })
 
-  it('№57, №61: the Даркстор Юг project is a draft at simulation', () => {
+  it('№57, №61: the Даркстор Юг project is a saved assessment (PRD 11.1)', () => {
     const project = PROJECTS.find((p) => p.locationId === location('Даркстор Юг')?.id)
-    expect(project).toMatchObject({ status: 'draft', step: 'simulation', preliminary: { paybackYears: 2.2 } })
+    expect(project).toMatchObject({ status: 'saved', result: { capexRub: 52_400_000, paybackYears: 1.6 } })
+  })
+
+  it('№106: snapshots keep the new model values shown on the result, not the old A1 board', () => {
+    const results = PROJECTS.flatMap((p) => (p.status === 'saved' ? [[p.id, p.result.capexRub, p.result.opexRubPerYear, p.result.paybackYears]] : []))
+    expect(results).toEqual([
+      ['PJ-01', 6_100_000, 42_000_000, 0.7],
+      ['PJ-03', 52_400_000, 21_300_000, 1.6],
+      ['PJ-05', 84_000_000, 12_500_000, 7],
+      ['PJ-06', 47_400_000, 34_500_000, 2.8],
+    ])
   })
 
   it('№65, №66: class codes and names follow the A8 reference', () => {
