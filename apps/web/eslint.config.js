@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
   // docs/design/figma-audit.js — тело для use_figma (top-level return), а не модуль.
-  { ignores: ['dist', 'node_modules', '.figma-cache', 'docs'] },
+  { ignores: ['dist', 'node_modules', '.figma-cache', 'docs', 'src/api/generated'] },
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

@@ -12,6 +12,7 @@
     "preview": "vite preview --port 4173 --strictPort",
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint .",
+    "gen:api": "node scripts/genApi.ts",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test --project=e2e",
@@ -50,10 +51,16 @@
     "eslint-plugin-react-refresh": "^0.5.7",
     "globals": "^17.12.0",
     "jsdom": "^29.1.1",
+    "openapi-typescript": "7.13.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.70.1",
     "vite": "^8.3.1",
     "vitest": "^5.0.2"
+  },
+  "overrides": {
+    "openapi-typescript": {
+      "typescript": "$typescript"
+    }
   }
 }
