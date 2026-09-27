@@ -177,6 +177,20 @@
   --rav-empty-panel-min-height: 450px;
   /* Отступ якоря секции под липкой навигацией формы: 16 сверху + 40 капсула + 16. */
   --rav-form-nav-offset: 72px;
+  /* К-1 «Каталог · список»: плашка фото карточки 120 (16642:672), фото — с отступом 10 внутри (16642:674). */
+  --rav-catalog-photo-height: 120px;
+  /* Выпадающий список с мультивыбором (MultiSelectFilter): ширина панели. Макета нет — по самому длинному значению «Отрасли». */
+  --rav-multiselect-width: 280px;
+  /* К-3 «Сравнение»: колонка подписей строк 300 (16642:2532); колонки решений делят остаток поровну. */
+  --rav-compare-label-width: 300px;
+  /* К-4 «Карточка решения»: строка характеристики — подпись 160, статус 128, источник 172, значение — остаток (16777:987). */
+  --rav-characteristic-label-width: 160px;
+  --rav-characteristic-status-width: 128px;
+  --rav-characteristic-source-width: 172px;
+  /* К-4, шапка (16777:795, 16777:805): фото 200 × 180, плитки фактов 108. */
+  --rav-solution-photo-width: 200px;
+  --rav-solution-photo-height: 180px;
+  --rav-solution-fact-height: 108px;
 
   /* --- Тени: неоморфные пары (blur Figma = blur CSS) --- */
   --rav-shadow-raised-sm: -2px -2px 6px rgb(255 255 255 / 0.85), 2px 2px 6px rgb(185 179 167 / 0.3);

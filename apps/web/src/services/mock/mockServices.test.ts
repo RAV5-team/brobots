@@ -4,6 +4,10 @@ import { NEW_LOCATION_SAMPLE } from '@/mocks/fixtures/newLocation'
 import { ConflictError, InvalidCredentialsError, NotFoundError, ValidationError } from '../errors'
 import { createMockServices } from './index'
 import { createMockSession } from './session'
+import { ROBOTS } from '@/mocks/fixtures/robots'
+
+/** Роботы класса в фикстурах: счётчики А8 считаются из них (D-13, D-61). */
+const robotsOfClass = (code: string) => ROBOTS.filter((r) => r.operationClasses.some((c) => c.code === code)).length
 
 const services = createMockServices({ latencyMs: 0 })
 
@@ -35,7 +39,7 @@ describe('mock catalog service', () => {
   it('lists robots and filters by operation class', async () => {
     const all = await services.catalog.listRobots()
     const op08 = await services.catalog.listRobots({ operationClass: 'OP-08' })
-    expect(all).toHaveLength(20)
+    expect(all).toHaveLength(ROBOTS.length)
     expect(op08.length).toBeGreaterThan(0)
     expect(op08.every((r) => r.operationClasses.some((c) => c.code === 'OP-08'))).toBe(true)
   })
@@ -44,7 +48,7 @@ describe('mock catalog service', () => {
     const counts = await services.catalog.countRobotsByClass()
     const robots = await services.catalog.listRobots({ operationClass: 'OP-01' })
     expect(counts['OP-01']).toBe(robots.length)
-    expect(counts['OP-10']).toBe(0)
+    expect(counts['OP-10']).toBe(robotsOfClass('OP-10'))
   })
 
   it('creates an operation class with the next free code and zero robots (PRD 6.7, А10)', async () => {
@@ -68,9 +72,9 @@ describe('mock catalog service', () => {
     const created = await local.catalog.createRobot(NEW_ROBOT)
     expect(created).toMatchObject({ id: 'RB-0225', name: 'AMR 900', needsConfirmation: false, photos: ['amr900_front.jpg'] })
     await expect(local.catalog.getRobot('RB-0225')).resolves.toMatchObject({ name: 'AMR 900' })
-    expect(await local.catalog.listRobots()).toHaveLength(21)
-    expect((await local.catalog.countRobotsByClass())['OP-10']).toBe(1)
-    expect(await services.catalog.listRobots()).toHaveLength(20)
+    expect(await local.catalog.listRobots()).toHaveLength(ROBOTS.length + 1)
+    expect((await local.catalog.countRobotsByClass())['OP-10']).toBe(robotsOfClass('OP-10') + 1)
+    expect(await services.catalog.listRobots()).toHaveLength(ROBOTS.length)
   })
 
   it('rejects a robot that is already in the catalog: same name and manufacturer (PRD 6.1)', async () => {

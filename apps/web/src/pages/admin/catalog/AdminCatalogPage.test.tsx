@@ -6,6 +6,7 @@ import { createMockServices } from '@/services/mock'
 import { ServicesProvider } from '@/services/ServicesProvider'
 import { RoleProvider } from '@/shared/auth/RoleProvider'
 import { AdminCatalogPage } from './AdminCatalogPage'
+import { ROBOTS } from '@/mocks/fixtures/robots'
 
 function LocationProbe() {
   const { search } = useLocation()
@@ -42,7 +43,7 @@ describe('AdminCatalogPage (экран А1)', () => {
   it('lists every robot with six data columns and a link to its card (PRD 6.2)', async () => {
     renderPage()
     const rows = await bodyRows()
-    expect(rows).toHaveLength(20)
+    expect(rows).toHaveLength(ROBOTS.length)
     const first = within(rows[0] as HTMLElement)
     expect(first.getByText('DMR 600')).toBeInTheDocument()
     expect(first.getByText('требует подтверждения')).toBeInTheDocument()
@@ -51,7 +52,7 @@ describe('AdminCatalogPage (экран А1)', () => {
     expect(plain(first.getByText(/млн/).textContent)).toBe('3,75 млн ₽')
     expect(first.getByText('12.08.2026')).toBeInTheDocument()
     expect(first.getByRole('link', { name: 'Открыть карточку DMR 600' })).toHaveAttribute('href', '/admin/catalog/RB-0011')
-    expect(plain(screen.getByRole('status').textContent)).toBe('Показаны 20 из 20 решений')
+    expect(plain(screen.getByRole('status').textContent)).toBe(`Показаны ${String(ROBOTS.length)} из ${String(ROBOTS.length)} решений`)
   })
 
   it('links «Обновить каталог по запросу» to А1а and «Добавить робота» to А2', async () => {
@@ -66,7 +67,7 @@ describe('AdminCatalogPage (экран А1)', () => {
     await bodyRows()
     fireEvent.change(screen.getByRole('searchbox', { name: 'Найти решение или производителя' }), { target: { value: 'морос' } })
     expect(await bodyRows()).toHaveLength(3)
-    expect(plain(screen.getByRole('status').textContent)).toBe('Показаны 3 из 20 решений')
+    expect(plain(screen.getByRole('status').textContent)).toBe(`Показаны 3 из ${String(ROBOTS.length)} решений`)
     expect(screen.getByTestId('search')).toHaveTextContent('?as=admin&q=%D0%BC%D0%BE%D1%80%D0%BE%D1%81')
   })
 
@@ -74,7 +75,7 @@ describe('AdminCatalogPage (экран А1)', () => {
     renderPage('?as=admin&q=xyz')
     expect(await screen.findByText('Ничего не нашлось')).toBeInTheDocument()
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
-    expect(plain(screen.getByRole('status').textContent)).toBe('Показаны 0 из 20 решений')
+    expect(plain(screen.getByRole('status').textContent)).toBe(`Показаны 0 из ${String(ROBOTS.length)} решений`)
   })
 
   it('shows an error with retry when the catalog does not load', async () => {
@@ -87,7 +88,7 @@ describe('AdminCatalogPage (экран А1)', () => {
     }
     renderPage('?as=admin', flaky)
     fireEvent.click(await screen.findByRole('button', { name: 'Повторить' }))
-    expect(await bodyRows()).toHaveLength(20)
+    expect(await bodyRows()).toHaveLength(ROBOTS.length)
   })
 
   it('shows «Каталог обновлён» with a link to the catalog after a robot is saved (экран А3, PRD 6.2)', async () => {

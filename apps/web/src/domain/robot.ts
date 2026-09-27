@@ -1,6 +1,9 @@
+import type { LaunchItemId } from './catalogItem'
+import type { Characteristic } from './characteristic'
 import type { DataConfidence } from './common'
 import type { HandlingMethodCode } from './handling'
 import type { OperationClassCode } from './operationClass'
+import type { RobotCharacteristicKey } from './robotCharacteristics'
 
 /** Идентификатор робота в каталоге: RB-NNNN, не меняется (глоссарий). */
 export type RobotId = `RB-${string}`
@@ -15,6 +18,8 @@ export interface RobotOperationClass {
   readonly unit?: string
   /** Исходная запись диапазона: «40–60 паллет/ч». В расчёт идёт нижняя граница. */
   readonly productivityText?: string
+  /** Откуда привязка класса, если её сделали не по данным робота: «привязка администратора (демо), по макету К-1» (D-61). */
+  readonly source?: string
 }
 
 /** Статус готовности из каталога организатора. */
@@ -45,6 +50,8 @@ export interface Robot {
   readonly name: string
   readonly manufacturer: string
   readonly country?: string
+  /** Регион производителя из файла организатора (колонка «Регион»): строка «Регион» сравнения К-3 (PRD 7.6). */
+  readonly region?: string
   /** Тип и подтип каталога: «Мобильные роботы» · «AMR». */
   readonly type: string
   readonly subtype: string
@@ -73,6 +80,36 @@ export interface Robot {
    * эндпоинта загрузки нет, как у файла источника (D-51).
    */
   readonly photos?: readonly string[]
+  /**
+   * Фото карточки каталога К-1: путь в `apps/web/public` и источник (D-62). Нет — на карточке плашка с меткой типа.
+   * Не путать с `photos`: там имена файлов, загруженных в карточку А2.
+   */
+  readonly photo?: RobotPhoto
+  /**
+   * Состав запуска (PRD 7.7, D-78) — id позиций для запуска: обязательная часть (плашки «Для запуска» на К-1,
+   * сумма «от X млн ₽ на проект» на К-4) и позиции «в зависимости от объекта».
+   */
+  readonly launchRequired: readonly LaunchItemId[]
+  readonly launchConditional: readonly LaunchItemId[]
+  /** Кейсы внедрения из файла организатора (колонка «Кейсы»): строка «Реализованные кейсы» К-4. */
+  readonly cases?: string
+  /**
+   * Характеристики, которых нет в полях робота: значение, статус, источник (D-76). Остальные строки К-4 выводятся
+   * из полей; нет ни там, ни тут — «нет данных». Сейчас заполнено только у AMR 800 (`provenance`).
+   */
+  readonly characteristics?: RobotCharacteristics
+}
+
+export interface RobotCharacteristics {
+  /** Откуда вся запись: «по макету К-4, данные команды». */
+  readonly provenance: string
+  readonly values: Readonly<Partial<Record<RobotCharacteristicKey, Characteristic>>>
+}
+
+export interface RobotPhoto {
+  /** Путь от корня сайта: `/catalog/rb-0007.webp`. */
+  readonly path: string
+  readonly source: string
 }
 
 /**

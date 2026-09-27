@@ -12,8 +12,8 @@ interface CardProps extends HTMLAttributes<HTMLElement> {
    * well — вдавленная панель внутри карточки (радиус 16, surface-muted, inset-md; «231 млн ₽ / год» 12, 15950:1686).
    */
   readonly variant?: CardVariant
-  /** Внутренний отступ; по умолчанию 20. Карточки экрана входа — 28, лаймовые панели — 16 и 8. */
-  readonly padding?: 8 | 16 | 20 | 28
+  /** Внутренний отступ; по умолчанию 20. Карточки экрана входа — 28, лаймовые панели — 16 и 8, карточки каталога К-1 — 12, шапка страницы решения К-4 — 24. */
+  readonly padding?: 8 | 12 | 16 | 20 | 24 | 28
   /** Промежуток между детьми; по умолчанию 12 у panel, 8 у остальных. Справочник А8 — 16. */
   readonly gap?: 0 | 4 | 8 | 12 | 16 | 20 | 28
   readonly as?: 'section' | 'article' | 'div' | 'ul'
@@ -36,7 +36,7 @@ const ELEVATIONS: Record<CardElevation, string> = { md: 'shadow-raised-md', lg: 
 const DEFAULT_ELEVATION: Record<CardVariant, CardElevation | null> = { panel: 'lg', tile: 'md', accent: null, sunken: null, inset: null, well: null }
 
 // Классы целиком: Tailwind находит утилиты только по полным строкам.
-const PADDINGS = { 8: 'p-8', 16: 'p-16', 20: 'p-20', 28: 'p-28' } as const
+const PADDINGS = { 8: 'p-8', 12: 'p-12', 16: 'p-16', 20: 'p-20', 24: 'p-24', 28: 'p-28' } as const
 const GAPS = { 0: 'gap-0', 4: 'gap-4', 8: 'gap-8', 12: 'gap-12', 16: 'gap-16', 20: 'gap-20', 28: 'gap-28' } as const
 
 /** Выпуклая карточка того же цвета, что фон, или лаймовая панель (components.md: Card). */

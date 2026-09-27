@@ -18,6 +18,9 @@ export const ROUTE_PATHS = {
   locationDocuments: '/locations/:locationId/documents',
 
   catalog: '/catalog',
+  // «compare» объявлен раньше «:itemId» (D-68): сравнение К-3 — не страница позиции.
+  catalogCompare: '/catalog/compare',
+  catalogItem: '/catalog/:itemId',
 
   projects: '/projects',
   projectParams: '/projects/:projectId/params',
