@@ -1,9 +1,10 @@
 """Independent regression checkpoints from the supplied workbook.
 
-The expected outputs are recorded from the source workbook's cached formula
-results, not computed by this service. Source: docs/source-materials/economics/
-ФЦБАС_Экономическая_модель_v1_1.xlsx, sheet "Склад". Inputs are documented
-alongside the extracted reference in docs/reference/economics.
+The expected outputs are the workbook's cached formula results, not values
+computed by this service. Source: ФЦБАС_Экономическая_модель_v1_1.xlsx, sheet
+«Склад», engine columns S (Ronavi H1500 · Покупка · База), E (DMR Carrier P ·
+Покупка · База) and L (DMR Carrier P · RaaS · База), rows 104–164. Inputs are
+the sheet's named cells Skl_* and the norms of sheet «Нормативы».
 """
 
 from dataclasses import replace
@@ -26,92 +27,17 @@ from tests.unit.application.test_calculation import (
     _task,
 )
 
+TOLERANCE = Decimal("0.000001")
+
 
 def _money(value: str) -> Money:
     return Money(Decimal(value))
 
 
-def _source_money(value: str) -> Money:
-    return Money(Decimal(value), currency="RUB", scale=6)
+def _workbook_task():
+    """Named cells Skl_* of sheet «Склад»."""
 
-
-@pytest.mark.parametrize(
-    (
-        "acquisition",
-        "price",
-        "speed",
-        "loading",
-        "unloading",
-        "power",
-        "expected",
-    ),
-    (
-        (
-            AcquisitionModel.PURCHASE,
-            "2700000",
-            "1.5",
-            "30",
-            "30",
-            "1",
-            {
-                "candidate.demand.peak_trips_per_hour": Decimal(
-                    "129.54545454545455"
-                ),
-                "candidate.productivity.cycle_seconds": Decimal(
-                    "193.33333333333333"
-                ),
-                "candidate.fleet.robot_count": Decimal("11"),
-                "candidate.fleet.charger_count": Decimal("6"),
-                "candidate.capex.total": Decimal("47151150"),
-                "candidate.opex.annual_solution_opex": Decimal("8315052"),
-                "candidate.effects.net_annual_benefit": Decimal("10533348"),
-                "candidate.returns.simple_payback_years": Decimal(
-                    "4.477594307555934"
-                ),
-                "candidate.returns.workbook_roi": Decimal("1.1169888379312402"),
-                "candidate.returns.solution_tco": Decimal("88726350"),
-            },
-        ),
-        (
-            AcquisitionModel.RAAS,
-            "4300000",
-            "1.5",
-            "60",
-            "60",
-            "3",
-            {
-                "candidate.demand.peak_trips_per_hour": Decimal(
-                    "129.54545454545455"
-                ),
-                "candidate.productivity.cycle_seconds": Decimal(
-                    "253.33333333333333"
-                ),
-                "candidate.fleet.robot_count": Decimal("14"),
-                "candidate.fleet.charger_count": Decimal("8"),
-                "candidate.capex.total": Decimal("21628650"),
-                "candidate.opex.annual_solution_opex": Decimal("24171660"),
-                "candidate.effects.net_annual_benefit": Decimal("3057940"),
-                "candidate.returns.simple_payback_years": Decimal(
-                    "7.070185867229674"
-                ),
-                "candidate.returns.workbook_roi": Decimal("0.7078320603878956"),
-                "candidate.returns.solution_tco": Decimal("141224850"),
-            },
-        ),
-    ),
-)
-def test_warehouse_workbook_golden(
-    acquisition: AcquisitionModel,
-    price: str,
-    speed: str,
-    loading: str,
-    unloading: str,
-    power: str,
-    expected: dict[str, Decimal],
-) -> None:
-    """Checks purchase and RaaS outputs against independent sheet values."""
-
-    task = replace(
+    return replace(
         _task(),
         operations_per_day=Decimal("2000"),
         peak_factor=Decimal("1.5"),
@@ -122,8 +48,8 @@ def test_warehouse_workbook_golden(
         load_unit_mass_kg=Decimal("800"),
         load_is_divisible=False,
         available_charging_power_kw=Decimal("500"),
-        target_fte=Decimal("25"),
-        target_annual_payroll=_money("46872000"),
+        target_fte=Decimal("23.75"),
+        target_annual_payroll=_money("44528400"),
         baseline_annual_payroll=_money("46872000"),
         fleet_operators_per_shift=Decimal("1"),
         shifts_per_day=Decimal("2"),
@@ -132,63 +58,157 @@ def test_warehouse_workbook_golden(
         target_monthly_salary=_money("120000"),
         annual_staff_turnover=Decimal("0"),
         annual_other_benefits=_money("0"),
-        replacement_by_handling=(("forks", Decimal("0.5")),),
+        replacement_by_handling=(
+            ("forks", Decimal("0.8")),
+            ("platform", Decimal("0.6")),
+        ),
         horizon_years=5,
         budget=_money("80000000"),
+        integration_cost=_money("2000000"),
+        annual_consumables_per_robot=_money("0"),
     )
-    candidate = replace(
-        _candidate(),
-        candidate_id="workbook-warehouse-candidate",
-        robot_code=(
-            "Ronavi H1500"
-            if acquisition is AcquisitionModel.PURCHASE
-            else "DMR Carrier P"
-        ),
-        price=_money(price),
-        payload_kg=Decimal("1500"),
-        max_speed_mps=Decimal(speed),
-        loading_seconds=Decimal(loading),
-        unloading_seconds=Decimal(unloading),
-        average_power_kw=Decimal(power),
-    )
-    norms = replace(
-        replace(_norms(), source=SOURCE),
+
+
+def _workbook_norms():
+    """Sheet «Нормативы», column D."""
+
+    return replace(
+        _norms(),
         payroll_multiplier=Decimal("1.302"),
         productive_time_share=Decimal("0.8"),
-        technical_availability=Decimal("0.9"),
-        fleet_reserve_share=Decimal("0.1"),
-        operating_speed_factor=Decimal("1"),
-        robots_per_charger=Decimal("2"),
-        charger_installed_price=_money("1000"),
+        technical_availability=Decimal("0.95"),
+        fleet_reserve_share=Decimal("0.15"),
+        operating_speed_factor=Decimal("0.6"),
+        robots_per_charger=Decimal("4"),
+        charger_installed_price=_money("250000"),
         charger_power_kw=Decimal("5"),
         fms_upfront_share=Decimal("0.1"),
-        delivery_share=Decimal("0.05"),
-        commissioning_share=Decimal("0.1"),
-        training_cost=_money("500"),
+        delivery_share=Decimal("0.02"),
+        commissioning_share=Decimal("0.05"),
+        training_cost=_money("300000"),
         capex_contingency_share=Decimal("0.1"),
-        annual_service_share=Decimal("0.05"),
-        annual_license_share=Decimal("0.02"),
-        annual_repair_share=Decimal("0.03"),
-        electricity_price=_money("0.2"),
+        annual_service_share=Decimal("0.08"),
+        annual_license_share=Decimal("0.03"),
+        annual_repair_share=Decimal("0.02"),
+        electricity_price=_money("7.5"),
         battery_life_years=Decimal("4"),
         battery_replacement_share=Decimal("0.1"),
-        annual_connectivity_cost=_money("100"),
-        equipment_life_years=Decimal("10"),
-        discount_rate=Decimal("0.1"),
+        annual_connectivity_cost=_money("60000"),
+        equipment_life_years=Decimal("7"),
+        discount_rate=Decimal("0.15"),
         loan_share=Decimal("0"),
         loan_interest_rate=Decimal("0.2"),
         loan_term_years=Decimal("3"),
-        monthly_raas_share=Decimal("0.02"),
-        raas_setup_share=Decimal("0.1"),
-        recruitment_months_salary=Decimal("1"),
+        monthly_raas_share=Decimal("0.03"),
+        raas_setup_share=Decimal("0.05"),
+        recruitment_months_salary=Decimal("0.5"),
         good_payback_years=Decimal("3"),
         medium_payback_years=Decimal("5"),
         site_preparation_share=Decimal("0.05"),
+        source=SOURCE,
+    )
+
+
+@pytest.mark.parametrize(
+    ("acquisition", "robot", "expected"),
+    (
+        pytest.param(
+            AcquisitionModel.PURCHASE,
+            {
+                "robot_code": "RONAVI-H1500",
+                "price": "2700000",
+                "loading": "30",
+                "unloading": "30",
+                "power": "1",
+                "handling": "platform",
+            },
+            {
+                "candidate.demand.peak_trips_per_hour": "129.545454545455",
+                "candidate.productivity.cycle_seconds": "282.222222222222",
+                "candidate.fleet.robot_count": "16",
+                "candidate.fleet.charger_count": "4",
+                "candidate.capex.total": "61604400",
+                "candidate.opex.annual_solution_opex": "11326800",
+                "candidate.effects.net_annual_benefit": "15390240",
+                "candidate.returns.simple_payback_years": "4.00282256806911",
+                "candidate.returns.workbook_roi": "1.17899370824162",
+                "candidate.returns.solution_tco": "122558400",
+            },
+            id="column-S-ronavi-h1500-purchase",
+        ),
+        pytest.param(
+            AcquisitionModel.PURCHASE,
+            {
+                "robot_code": "DMR-CARRIER-P",
+                "price": "4300000",
+                "loading": "60",
+                "unloading": "60",
+                "power": "3",
+                "handling": "forks",
+            },
+            {
+                "candidate.demand.peak_trips_per_hour": "129.545454545455",
+                "candidate.productivity.cycle_seconds": "342.222222222222",
+                "candidate.fleet.robot_count": "19",
+                "candidate.fleet.charger_count": "5",
+                "candidate.capex.total": "113546400",
+                "candidate.opex.annual_solution_opex": "18801025",
+                "candidate.effects.net_annual_benefit": "16821695",
+                "candidate.returns.simple_payback_years": "6.74999754780954",
+                "candidate.returns.workbook_roi": "0.668788046120353",
+                "candidate.returns.solution_tco": "215721525",
+            },
+            id="column-E-dmr-carrier-p-purchase",
+        ),
+        pytest.param(
+            AcquisitionModel.RAAS,
+            {
+                "robot_code": "DMR-CARRIER-P",
+                "price": "4300000",
+                "loading": "60",
+                "unloading": "60",
+                "power": "3",
+                "handling": "forks",
+            },
+            {
+                "candidate.demand.peak_trips_per_hour": "129.545454545455",
+                "candidate.productivity.cycle_seconds": "342.222222222222",
+                "candidate.fleet.robot_count": "19",
+                "candidate.fleet.charger_count": "5",
+                "candidate.capex.total": "11517000",
+                "candidate.opex.annual_solution_opex": "37592025",
+                "candidate.effects.net_annual_benefit": "-1969305",
+                "candidate.returns.simple_payback_years": None,
+                "candidate.returns.workbook_roi": "-0.854955717634801",
+                "candidate.returns.solution_tco": "199477125",
+            },
+            id="column-L-dmr-carrier-p-raas",
+        ),
+    ),
+)
+def test_warehouse_workbook_golden(
+    acquisition: AcquisitionModel,
+    robot: dict[str, str],
+    expected: dict[str, str | None],
+) -> None:
+    """Checks purchase and RaaS outputs against the workbook's cached values."""
+
+    candidate = replace(
+        _candidate(),
+        candidate_id="workbook-warehouse-candidate",
+        robot_code=robot["robot_code"],
+        price=_money(robot["price"]),
+        payload_kg=Decimal("1500"),
+        max_speed_mps=Decimal("1.5"),
+        loading_seconds=Decimal(robot["loading"]),
+        unloading_seconds=Decimal(robot["unloading"]),
+        average_power_kw=Decimal(robot["power"]),
+        handling_method=robot["handling"],
     )
     request = replace(
         _request(candidate, acquisition),
-        task=task,
-        norms=norms,
+        task=_workbook_task(),
+        norms=_workbook_norms(),
         scenarios=(
             Scenario(
                 acquisition_model=acquisition,
@@ -204,5 +224,10 @@ def test_warehouse_workbook_golden(
 
     for code, expected_value in expected.items():
         metric = _metric(result, code)
-        assert isinstance(metric.value, Decimal)
-        assert abs(metric.value - expected_value) <= Decimal("0.0000001")
+        if expected_value is None:
+            assert metric.value is None, code
+            continue
+        assert isinstance(metric.value, Decimal), code
+        assert abs(metric.value - Decimal(expected_value)) <= TOLERANCE, (
+            f"{code}: {metric.value} != {expected_value}"
+        )
