@@ -40,7 +40,7 @@ class AcquisitionModel(StrEnum):
 
 
 class CandidateStatus(StrEnum):
-    """Describes candidate economics status, including legacy snapshot states."""
+    """Candidate economics status, including legacy snapshot states."""
 
     APPLICABLE = "applicable"
     # Retained only so old snapshots can be decoded without data loss.
