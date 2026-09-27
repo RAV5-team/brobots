@@ -3,7 +3,7 @@
 Три бэкенд-сервиса, фронтенд и Postgres. Контейнеризация — Dockerfile на каждый
 сервис плюс Docker Compose на весь контур.
 
-Go API, simulation и internal-only economics service входят в Compose-контур.
+Go API, simulation и internal-only economics service входят в Compose-контур; оркестратор api считает экономику через economics.
 Экономическая модель использует отдельную PostgreSQL базу; проектный workflow
 пока не вызывает её автоматически.
 

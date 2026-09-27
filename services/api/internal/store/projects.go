@@ -22,12 +22,14 @@ SELECT p.id, p.name, p.location_id, l.name, l.facility_type_code, t.id, t.name, 
        p.pinned_solution_id, p.selected_solution_id, ss.name, p.selected_acquisition_model, p.copied_from_id, p.is_demo,
        p.owner_id, r.id, r.created_at, r.total_candidates, r.passed_count, r.verify_count, r.excluded_count,
        p.saved_at, p.selected_calc_result_id, cr.id, cr.model_version, cr.created_at, cr.inputs_version <> p.inputs_version,
+       ns.version, COALESCE((SELECT max(version) FROM norm_set) > ns.version, false),
        p.created_at, p.updated_at
 FROM project p
 JOIN location l ON l.id = p.location_id
 JOIN task t ON t.id = p.task_id
 JOIN work_type w ON w.id = t.work_type_id
 LEFT JOIN solution ss ON ss.id = p.selected_solution_id
+LEFT JOIN norm_set ns ON ns.id = p.norm_set_id
 LEFT JOIN LATERAL (SELECT * FROM match_run mr WHERE mr.project_id = p.id ORDER BY mr.created_at DESC LIMIT 1) r ON true
 LEFT JOIN LATERAL (SELECT * FROM calc_run c WHERE c.project_id = p.id ORDER BY c.created_at DESC LIMIT 1) cr ON true`
 
@@ -46,7 +48,8 @@ func scanProject(r pgx.Row) (domain.Project, error) {
 		&p.DataChanged, &p.CatalogUpdated, &p.LocationDeleted,
 		&p.PinnedSolutionID, &selID, &selName, &selModel, &p.CopiedFromID, &p.IsDemo,
 		&p.OwnerID, &runID, &runAt, &total, &passed, &verify, &excluded,
-		&p.SavedAt, &selResultID, &calcID, &calcModel, &calcAt, &calcStale, &p.CreatedAt, &p.UpdatedAt)
+		&p.SavedAt, &selResultID, &calcID, &calcModel, &calcAt, &calcStale, &p.Versions.Norms, &p.NormsUpdated,
+		&p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		return p, err
 	}
@@ -111,6 +114,8 @@ type ProjectRecord struct {
 	OwnerID              *uuid.UUID
 	SavedAt              *time.Time
 	SelectedCalcResultID *uuid.UUID
+	// NormSetID is the pinned version of the calculation norms; nil for projects created before it.
+	NormSetID *uuid.UUID
 	// InputsVersion is read only here; BumpProjectInputs and the input writers change it.
 	InputsVersion int
 }
@@ -124,17 +129,18 @@ func (q Q) SaveProject(ctx context.Context, r ProjectRecord) error {
 	_, err = q.db.Exec(ctx, `
 INSERT INTO project (id, name, location_id, task_id, status, horizon_years, catalog_version, dictionaries_version,
                      model_version, snapshot, snapshot_taken_at, pinned_solution_id, selected_solution_id,
-                     selected_acquisition_model, copied_from_id, is_demo, owner_id, saved_at, selected_calc_result_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+                     selected_acquisition_model, copied_from_id, is_demo, owner_id, saved_at, selected_calc_result_id,
+                     norm_set_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, status = EXCLUDED.status, horizon_years = EXCLUDED.horizon_years,
   catalog_version = EXCLUDED.catalog_version, dictionaries_version = EXCLUDED.dictionaries_version,
   model_version = EXCLUDED.model_version, snapshot = EXCLUDED.snapshot, snapshot_taken_at = EXCLUDED.snapshot_taken_at,
   pinned_solution_id = EXCLUDED.pinned_solution_id, selected_solution_id = EXCLUDED.selected_solution_id,
   selected_acquisition_model = EXCLUDED.selected_acquisition_model, saved_at = EXCLUDED.saved_at,
-  selected_calc_result_id = EXCLUDED.selected_calc_result_id, updated_at = now()`,
+  selected_calc_result_id = EXCLUDED.selected_calc_result_id, norm_set_id = EXCLUDED.norm_set_id, updated_at = now()`,
 		r.ID, r.Name, r.LocationID, r.TaskID, r.Status, r.HorizonYears, r.Versions.Catalog, r.Versions.Dictionaries,
 		r.Versions.Model, snap, r.SnapshotTakenAt, r.PinnedSolutionID, r.SelectedSolutionID, r.SelectedModel,
-		r.CopiedFromID, r.IsDemo, r.OwnerID, r.SavedAt, r.SelectedCalcResultID)
+		r.CopiedFromID, r.IsDemo, r.OwnerID, r.SavedAt, r.SelectedCalcResultID, r.NormSetID)
 	return err
 }
 
@@ -151,11 +157,11 @@ func (q Q) ProjectRecordOf(ctx context.Context, id uuid.UUID) (ProjectRecord, er
 	err := q.db.QueryRow(ctx, `
 SELECT id, name, location_id, task_id, status, horizon_years, catalog_version, dictionaries_version, model_version,
        snapshot, snapshot_taken_at, pinned_solution_id, selected_solution_id, selected_acquisition_model, copied_from_id, is_demo,
-       owner_id, saved_at, selected_calc_result_id, inputs_version
+       owner_id, saved_at, selected_calc_result_id, inputs_version, norm_set_id
 FROM project WHERE id = $1 AND deleted_at IS NULL`, id).Scan(&r.ID, &r.Name, &r.LocationID, &r.TaskID, &r.Status,
 		&r.HorizonYears, &r.Versions.Catalog, &r.Versions.Dictionaries, &r.Versions.Model, &snap, &r.SnapshotTakenAt,
 		&r.PinnedSolutionID, &r.SelectedSolutionID, &r.SelectedModel, &r.CopiedFromID, &r.IsDemo, &r.OwnerID,
-		&r.SavedAt, &r.SelectedCalcResultID, &r.InputsVersion)
+		&r.SavedAt, &r.SelectedCalcResultID, &r.InputsVersion, &r.NormSetID)
 	if err != nil {
 		return r, notFound(err, "project", id)
 	}

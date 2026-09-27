@@ -6,7 +6,7 @@
 # Postgres — одна инстанция, у каждого потребителя своя роль и БД (keycloak, api, simulation, economics);
 # их создают скрипты infra/postgres/init при первом запуске на пустом томе.
 # Наружу публикуются шлюз, api (API_PORT) и simulation (SIMULATION_PORT).
-# Economics доступен только сервисам во внутренней сети; web остаётся каркасом.
+# Economics доступен только сервисам во внутренней сети: его вызывает оркестратор api. Web остаётся каркасом.
 
 name: rav5
 
@@ -139,8 +139,8 @@ services:
       SEED_DEMO: ${API_SEED_DEMO:-true}
       SWAGGER_ENABLED: ${API_SWAGGER_ENABLED:-true}
       SIMULATION_URL: http://simulation:8765
-      # Калькуляция: пусто — мок-модель внутри api; адрес economics, когда сервис войдёт в контур.
-      ECONOMICS_URL: ${ECONOMICS_URL:-}
+      # Калькуляция — сервис economics; ECONOMICS_URL= (пусто) переключает на мок-модель внутри api.
+      ECONOMICS_URL: ${ECONOMICS_URL-http://economics:8002}
       ECONOMICS_TIMEOUT: ${ECONOMICS_TIMEOUT:-10s}
       # Проверка токенов Keycloak (docs/keycloak/middleware.md): iss публичный, JWKS — внутренний.
       OIDC_ISSUER: ${PUBLIC_URL:?}/auth/realms/rav5
@@ -152,10 +152,12 @@ services:
       AUTH_DEV_SUB: ${AUTH_DEV_SUB:-}
       AUTH_DEV_ROLES: ${AUTH_DEV_ROLES:-}
     ports: ["${API_PORT:-8000}:8000"]
-    # edge — для публикации порта и вызовов simulation, internal — для Postgres.
+    # edge — для публикации порта и вызовов simulation, internal — для Postgres и economics.
     networks: [edge, internal]
     depends_on:
       postgres: { condition: service_healthy }
+      # Сид считает демо-проекты при старте: economics должен уже отвечать (healthcheck — /readyz с БД).
+      economics: { condition: service_healthy }
 
   # Разовый шаг: схема БД simulation. Сервер миграции не применяет и без нужной
   # ревизии схемы не стартует (код выхода 3).

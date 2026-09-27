@@ -74,6 +74,12 @@ func NewRouter(svc *service.Service, log *slog.Logger, opts Options) http.Handle
 		r.Get("/dictionaries", a.dictionaries)
 		r.Get("/versions", a.versions)
 		r.Get("/dashboard/summary", a.dashboard)
+		r.Get("/norms", a.currentNorms)
+		r.Route("/norm-sets", func(r chi.Router) {
+			r.Get("/", a.listNormSets)
+			r.With(admin).Post("/", a.createNormSet)
+			r.Get("/{id}", a.getNormSet)
+		})
 
 		r.Route("/work-types", func(r chi.Router) {
 			r.Get("/", a.listWorkTypes)

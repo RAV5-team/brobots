@@ -99,6 +99,9 @@ type reference struct {
 func Load(ctx context.Context, st *store.Store, calculator calc.Calculator, log *slog.Logger) error {
 	ctx = service.AsSystem(ctx) // demo data has no owner and is read only for users
 	started := time.Now()
+	if err := service.New(st, log, calculator).EnsureNorms(ctx); err != nil {
+		return fmt.Errorf("norms: %w", err)
+	}
 	var ref reference
 	if err := readYAML("reference.yaml", &ref); err != nil {
 		return err

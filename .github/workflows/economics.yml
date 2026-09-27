@@ -6,6 +6,7 @@ on:
     paths:
       - services/economics/**
       - packages/pycommon/**
+      - packages/contracts/openapi/economics.yaml
       - docker-compose.yml
       - infra/postgres/init/**
       - .github/workflows/economics.yml
@@ -13,6 +14,7 @@ on:
     paths:
       - services/economics/**
       - packages/pycommon/**
+      - packages/contracts/openapi/economics.yaml
       - docker-compose.yml
       - infra/postgres/init/**
       - .github/workflows/economics.yml

@@ -194,6 +194,27 @@ def test_http_rejects_invalid_ranking_weight_overrides() -> None:
     assert response.status_code == 422
 
 
+def test_model_version_reports_the_served_versions() -> None:
+    response = _client().get("/api/v1/model-version")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "model_version": "economic-v1.1",
+        "ranking_version": "ranking-v1",
+    }
+
+
+def test_http_rejects_unknown_calculation_model_version() -> None:
+    client = _client()
+    request = replace(_request(), model_version="economic-v9")
+    payload = EvaluationRequestDto.from_domain(request).model_dump(mode="json")
+
+    response = client.post("/api/v1/evaluations", json=payload)
+
+    assert response.status_code == 409
+    assert "economic-v9" in response.json()["detail"]
+
+
 def test_get_unknown_evaluation_returns_not_found() -> None:
     response = _client().get("/api/v1/evaluations/missing")
 
@@ -207,3 +228,4 @@ def test_openapi_documents_versioned_evaluation_routes() -> None:
     paths = response.json()["paths"]
     assert "/api/v1/evaluations" in paths
     assert "/api/v1/evaluations/{evaluation_id}" in paths
+    assert "/api/v1/model-version" in paths

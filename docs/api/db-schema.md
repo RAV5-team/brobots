@@ -99,10 +99,18 @@ erDiagram
 - **`calc_run`** — расчёт кандидатов одного прогона подбора: `project_id`, `match_run_id`, `model_version`, `catalog_version`, `inputs_version` на момент запуска, `horizon_years`, `request` (JSONB: весь вход расчёта, включая поля каталога всех кандидатов). Если `inputs_version` расчёта не совпадает с проектом, расчёт устарел.
 - **`calc_result`** — результат по паре «робот × модель приобретения»: `solution_id`, `acquisition_model` (purchase, raas), `calculable`, `reason`, `robot_count`, `charger_count`, `capex_rub`, `opex_year_rub`, `labor_savings_year_rub`, `net_effect_year_rub`, `payback_years` (пусто — не окупается), `roi`, `tco_rub`, `budget_over_rub`, `budget_over_pct`, `trace` (JSONB: шаги расчёта с формулой и источником), `warnings[]`, `sort`. `UNIQUE (calc_run_id, solution_id, acquisition_model)`.
 
+## 0007_norms_economics — нормативы А5 и ответ сервиса economics
+
+- **`norm_set`** — неизменная версия нормативов: `version` (уникальна, растёт с каждой правкой), `label`, `note`, `created_by`, `created_at`. Первую версию создаёт api при старте из `domain.NormDefinitions`.
+- **`norm_value`** `(norm_set_id, code)` — норматив: `group_code` (staff, fleet, capex, opex, finance, interpretation, robot_defaults, ranking), `label`, `value`, `unit`, `kind` (norm, assumption), `source`, `sort`. Коды экономических нормативов совпадают с полями `NormsDto` сервиса economics.
+- **`project.norm_set_id`** — закреплённая версия; пишется при создании и `refresh-snapshot`. Пусто у проектов до 0007: они считаются на последней версии.
+- **`calc_run`**: `norm_set_id` — версия нормативов расчёта, `ranking_version` — методика рейтинга (`ranking-v1`; пусто у мок-модели). Весь набор нормативов лежит и во входе `request.norms`.
+- **`calc_result`**: `rank` (место среди показанных пар «решение + модель»), `score` (0–1), `feasibility` (high, medium, low, none), `details` (JSONB: `capexItems`, `opexItems`, `baselineOpexYearRub`, `baselineTcoRub`, `fleetUtilization`, `cycleTimeS`, `scoreCriteria`, `assumptions`).
+
 ## Правила целостности
 
 - Каталожные сущности (`work_type`, `solution`, `robot_capability`, `process`) не удаляются, а скрываются: `is_active = false`. Сохранённые прогоны и снимки продолжают на них ссылаться.
 - Задача, которая есть в проектах, при удалении архивируется (`archived_at`), иначе удаляется.
 - Удаление локации мягкое (`deleted_at`) и архивирует её задачи; проекты сохраняют снимок и показывают `locationDeleted`.
-- Проект видит устаревание: `dataChanged` — задача или локация изменились после `snapshot_taken_at`; `catalogUpdated` — текущий `reference_version.catalog` больше закреплённого.
+- Проект видит устаревание: `dataChanged` — задача или локация изменились после `snapshot_taken_at`; `catalogUpdated` — текущий `reference_version.catalog` больше закреплённого; `normsUpdated` — есть версия нормативов новее закреплённой.
 - Расчёты не удаляются при повторном расчёте: история `calc_run` остаётся, проект указывает на выбранный результат. Сохранённый проект (`saved`) не меняет входы и расчёт, пока его не откроют (`reopen`).

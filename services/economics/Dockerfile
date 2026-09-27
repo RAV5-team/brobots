@@ -33,6 +33,7 @@ FROM source AS runtime
 RUN useradd --uid 10001 --create-home app && chown -R app:app /app
 USER app
 EXPOSE 8002
+# /readyz also checks the snapshot database: api waits for a service that can actually calculate.
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=5 \
-  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8002/healthz').status == 200 else 1)"
+  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8002/readyz').status == 200 else 1)"
 CMD ["uvicorn", "economic_service.main:app", "--host", "0.0.0.0", "--port", "8002"]

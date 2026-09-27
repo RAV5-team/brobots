@@ -24,6 +24,7 @@ import (
 
 	"github.com/brobots/api/internal/auth"
 	"github.com/brobots/api/internal/auth/authtest"
+	"github.com/brobots/api/internal/calc"
 	"github.com/brobots/api/internal/calc/mock"
 	"github.com/brobots/api/internal/handlers"
 	"github.com/brobots/api/internal/seed"
@@ -52,6 +53,12 @@ func (e *env) as(token string) *env {
 }
 
 func setup(t *testing.T) *env {
+	t.Helper()
+	return setupWith(t, mock.New())
+}
+
+// setupWith builds the environment on a calculator; the seed evaluates demo projects with it too.
+func setupWith(t *testing.T, calculator calc.Calculator) *env {
 	t.Helper()
 	admin := os.Getenv("TEST_DATABASE_URL")
 	if admin == "" {
@@ -98,11 +105,11 @@ func setup(t *testing.T) *env {
 	}
 	log := slog.New(slog.DiscardHandler)
 	st := store.New(pool)
-	if err := seed.Load(ctx, st, mock.New(), log); err != nil {
+	if err := seed.Load(ctx, st, calculator, log); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 	iss := authtest.New(t)
-	srv := httptest.NewServer(handlers.NewRouter(service.New(st, log, mock.New()), log, handlers.Options{Auth: iss.Middleware(t)}))
+	srv := httptest.NewServer(handlers.NewRouter(service.New(st, log, calculator), log, handlers.Options{Auth: iss.Middleware(t)}))
 	t.Cleanup(srv.Close)
 	// The flows here are the admin's: catalog changes need the role, the rest a signed-in user.
 	token := iss.User(t, "integration-admin", auth.RoleUser, auth.RoleAdmin)

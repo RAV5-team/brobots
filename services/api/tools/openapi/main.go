@@ -13,7 +13,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/brobots/api/internal/calc"
 	"github.com/brobots/api/internal/domain"
 	"github.com/brobots/api/internal/matching"
 	"github.com/brobots/api/internal/service"
@@ -26,7 +25,6 @@ import (
 func main() {
 	out := flag.String("out", "", "output file")
 	copyTo := flag.String("copy", "", "second output file (embedded copy)")
-	economics := flag.String("economics", "", "output file of the calculation contract for services/economics")
 	flag.Parse()
 	spec, err := Build()
 	if err != nil {
@@ -38,16 +36,6 @@ func main() {
 			continue
 		}
 		if err := os.WriteFile(path, spec, 0o644); err != nil {
-			fmt.Fprintln(os.Stderr, "openapi:", err)
-			os.Exit(1)
-		}
-	}
-	if *economics != "" {
-		econ, err := BuildEconomics()
-		if err == nil {
-			err = os.WriteFile(*economics, econ, 0o644)
-		}
-		if err != nil {
 			fmt.Fprintln(os.Stderr, "openapi:", err)
 			os.Exit(1)
 		}
@@ -94,6 +82,9 @@ type (
 	}
 	VersionList struct {
 		Items []domain.ReferenceVersion `json:"items"`
+	}
+	NormSetList struct {
+		Items []domain.NormSetSummary `json:"items"`
 	}
 	SolutionPage struct {
 		Items []domain.SolutionSummary `json:"items"`
@@ -239,6 +230,11 @@ func Operations() []op {
 		{http.MethodGet, "/api/v1/versions", "dictionaries", "Текущие версии каталога и справочников", "Для строки «Версия данных» и закрепления в проекте (ТЗ 3.1.5).", nil, nil, new(VersionList), 200, nil},
 		{http.MethodGet, "/api/v1/dashboard/summary", "dashboard", "Сводка дашборда", "foundSavingsRubYear пока null — его посчитает оркестратор оценки.", nil, nil, new(domain.Dashboard), 200, nil},
 
+		{http.MethodGet, "/api/v1/norms", "norms", "Текущие нормативы расчёта", "Экран А5 (PRD 6.8): значение, единица, тип (норматив или допущение) и источник каждого норматива. Новые проекты закрепляют эту версию. Доли — от 0 до 1, веса рейтинга — в процентах, в сумме 100.", nil, nil, new(domain.NormSet), 200, notFound},
+		{http.MethodGet, "/api/v1/norm-sets", "norms", "Версии нормативов", "Новые сверху.", nil, nil, new(NormSetList), 200, nil},
+		{http.MethodPost, "/api/v1/norm-sets", "norms", "Сохранить новую версию нормативов", "Переданные значения меняются, остальные берутся из текущей версии. Сохранённые версии не меняются: существующие проекты считаются на своей версии, пока не обновят снимок.", nil, new(service.NormSetInput), new(domain.NormSet), 201, withBody},
+		{http.MethodGet, "/api/v1/norm-sets/{id}", "norms", "Версия нормативов", "", new(idPath), nil, new(domain.NormSet), 200, notFound},
+
 		{http.MethodGet, "/api/v1/work-types", "work-types", "Классы операций (ключ подбора)", "Со счётчиками роботов и процессов (экран A8).", new(hiddenQuery), nil, new(WorkTypeList), 200, nil},
 		{http.MethodPost, "/api/v1/work-types", "work-types", "Создать класс операции", "Код OP-NN присваивается автоматически (экран A9).", nil, new(service.WorkTypeInput), new(domain.WorkType), 201, []int{409, 422}},
 		{http.MethodGet, "/api/v1/work-types/{id}", "work-types", "Класс операции", "", new(idPath), nil, new(domain.WorkType), 200, notFound},
@@ -328,7 +324,7 @@ const (
 )
 
 // adminPrefixes hold the catalog and reference data: only the admin changes them.
-var adminPrefixes = []string{"/api/v1/work-types", "/api/v1/data-sources", "/api/v1/solutions"}
+var adminPrefixes = []string{"/api/v1/work-types", "/api/v1/data-sources", "/api/v1/solutions", "/api/v1/norm-sets"}
 
 // AccessOf is the access policy of an operation; the router test checks the router enforces it.
 func AccessOf(method, path string) Access {
@@ -397,50 +393,6 @@ func newReflector() *openapi3.Reflector {
 		}),
 	)
 	return r
-}
-
-// BuildEconomics renders the calculation contract that services/economics implements and
-// internal/calc/httpclient calls.
-func BuildEconomics() ([]byte, error) {
-	r := newReflector()
-	r.Spec.Info.WithTitle("RAV5 Economics · расчёт парка и экономики").WithVersion("0.1.0").WithDescription(
-		"Контракт калькуляции, который вызывает оркестратор сервиса api (docs/orchestrator.md).\n\n" +
-			"Запрос — замороженный вход расчёта одного проекта: локация, задача и кандидаты подбора с полями каталога. " +
-			"Ответ — ровно один результат на кандидата и модель приобретения из acquisitionModels запроса, " +
-			"которую предлагает робот (пустой acquisitionModels кандидата — все модели). " +
-			"modelVersion обязателен: проект хранит его, чтобы старые расчёты воспроизводились после смены формул. " +
-			"У каждого числа — строка trace с формулой и источником. Деньги — рубли с НДС, доли — от 0 до 1.\n\n" +
-			"Пока сервиса нет, api считает встроенной мок-моделью mock-calc/v1 (ECONOMICS_URL пуст).")
-	ops := []struct {
-		method, path, summary string
-		body, resp            any
-		errors                []int
-	}{
-		{http.MethodGet, calc.PathModelVersion, "Версия ядра расчёта", nil, new(calc.ModelVersionResponse), nil},
-		{http.MethodPost, calc.PathCalculations, "Рассчитать кандидатов проекта", new(calc.Request), new(calc.Response), []int{422}},
-	}
-	for _, o := range ops {
-		oc, err := r.NewOperationContext(o.method, o.path)
-		if err != nil {
-			return nil, err
-		}
-		oc.SetTags("economics")
-		oc.SetSummary(o.summary)
-		if o.body != nil {
-			oc.AddReqStructure(o.body)
-		}
-		oc.AddRespStructure(o.resp, func(cu *openapi.ContentUnit) { cu.HTTPStatus = http.StatusOK })
-		for _, code := range o.errors {
-			oc.AddRespStructure(new(Problem), func(cu *openapi.ContentUnit) {
-				cu.HTTPStatus = code
-				cu.ContentType = "application/problem+json"
-			})
-		}
-		if err := r.AddOperation(oc); err != nil {
-			return nil, fmt.Errorf("%s %s: %w", o.method, o.path, err)
-		}
-	}
-	return r.Spec.MarshalYAML()
 }
 
 // Build renders the specification.

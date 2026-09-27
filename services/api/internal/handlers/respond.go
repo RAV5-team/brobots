@@ -74,7 +74,7 @@ var entityNames = map[string]string{
 	"work_type": "класс операции", "data_source": "источник данных", "solution": "решение каталога",
 	"capability": "класс операции робота", "process": "процесс", "location": "локация", "task": "задача",
 	"project": "проект", "matching_run": "прогон подбора", "manual_candidate": "ручной кандидат", "evaluation": "расчёт подбора",
-	"facility_type": "тип объекта", "industry": "отрасль",
+	"facility_type": "тип объекта", "industry": "отрасль", "norm_set": "версия нормативов",
 }
 
 func notFoundText(nf *domain.NotFoundError) string {

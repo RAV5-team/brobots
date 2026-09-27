@@ -937,6 +937,149 @@ paths:
       summary: Прогон подбора
       tags:
       - matching
+  /api/v1/norm-sets:
+    get:
+      description: Новые сверху.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NormSetList'
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
+      security:
+      - {}
+      - bearerAuth: []
+      summary: Версии нормативов
+      tags:
+      - norms
+    post:
+      description: 'Переданные значения меняются, остальные берутся из текущей версии.
+        Сохранённые версии не меняются: существующие проекты считаются на своей версии,
+        пока не обновят снимок.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NormSetInput'
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NormSet'
+          description: Created
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
+      security:
+      - bearerAuth: []
+      summary: Сохранить новую версию нормативов
+      tags:
+      - norms
+  /api/v1/norm-sets/{id}:
+    get:
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NormSet'
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      security:
+      - {}
+      - bearerAuth: []
+      summary: Версия нормативов
+      tags:
+      - norms
+  /api/v1/norms:
+    get:
+      description: 'Экран А5 (PRD 6.8): значение, единица, тип (норматив или допущение)
+        и источник каждого норматива. Новые проекты закрепляют эту версию. Доли —
+        от 0 до 1, веса рейтинга — в процентах, в сумме 100.'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NormSet'
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      security:
+      - {}
+      - bearerAuth: []
+      summary: Текущие нормативы расчёта
+      tags:
+      - norms
   /api/v1/processes:
     get:
       description: 'Экран 07: значения по умолчанию, число роботов по классу, число
@@ -3373,6 +3516,18 @@ paths:
       - service
 components:
   schemas:
+    AssumptionValue:
+      properties:
+        code:
+          type: string
+        label:
+          type: string
+        unit:
+          type: string
+        value:
+          format: double
+          type: number
+      type: object
     AuthError:
       properties:
         code:
@@ -3430,6 +3585,18 @@ components:
         chargerCount:
           nullable: true
           type: integer
+        details:
+          $ref: '#/components/schemas/Details'
+        feasibility:
+          description: Интерпретация окупаемости по границам нормативов (ТЗ 3.5.7);
+            none — не окупается
+          enum:
+          - high
+          - medium
+          - low
+          - none
+          nullable: true
+          type: string
         id:
           $ref: '#/components/schemas/UUID'
         laborSavingsYearRub:
@@ -3437,17 +3604,23 @@ components:
           nullable: true
           type: number
         netEffectYearRub:
-          description: Экономия ФОТ + иные эффекты − OPEX
+          description: Годовой денежный эффект к текущему процессу
           nullable: true
           type: number
         opexYearRub:
-          description: Операционные затраты в год, для RaaS с арендой
+          description: 'Расходы процесса в год после внедрения: оставшийся ФОТ и новые
+            расходы, для RaaS с арендой'
           nullable: true
           type: number
         paybackYears:
           description: null — не окупается
           nullable: true
           type: number
+        rank:
+          description: Место в рейтинге пар «решение + модель приобретения»; null
+            — вне рейтинга
+          nullable: true
+          type: integer
         reason:
           nullable: true
           type: string
@@ -3455,13 +3628,17 @@ components:
           nullable: true
           type: integer
         roi:
-          description: (эффект × горизонт − CAPEX) ÷ CAPEX
+          description: Накопленный эффект за горизонт ÷ CAPEX (ТЗ 3.5.2), доля
+          nullable: true
+          type: number
+        score:
+          description: Балл рейтинга 0–1
           nullable: true
           type: number
         solutionId:
           $ref: '#/components/schemas/UUID'
         tcoRub:
-          description: CAPEX + OPEX × горизонт
+          description: CAPEX + расходы процесса за горизонт с заменой АКБ
           nullable: true
           type: number
         trace:
@@ -3737,6 +3914,16 @@ components:
           nullable: true
           type: array
       type: object
+    CostItem:
+      properties:
+        amountRub:
+          nullable: true
+          type: number
+        code:
+          type: string
+        label:
+          type: string
+      type: object
     Dashboard:
       properties:
         foundSavingsRubYear:
@@ -3871,6 +4058,42 @@ components:
           description: true — задача используется в проектах и скрыта, false — удалена
           type: boolean
       type: object
+    Details:
+      properties:
+        assumptions:
+          description: Значения, подставленные по нормативу вместо пустых данных
+          items:
+            $ref: '#/components/schemas/AssumptionValue'
+          type: array
+        baselineOpexYearRub:
+          description: 'Текущий процесс: ФОТ исполнителей в год'
+          nullable: true
+          type: number
+        baselineTcoRub:
+          description: 'Текущий процесс: расходы за горизонт'
+          nullable: true
+          type: number
+        capexItems:
+          items:
+            $ref: '#/components/schemas/CostItem'
+          type: array
+        cycleTimeS:
+          description: Время цикла рейса, с
+          nullable: true
+          type: number
+        fleetUtilization:
+          description: Средняя загрузка парка, доля
+          nullable: true
+          type: number
+        opexItems:
+          items:
+            $ref: '#/components/schemas/CostItem'
+          type: array
+        scoreCriteria:
+          items:
+            $ref: '#/components/schemas/ScoreCriterion'
+          type: array
+      type: object
     Dictionaries:
       additionalProperties:
         items:
@@ -3910,6 +4133,8 @@ components:
           nullable: true
           type: array
         candidates:
+          description: Сначала кандидаты с лучшим местом в рейтинге, затем без места,
+            исключённые в конце
           items:
             $ref: '#/components/schemas/EvaluatedCandidate'
           nullable: true
@@ -3942,7 +4167,17 @@ components:
         modelVersion:
           description: Версия ядра, которой посчитаны цифры
           type: string
+        normsVersion:
+          description: Версия нормативов А5, на которой посчитаны цифры
+          nullable: true
+          type: integer
         projectId:
+          $ref: '#/components/schemas/UUID'
+        rankingVersion:
+          description: Методика рейтинга; null — калькулятор не ранжирует (мок-модель)
+          nullable: true
+          type: string
+        recommendedResultId:
           $ref: '#/components/schemas/UUID'
         rulesetVersion:
           type: string
@@ -4242,6 +4477,109 @@ components:
           type: integer
         total:
           type: integer
+      type: object
+    NormSet:
+      properties:
+        createdAt:
+          format: date-time
+          type: string
+        id:
+          $ref: '#/components/schemas/UUID'
+        label:
+          type: string
+        note:
+          nullable: true
+          type: string
+        values:
+          items:
+            $ref: '#/components/schemas/NormValue'
+          nullable: true
+          type: array
+        version:
+          type: integer
+      type: object
+    NormSetInput:
+      properties:
+        label:
+          description: Название версии; пусто — «Версия N»
+          nullable: true
+          type: string
+        note:
+          description: Что и почему изменено
+          nullable: true
+          type: string
+        values:
+          description: Изменённые значения; остальные берутся из текущей версии
+          items:
+            $ref: '#/components/schemas/NormValueInput'
+          nullable: true
+          type: array
+      type: object
+    NormSetList:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/NormSetSummary'
+          nullable: true
+          type: array
+      type: object
+    NormSetSummary:
+      properties:
+        createdAt:
+          format: date-time
+          type: string
+        id:
+          $ref: '#/components/schemas/UUID'
+        label:
+          type: string
+        note:
+          nullable: true
+          type: string
+        version:
+          type: integer
+      type: object
+    NormValue:
+      properties:
+        code:
+          type: string
+        group:
+          enum:
+          - staff
+          - fleet
+          - capex
+          - opex
+          - finance
+          - interpretation
+          - robot_defaults
+          - ranking
+          type: string
+        kind:
+          enum:
+          - norm
+          - assumption
+          type: string
+        label:
+          type: string
+        source:
+          description: 'Основание значения: датасет, ТЗ или допущение команды'
+          type: string
+        unit:
+          type: string
+        value:
+          format: double
+          type: number
+      type: object
+    NormValueInput:
+      properties:
+        code:
+          type: string
+        source:
+          description: Новое основание значения; пусто — прежнее
+          nullable: true
+          type: string
+        value:
+          format: double
+          type: number
       type: object
     Offer:
       properties:
@@ -4677,6 +5015,10 @@ components:
           type: string
         name:
           type: string
+        normsUpdated:
+          description: Есть версия нормативов новее закреплённой; применяется через
+            refresh-snapshot
+          type: boolean
         pinnedSolutionId:
           $ref: '#/components/schemas/UUID'
         savedAt:
@@ -4802,6 +5144,11 @@ components:
           $ref: '#/components/schemas/Capability'
         code:
           type: string
+        completenessPct:
+          description: Полнота обязательных характеристик, %; null — в расчётах до
+            версии с рейтингом
+          nullable: true
+          type: integer
         manufacturer:
           type: string
         name:
@@ -4883,6 +5230,11 @@ components:
           $ref: '#/components/schemas/Capability'
         code:
           type: string
+        completenessPct:
+          description: Полнота обязательных характеристик, %; null — в расчётах до
+            версии с рейтингом
+          nullable: true
+          type: integer
         manufacturer:
           type: string
         name:
@@ -5062,6 +5414,44 @@ components:
           type: string
         id:
           $ref: '#/components/schemas/UUID'
+      type: object
+    ScoreCriterion:
+      properties:
+        code:
+          enum:
+          - payback
+          - roi
+          - annual_effect
+          - budget_fit
+          - tco_savings
+          - maturity
+          - data_quality
+          - fleet_utilization
+          type: string
+        contribution:
+          description: Вклад в балл 0–1
+          nullable: true
+          type: number
+        label:
+          type: string
+        missing:
+          type: boolean
+        missingReason:
+          nullable: true
+          type: string
+        normalized:
+          description: Нормированное значение 0–1
+          nullable: true
+          type: number
+        rawValue:
+          nullable: true
+          type: number
+        unit:
+          type: string
+        weight:
+          description: Вес из нормативов, %
+          format: double
+          type: number
       type: object
     Selection:
       properties:
@@ -5726,12 +6116,28 @@ components:
           nullable: true
           type: array
       type: object
+    TraceInput:
+      properties:
+        name:
+          type: string
+        text:
+          nullable: true
+          type: string
+        value:
+          nullable: true
+          type: number
+      type: object
     TraceItem:
       properties:
         code:
           type: string
         formula:
           type: string
+        inputs:
+          description: Входы шага с их значениями
+          items:
+            $ref: '#/components/schemas/TraceInput'
+          type: array
         label:
           type: string
         source:
@@ -5741,6 +6147,10 @@ components:
           - robot
           - norm
           - derived
+          type: string
+        text:
+          description: Нечисловой результат шага, например интерпретация
+          nullable: true
           type: string
         unit:
           type: string
@@ -5768,6 +6178,11 @@ components:
         model:
           nullable: true
           type: string
+        norms:
+          description: Версия нормативов А5, на которой считается проект; null — проект
+            создан до версионирования нормативов
+          nullable: true
+          type: integer
       type: object
     WorkType:
       properties:
