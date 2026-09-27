@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate, formatDayTime } from './index'
+import { formatDate, formatDateOf, formatDayTime, parseDate } from './index'
 
 describe('dates in the organisation time zone', () => {
   it('prints the day, month and time of a UTC moment in Moscow time', () => {
@@ -12,5 +12,24 @@ describe('dates in the organisation time zone', () => {
 
   it('prints a calendar date as DD.MM.YYYY without shifting the day', () => {
     expect(formatDate('2026-09-15')).toBe('15.09.2026')
+  })
+
+  it('prints the calendar day of a moment in Moscow time', () => {
+    expect(formatDateOf('2026-08-12T12:00:00+03:00')).toBe('12.08.2026')
+    expect(formatDateOf('2026-09-18T21:30:00Z')).toBe('19.09.2026')
+  })
+})
+
+describe('parseDate — ввод даты «ДД.ММ.ГГГГ»', () => {
+  it('turns a typed day into a calendar date', () => {
+    expect(parseDate('19.09.2026')).toBe('2026-09-19')
+    expect(parseDate(' 01.01.2027 ')).toBe('2027-01-01')
+  })
+
+  it('rejects impossible or incomplete dates', () => {
+    expect(parseDate('31.02.2026')).toBeNull()
+    expect(parseDate('19.9.2026')).toBeNull()
+    expect(parseDate('2026-09-19')).toBeNull()
+    expect(parseDate('')).toBeNull()
   })
 })

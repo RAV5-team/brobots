@@ -1,12 +1,14 @@
 import { Button } from '@/components/ui/Button'
 import { Dropzone } from '@/components/ui/Dropzone'
 import { Field } from '@/components/ui/Field'
+import { FileInput } from '@/components/ui/FileInput'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
 import { ru } from '@/shared/i18n/ru'
-import { ShowcaseSection } from './StateGrid'
+import { stateProps, type DemoState } from './demoState'
+import { ShowcaseSection, StateGrid } from './StateGrid'
 
 const s = ru.dev.samples
 const ignore = () => undefined
@@ -64,5 +66,32 @@ export function StatesShowcase() {
         </div>
       </ShowcaseSection>
     </div>
+  )
+}
+
+const FILE_LABEL = ru.dataSources.create.fields.locator
+const SAMPLE_FILE = { name: s.sourceFile, size: 2.4 * 1024 * 1024 }
+
+function DemoFileInput({ state, filled, error }: { state: DemoState; filled: boolean; error?: string }) {
+  const input = <FileInput kind="document" label={FILE_LABEL} file={filled ? SAMPLE_FILE : null} onChange={ignore} onReject={ignore} {...stateProps(state)} />
+  return (
+    <span className="block w-[360px]">
+      {error ? <Field label={FILE_LABEL} required error={error}>{input}</Field> : input}
+    </span>
+  )
+}
+
+export function FileInputShowcase() {
+  return (
+    <ShowcaseSection title="FileInput">
+      <StateGrid
+        states={['default', 'hover', 'focus', 'disabled']}
+        rows={[
+          { label: s.fileEmpty, render: (st) => <DemoFileInput state={st} filled={false} /> },
+          { label: s.fileFilled, render: (st) => <DemoFileInput state={st} filled /> },
+          { label: s.fileError, render: (st) => <DemoFileInput state={st} filled={false} error={ru.dataSources.create.errors.file} /> },
+        ]}
+      />
+    </ShowcaseSection>
   )
 }

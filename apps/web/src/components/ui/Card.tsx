@@ -13,8 +13,8 @@ interface CardProps extends HTMLAttributes<HTMLElement> {
   readonly variant?: CardVariant
   /** Внутренний отступ; по умолчанию 20. Карточки экрана входа — 28, лаймовые панели — 16 и 8. */
   readonly padding?: 8 | 16 | 20 | 28
-  /** Промежуток между детьми; по умолчанию 12 у panel, 8 у остальных. */
-  readonly gap?: 0 | 4 | 8 | 12 | 20 | 28
+  /** Промежуток между детьми; по умолчанию 12 у panel, 8 у остальных. Справочник А8 — 16. */
+  readonly gap?: 0 | 4 | 8 | 12 | 16 | 20 | 28
   readonly as?: 'section' | 'article' | 'div' | 'ul'
   /** Высота выпуклости panel и tile; по умолчанию lg у panel и md у tile. Панели дашборда 06 — md (15935:147). */
   readonly elevation?: CardElevation
@@ -35,7 +35,7 @@ const DEFAULT_ELEVATION: Record<CardVariant, CardElevation | null> = { panel: 'l
 
 // Классы целиком: Tailwind находит утилиты только по полным строкам.
 const PADDINGS = { 8: 'p-8', 16: 'p-16', 20: 'p-20', 28: 'p-28' } as const
-const GAPS = { 0: 'gap-0', 4: 'gap-4', 8: 'gap-8', 12: 'gap-12', 20: 'gap-20', 28: 'gap-28' } as const
+const GAPS = { 0: 'gap-0', 4: 'gap-4', 8: 'gap-8', 12: 'gap-12', 16: 'gap-16', 20: 'gap-20', 28: 'gap-28' } as const
 
 /** Выпуклая карточка того же цвета, что фон, или лаймовая панель (components.md: Card). */
 export function Card({ variant = 'panel', padding = 20, gap, as: Tag = 'section', elevation, className, ...rest }: CardProps) {

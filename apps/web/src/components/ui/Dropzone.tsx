@@ -13,13 +13,15 @@ interface DropzoneProps {
   readonly onFiles: (files: File[]) => void
   readonly disabled?: boolean
   /** Предупреждение формы под подсказкой: «Без фото кнопка «Сохранить робота» недоступна». */
-  readonly message?: string
+  readonly message?: string | undefined
+  /** Размер в раскладке экрана: высота по соседней плитке фото (А2, 15966:6188). */
+  readonly className?: string
   /** Для витрины: показать состояние перетаскивания. */
   readonly 'data-demo-state'?: string | undefined
 }
 
 /** Зона загрузки файлов (components.md: Dropzone; 15966:6188). Проверяет формат и размер до отправки. */
-export function Dropzone({ kind, title, uploaded, onFiles, disabled = false, message, ...demo }: DropzoneProps) {
+export function Dropzone({ kind, title, uploaded, onFiles, disabled = false, message, className, ...demo }: DropzoneProps) {
   const rule = UPLOAD_RULES[kind]
   const inputId = useId()
   const hintId = `${inputId}-hint`
@@ -59,6 +61,7 @@ export function Dropzone({ kind, title, uploaded, onFiles, disabled = false, mes
         'flex flex-col items-center justify-center gap-8 rounded-lg border border-dashed border-border-control bg-surface-muted p-24 text-center transition-colors',
         'data-dragging:border-solid data-dragging:bg-surface-sunken',
         disabled && 'cursor-not-allowed opacity-(--rav-disabled-opacity)',
+        className,
       )}
     >
       <p className="type-heading text-text">{title}</p>

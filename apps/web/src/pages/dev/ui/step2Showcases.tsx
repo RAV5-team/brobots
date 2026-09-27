@@ -17,6 +17,8 @@ const FACILITY_OPTIONS = FACILITY_TYPES.map((f) => ({ value: f.code, label: f.na
 const HANDLING_OPTIONS = HANDLING_METHODS.slice(0, 3).map((h) => ({ value: h.code, label: h.name }))
 const YES_NO = [{ value: 'no', label: s.no }, { value: 'yes', label: s.yes }] as const
 
+const LOCATOR_KINDS = [{ value: 'file', label: ru.dataSources.create.locatorKinds.file }, { value: 'url', label: ru.dataSources.create.locatorKinds.url, disabled: true }] as const
+
 function DemoSegmented({ size, state }: { size: 40 | 44; state: DemoState }) {
   const [value, setValue] = useState<'no' | 'yes'>('no')
   const { 'data-demo-state': demo, disabled } = stateProps(state)
@@ -27,6 +29,13 @@ function DemoSegmented({ size, state }: { size: 40 | 44; state: DemoState }) {
   )
 }
 
+/** По ширине подписей, второй вариант недоступен — «Файл · Ссылка» окна А7 (15966:7665). */
+function DemoSegmentedContent({ state }: { state: DemoState }) {
+  const [value, setValue] = useState<'file' | 'url'>('file')
+  const { 'data-demo-state': demo, disabled } = stateProps(state)
+  return <Segmented label={ru.dataSources.create.fields.locator} fit="content" options={LOCATOR_KINDS} value={value} onChange={setValue} disabled={disabled ?? false} data-demo-state={demo} />
+}
+
 export function SegmentedShowcase() {
   return (
     <ShowcaseSection title="Segmented control">
@@ -35,6 +44,7 @@ export function SegmentedShowcase() {
         rows={[
           { label: '40', render: (st) => <DemoSegmented size={40} state={st} /> },
           { label: '44', render: (st) => <DemoSegmented size={44} state={st} /> },
+          { label: 'content', render: (st) => <DemoSegmentedContent state={st} /> },
         ]}
       />
     </ShowcaseSection>

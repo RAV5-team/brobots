@@ -22,5 +22,5 @@ export interface Services {
 
 export type { AdminService, CatalogService, DashboardService, LocationService, ProcessService, ProjectService, SessionService }
 export type { RobotFilter } from './catalog'
-export { InvalidCredentialsError, NotFoundError } from './errors'
+export { InvalidCredentialsError, NotFoundError, ValidationError } from './errors'
 export type { Credentials } from './session'

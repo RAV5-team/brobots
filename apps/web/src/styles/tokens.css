@@ -133,6 +133,37 @@
   --rav-staff-count-width: 102px;
   --rav-staff-salary-width: 122px;
   --rav-staff-share-width: 152px;
+  /* А8 «Классы операций» (15966:8042): колонки 120 / 130 / 170 плюс зазор 16 справа (у последней зазора нет). */
+  --rav-op-class-code-width: 136px;
+  --rav-op-class-robots-width: 146px;
+  --rav-op-class-processes-width: 170px;
+  /* А6 «Источники данных» (15966:7275): колонки 130 / 200 / 110 / 150 плюс зазор 16 справа, действие 160 без зазора; «Источник» — остаток. */
+  --rav-sources-status-width: 146px;
+  --rav-sources-provides-width: 216px;
+  --rav-sources-actualized-width: 126px;
+  --rav-sources-refresh-width: 166px;
+  --rav-sources-action-width: 160px;
+  /* А5 «Нормативы и допущения» (15997:391): колонки 300 / 110 / 110 / 140 плюс зазор 12 справа; «Источник» — остаток. Плашка типа — 88 (15997:409). */
+  --rav-norms-param-width: 312px;
+  --rav-norms-kind-width: 122px;
+  --rav-norms-value-width: 122px;
+  --rav-norms-unit-width: 152px;
+  --rav-norms-pill-width: 88px;
+  /* Отступ прокрутки полей над липкой панелью сохранения (D-39): панель 76 + 16 до края окна + 12. */
+  --rav-norms-save-clearance: 104px;
+  /* А1 «Каталог решений» (15997:38): колонки 150 / 140 / 110 / 100 / 100 плюс зазор 12 справа; колонка действия 98 — последняя, без зазора. */
+  --rav-catalog-classes-width: 162px;
+  --rav-catalog-payload-width: 152px;
+  --rav-catalog-price-width: 122px;
+  --rav-catalog-updated-width: 112px;
+  --rav-catalog-completeness-width: 112px;
+  --rav-catalog-action-width: 98px;
+  /* А2 «Новый робот»: плитка фото 200 × 140 (15966:6183), зона перетаскивания по высоте плитки с подписью — 172 (15966:6188). */
+  --rav-robot-photo-width: 200px;
+  --rav-robot-photo-height: 140px;
+  --rav-robot-dropzone-height: 172px;
+  /* Ряд полей с местом под подсказку: подпись 16 + 8 + поле 44 + 8 + подсказка 16 (15966:6007). */
+  --rav-field-hinted-height: 92px;
   /* Отступ якоря секции под липкой навигацией формы: 16 сверху + 40 капсула + 16. */
   --rav-form-nav-offset: 72px;
 

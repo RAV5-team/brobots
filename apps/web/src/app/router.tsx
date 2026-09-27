@@ -1,6 +1,12 @@
 import type { RouteObject } from 'react-router'
 import { AppShell } from '@/components/shell/AppShell'
 import { NotFound } from '@/pages/NotFound'
+import { AdminCatalogImportPage } from '@/pages/admin/catalog/AdminCatalogImportPage'
+import { AdminCatalogPage } from '@/pages/admin/catalog/AdminCatalogPage'
+import { RobotNewPage } from '@/pages/admin/catalog/new/RobotNewPage'
+import { NormsPage } from '@/pages/admin/norms/NormsPage'
+import { DataSourcesPage } from '@/pages/admin/sources/DataSourcesPage'
+import { OperationClassesPage } from '@/pages/admin/operation-classes/OperationClassesPage'
 import { DashboardPage } from '@/pages/dashboard/DashboardPage'
 import { LoginPage } from '@/pages/login/LoginPage'
 import { ProcessesPage } from '@/pages/processes/ProcessesPage'
@@ -16,7 +22,7 @@ import { DEV_PATHS, ROUTE_PATHS, type RoutePath } from './routePaths'
 // Экран входа 05 живёт без меню; остальные разделы — внутри каркаса кабинета.
 const OUTSIDE_SHELL: readonly RoutePath[] = [ROUTE_PATHS.login]
 // Готовые экраны; остальные маршруты пока отдают заглушку.
-const IMPLEMENTED: readonly RoutePath[] = [ROUTE_PATHS.dashboard, ROUTE_PATHS.processes, ROUTE_PATHS.processNew, ROUTE_PATHS.process]
+const IMPLEMENTED: readonly RoutePath[] = [ROUTE_PATHS.dashboard, ROUTE_PATHS.processes, ROUTE_PATHS.processNew, ROUTE_PATHS.process, ROUTE_PATHS.adminCatalog, ROUTE_PATHS.adminCatalogImport, ROUTE_PATHS.adminCatalogNew, ROUTE_PATHS.adminNorms, ROUTE_PATHS.adminSources, ROUTE_PATHS.adminOperationClasses]
 
 const stubRoute = (path: RoutePath): RouteObject => ({ path, element: <ScreenStub route={path} /> })
 
@@ -32,6 +38,12 @@ export const routes: RouteObject[] = [
           { path: ROUTE_PATHS.processes, element: <ProcessesPage /> },
           { path: ROUTE_PATHS.processNew, element: <ProcessNewPage /> },
           { path: ROUTE_PATHS.process, element: <ProcessDetailPage /> },
+          { path: ROUTE_PATHS.adminCatalog, element: <AdminCatalogPage /> },
+          { path: ROUTE_PATHS.adminCatalogImport, element: <AdminCatalogImportPage /> },
+          { path: ROUTE_PATHS.adminCatalogNew, element: <RobotNewPage /> },
+          { path: ROUTE_PATHS.adminNorms, element: <NormsPage /> },
+          { path: ROUTE_PATHS.adminSources, element: <DataSourcesPage /> },
+          { path: ROUTE_PATHS.adminOperationClasses, element: <OperationClassesPage /> },
           ...Object.values(ROUTE_PATHS)
             .filter((p) => !OUTSIDE_SHELL.includes(p) && !IMPLEMENTED.includes(p))
             .map(stubRoute),

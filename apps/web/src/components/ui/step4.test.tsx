@@ -39,6 +39,19 @@ describe('Table', () => {
     expect(within(table).getAllByRole('columnheader')).toHaveLength(2)
     expect(within(table).getByRole('cell', { name: '2' })).toBeInTheDocument()
   })
+
+  it('roomy density centres cells with 16 px padding and drops the header rule (А6, 15966:7275)', () => {
+    render(
+      <Table caption="Источники" density="roomy">
+        <TableHead><TableRow><TableHeaderCell>Источник</TableHeaderCell></TableRow></TableHead>
+        <TableBody><TableRow><TableCell>Каталог</TableCell></TableRow></TableBody>
+      </Table>,
+    )
+    const [head] = screen.getAllByRole('rowgroup')
+    expect(head).toHaveClass('[&>tr]:border-b-0')
+    expect(screen.getByRole('columnheader')).toHaveClass('py-16', 'pr-16')
+    expect(screen.getByRole('cell')).toHaveClass('py-16', 'pr-16', 'align-middle')
+  })
 })
 
 describe('Progress', () => {

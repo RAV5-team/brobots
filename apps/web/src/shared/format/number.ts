@@ -22,3 +22,12 @@ export function formatPercent(share: number, maxFractionDigits = 0): string {
     roundHalfUp(share * 100, maxFractionDigits) / 100,
   )
 }
+
+const KB = 1024
+const MB = KB * KB
+
+/** Размер файла: «2,4 МБ» (А7, 15966:7671); меньше мегабайта — целые килобайты, не меньше 1. */
+export function formatFileSize(bytes: number): string {
+  if (bytes >= MB) return `${formatNumber(bytes / MB, 1)}\u00a0МБ`
+  return `${formatNumber(Math.max(1, bytes / KB))}\u00a0КБ`
+}

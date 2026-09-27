@@ -42,7 +42,8 @@ export function Modal({ title, description, trigger, open, onOpenChange, footer,
             </Dialog.Close>
           </header>
           {children}
-          {footer && <footer className="flex items-center justify-end gap-12 pt-16">{footer}</footer>}
+          {/* Футер 84 px: 16 + кнопка 44 + 24 снизу — так в А7 (15966:7697) и А10 (15966:8434). */}
+          {footer && <footer className="flex items-center justify-end gap-12 pt-16 pb-24">{footer}</footer>}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
