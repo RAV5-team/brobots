@@ -5,7 +5,7 @@ package apispec
 
 import _ "embed"
 
-//go:generate go run ../../tools/openapi -out ../../../../packages/contracts/openapi/api.yaml -copy openapi.yaml
+//go:generate go run ../../tools/openapi -out ../../../../packages/contracts/openapi/api.yaml -copy openapi.yaml -economics ../../../../packages/contracts/openapi/economics.yaml
 
 // Spec is the OpenAPI 3 document served at /api/v1/openapi.yaml.
 //

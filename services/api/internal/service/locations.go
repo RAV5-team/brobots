@@ -100,7 +100,7 @@ func (lc locationContext) enrich(l *domain.Location) {
 	}
 	for _, p := range lc.projects[l.ID] {
 		sum.ProjectsCount++
-		if p.Status == "result" {
+		if p.Status == domain.ProjectSaved {
 			sum.ProjectsCompleted++
 		}
 	}

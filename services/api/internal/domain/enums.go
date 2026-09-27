@@ -107,11 +107,8 @@ var (
 		{Code: "quarterly", Name: "Раз в квартал"},
 	}
 	ProjectStatuses = []Option{
-		{Code: "params", Name: "Параметры"},
-		{Code: "matching", Name: "Подбор"},
-		{Code: "simulation", Name: "Симуляция"},
-		{Code: "economics", Name: "Экономика"},
-		{Code: "result", Name: "Результат"},
+		{Code: "draft", Name: "Черновик"},
+		{Code: "saved", Name: "Сохранён"},
 	}
 	ValueSources = []Option{
 		{Code: "user", Name: "Введено пользователем"},

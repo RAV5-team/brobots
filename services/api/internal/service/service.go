@@ -12,19 +12,21 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/brobots/api/internal/calc"
 	"github.com/brobots/api/internal/domain"
 	"github.com/brobots/api/internal/store"
 )
 
 // Service coordinates the store and the domain rules.
 type Service struct {
-	st  *store.Store
-	log *slog.Logger
+	st   *store.Store
+	log  *slog.Logger
+	calc calc.Calculator
 }
 
-// New creates the service.
-func New(st *store.Store, log *slog.Logger) *Service {
-	return &Service{st: st, log: log}
+// New creates the service; calculator computes fleet and economics for the orchestrator.
+func New(st *store.Store, log *slog.Logger, calculator calc.Calculator) *Service {
+	return &Service{st: st, log: log, calc: calculator}
 }
 
 // Ping checks the database.

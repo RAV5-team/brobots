@@ -24,6 +24,7 @@ import (
 
 	"github.com/brobots/api/internal/auth"
 	"github.com/brobots/api/internal/auth/authtest"
+	"github.com/brobots/api/internal/calc/mock"
 	"github.com/brobots/api/internal/handlers"
 	"github.com/brobots/api/internal/seed"
 	"github.com/brobots/api/internal/service"
@@ -97,11 +98,11 @@ func setup(t *testing.T) *env {
 	}
 	log := slog.New(slog.DiscardHandler)
 	st := store.New(pool)
-	if err := seed.Load(ctx, st, log); err != nil {
+	if err := seed.Load(ctx, st, mock.New(), log); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 	iss := authtest.New(t)
-	srv := httptest.NewServer(handlers.NewRouter(service.New(st, log), log, handlers.Options{Auth: iss.Middleware(t)}))
+	srv := httptest.NewServer(handlers.NewRouter(service.New(st, log, mock.New()), log, handlers.Options{Auth: iss.Middleware(t)}))
 	t.Cleanup(srv.Close)
 	// The flows here are the admin's: catalog changes need the role, the rest a signed-in user.
 	token := iss.User(t, "integration-admin", auth.RoleUser, auth.RoleAdmin)
@@ -185,7 +186,7 @@ func TestSeedIsIdempotent(t *testing.T) {
 		return n
 	}
 	before := count()
-	if err := seed.Load(context.Background(), e.st, slog.New(slog.DiscardHandler)); err != nil {
+	if err := seed.Load(context.Background(), e.st, mock.New(), slog.New(slog.DiscardHandler)); err != nil {
 		t.Fatal(err)
 	}
 	if after := count(); after != before {
@@ -308,7 +309,7 @@ func TestLocationTaskProjectFlow(t *testing.T) {
 		Versions    struct{ Catalog, Dictionaries int }
 	}
 	e.do(t, http.MethodPost, "/api/v1/projects", map[string]any{"locationId": loc.ID, "taskId": task.ID}, 201, &project)
-	if project.Status != "params" || project.Versions.Catalog == 0 {
+	if project.Status != "draft" || project.Versions.Catalog == 0 {
 		t.Errorf("project = %+v", project)
 	}
 	var r1 run

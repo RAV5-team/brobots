@@ -1,6 +1,27 @@
 package config
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
+
+func TestEconomicsSettings(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://x")
+	t.Setenv("AUTH_DEV_MODE", "true")
+	c, err := Load()
+	if err != nil || c.EconomicsURL != "" || c.EconomicsTimeout != 10*time.Second {
+		t.Fatalf("defaults = %q %v, err = %v", c.EconomicsURL, c.EconomicsTimeout, err)
+	}
+	t.Setenv("ECONOMICS_URL", " http://economics:8002 ")
+	t.Setenv("ECONOMICS_TIMEOUT", "3s")
+	if c, err = Load(); err != nil || c.EconomicsURL != "http://economics:8002" || c.EconomicsTimeout != 3*time.Second {
+		t.Fatalf("economics = %q %v, err = %v", c.EconomicsURL, c.EconomicsTimeout, err)
+	}
+	t.Setenv("ECONOMICS_TIMEOUT", "ten")
+	if _, err := Load(); err == nil {
+		t.Fatal("an invalid timeout must be rejected")
+	}
+}
 
 func TestLoadRequiresOIDC(t *testing.T) {
 	t.Setenv("DATABASE_URL", "postgres://x")

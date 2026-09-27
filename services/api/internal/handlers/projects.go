@@ -120,6 +120,22 @@ func (a *API) putSelection(w http.ResponseWriter, r *http.Request) {
 	a.withIDBody(w, r, func(id uuid.UUID, b []byte) (any, error) { return a.svc.PutSelection(r.Context(), id, b) }, http.StatusOK)
 }
 
+func (a *API) evaluate(w http.ResponseWriter, r *http.Request) {
+	a.withID(w, r, func(id uuid.UUID) (any, error) { return a.svc.Evaluate(r.Context(), id) }, http.StatusCreated)
+}
+
+func (a *API) evaluation(w http.ResponseWriter, r *http.Request) {
+	a.withID(w, r, func(id uuid.UUID) (any, error) { return a.svc.GetEvaluation(r.Context(), id) }, http.StatusOK)
+}
+
+func (a *API) saveProject(w http.ResponseWriter, r *http.Request) {
+	a.withID(w, r, func(id uuid.UUID) (any, error) { return a.svc.SaveProject(r.Context(), id) }, http.StatusOK)
+}
+
+func (a *API) reopenProject(w http.ResponseWriter, r *http.Request) {
+	a.withID(w, r, func(id uuid.UUID) (any, error) { return a.svc.ReopenProject(r.Context(), id) }, http.StatusOK)
+}
+
 func (a *API) evaluationContext(w http.ResponseWriter, r *http.Request) {
 	a.withID(w, r, func(id uuid.UUID) (any, error) { return a.svc.EvaluationContext(r.Context(), id) }, http.StatusOK)
 }
