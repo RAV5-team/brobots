@@ -1,696 +1,1621 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
-  description: |-
-    Контракт калькуляции, который вызывает оркестратор сервиса api (docs/orchestrator.md).
-
-    Запрос — замороженный вход расчёта одного проекта: локация, задача и кандидаты подбора с полями каталога. Ответ — ровно один результат на кандидата и модель приобретения из acquisitionModels запроса, которую предлагает робот (пустой acquisitionModels кандидата — все модели). modelVersion обязателен: проект хранит его, чтобы старые расчёты воспроизводились после смены формул. У каждого числа — строка trace с формулой и источником. Деньги — рубли с НДС, доли — от 0 до 1.
-
-    Пока сервиса нет, api считает встроенной мок-моделью mock-calc/v1 (ECONOMICS_URL пуст).
-  title: RAV5 Economics · расчёт парка и экономики
+  title: RAV5 Economic Service
+  description: Economic calculation service for RAV5 robotics assessments.
   version: 0.1.0
 paths:
-  /api/v1/calculations:
+  /healthz:
+    get:
+      tags:
+      - system
+      summary: Health Check
+      description: Reports that the process is alive.
+      operationId: health_check_healthz_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Health Check Healthz Get
+  /readyz:
+    get:
+      tags:
+      - system
+      summary: Readiness Check
+      description: 'Reports readiness: the snapshot database answers.'
+      operationId: readiness_check_readyz_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Readiness Check Readyz Get
+        '503':
+          description: The database is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+  /api/v1/model-version:
+    get:
+      tags:
+      - evaluations
+      summary: Model Version
+      description: Returns the calculation and ranking versions served now.
+      operationId: model_version_api_v1_model_version_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelVersionDto'
+  /api/v1/evaluations:
     post:
+      tags:
+      - evaluations
+      summary: Create Evaluation
+      description: Calculates, persists, and returns one evaluation snapshot.
+      operationId: create_evaluation_api_v1_evaluations_post
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Request'
+              $ref: '#/components/schemas/EvaluationRequestDto-Input'
+        required: true
       responses:
-        "200":
+        '201':
+          description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Response'
-          description: OK
-        "422":
+                $ref: '#/components/schemas/EvaluationSnapshotDto'
+        '409':
+          description: The requested model version is unavailable.
           content:
-            application/problem+json:
+            application/json:
               schema:
-                $ref: '#/components/schemas/Problem'
-          description: Unprocessable Entity
-      summary: Рассчитать кандидатов проекта
-      tags:
-      - economics
-  /api/v1/model-version:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '422':
+          description: The request is invalid or contains invalid domain data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+  /api/v1/evaluations/{evaluation_id}:
     get:
+      tags:
+      - evaluations
+      summary: Get Evaluation
+      description: Returns the latest immutable snapshot for an evaluation.
+      operationId: get_evaluation_api_v1_evaluations__evaluation_id__get
+      parameters:
+      - name: evaluation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Evaluation Id
       responses:
-        "200":
+        '200':
+          description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ModelVersionResponse'
-          description: OK
-      summary: Версия ядра расчёта
-      tags:
-      - economics
+                $ref: '#/components/schemas/EvaluationSnapshotDto'
+        '404':
+          description: The evaluation was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
-    Budget:
-      properties:
-        amount:
-          nullable: true
-          type: number
-        currency:
-          type: string
-        source:
-          nullable: true
-          type: string
-        sourceUnit:
-          nullable: true
-          type: string
-      type: object
-    Candidate:
-      properties:
-        acquisitionModels:
-          items:
-            type: string
-          nullable: true
-          type: array
-        capability:
-          $ref: '#/components/schemas/Capability'
-        code:
-          type: string
-        isManual:
-          type: boolean
-        manufacturer:
-          type: string
-        matchState:
-          enum:
-          - passed
-          - needs_verification
-          - excluded
-          type: string
-        name:
-          type: string
-        offer:
-          $ref: '#/components/schemas/Offer'
-        serviceCostPct:
-          description: Обслуживание в год, % от стоимости робота
-          nullable: true
-          type: number
-        serviceLifeYears:
-          nullable: true
-          type: number
-        softwareCostPct:
-          description: Стоимость ПО в год, % от стоимости робота
-          nullable: true
-          type: number
-        solutionId:
-          $ref: '#/components/schemas/UUID'
-        solutionType:
-          nullable: true
-          type: string
-        spec:
-          $ref: '#/components/schemas/RobotSpec'
-        status:
-          enum:
-          - operation
-          - piloting
-          - rnd
-          nullable: true
-          type: string
-        trl:
-          nullable: true
-          type: integer
-      type: object
-    Capability:
-      properties:
-        effective:
-          $ref: '#/components/schemas/Effective'
-        environment:
-          description: Пусто — по допускам робота
-          enum:
-          - indoor
-          - outdoor
-          - both
-          nullable: true
-          type: string
-        handlingMethodCode:
-          description: Пусто — берётся из ТТХ робота
-          nullable: true
-          type: string
-        id:
-          $ref: '#/components/schemas/UUID'
-        isActive:
-          type: boolean
-        liftHeightMm:
-          nullable: true
-          type: integer
-        solutionId:
-          $ref: '#/components/schemas/UUID'
-        sourceId:
-          $ref: '#/components/schemas/UUID'
-        sourceText:
-          nullable: true
-          type: string
-        throughputExact:
-          type: boolean
-        throughputPerHour:
-          nullable: true
-          type: number
-        throughputRangeText:
-          nullable: true
-          type: string
-        workType:
-          $ref: '#/components/schemas/WorkTypeRef'
-      type: object
-    Date:
-      format: date
+    AcquisitionModel:
       type: string
-    Effective:
+      enum:
+      - purchase
+      - raas
+      title: AcquisitionModel
+      description: Supported candidate acquisition models.
+    CalculationTraceDto:
       properties:
-        environment:
-          nullable: true
+        formula_id:
           type: string
-        handlingMethodCode:
-          nullable: true
-          type: string
-        liftHeightMm:
-          nullable: true
-          type: integer
-      type: object
-    FieldError:
-      properties:
-        code:
-          type: string
-        field:
-          type: string
-        hint:
-          type: string
-        message:
-          type: string
-      type: object
-    HandlingShare:
-      properties:
-        code:
-          type: string
-        laborReplacementRatio:
-          nullable: true
-          type: number
-      type: object
-    Location:
-      properties:
-        capexBudget:
-          $ref: '#/components/schemas/Budget'
-        facilityTypeCode:
-          type: string
-        id:
-          $ref: '#/components/schemas/UUID'
-        name:
-          type: string
-        parameters:
-          additionalProperties: {}
-          description: Значения параметров объекта по кодам
-          nullable: true
-          type: object
-        staffGroups:
-          items:
-            $ref: '#/components/schemas/StaffGroup'
-          nullable: true
-          type: array
-      type: object
-    ModelVersionResponse:
-      properties:
-        modelVersion:
-          type: string
-      type: object
-    Offer:
-      properties:
-        id:
-          $ref: '#/components/schemas/UUID'
-        isDefault:
-          type: boolean
-        label:
-          type: string
-        organizerRowRef:
-          nullable: true
-          type: string
-        price:
-          $ref: '#/components/schemas/Price'
-        sourceId:
-          $ref: '#/components/schemas/UUID'
-      type: object
-    Price:
-      properties:
-        amountRub:
-          nullable: true
-          type: number
-        includesVat:
-          type: boolean
-        offerId:
-          $ref: '#/components/schemas/UUID'
-        percent:
-          nullable: true
-          type: number
+          title: Formula Id
+        result:
+          anyOf:
+          - type: boolean
+          - type: string
+          - type: integer
+          - type: 'null'
+          title: Result
         unit:
           type: string
-      type: object
-    Problem:
-      properties:
-        code:
-          type: string
-        detail:
-          type: string
-        errors:
+          title: Unit
+        source:
+          $ref: '#/components/schemas/SourceDto'
+        inputs:
           items:
-            $ref: '#/components/schemas/FieldError'
+            $ref: '#/components/schemas/TraceInputDto'
           type: array
-        status:
-          type: integer
-        title:
-          type: string
-        type:
-          type: string
+          title: Inputs
+      additionalProperties: false
       type: object
-    Request:
+      required:
+      - formula_id
+      - result
+      - unit
+      - source
+      - inputs
+      title: CalculationTraceDto
+    CandidateDto-Input:
       properties:
-        acquisitionModels:
-          description: 'Модели приобретения для расчёта: purchase, raas'
+        candidate_id:
+          type: string
+          title: Candidate Id
+        robot_code:
+          type: string
+          title: Robot Code
+        price:
+          anyOf:
+          - $ref: '#/components/schemas/MoneyDto-Input'
+          - type: 'null'
+        payload_kg:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+          title: Payload Kg
+        max_speed_mps:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+          title: Max Speed Mps
+        loading_seconds:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+          title: Loading Seconds
+        unloading_seconds:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+          title: Unloading Seconds
+        average_power_kw:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+          title: Average Power Kw
+        handling_method:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Handling Method
+        catalog_status:
+          type: string
+          title: Catalog Status
+        confirmation:
+          $ref: '#/components/schemas/ConfirmationStatus'
+        source:
+          $ref: '#/components/schemas/SourceDto'
+        maturity_trl:
+          anyOf:
+          - $ref: '#/components/schemas/SourcedValueDto-Input'
+          - type: 'null'
+        catalog_completeness_percent:
+          anyOf:
+          - $ref: '#/components/schemas/SourcedValueDto-Input'
+          - type: 'null'
+      additionalProperties: false
+      type: object
+      required:
+      - candidate_id
+      - robot_code
+      - price
+      - payload_kg
+      - max_speed_mps
+      - loading_seconds
+      - unloading_seconds
+      - average_power_kw
+      - handling_method
+      - catalog_status
+      - confirmation
+      - source
+      title: CandidateDto
+    CandidateDto-Output:
+      properties:
+        candidate_id:
+          type: string
+          title: Candidate Id
+        robot_code:
+          type: string
+          title: Robot Code
+        price:
+          anyOf:
+          - $ref: '#/components/schemas/MoneyDto-Output'
+          - type: 'null'
+        payload_kg:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Payload Kg
+        max_speed_mps:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Max Speed Mps
+        loading_seconds:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Loading Seconds
+        unloading_seconds:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Unloading Seconds
+        average_power_kw:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Average Power Kw
+        handling_method:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Handling Method
+        catalog_status:
+          type: string
+          title: Catalog Status
+        confirmation:
+          $ref: '#/components/schemas/ConfirmationStatus'
+        source:
+          $ref: '#/components/schemas/SourceDto'
+        maturity_trl:
+          anyOf:
+          - $ref: '#/components/schemas/SourcedValueDto-Output'
+          - type: 'null'
+        catalog_completeness_percent:
+          anyOf:
+          - $ref: '#/components/schemas/SourcedValueDto-Output'
+          - type: 'null'
+      additionalProperties: false
+      type: object
+      required:
+      - candidate_id
+      - robot_code
+      - price
+      - payload_kg
+      - max_speed_mps
+      - loading_seconds
+      - unloading_seconds
+      - average_power_kw
+      - handling_method
+      - catalog_status
+      - confirmation
+      - source
+      title: CandidateDto
+    CandidateEconomicsDto:
+      properties:
+        candidate_id:
+          type: string
+          title: Candidate Id
+        acquisition_model:
+          $ref: '#/components/schemas/AcquisitionModel'
+        status:
+          $ref: '#/components/schemas/CandidateStatus'
+        metrics:
+          items:
+            $ref: '#/components/schemas/MetricValueDto'
+          type: array
+          title: Metrics
+        traces:
+          items:
+            $ref: '#/components/schemas/CalculationTraceDto'
+          type: array
+          title: Traces
+        risks:
           items:
             type: string
-          nullable: true
           type: array
+          title: Risks
+      additionalProperties: false
+      type: object
+      required:
+      - candidate_id
+      - acquisition_model
+      - status
+      - metrics
+      - traces
+      - risks
+      title: CandidateEconomicsDto
+    CandidateStatus:
+      type: string
+      enum:
+      - applicable
+      - excluded
+      - requires_verification
+      - unresolved_economics
+      title: CandidateStatus
+      description: Candidate economics status, including legacy snapshot states.
+    ConfirmationStatus:
+      type: string
+      enum:
+      - confirmed
+      - partial
+      - unconfirmed
+      - unknown
+      title: ConfirmationStatus
+      description: Describes whether a source value has been confirmed.
+    ErrorResponseDto:
+      properties:
+        detail:
+          anyOf:
+          - type: string
+          - items:
+              $ref: '#/components/schemas/ValidationIssueDto'
+            type: array
+          title: Detail
+      additionalProperties: false
+      type: object
+      required:
+      - detail
+      title: ErrorResponseDto
+      description: Describes an HTTP error response body.
+    EvaluationRequestDto-Input:
+      properties:
+        evaluation_id:
+          type: string
+          title: Evaluation Id
+        project_id:
+          type: string
+          title: Project Id
+        model_version:
+          type: string
+          title: Model Version
+        task:
+          $ref: '#/components/schemas/TaskDto-Input'
         candidates:
           items:
-            $ref: '#/components/schemas/Candidate'
-          nullable: true
+            $ref: '#/components/schemas/CandidateDto-Input'
           type: array
-        horizonYears:
-          description: Горизонт расчёта ROI и TCO, лет
-          type: integer
-        location:
-          $ref: '#/components/schemas/Location'
-        projectId:
-          $ref: '#/components/schemas/UUID'
+          title: Candidates
+        norms:
+          $ref: '#/components/schemas/NormsDto-Input'
+        scenarios:
+          items:
+            $ref: '#/components/schemas/ScenarioDto-Input'
+          type: array
+          title: Scenarios
+        requested_ranking_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Requested Ranking Version
+        calculation_currency:
+          type: string
+          title: Calculation Currency
+          default: RUB
+        ranking_weights:
+          anyOf:
+          - items:
+              prefixItems:
+              - $ref: '#/components/schemas/RankingCriterion'
+              - anyOf:
+                - type: number
+                - type: string
+              type: array
+              maxItems: 2
+              minItems: 2
+            type: array
+          - type: 'null'
+          title: Ranking Weights
+      additionalProperties: false
+      type: object
+      required:
+      - evaluation_id
+      - project_id
+      - model_version
+      - task
+      - candidates
+      - norms
+      - scenarios
+      title: EvaluationRequestDto
+    EvaluationRequestDto-Output:
+      properties:
+        evaluation_id:
+          type: string
+          title: Evaluation Id
+        project_id:
+          type: string
+          title: Project Id
+        model_version:
+          type: string
+          title: Model Version
         task:
-          $ref: '#/components/schemas/Task'
-      type: object
-    Response:
-      properties:
-        modelVersion:
-          type: string
-        results:
+          $ref: '#/components/schemas/TaskDto-Output'
+        candidates:
           items:
-            $ref: '#/components/schemas/Result'
-          nullable: true
+            $ref: '#/components/schemas/CandidateDto-Output'
           type: array
-      type: object
-    Result:
-      properties:
-        acquisitionModel:
-          enum:
-          - purchase
-          - raas
-          type: string
-        budgetOverPct:
-          description: Превышение бюджета, доля 0–1
-          nullable: true
-          type: number
-        budgetOverRub:
-          description: Превышение бюджета CAPEX; 0 — в бюджете, null — бюджет не задан
-          nullable: true
-          type: number
-        calculable:
-          description: false — не хватает данных, причина в reason
-          type: boolean
-        capexRub:
-          description: Первоначальные затраты; для RaaS — запуск без аренды
-          nullable: true
-          type: number
-        chargerCount:
-          nullable: true
-          type: integer
-        laborSavingsYearRub:
-          description: Экономия ФОТ в год
-          nullable: true
-          type: number
-        netEffectYearRub:
-          description: Экономия ФОТ + иные эффекты − OPEX
-          nullable: true
-          type: number
-        opexYearRub:
-          description: Операционные затраты в год, для RaaS с арендой
-          nullable: true
-          type: number
-        paybackYears:
-          description: null — не окупается
-          nullable: true
-          type: number
-        reason:
-          nullable: true
-          type: string
-        robotCount:
-          nullable: true
-          type: integer
-        roi:
-          description: (эффект × горизонт − CAPEX) ÷ CAPEX
-          nullable: true
-          type: number
-        solutionId:
-          $ref: '#/components/schemas/UUID'
-        tcoRub:
-          description: CAPEX + OPEX × горизонт
-          nullable: true
-          type: number
-        trace:
+          title: Candidates
+        norms:
+          $ref: '#/components/schemas/NormsDto-Output'
+        scenarios:
           items:
-            $ref: '#/components/schemas/TraceItem'
-          nullable: true
+            $ref: '#/components/schemas/ScenarioDto-Output'
           type: array
-        warnings:
-          items:
-            type: string
-          nullable: true
-          type: array
+          title: Scenarios
+        requested_ranking_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Requested Ranking Version
+        calculation_currency:
+          type: string
+          title: Calculation Currency
+          default: RUB
+        ranking_weights:
+          anyOf:
+          - items:
+              prefixItems:
+              - $ref: '#/components/schemas/RankingCriterion'
+              - type: string
+              type: array
+              maxItems: 2
+              minItems: 2
+            type: array
+          - type: 'null'
+          title: Ranking Weights
+      additionalProperties: false
       type: object
-    RobotSpec:
+      required:
+      - evaluation_id
+      - project_id
+      - model_version
+      - task
+      - candidates
+      - norms
+      - scenarios
+      title: EvaluationRequestDto
+    EvaluationResultDto:
       properties:
-        autonomyH:
-          nullable: true
-          type: number
-        avgPowerKw:
-          nullable: true
-          type: number
-        chargeTimeMin:
-          nullable: true
-          type: number
-        chargingInfra:
-          nullable: true
+        evaluation_id:
           type: string
-        connectivity:
+          title: Evaluation Id
+        project_id:
+          type: string
+          title: Project Id
+        model_version:
+          type: string
+          title: Model Version
+        status:
+          $ref: '#/components/schemas/EvaluationStatus'
+        candidates:
           items:
-            type: string
-          nullable: true
+            $ref: '#/components/schemas/CandidateEconomicsDto'
           type: array
-        dimensionsExact:
-          type: boolean
-        floorRequirements:
-          nullable: true
+          title: Candidates
+        ranking:
+          $ref: '#/components/schemas/RankingResultDto'
+      additionalProperties: false
+      type: object
+      required:
+      - evaluation_id
+      - project_id
+      - model_version
+      - status
+      - candidates
+      - ranking
+      title: EvaluationResultDto
+    EvaluationSnapshotDto:
+      properties:
+        evaluation_id:
           type: string
-        handlingMethodCode:
-          nullable: true
+          title: Evaluation Id
+        project_id:
           type: string
-        heightMm:
-          nullable: true
-          type: integer
-        indoorAllowed:
-          nullable: true
-          type: boolean
-        integrations:
+          title: Project Id
+        request:
+          $ref: '#/components/schemas/EvaluationRequestDto-Output'
+        result:
+          $ref: '#/components/schemas/EvaluationResultDto'
+        created_at:
+          type: string
+          title: Created At
+        revision_of:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Revision Of
+      additionalProperties: false
+      type: object
+      required:
+      - evaluation_id
+      - project_id
+      - request
+      - result
+      - created_at
+      - revision_of
+      title: EvaluationSnapshotDto
+    EvaluationStatus:
+      type: string
+      enum:
+      - completed
+      - partial
+      - invalid
+      title: EvaluationStatus
+      description: Overall status of an evaluation.
+    HTTPValidationError:
+      properties:
+        detail:
           items:
-            type: string
-          nullable: true
+            $ref: '#/components/schemas/ValidationError'
           type: array
-        lengthMm:
-          nullable: true
-          type: integer
-        liftHeightMm:
-          nullable: true
-          type: integer
-        loadTimeS:
-          nullable: true
-          type: number
-        massKg:
-          nullable: true
-          type: number
-        maxSpeedMps:
-          nullable: true
-          type: number
-        maxTempC:
-          nullable: true
-          type: number
-        minPassageMm:
-          nullable: true
-          type: integer
-        minTempC:
-          nullable: true
-          type: number
-        minTempExact:
-          type: boolean
-        navigationType:
-          nullable: true
-          type: string
-        outdoorAllowed:
-          nullable: true
-          type: boolean
-        payloadExact:
-          type: boolean
-        payloadKg:
-          nullable: true
-          type: number
-        positioningAccuracyMm:
-          nullable: true
-          type: number
-        serviceTerms:
-          nullable: true
-          type: string
-        specsActualizedOn:
-          $ref: '#/components/schemas/Date'
-        specsConfirmed:
-          enum:
-          - "yes"
-          - partial
-          - "no"
-          type: string
-        specsSourceId:
-          $ref: '#/components/schemas/UUID'
-        specsSourceText:
-          nullable: true
-          type: string
-        unloadTimeS:
-          nullable: true
-          type: number
-        widthMm:
-          nullable: true
-          type: integer
+          title: Detail
       type: object
-    StaffGroup:
-      properties:
-        headcount:
-          type: integer
-        id:
-          $ref: '#/components/schemas/UUID'
-        roleName:
-          type: string
-        salaryGrossMonthRub:
-          nullable: true
-          type: number
-        sort:
-          type: integer
-        source:
-          nullable: true
-          type: string
-      type: object
-    Task:
-      properties:
-        derived:
-          $ref: '#/components/schemas/TaskDerived'
-        handlingMethods:
-          items:
-            $ref: '#/components/schemas/HandlingShare'
-          nullable: true
-          type: array
-        id:
-          $ref: '#/components/schemas/UUID'
-        kpiUnit:
-          nullable: true
-          type: string
-        name:
-          type: string
-        params:
-          $ref: '#/components/schemas/TaskParams'
-        workType:
-          $ref: '#/components/schemas/WorkTypeRef'
-        workers:
-          items:
-            $ref: '#/components/schemas/TaskWorker'
-          nullable: true
-          type: array
-      type: object
-    TaskDerived:
-      properties:
-        avgHourlyToRobotize:
-          nullable: true
-          type: number
-        basePayrollRubYear:
-          nullable: true
-          type: number
-        maxRobotWidthM:
-          nullable: true
-          type: number
-        payrollTaxCoef:
-          format: double
-          type: number
-        peakIntensityPerHour:
-          nullable: true
-          type: number
-        peakToRobotizePerHour:
-          nullable: true
-          type: number
-        targetFte:
-          nullable: true
-          type: number
-        targetPayrollRubYear:
-          nullable: true
-          type: number
-      type: object
-    TaskParams:
-      properties:
-        automationShare:
-          description: Доля автоматизируемых операций, 0–1
-          nullable: true
-          type: number
-        cargoDivisible:
-          description: Груз делимый на несколько рейсов робота
-          nullable: true
-          type: boolean
-        cargoUnit:
-          description: 'Единица груза (носитель): паллета на полу, тележка…'
-          nullable: true
-          type: string
-        consumablesPerRobotRub:
-          description: Расходники на робота, ₽/год
-          nullable: true
-          type: number
-        dailyVolume:
-          description: Объём операций в сутки, в единице процесса
-          nullable: true
-          type: number
-        environment:
-          description: Среда работы
-          enum:
-          - indoor
-          - outdoor
-          nullable: true
-          type: string
-        fleetOperatorSalaryRub:
-          description: Оклад оператора флота, ₽/мес.
-          nullable: true
-          type: number
-        fleetOperatorsPerShift:
-          description: Операторов флота на смену
-          nullable: true
-          type: number
-        itIntegrationRub:
-          description: Интеграция с ИТ-системами, ₽
-          nullable: true
-          type: number
-        liftTimeS:
-          description: Ожидание и проезд лифта, с
-          nullable: true
-          type: number
-        liftTripShare:
-          description: Доля рейсов через лифт, 0–1
-          nullable: true
-          type: number
-        minAisleWidthM:
-          description: Минимальная ширина прохода, м
-          nullable: true
-          type: number
-        minOperatingTempC:
-          description: Мин. температура эксплуатации в зоне, °C
-          nullable: true
-          type: number
-        otherEffectsRub:
-          description: Иные измеримые эффекты, ₽/год
-          nullable: true
-          type: number
-        peakFactor:
-          description: 'Пиковый коэффициент: макс. час ÷ средний час'
-          nullable: true
-          type: number
-        requiredLiftHeightMm:
-          description: Требуемая высота подъёма на ярус, мм
-          nullable: true
-          type: number
-        routeLengthM:
-          description: Средняя длина маршрута в одну сторону, м
-          nullable: true
-          type: number
-        routePoints:
-          description: 'Типовой маршрут: точки «откуда → куда»'
-          items:
-            type: string
-          nullable: true
-          type: array
-        sitePrepShare:
-          description: Подготовка объекта, доля стоимости парка, 0–1
-          nullable: true
-          type: number
-        siteSpeedLimitMps:
-          description: Ограничение скорости на объекте, м/с
-          nullable: true
-          type: number
-        turnoverRate:
-          description: Годовая текучесть исполнителей, 0–1
-          nullable: true
-          type: number
-        unitMassKg:
-          description: Масса единицы груза, кг
-          nullable: true
-          type: number
-        widthClearanceM:
-          description: Запас по ширине для безопасного движения, м
-          nullable: true
-          type: number
-        workHoursPerDay:
-          description: Часов работы процесса в сутки
-          nullable: true
-          type: number
-        workTimeLoss:
-          description: Потери рабочего времени, 0–1
-          nullable: true
-          type: number
-      type: object
-    TaskWorker:
-      properties:
-        headcount:
-          type: integer
-        roleName:
-          type: string
-        salaryGrossMonthRub:
-          nullable: true
-          type: number
-        staffGroupId:
-          $ref: '#/components/schemas/UUID'
-        timeShare:
-          format: double
-          type: number
-      type: object
-    TraceItem:
+      title: HTTPValidationError
+    InputOrigin:
+      type: string
+      enum:
+      - recorded
+      - user
+      - admin_norm
+      - estimate
+      - derived
+      title: InputOrigin
+      description: Identifies where an input value originated.
+    MetricValueDto:
       properties:
         code:
           type: string
-        formula:
-          type: string
-        label:
-          type: string
-        source:
-          enum:
-          - task
-          - location
-          - robot
-          - norm
-          - derived
-          type: string
+          title: Code
+        value:
+          anyOf:
+          - type: boolean
+          - type: string
+          - type: integer
+          - type: 'null'
+          title: Value
         unit:
           type: string
-        value:
-          nullable: true
-          type: number
+          title: Unit
+        source:
+          $ref: '#/components/schemas/SourceDto'
+      additionalProperties: false
       type: object
-    UUID:
-      format: uuid
+      required:
+      - code
+      - value
+      - unit
+      - source
+      title: MetricValueDto
+    ModelVersionDto:
+      properties:
+        model_version:
+          type: string
+          title: Model Version
+          description: Calculation model version to send in evaluations.
+        ranking_version:
+          type: string
+          title: Ranking Version
+          description: Default ranking methodology version.
+      additionalProperties: false
+      type: object
+      required:
+      - model_version
+      - ranking_version
+      title: ModelVersionDto
+      description: Describes the calculation and ranking versions served now.
+    MoneyDto-Input:
+      properties:
+        amount:
+          anyOf:
+          - type: number
+          - type: string
+          title: Amount
+        currency:
+          type: string
+          title: Currency
+        scale:
+          type: integer
+          title: Scale
+          default: 0
+      additionalProperties: false
+      type: object
+      required:
+      - amount
+      - currency
+      title: MoneyDto
+    MoneyDto-Output:
+      properties:
+        amount:
+          type: string
+          title: Amount
+        currency:
+          type: string
+          title: Currency
+        scale:
+          type: integer
+          title: Scale
+          default: 0
+      additionalProperties: false
+      type: object
+      required:
+      - amount
+      - currency
+      title: MoneyDto
+    NormsDto-Input:
+      properties:
+        payroll_multiplier:
+          anyOf:
+          - type: number
+          - type: string
+          title: Payroll Multiplier
+        productive_time_share:
+          anyOf:
+          - type: number
+          - type: string
+          title: Productive Time Share
+        technical_availability:
+          anyOf:
+          - type: number
+          - type: string
+          title: Technical Availability
+        fleet_reserve_share:
+          anyOf:
+          - type: number
+          - type: string
+          title: Fleet Reserve Share
+        operating_speed_factor:
+          anyOf:
+          - type: number
+          - type: string
+          title: Operating Speed Factor
+        robots_per_charger:
+          anyOf:
+          - type: number
+          - type: string
+          title: Robots Per Charger
+        charger_installed_price:
+          $ref: '#/components/schemas/MoneyDto-Input'
+        charger_power_kw:
+          anyOf:
+          - type: number
+          - type: string
+          title: Charger Power Kw
+        fms_upfront_share:
+          anyOf:
+          - type: number
+          - type: string
+          title: Fms Upfront Share
+        delivery_share:
+          anyOf:
+          - type: number
+          - type: string
+          title: Delivery Share
+        commissioning_share:
+          anyOf:
+          - type: number
+          - type: string
+          title: Commissioning Share
+        training_cost:
+          $ref: '#/components/schemas/MoneyDto-Input'
+        capex_contingency_share:
+          anyOf:
+          - type: number
+          - type: string
+          title: Capex Contingency Share
+        annual_service_share:
+          anyOf:
+          - type: number
+          - type: string
+          title: Annual Service Share
+        annual_license_share:
+          anyOf:
+          - type: number
+          - type: string
+          title: Annual License Share
+        annual_repair_share:
+          anyOf:
+          - type: number
+          - type: string
+          title: Annual Repair Share
+        electricity_price:
+          $ref: '#/components/schemas/MoneyDto-Input'
+        battery_life_years:
+          anyOf:
+          - type: number
+          - type: string
+          title: Battery Life Years
+        battery_replacement_share:
+          anyOf:
+          - type: number
+          - type: string
+          title: Battery Replacement Share
+        annual_connectivity_cost:
+          $ref: '#/components/schemas/MoneyDto-Input'
+        equipment_life_years:
+          anyOf:
+          - type: number
+          - type: string
+          title: Equipment Life Years
+        discount_rate:
+          anyOf:
+          - type: number
+          - type: string
+          title: Discount Rate
+        loan_share:
+          anyOf:
+          - type: number
+          - type: string
+          title: Loan Share
+        loan_interest_rate:
+          anyOf:
+          - type: number
+          - type: string
+          title: Loan Interest Rate
+        loan_term_years:
+          anyOf:
+          - type: number
+          - type: string
+          title: Loan Term Years
+        monthly_raas_share:
+          anyOf:
+          - type: number
+          - type: string
+          title: Monthly Raas Share
+        raas_setup_share:
+          anyOf:
+          - type: number
+          - type: string
+          title: Raas Setup Share
+        recruitment_months_salary:
+          anyOf:
+          - type: number
+          - type: string
+          title: Recruitment Months Salary
+        good_payback_years:
+          anyOf:
+          - type: number
+          - type: string
+          title: Good Payback Years
+        medium_payback_years:
+          anyOf:
+          - type: number
+          - type: string
+          title: Medium Payback Years
+        site_preparation_share:
+          anyOf:
+          - type: number
+          - type: string
+          title: Site Preparation Share
+        source:
+          $ref: '#/components/schemas/SourceDto'
+      additionalProperties: false
+      type: object
+      required:
+      - payroll_multiplier
+      - productive_time_share
+      - technical_availability
+      - fleet_reserve_share
+      - operating_speed_factor
+      - robots_per_charger
+      - charger_installed_price
+      - charger_power_kw
+      - fms_upfront_share
+      - delivery_share
+      - commissioning_share
+      - training_cost
+      - capex_contingency_share
+      - annual_service_share
+      - annual_license_share
+      - annual_repair_share
+      - electricity_price
+      - battery_life_years
+      - battery_replacement_share
+      - annual_connectivity_cost
+      - equipment_life_years
+      - discount_rate
+      - loan_share
+      - loan_interest_rate
+      - loan_term_years
+      - monthly_raas_share
+      - raas_setup_share
+      - recruitment_months_salary
+      - good_payback_years
+      - medium_payback_years
+      - site_preparation_share
+      - source
+      title: NormsDto
+    NormsDto-Output:
+      properties:
+        payroll_multiplier:
+          type: string
+          title: Payroll Multiplier
+        productive_time_share:
+          type: string
+          title: Productive Time Share
+        technical_availability:
+          type: string
+          title: Technical Availability
+        fleet_reserve_share:
+          type: string
+          title: Fleet Reserve Share
+        operating_speed_factor:
+          type: string
+          title: Operating Speed Factor
+        robots_per_charger:
+          type: string
+          title: Robots Per Charger
+        charger_installed_price:
+          $ref: '#/components/schemas/MoneyDto-Output'
+        charger_power_kw:
+          type: string
+          title: Charger Power Kw
+        fms_upfront_share:
+          type: string
+          title: Fms Upfront Share
+        delivery_share:
+          type: string
+          title: Delivery Share
+        commissioning_share:
+          type: string
+          title: Commissioning Share
+        training_cost:
+          $ref: '#/components/schemas/MoneyDto-Output'
+        capex_contingency_share:
+          type: string
+          title: Capex Contingency Share
+        annual_service_share:
+          type: string
+          title: Annual Service Share
+        annual_license_share:
+          type: string
+          title: Annual License Share
+        annual_repair_share:
+          type: string
+          title: Annual Repair Share
+        electricity_price:
+          $ref: '#/components/schemas/MoneyDto-Output'
+        battery_life_years:
+          type: string
+          title: Battery Life Years
+        battery_replacement_share:
+          type: string
+          title: Battery Replacement Share
+        annual_connectivity_cost:
+          $ref: '#/components/schemas/MoneyDto-Output'
+        equipment_life_years:
+          type: string
+          title: Equipment Life Years
+        discount_rate:
+          type: string
+          title: Discount Rate
+        loan_share:
+          type: string
+          title: Loan Share
+        loan_interest_rate:
+          type: string
+          title: Loan Interest Rate
+        loan_term_years:
+          type: string
+          title: Loan Term Years
+        monthly_raas_share:
+          type: string
+          title: Monthly Raas Share
+        raas_setup_share:
+          type: string
+          title: Raas Setup Share
+        recruitment_months_salary:
+          type: string
+          title: Recruitment Months Salary
+        good_payback_years:
+          type: string
+          title: Good Payback Years
+        medium_payback_years:
+          type: string
+          title: Medium Payback Years
+        site_preparation_share:
+          type: string
+          title: Site Preparation Share
+        source:
+          $ref: '#/components/schemas/SourceDto'
+      additionalProperties: false
+      type: object
+      required:
+      - payroll_multiplier
+      - productive_time_share
+      - technical_availability
+      - fleet_reserve_share
+      - operating_speed_factor
+      - robots_per_charger
+      - charger_installed_price
+      - charger_power_kw
+      - fms_upfront_share
+      - delivery_share
+      - commissioning_share
+      - training_cost
+      - capex_contingency_share
+      - annual_service_share
+      - annual_license_share
+      - annual_repair_share
+      - electricity_price
+      - battery_life_years
+      - battery_replacement_share
+      - annual_connectivity_cost
+      - equipment_life_years
+      - discount_rate
+      - loan_share
+      - loan_interest_rate
+      - loan_term_years
+      - monthly_raas_share
+      - raas_setup_share
+      - recruitment_months_salary
+      - good_payback_years
+      - medium_payback_years
+      - site_preparation_share
+      - source
+      title: NormsDto
+    RankingCriterion:
       type: string
-    WorkTypeRef:
+      enum:
+      - payback
+      - roi
+      - annual_effect
+      - budget_fit
+      - tco_savings
+      - maturity
+      - data_quality
+      - fleet_utilization
+      title: RankingCriterion
+      description: Criteria supported by the ranking methodology contract.
+    RankingCriterionTraceDto:
       properties:
         code:
+          $ref: '#/components/schemas/RankingCriterion'
+        raw_value:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Raw Value
+        unit:
           type: string
-        id:
-          $ref: '#/components/schemas/UUID'
+          title: Unit
+        normalized_value:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Normalized Value
+        configured_weight:
+          type: string
+          title: Configured Weight
+        effective_weight:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Effective Weight
+        contribution:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Contribution
+        provenance:
+          items:
+            $ref: '#/components/schemas/SourceDto'
+          type: array
+          title: Provenance
+        is_missing:
+          type: boolean
+          title: Is Missing
+        missing_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Missing Reason
+      additionalProperties: false
+      type: object
+      required:
+      - code
+      - raw_value
+      - unit
+      - normalized_value
+      - configured_weight
+      - effective_weight
+      - contribution
+      - provenance
+      - is_missing
+      - missing_reason
+      title: RankingCriterionTraceDto
+    RankingItemDto:
+      properties:
+        candidate_id:
+          type: string
+          title: Candidate Id
+        acquisition_model:
+          $ref: '#/components/schemas/AcquisitionModel'
+        candidate_status:
+          $ref: '#/components/schemas/CandidateStatus'
+        risks:
+          items:
+            type: string
+          type: array
+          title: Risks
+        rank:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Rank
+        score:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Score
+        contributions:
+          items:
+            prefixItems:
+            - type: string
+            - type: string
+            type: array
+            maxItems: 2
+            minItems: 2
+          type: array
+          title: Contributions
+        status:
+          $ref: '#/components/schemas/RankingItemStatus'
+        unranked_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Unranked Reason
+        criteria:
+          items:
+            $ref: '#/components/schemas/RankingCriterionTraceDto'
+          type: array
+          title: Criteria
+      additionalProperties: false
+      type: object
+      required:
+      - candidate_id
+      - acquisition_model
+      - candidate_status
+      - risks
+      - rank
+      - score
+      - contributions
+      - status
+      - unranked_reason
+      - criteria
+      title: RankingItemDto
+    RankingItemStatus:
+      type: string
+      enum:
+      - ranked
+      - unranked
+      title: RankingItemStatus
+      description: Describes whether an applicable candidate received a score.
+    RankingResultDto:
+      properties:
+        status:
+          $ref: '#/components/schemas/RankingStatus'
+        model_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Model Version
+        items:
+          items:
+            $ref: '#/components/schemas/RankingItemDto'
+          type: array
+          title: Items
+      additionalProperties: false
+      type: object
+      required:
+      - status
+      - model_version
+      - items
+      title: RankingResultDto
+    RankingStatus:
+      type: string
+      enum:
+      - not_configured
+      - available
+      title: RankingStatus
+      description: Availability status of ranking output.
+    ScenarioDto-Input:
+      properties:
+        acquisition_model:
+          $ref: '#/components/schemas/AcquisitionModel'
+        price_factor:
+          anyOf:
+          - type: number
+          - type: string
+          title: Price Factor
+        volume_factor:
+          anyOf:
+          - type: number
+          - type: string
+          title: Volume Factor
+        labor_factor:
+          anyOf:
+          - type: number
+          - type: string
+          title: Labor Factor
+        model_version:
+          type: string
+          title: Model Version
+      additionalProperties: false
+      type: object
+      required:
+      - acquisition_model
+      - price_factor
+      - volume_factor
+      - labor_factor
+      - model_version
+      title: ScenarioDto
+    ScenarioDto-Output:
+      properties:
+        acquisition_model:
+          $ref: '#/components/schemas/AcquisitionModel'
+        price_factor:
+          type: string
+          title: Price Factor
+        volume_factor:
+          type: string
+          title: Volume Factor
+        labor_factor:
+          type: string
+          title: Labor Factor
+        model_version:
+          type: string
+          title: Model Version
+      additionalProperties: false
+      type: object
+      required:
+      - acquisition_model
+      - price_factor
+      - volume_factor
+      - labor_factor
+      - model_version
+      title: ScenarioDto
+    SourceDto:
+      properties:
+        source:
+          type: string
+          title: Source
+        origin:
+          $ref: '#/components/schemas/InputOrigin'
+        confirmation:
+          $ref: '#/components/schemas/ConfirmationStatus'
+        version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Version
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+      additionalProperties: false
+      type: object
+      required:
+      - source
+      - origin
+      - confirmation
+      title: SourceDto
+    SourcedValueDto-Input:
+      properties:
+        value:
+          anyOf:
+          - type: number
+          - type: string
+          title: Value
+        unit:
+          type: string
+          title: Unit
+        source:
+          $ref: '#/components/schemas/SourceDto'
+      additionalProperties: false
+      type: object
+      required:
+      - value
+      - unit
+      - source
+      title: SourcedValueDto
+    SourcedValueDto-Output:
+      properties:
+        value:
+          type: string
+          title: Value
+        unit:
+          type: string
+          title: Unit
+        source:
+          $ref: '#/components/schemas/SourceDto'
+      additionalProperties: false
+      type: object
+      required:
+      - value
+      - unit
+      - source
+      title: SourcedValueDto
+    TaskDto-Input:
+      properties:
+        project_id:
+          type: string
+          title: Project Id
+        task_id:
+          type: string
+          title: Task Id
+        operations_per_day:
+          anyOf:
+          - type: number
+          - type: string
+          title: Operations Per Day
+        peak_factor:
+          anyOf:
+          - type: number
+          - type: string
+          title: Peak Factor
+        automatable_share:
+          anyOf:
+          - type: number
+          - type: string
+          title: Automatable Share
+        operating_hours_per_day:
+          anyOf:
+          - type: number
+          - type: string
+          title: Operating Hours Per Day
+        one_way_route_m:
+          anyOf:
+          - type: number
+          - type: string
+          title: One Way Route M
+        site_speed_limit_mps:
+          anyOf:
+          - type: number
+          - type: string
+          title: Site Speed Limit Mps
+        load_unit_mass_kg:
+          anyOf:
+          - type: number
+          - type: string
+          title: Load Unit Mass Kg
+        load_is_divisible:
+          type: boolean
+          title: Load Is Divisible
+        available_charging_power_kw:
+          anyOf:
+          - type: number
+          - type: string
+          title: Available Charging Power Kw
+        target_fte:
+          anyOf:
+          - type: number
+          - type: string
+          title: Target Fte
+        target_annual_payroll:
+          $ref: '#/components/schemas/MoneyDto-Input'
+        baseline_annual_opex:
+          $ref: '#/components/schemas/MoneyDto-Input'
+          description: Annual baseline payroll for the current process workforce; this is not total process
+            OPEX.
+        fleet_operators_per_shift:
+          anyOf:
+          - type: number
+          - type: string
+          title: Fleet Operators Per Shift
+        shifts_per_day:
+          anyOf:
+          - type: number
+          - type: string
+          title: Shifts Per Day
+        staff_time_loss_share:
+          anyOf:
+          - type: number
+          - type: string
+          title: Staff Time Loss Share
+        fleet_operator_monthly_salary:
+          $ref: '#/components/schemas/MoneyDto-Input'
+        target_monthly_salary:
+          $ref: '#/components/schemas/MoneyDto-Input'
+        annual_staff_turnover:
+          anyOf:
+          - type: number
+          - type: string
+          title: Annual Staff Turnover
+        annual_other_benefits:
+          $ref: '#/components/schemas/MoneyDto-Input'
+        replacement_by_handling:
+          items:
+            prefixItems:
+            - type: string
+            - anyOf:
+              - type: number
+              - type: string
+            type: array
+            maxItems: 2
+            minItems: 2
+          type: array
+          title: Replacement By Handling
+        horizon_years:
+          type: integer
+          title: Horizon Years
+        budget:
+          anyOf:
+          - $ref: '#/components/schemas/MoneyDto-Input'
+          - type: 'null'
+        source:
+          $ref: '#/components/schemas/SourceDto'
+        lift_trip_share:
+          anyOf:
+          - type: number
+          - type: string
+          title: Lift Trip Share
+          default: '0'
+        one_way_lift_seconds:
+          anyOf:
+          - type: number
+          - type: string
+          title: One Way Lift Seconds
+          default: '0'
+        integration_cost:
+          anyOf:
+          - $ref: '#/components/schemas/MoneyDto-Input'
+          - type: 'null'
+        annual_consumables_per_robot:
+          anyOf:
+          - $ref: '#/components/schemas/MoneyDto-Input'
+          - type: 'null'
+      additionalProperties: false
+      type: object
+      required:
+      - project_id
+      - task_id
+      - operations_per_day
+      - peak_factor
+      - automatable_share
+      - operating_hours_per_day
+      - one_way_route_m
+      - site_speed_limit_mps
+      - load_unit_mass_kg
+      - load_is_divisible
+      - available_charging_power_kw
+      - target_fte
+      - target_annual_payroll
+      - baseline_annual_opex
+      - fleet_operators_per_shift
+      - shifts_per_day
+      - staff_time_loss_share
+      - fleet_operator_monthly_salary
+      - target_monthly_salary
+      - annual_staff_turnover
+      - annual_other_benefits
+      - replacement_by_handling
+      - horizon_years
+      - budget
+      - source
+      title: TaskDto
+    TaskDto-Output:
+      properties:
+        project_id:
+          type: string
+          title: Project Id
+        task_id:
+          type: string
+          title: Task Id
+        operations_per_day:
+          type: string
+          title: Operations Per Day
+        peak_factor:
+          type: string
+          title: Peak Factor
+        automatable_share:
+          type: string
+          title: Automatable Share
+        operating_hours_per_day:
+          type: string
+          title: Operating Hours Per Day
+        one_way_route_m:
+          type: string
+          title: One Way Route M
+        site_speed_limit_mps:
+          type: string
+          title: Site Speed Limit Mps
+        load_unit_mass_kg:
+          type: string
+          title: Load Unit Mass Kg
+        load_is_divisible:
+          type: boolean
+          title: Load Is Divisible
+        available_charging_power_kw:
+          type: string
+          title: Available Charging Power Kw
+        target_fte:
+          type: string
+          title: Target Fte
+        target_annual_payroll:
+          $ref: '#/components/schemas/MoneyDto-Output'
+        baseline_annual_opex:
+          $ref: '#/components/schemas/MoneyDto-Output'
+          description: Annual baseline payroll for the current process workforce; this is not total process
+            OPEX.
+        fleet_operators_per_shift:
+          type: string
+          title: Fleet Operators Per Shift
+        shifts_per_day:
+          type: string
+          title: Shifts Per Day
+        staff_time_loss_share:
+          type: string
+          title: Staff Time Loss Share
+        fleet_operator_monthly_salary:
+          $ref: '#/components/schemas/MoneyDto-Output'
+        target_monthly_salary:
+          $ref: '#/components/schemas/MoneyDto-Output'
+        annual_staff_turnover:
+          type: string
+          title: Annual Staff Turnover
+        annual_other_benefits:
+          $ref: '#/components/schemas/MoneyDto-Output'
+        replacement_by_handling:
+          items:
+            prefixItems:
+            - type: string
+            - type: string
+            type: array
+            maxItems: 2
+            minItems: 2
+          type: array
+          title: Replacement By Handling
+        horizon_years:
+          type: integer
+          title: Horizon Years
+        budget:
+          anyOf:
+          - $ref: '#/components/schemas/MoneyDto-Output'
+          - type: 'null'
+        source:
+          $ref: '#/components/schemas/SourceDto'
+        lift_trip_share:
+          type: string
+          title: Lift Trip Share
+          default: '0'
+        one_way_lift_seconds:
+          type: string
+          title: One Way Lift Seconds
+          default: '0'
+        integration_cost:
+          anyOf:
+          - $ref: '#/components/schemas/MoneyDto-Output'
+          - type: 'null'
+        annual_consumables_per_robot:
+          anyOf:
+          - $ref: '#/components/schemas/MoneyDto-Output'
+          - type: 'null'
+      additionalProperties: false
+      type: object
+      required:
+      - project_id
+      - task_id
+      - operations_per_day
+      - peak_factor
+      - automatable_share
+      - operating_hours_per_day
+      - one_way_route_m
+      - site_speed_limit_mps
+      - load_unit_mass_kg
+      - load_is_divisible
+      - available_charging_power_kw
+      - target_fte
+      - target_annual_payroll
+      - baseline_annual_opex
+      - fleet_operators_per_shift
+      - shifts_per_day
+      - staff_time_loss_share
+      - fleet_operator_monthly_salary
+      - target_monthly_salary
+      - annual_staff_turnover
+      - annual_other_benefits
+      - replacement_by_handling
+      - horizon_years
+      - budget
+      - source
+      title: TaskDto
+    TraceInputDto:
+      properties:
         name:
           type: string
-        unitLabel:
-          type: string
+          title: Name
+        value:
+          anyOf:
+          - type: boolean
+          - type: string
+          - type: integer
+          - type: 'null'
+          title: Value
+      additionalProperties: false
       type: object
+      required:
+      - name
+      - value
+      title: TraceInputDto
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+    ValidationIssueDto:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Loc
+        msg:
+          type: string
+          title: Msg
+        type:
+          type: string
+          title: Type
+        input:
+          anyOf:
+          - {}
+          - type: 'null'
+          title: Input
+        ctx:
+          anyOf:
+          - type: object
+          - type: 'null'
+          title: Ctx
+        url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Url
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationIssueDto
+      description: Describes one request validation issue returned by FastAPI.

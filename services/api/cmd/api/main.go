@@ -20,7 +20,7 @@ import (
 
 	"github.com/brobots/api/internal/auth"
 	"github.com/brobots/api/internal/calc"
-	"github.com/brobots/api/internal/calc/httpclient"
+	"github.com/brobots/api/internal/calc/economics"
 	"github.com/brobots/api/internal/calc/mock"
 	"github.com/brobots/api/internal/config"
 	"github.com/brobots/api/internal/handlers"
@@ -64,7 +64,10 @@ func run() error {
 	calculator := newCalculator(cfg, log)
 	switch cmd {
 	case "migrate":
-		return migrate(ctx, pool)
+		if err := migrate(ctx, pool); err != nil {
+			return err
+		}
+		return service.New(store.New(pool), log, calculator).EnsureNorms(ctx)
 	case "seed":
 		if err := migrate(ctx, pool); err != nil {
 			return err
@@ -81,6 +84,10 @@ func run() error {
 		}
 	}
 	st := store.New(pool)
+	svc := service.New(st, log, calculator)
+	if err := svc.EnsureNorms(ctx); err != nil {
+		return fmt.Errorf("norms: %w", err)
+	}
 	if cfg.SeedDemo {
 		if err := seed.Load(ctx, st, calculator, log); err != nil {
 			return fmt.Errorf("seed: %w", err)
@@ -93,7 +100,7 @@ func run() error {
 	opts := handlers.Options{Version: version, SwaggerEnabled: cfg.SwaggerEnabled, Auth: mw, AuthReady: ready}
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           handlers.NewRouter(service.New(st, log, calculator), log, opts),
+		Handler:           handlers.NewRouter(svc, log, opts),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	errCh := make(chan error, 1)
@@ -121,7 +128,7 @@ func newCalculator(cfg config.Config, log *slog.Logger) calc.Calculator {
 	}
 	log.Info("calculation by the economics service", slog.String("url", cfg.EconomicsURL),
 		slog.Duration("timeout", cfg.EconomicsTimeout))
-	return httpclient.New(cfg.EconomicsURL, cfg.EconomicsTimeout)
+	return economics.New(cfg.EconomicsURL, cfg.EconomicsTimeout)
 }
 
 // authMiddleware verifies Keycloak tokens; ready reports whether the keys are loaded (nil: always).

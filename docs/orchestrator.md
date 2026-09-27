@@ -226,8 +226,9 @@ flowchart LR
   Orch --> Matching["RunMatching"]
   Orch --> Port["calc.Calculator"]
   Port --> Mock["calc/mock: mock-calc/v1"]
-  Port --> Client["calc/httpclient"]
-  Client -.-> Economics["services/economics"]
+  Port --> Client["calc/economics"]
+  Client -->|"POST /api/v1/evaluations"| Economics["services/economics: economic-v1.1, ranking-v1"]
+  Orch --> Norms["norm_set: нормативы А5"]
   Orch --> Store["calc_run, calc_result, project"]
 ```
 
@@ -242,6 +243,8 @@ flowchart LR
 | `POST /api/v1/projects/{id}/save` | `draft` → `saved`: закрепляет выбор, расчёт и `versions.model` |
 | `POST /api/v1/projects/{id}/reopen` | `saved` → `draft`; прежние расчёты остаются в истории |
 | `GET /api/v1/projects/{id}/snapshot` | Снимок целиком, с `robot` после выбора |
+| `GET /api/v1/norms`, `GET /api/v1/norm-sets[/{id}]` | Текущие нормативы А5 и их версии |
+| `POST /api/v1/norm-sets` | Новая версия нормативов (admin); сумма весов рейтинга — 100 |
 
 В `saved` изменения входов отклоняются ответом 409 `project_saved`: подбор, расчёт, условия, ручные кандидаты, выбор, обновление снимка и горизонт. Название менять можно.
 
@@ -251,11 +254,21 @@ flowchart LR
 
 ### Калькулятор
 
-- `ECONOMICS_URL` пуст — встроенная мок-модель [`calc/mock`](../services/api/internal/calc/mock/mock.go), версия `mock-calc/v1`. Формулы упрощены (PRD 4.5–4.6), нормативы — в [`norms.go`](../services/api/internal/calc/mock/norms.go). У каждого числа есть строка `trace` с формулой и источником, в `warnings` — пометка «оценка мок-модели».
-- `ECONOMICS_URL` задан — [`calc/httpclient`](../services/api/internal/calc/httpclient/client.go) вызывает сервис economics с таймаутом `ECONOMICS_TIMEOUT` (по умолчанию 10 с). Если сервис не ответил, `evaluate` возвращает 503, а прогон подбора сохраняется.
-- Контракт для команды economics — [`packages/contracts/openapi/economics.yaml`](../packages/contracts/openapi/economics.yaml): `GET /api/v1/model-version` и `POST /api/v1/calculations`. Он генерируется из типов `calc` (`go generate ./...` в `services/api`), тест не даёт ему разойтись с кодом.
+- По умолчанию (`ECONOMICS_URL=http://economics:8002` в compose) считает сервис economics. Клиент [`calc/economics`](../services/api/internal/calc/economics/client.go) говорит на родном контракте сервиса: `GET /api/v1/model-version`, затем `POST /api/v1/evaluations`. Таймаут каждого вызова — `ECONOMICS_TIMEOUT` (по умолчанию 10 с, ТЗ 4.3.2).
+- `ECONOMICS_URL=` (пусто) — встроенная мок-модель [`calc/mock`](../services/api/internal/calc/mock/mock.go), версия `mock-calc/v1`: для отладки api без Python. Рейтинга и статей затрат у неё нет.
+- Контракт — [`packages/contracts/openapi/economics.yaml`](../packages/contracts/openapi/economics.yaml). Его выгружает сам сервис (`python scripts/export_openapi.py` в `services/economics`), тест economics не даёт ему разойтись с кодом.
 
-Чтобы подключить сервис economics, достаточно реализовать эти два метода и задать `ECONOMICS_URL=http://economics:8002`. Код api менять не нужно.
+Что делает клиент (подробно — в [отчёте об интеграции](economics/integration-report.md)):
+
+1. **Вход.** Снимок проекта превращается в `EvaluationRequestDto`: задача — из `task.params` и `task.derived`, смены и доступная мощность — из параметров локации по ролям, 32 норматива и 8 весов рейтинга — из закреплённой версии нормативов, кандидаты — из карточек `calc_run.request`. Числа уходят строками, чтобы pydantic читал их в `Decimal` без погрешности.
+2. **Предпроверки.** Нет объёма, часов, пика, доли автоматизации, маршрута или массы груза либо горизонт меньше 5 лет — сервис не вызывается, результаты «не рассчитано» с причиной. Нет кандидатов — сервис не вызывается.
+3. **Допущения.** Пустые время погрузки, разгрузки и мощность робота берутся из нормативов с предупреждением и записью в `details.assumptions`. Скорости по нормативу нет: без неё робот остаётся «не рассчитано».
+4. **Выход.** Метрики по кодам → поля `calc_result`; статьи CAPEX и OPEX, базовый сценарий «текущий процесс», критерии рейтинга и допущения → `details`; трасса и риски — на русском.
+5. **Ошибки.** Сеть, 5xx и неразборчивый ответ → `calc.ErrUnavailable` → 503 `calculation_unavailable`. 409 и 422 → `calc.ErrRejected` → 503 `calculation_rejected`. В обоих случаях прогон подбора сохранён.
+
+### Нормативы
+
+Нормативы экрана А5 (PRD 6.8) хранятся в api: таблицы `norm_set` и `norm_value`, определения и значения первой версии — [`domain/norms.go`](../services/api/internal/domain/norms.go). Версия неизменна: правка администратора (`POST /api/v1/norm-sets`) создаёт следующую. Проект закрепляет последнюю версию при создании и при `refresh-snapshot` (`project.norm_set_id`, `versions.norms`), флаг `normsUpdated` сообщает о более новой. Весь набор замораживается во входе расчёта, поэтому старый расчёт воспроизводим и после правки нормативов.
 
 ## Инварианты
 
@@ -300,11 +313,14 @@ apps/web
 4. **Модели приобретения.** `purchase` и `raas`, если робот их предлагает
    (пустой список моделей в каталоге — обе).
 5. **Формат `model_version`.** Строку задаёт калькулятор: `mock-calc/v1` у мок-модели,
-   своя версия у сервиса economics. Одна на весь расчёт.
+   `economic-v1.1` у сервиса economics (`GET /api/v1/model-version`). Одна на весь расчёт.
+   Методика рейтинга хранится рядом — `calc_run.ranking_version` (`ranking-v1`).
+6. **Рейтинг.** Балл и место считает сервис economics (`ranking-v1`) с весами из нормативов
+   проекта. Балл в API — от 0 до 1; места перенумерованы по показанным парам «решение + модель».
 
 ## Что дальше
 
 - Вкладка «Симуляция»: вызов `services/simulation` для выбранного робота
   и пересчёт экономики по принятым поправкам.
-- Скоринг и веса критериев.
-- Реальные формулы сервиса economics вместо мок-модели.
+- Чувствительность ±20 % и what-if проекта — после стабильной идентичности сценариев в economics (REL-002).
+- Бэклог интеграции — в [отчёте](economics/integration-report.md).

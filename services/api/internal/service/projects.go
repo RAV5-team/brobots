@@ -167,6 +167,9 @@ func (s *Service) CreateProject(ctx context.Context, body []byte) (domain.Projec
 		if rec.HorizonYears == nil {
 			rec.HorizonYears = snap.Location.HorizonYears
 		}
+		if err := pinNorms(ctx, q, &rec); err != nil {
+			return err
+		}
 		if in.PinnedSolutionID != nil {
 			if _, err := q.GetSolution(ctx, *in.PinnedSolutionID); err != nil {
 				return &domain.ValidationError{Errors: []domain.FieldError{{Field: "pinnedSolutionId", Code: "not_found", Message: "Решение каталога не найдено"}}}
@@ -303,6 +306,9 @@ func (s *Service) RefreshSnapshot(ctx context.Context, id uuid.UUID) (domain.Pro
 		}
 		ver.Model = rec.Versions.Model
 		rec.Snapshot, rec.Versions, rec.SnapshotTakenAt = snap, ver, time.Now()
+		if err := pinNorms(ctx, q, &rec); err != nil {
+			return err
+		}
 		clearSelection(&rec)
 		if err := q.SaveProject(ctx, rec); err != nil {
 			return err

@@ -172,9 +172,19 @@ func (s *Service) Dictionaries(ctx context.Context) (map[string][]domain.Option,
 	return out, nil
 }
 
-// Versions returns the current reference versions.
+// Versions returns the current reference versions, with the latest norm set as scope «norms».
 func (s *Service) Versions(ctx context.Context) ([]domain.ReferenceVersion, error) {
-	return s.st.Q().Versions(ctx)
+	q := s.st.Q()
+	list, err := q.Versions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	norms, err := q.CurrentNormSet(ctx)
+	if err != nil || norms == nil {
+		return list, err
+	}
+	return append(list, domain.ReferenceVersion{Scope: "norms", Version: norms.Version, Label: norms.Label,
+		UpdatedAt: norms.CreatedAt}), nil
 }
 
 func (s *Service) checkDict(ctx context.Context, q store.Q, v *domain.Validator, t store.DictTable, field, label string, code *string) error {

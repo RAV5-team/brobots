@@ -61,6 +61,17 @@ class ErrorResponseDto(StrictModel):
     detail: str | tuple[ValidationIssueDto, ...]
 
 
+class ModelVersionDto(StrictModel):
+    """Describes the calculation and ranking versions served now."""
+
+    model_version: str = Field(
+        description="Calculation model version to send in evaluations."
+    )
+    ranking_version: str = Field(
+        description="Default ranking methodology version."
+    )
+
+
 class SourceDto(StrictModel):
     source: str
     origin: InputOrigin

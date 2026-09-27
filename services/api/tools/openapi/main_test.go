@@ -159,24 +159,3 @@ func TestSpecIsValid(t *testing.T) {
 		t.Fatal(err)
 	}
 }
-
-// TestEconomicsSpec keeps the calculation contract of services/economics valid and committed.
-func TestEconomicsSpec(t *testing.T) {
-	spec, err := BuildEconomics()
-	if err != nil {
-		t.Fatal(err)
-	}
-	doc, err := openapi3.NewLoader().LoadFromData(spec)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := doc.Validate(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	// The Docker test stage has no packages/; there the CI contract job checks the file.
-	if shared, err := os.ReadFile("../../../../packages/contracts/openapi/economics.yaml"); err == nil {
-		if !bytes.Equal(bytes.ReplaceAll(shared, []byte("\r\n"), []byte("\n")), spec) {
-			t.Fatal("packages/contracts/openapi/economics.yaml is stale: run `go generate ./...` in services/api")
-		}
-	}
-}

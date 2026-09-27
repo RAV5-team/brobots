@@ -17,6 +17,7 @@ type Versions struct {
 	Catalog      int     `json:"catalog"`
 	Dictionaries int     `json:"dictionaries"`
 	Model        *string `json:"model"`
+	Norms        *int    `json:"norms" description:"Версия нормативов А5, на которой считается проект; null — проект создан до версионирования нормативов"`
 }
 
 // ReferenceVersion is a current version counter.
@@ -49,6 +50,7 @@ type RobotCard struct {
 	SoftwareCostPct   *float64    `json:"softwareCostPct" description:"Стоимость ПО в год, % от стоимости робота"`
 	ServiceCostPct    *float64    `json:"serviceCostPct" description:"Обслуживание в год, % от стоимости робота"`
 	ServiceLifeYears  *float64    `json:"serviceLifeYears"`
+	CompletenessPct   *int        `json:"completenessPct" description:"Полнота обязательных характеристик, %; null — в расчётах до версии с рейтингом"`
 	Spec              *RobotSpec  `json:"spec"`
 	Capability        *Capability `json:"capability" description:"Строка класса операции задачи"`
 	Offer             *Offer      `json:"offer" description:"Предложение с ценой по умолчанию"`
@@ -56,10 +58,11 @@ type RobotCard struct {
 
 // NewRobotCard copies the fields of a catalog solution for a work type.
 func NewRobotCard(s Solution, workTypeID uuid.UUID) RobotCard {
+	completeness := s.CompletenessPct
 	card := RobotCard{
 		SolutionID: s.ID, Code: s.Code, Name: s.Name, Manufacturer: s.Manufacturer, SolutionType: s.SolutionType,
 		Status: s.Status, Trl: s.Trl, AcquisitionModels: s.AcquisitionModels, SoftwareCostPct: s.SoftwareCostPct,
-		ServiceCostPct: s.ServiceCostPct, ServiceLifeYears: s.ServiceLifeYears, Spec: s.Spec,
+		ServiceCostPct: s.ServiceCostPct, ServiceLifeYears: s.ServiceLifeYears, CompletenessPct: &completeness, Spec: s.Spec,
 		Capability: s.ActiveCapability(workTypeID),
 	}
 	for i := range s.Offers {
@@ -140,6 +143,7 @@ type Project struct {
 	LatestEvaluation *EvaluationInfo `json:"latestEvaluation"`
 	DataChanged      bool            `json:"dataChanged"`
 	CatalogUpdated   bool            `json:"catalogUpdated"`
+	NormsUpdated     bool            `json:"normsUpdated" description:"Есть версия нормативов новее закреплённой; применяется через refresh-snapshot"`
 	LocationDeleted  bool            `json:"locationDeleted"`
 	PinnedSolutionID *uuid.UUID      `json:"pinnedSolutionId"`
 	Selection        *Selection      `json:"selection"`

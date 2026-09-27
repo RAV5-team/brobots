@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
@@ -17,7 +19,7 @@ import (
 // The orchestrator runs the lifecycle of one project (docs/orchestrator.md): matching, the
 // calculation of every candidate, the selection of a robot copied into the snapshot, save and reopen.
 
-// defaultHorizonYears is used when neither the project nor its location sets a horizon.
+// defaultHorizonYears is used when neither the project, its location nor the norms set a horizon.
 const defaultHorizonYears = 5
 
 // Evaluation is the «Подбор» tab: a matching run with the calculation of its candidates.
@@ -27,6 +29,8 @@ type Evaluation struct {
 	ModelVersion        string               `json:"modelVersion" description:"Версия ядра, которой посчитаны цифры"`
 	CurrentModelVersion *string              `json:"currentModelVersion" description:"Версия ядра сейчас; null — калькулятор не ответил"`
 	ModelOutdated       bool                 `json:"modelOutdated" description:"Ядро обновилось после расчёта; сохранённые цифры не пересчитываются"`
+	RankingVersion      *string              `json:"rankingVersion" description:"Методика рейтинга; null — калькулятор не ранжирует (мок-модель)"`
+	NormsVersion        *int                 `json:"normsVersion" description:"Версия нормативов А5, на которой посчитаны цифры"`
 	Stale               bool                 `json:"stale" description:"Параметры проекта изменились после расчёта — нужен новый расчёт"`
 	CatalogVersion      int                  `json:"catalogVersion"`
 	HorizonYears        int                  `json:"horizonYears"`
@@ -35,7 +39,8 @@ type Evaluation struct {
 	RulesetVersion      string               `json:"rulesetVersion"`
 	Conditions          []matching.Condition `json:"conditions"`
 	Counts              domain.MatchCounts   `json:"counts"`
-	Candidates          []EvaluatedCandidate `json:"candidates"`
+	RecommendedResultID *uuid.UUID           `json:"recommendedResultId" description:"Первое место рейтинга — «Рекомендация системы»; null — рейтинга нет"`
+	Candidates          []EvaluatedCandidate `json:"candidates" description:"Сначала кандидаты с лучшим местом в рейтинге, затем без места, исключённые в конце"`
 	CreatedAt           time.Time            `json:"createdAt"`
 }
 
@@ -63,7 +68,11 @@ func (s *Service) Evaluate(ctx context.Context, id uuid.UUID) (Evaluation, error
 		return Evaluation{}, err
 	}
 	resp, err := s.calc.Calculate(ctx, req)
-	if err != nil {
+	switch {
+	case errors.Is(err, calc.ErrRejected):
+		return Evaluation{}, domain.Unavailable("calculation_rejected",
+			"Сервис расчёта экономики отклонил входные данные проекта. Подбор сохранён — проверьте параметры задачи и нормативы", err)
+	case err != nil:
 		return Evaluation{}, domain.Unavailable("calculation_unavailable",
 			"Сервис расчёта экономики не ответил. Подбор сохранён — повторите расчёт позже", err)
 	}
@@ -71,8 +80,12 @@ func (s *Service) Evaluate(ctx context.Context, id uuid.UUID) (Evaluation, error
 	if err != nil {
 		return Evaluation{}, domain.Unavailable("calculation_invalid", "Сервис расчёта экономики вернул ответ не по контракту", err)
 	}
-	cr := store.CalcRunRecord{ProjectID: rec.ID, MatchRunID: *run.ID, ModelVersion: resp.ModelVersion,
-		CatalogVersion: run.CatalogVersion, InputsVersion: rec.InputsVersion, HorizonYears: req.HorizonYears, Request: req}
+	cr := store.CalcRunRecord{ID: req.RunID, ProjectID: rec.ID, MatchRunID: *run.ID, ModelVersion: resp.ModelVersion,
+		RankingVersion: resp.RankingVersion, CatalogVersion: run.CatalogVersion, InputsVersion: rec.InputsVersion,
+		HorizonYears: req.HorizonYears, Request: req}
+	if req.Norms.ID != uuid.Nil {
+		cr.NormSetID = &req.Norms.ID
+	}
 	err = s.st.Tx(ctx, func(q store.Q) error {
 		if _, err := q.SaveCalcRun(ctx, &cr, results); err != nil {
 			return err
@@ -132,10 +145,19 @@ func (s *Service) evaluation(ctx context.Context, q store.Q, rec store.ProjectRe
 	}
 	ev := Evaluation{
 		ID: cr.ID, ProjectID: cr.ProjectID, ModelVersion: cr.ModelVersion, CurrentModelVersion: current,
-		ModelOutdated: current != nil && *current != cr.ModelVersion, Stale: cr.InputsVersion != rec.InputsVersion,
-		CatalogVersion: cr.CatalogVersion, HorizonYears: cr.HorizonYears, AcquisitionModels: cr.Request.AcquisitionModels,
-		MatchRunID: cr.MatchRunID, RulesetVersion: run.RulesetVersion, Conditions: run.Conditions, Counts: run.Counts,
-		Candidates: make([]EvaluatedCandidate, 0, len(run.Candidates)), CreatedAt: cr.CreatedAt,
+		ModelOutdated: current != nil && *current != cr.ModelVersion, RankingVersion: cr.RankingVersion,
+		Stale: cr.InputsVersion != rec.InputsVersion, CatalogVersion: cr.CatalogVersion, HorizonYears: cr.HorizonYears,
+		AcquisitionModels: cr.Request.AcquisitionModels, MatchRunID: cr.MatchRunID, RulesetVersion: run.RulesetVersion,
+		Conditions: run.Conditions, Counts: run.Counts, Candidates: make([]EvaluatedCandidate, 0, len(run.Candidates)),
+		CreatedAt: cr.CreatedAt,
+	}
+	if cr.Request.Norms.Version > 0 {
+		ev.NormsVersion = &cr.Request.Norms.Version
+	}
+	for _, r := range results {
+		if r.Calculable && r.Rank != nil && *r.Rank == 1 && ev.RecommendedResultID == nil {
+			ev.RecommendedResultID = &r.ID
+		}
 	}
 	for _, c := range run.Candidates {
 		ec := EvaluatedCandidate{Match: c, Results: bySolution[c.Solution.ID]}
@@ -147,25 +169,66 @@ func (s *Service) evaluation(ctx context.Context, q store.Q, rec store.ProjectRe
 		}
 		ev.Candidates = append(ev.Candidates, ec)
 	}
+	slices.SortStableFunc(ev.Candidates, func(a, b EvaluatedCandidate) int { return bestRank(a) - bestRank(b) })
 	return ev, nil
 }
 
-// calcRequest freezes the calculation input: the project snapshot and the catalog fields of the
-// candidates as they are now. The catalog keeps no history, so this copy is what the figures rest on.
+// bestRank orders candidates for the screen: ranked by place, then calculated without a place,
+// then excluded ones (no results).
+func bestRank(c EvaluatedCandidate) int {
+	const unranked, excluded = 1 << 20, 1 << 21
+	if len(c.Results) == 0 {
+		return excluded
+	}
+	best := unranked
+	for _, r := range c.Results {
+		if r.Rank != nil && *r.Rank < best {
+			best = *r.Rank
+		}
+	}
+	return best
+}
+
+// calcRequest freezes the calculation input: the project snapshot, the pinned norms and the catalog
+// fields of the candidates as they are now. The catalog keeps no history, so this copy is what the
+// figures rest on.
 func (s *Service) calcRequest(ctx context.Context, q store.Q, rec store.ProjectRecord, run matching.Run) (calc.Request, error) {
 	snap := rec.Snapshot
+	norms, err := s.projectNorms(ctx, q, rec)
+	if err != nil {
+		return calc.Request{}, err
+	}
+	defs, err := q.ParameterDefinitions(ctx, snap.Location.FacilityTypeCode)
+	if err != nil {
+		return calc.Request{}, err
+	}
+	roleOf := make(map[string]string, len(defs))
+	for _, d := range defs {
+		if d.Role != nil {
+			roleOf[d.Code] = *d.Role
+		}
+	}
 	params := make(map[string]any, len(snap.Parameters))
+	roles := map[string]float64{}
 	for _, p := range snap.Parameters {
 		params[p.Code] = p.Value
+		if n, ok := p.Value.(float64); ok && roleOf[p.Code] != "" {
+			roles[roleOf[p.Code]] = n
+		}
 	}
 	staff := snap.Location.StaffGroups
 	if staff == nil {
 		staff = []domain.StaffGroup{}
 	}
+	defaultHorizon := defaultHorizonYears
+	if v, ok := norms.Value("horizon_years"); ok && v > 0 {
+		defaultHorizon = int(v)
+	}
 	req := calc.Request{
-		ProjectID: rec.ID, HorizonYears: horizonOf(rec), AcquisitionModels: []string{calc.Purchase, calc.RaaS},
+		RunID: store.NewID(), ProjectID: rec.ID, HorizonYears: horizonOf(rec, defaultHorizon),
+		AcquisitionModels: []string{calc.Purchase, calc.RaaS}, Norms: norms,
 		Location: calc.Location{ID: snap.Location.ID, Name: snap.Location.Name, FacilityTypeCode: snap.Location.FacilityTypeCode,
-			CapexBudget: snap.Location.CapexBudget, Parameters: params, StaffGroups: staff},
+			CapexBudget: snap.Location.CapexBudget, Parameters: params, Roles: roles, StaffGroups: staff},
 		Task: calc.Task{ID: snap.Task.ID, Name: snap.Task.Name, WorkType: snap.Task.WorkType, KpiUnit: snap.Task.KpiUnit,
 			Params: snap.Task.Params, HandlingMethods: snap.Task.HandlingMethods, Workers: snap.Task.Workers, Derived: snap.Task.Derived},
 		Candidates: []calc.Candidate{},
@@ -189,14 +252,15 @@ func assessable(c matching.Candidate) bool {
 	return c.IsManual || c.State != matching.StateExcluded
 }
 
-func horizonOf(rec store.ProjectRecord) int {
+// horizonOf is the horizon of the project, else of its location, else the default of the norms.
+func horizonOf(rec store.ProjectRecord, def int) int {
 	switch {
 	case rec.HorizonYears != nil:
 		return *rec.HorizonYears
 	case rec.Snapshot.Location.HorizonYears != nil:
 		return *rec.Snapshot.Location.HorizonYears
 	}
-	return defaultHorizonYears
+	return def
 }
 
 // completeResults checks the answer against the request: one result per candidate and offered

@@ -75,16 +75,16 @@ func TestAssessable(t *testing.T) {
 
 func TestHorizonOf(t *testing.T) {
 	rec := store.ProjectRecord{}
-	if horizonOf(rec) != defaultHorizonYears {
-		t.Errorf("default horizon = %d", horizonOf(rec))
+	if horizonOf(rec, 6) != 6 {
+		t.Errorf("default horizon = %d", horizonOf(rec, 6))
 	}
 	rec.Snapshot.Location.HorizonYears = domain.Ptr(7)
-	if horizonOf(rec) != 7 {
-		t.Errorf("location horizon = %d", horizonOf(rec))
+	if horizonOf(rec, 6) != 7 {
+		t.Errorf("location horizon = %d", horizonOf(rec, 6))
 	}
 	rec.HorizonYears = domain.Ptr(3)
-	if horizonOf(rec) != 3 {
-		t.Errorf("project horizon = %d", horizonOf(rec))
+	if horizonOf(rec, 6) != 3 {
+		t.Errorf("project horizon = %d", horizonOf(rec, 6))
 	}
 }
 
