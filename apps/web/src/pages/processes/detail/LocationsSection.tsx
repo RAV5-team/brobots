@@ -1,12 +1,14 @@
 import { ButtonLink } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { ru } from '@/shared/i18n/ru'
-import { newProjectHref, type LocationUsage } from './processDetailModel'
+import { useNewProjectLink } from '@/pages/projects/new/useNewProjectLink'
+import { newProjectContext, type LocationUsage } from './processDetailModel'
 
 const t = ru.processCard.locations
 
 /** «Процесс на локациях»: потребность, пик, исполнители и стоимость труда на каждой площадке (PRD 9.3; 15935:1516). */
 export function LocationsSection({ usages }: { readonly usages: readonly LocationUsage[] }) {
+  const newProjectLink = useNewProjectLink()
   return (
     <Card aria-labelledby="locations-title">
       <h2 id="locations-title" className="type-overline text-text-muted">{t.title}</h2>
@@ -18,7 +20,7 @@ export function LocationsSection({ usages }: { readonly usages: readonly Locatio
             <li key={usage.locationProcessId} className="flex flex-col rounded-lg bg-surface-sunken p-16">
               <div className="flex items-start justify-between gap-8 pb-8">
                 <h3 className="type-heading text-text">{usage.heading}</h3>
-                <ButtonLink to={newProjectHref(usage)} aria-label={t.createProjectLabel(usage.locationName)} className="shrink-0">
+                <ButtonLink to={newProjectLink(newProjectContext(usage))} aria-haspopup="dialog" aria-label={t.createProjectLabel(usage.locationName)} className="shrink-0">
                   {t.createProject}
                 </ButtonLink>
               </div>

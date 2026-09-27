@@ -10,7 +10,7 @@ import {
   catalogHref,
   facilityNames,
   locationUsages,
-  newProjectHref,
+  newProjectContext,
   robotCard,
   robotSummary,
   routeSegments,
@@ -104,8 +104,8 @@ describe('processDetailModel (экран 11)', () => {
     expect(usagesOf(process('PR-0006'))).toEqual([])
   })
 
-  it('builds links to a new project and to the catalog filtered by class', () => {
-    expect(newProjectHref({ locationId: 'LOC-01', locationProcessId: 'LP-01' })).toBe('/projects?new=1&locationId=LOC-01&locationProcessId=LP-01')
+  it('builds the new-project context and a link to the catalog filtered by class', () => {
+    expect(newProjectContext({ locationId: 'LOC-01', locationProcessId: 'LP-01' })).toEqual({ locationId: 'LOC-01', locationProcessId: 'LP-01' })
     expect(catalogHref('OP-01')).toBe('/catalog?class=OP-01')
   })
 

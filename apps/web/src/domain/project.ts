@@ -19,6 +19,16 @@ interface ProjectBase {
 export interface DraftProject extends ProjectBase {
   readonly status: 'draft'
   readonly step: ProjectStep
+  /** Решение из каталога («Проверить на объекте», D-57): подбор начнёт с него. */
+  readonly solutionId?: string
+}
+
+/** Черновик из окна «Новый проект» (A2): локация, а процесс и решение — если окно открыли из их карточек. */
+export interface NewProjectDraft {
+  readonly name: string
+  readonly locationId: LocationId
+  readonly locationProcessId?: LocationProcessId
+  readonly solutionId?: string
 }
 
 /** Сохранённая оценка: только просмотр (D-17), цифры — из снимка и не пересчитываются. */

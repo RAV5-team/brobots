@@ -59,7 +59,7 @@ describe('ProcessDetailPage (экран 11)', () => {
     expect(block.getByRole('heading', { name: 'РЦ Химки · Склад' })).toBeInTheDocument()
     expect(block.getByRole('link', { name: 'Создать проект: Даркстор Юг' })).toHaveAttribute(
       'href',
-      '/projects?new=1&locationId=LOC-02&locationProcessId=LP-06',
+      '/processes/PR-0001?new=1&locationId=LOC-02&locationProcessId=LP-06',
     )
   })
 

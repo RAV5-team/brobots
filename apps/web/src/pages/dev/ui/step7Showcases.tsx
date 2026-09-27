@@ -4,6 +4,7 @@ import { CharacteristicRow } from '@/components/ui/CharacteristicRow'
 import { ChipList } from '@/components/ui/ChipList'
 import { CompareTable } from '@/components/ui/CompareTable'
 import { MultiSelectFilter, type MultiSelectGroup } from '@/components/ui/MultiSelectFilter'
+import { RadioTable } from '@/components/ui/RadioTable'
 import { OPERATION_CLASSES } from '@/mocks/fixtures/operationClasses'
 import { INDUSTRIES } from '@/pages/catalog/catalogModel'
 import { ru } from '@/shared/i18n/ru'
@@ -126,6 +127,42 @@ export function CharacteristicRowShowcase() {
         <CharacteristicRow label={it.rows.floorRequirements} value="ровное твёрдое покрытие" status="estimate" source="типовое требование класса AMR" />
         <CharacteristicRow label={it.rows.productivity} value={null} status="missing" source="требует уточнения у поставщика" />
       </dl>
+    </ShowcaseSection>
+  )
+}
+
+const RADIO_TABLE_COLUMNS = [
+  { key: 'location', label: ru.newProject.columns.location },
+  { key: 'area', label: ru.newProject.columns.area, widthClass: 'w-(--rav-new-project-area-width)' },
+  { key: 'labor', label: ru.newProject.columns.labor, widthClass: 'w-(--rav-new-project-labor-width)' },
+] as const
+
+/** Таблица-радиогруппа окна A2 (16429:8): ничего не выбрано и выбранная строка; стрелки меняют выбор. */
+export function RadioTableShowcase() {
+  const [value, setValue] = useState<string | null>(null)
+  const row = (id: string, name: string, caption: string, area: string, labor: string) => ({
+    value: id,
+    label: `${name}, ${caption}; площадь ${area}, ручной труд ${labor}`,
+    cells: [
+      <span key="n" className="flex flex-col gap-4"><span className="type-body font-semibold text-text">{name}</span><span className="type-caption text-text-secondary">{caption}</span></span>,
+      area,
+      labor,
+    ],
+  })
+  return (
+    <ShowcaseSection title="RadioTable">
+      <div className="w-(--rav-modal-wide-width) rounded-2xl bg-bg p-32">
+        <RadioTable
+          label={ru.newProject.tableLabel}
+          columns={RADIO_TABLE_COLUMNS}
+          value={value}
+          onChange={setValue}
+          rows={[
+            row('LOC-01', 'РЦ Химки', 'склад · данные от 14.09.2026', '20 000 м²', '231 млн ₽/год'),
+            row('LOC-02', 'Даркстор Юг', 'склад · данные от 09.09.2026', '10 500 м²', '84 млн ₽/год'),
+          ]}
+        />
+      </div>
     </ShowcaseSection>
   )
 }

@@ -124,6 +124,11 @@
 
   /* --- Разметка --- */
   --rav-sidebar-width: 240px;
+  /* Окно A2 «Новый проект» (16429:2): ширина окна и колонки таблицы-радиогруппы. */
+  --rav-modal-wide-width: 640px;
+  --rav-new-project-area-width: 69px;
+  --rav-new-project-staff-width: 68px;
+  --rav-new-project-labor-width: 104px;
   /* Дашборд 06: колонка «Результат» в строке проекта (15935:158) и правая панель «Локации» (15935:179). */
   --rav-dashboard-result-width: 168px;
   --rav-dashboard-aside-width: 380px;
