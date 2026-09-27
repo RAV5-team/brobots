@@ -1,5 +1,6 @@
 // Источник: services/api/internal/seed/data/demo.yaml; значения параметров — база PRD, приложение А, если в demo.yaml нет своих.
 // Собрано однократно скриптом конвертации; дальше правится вручную. Любое отступление от источника — строкой в README.md.
+// updatedAt — даты «обновлено» с экрана 12 и PRD 10.1 (в demo.yaml их нет).
 // Разрешённые расхождения — apps/web/src/mocks/fixtures/README.md.
 import type { Location } from '@/domain'
 
@@ -13,6 +14,7 @@ export const LOCATIONS: readonly Location[] = [
     capexBudgetRub: 80000000,
     horizonYears: 5,
     staffGroups: [],
+    updatedAt: "2026-09-14T09:00:00Z",
     parameters: {
       "wh_total_area": { value: 20000, source: "organizer" },
       "wh_active_area": { value: 10000, source: "organizer" },
@@ -65,6 +67,7 @@ export const LOCATIONS: readonly Location[] = [
     capexBudgetRub: 30000000,
     horizonYears: 5,
     staffGroups: [{"role": "Отборщики (комплектовщики)", "headcount": 30, "salaryGrossMonthRub": 85000}, {"role": "Операторы погрузчиков", "headcount": 9, "salaryGrossMonthRub": 95000}, {"role": "Операторы упаковочных линий", "headcount": 8, "salaryGrossMonthRub": null}],
+    updatedAt: "2026-09-09T09:00:00Z",
     parameters: {
       "wh_total_area": { value: 10500, source: "assumption" },
       "wh_active_area": { value: 6000, source: "assumption" },
@@ -117,6 +120,7 @@ export const LOCATIONS: readonly Location[] = [
     capexBudgetRub: 120000000,
     horizonYears: 7,
     staffGroups: [],
+    updatedAt: "2026-09-11T09:00:00Z",
     parameters: {
       "ap_terminal_area": { value: 85000, source: "organizer" },
       "ap_apron_area": { value: 100000, source: "organizer" },
@@ -166,6 +170,7 @@ export const LOCATIONS: readonly Location[] = [
     capexBudgetRub: 35000000,
     horizonYears: 7,
     staffGroups: [],
+    updatedAt: "2026-09-12T09:00:00Z",
     parameters: {
       "med_facility_kind": { value: "Многопрофильная больница", source: "organizer" },
       "med_total_area": { value: 45000, source: "organizer" },

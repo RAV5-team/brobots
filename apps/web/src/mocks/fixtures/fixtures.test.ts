@@ -77,7 +77,7 @@ describe('fixtures: integrity', () => {
 })
 
 describe('fixtures: resolved PRD 15 discrepancies (README)', () => {
-  it('№10: the norms reference has 34 rows in 6 groups, 12 norms and 22 assumptions (PRD 6.8, D-39)', () => {
+  it('№10: the norms reference has 34 rows in 6 groups, 12 norms and 22 assumptions (PRD 6.8, D-49)', () => {
     expect(NORMS).toHaveLength(34)
     expect(new Set(NORMS.map((n) => n.code)).size).toBe(34)
     const countOf = (group: string) => NORMS.filter((n) => n.group === group).length
@@ -92,14 +92,14 @@ describe('fixtures: resolved PRD 15 discrepancies (README)', () => {
     expect(norms?.provides).toBe(formatCount(NORMS.length, ru.plural.norms))
   })
 
-  it('№16: ТТХ completeness is counted from the eight А2 parameters (D-36)', () => {
+  it('№16: ТТХ completeness is counted from the eight А2 parameters (D-46)', () => {
     const amr800 = robot('AMR 800')
     expect(amr800?.specs).toMatchObject({ chargeTimeMin: 60, avgPowerKw: 1, loadTimeS: 45, unloadTimeS: 45 })
     expect(amr800 && specsCompleteness(amr800.specs)).toBe(1)
     expect(amr800?.updatedAt.startsWith('2026-09-19')).toBe(true)
   })
 
-  it('№53: only DMR 600 and Сёмабот await confirmation (D-36)', () => {
+  it('№53: only DMR 600 and Сёмабот await confirmation (D-46)', () => {
     expect(ROBOTS.filter((r) => r.needsConfirmation).map((r) => r.name).sort()).toEqual(['DMR 600', 'Сёмабот'])
   })
 
@@ -125,6 +125,11 @@ describe('fixtures: resolved PRD 15 discrepancies (README)', () => {
 
   it('№41: РЦ Химки has five processes', () => {
     expect(LOCATION_PROCESSES.filter((lp) => lp.locationId === location('РЦ Химки')?.id)).toHaveLength(5)
+  })
+
+  it('№45: РЦ Химки has two assumptions in its profile, as on the form', () => {
+    const params = Object.values(location('РЦ Химки')?.parameters ?? {})
+    expect(params.filter((p) => p.source === 'assumption')).toHaveLength(2)
   })
 
   it('№7: portions per day use the dataset base 1 950', () => {

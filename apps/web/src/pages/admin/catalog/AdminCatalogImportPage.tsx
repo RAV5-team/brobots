@@ -81,7 +81,7 @@ function Toolbar({ isRunning, onRetry }: { readonly isRunning: boolean; readonly
 
 function RefreshPanel() {
   const navigate = useNavigate()
-  // Все источники ответили — таблица обновится на А1 (PRD 6.2). А4 «предпросмотр изменений» пока не реализован (D-37).
+  // Все источники ответили — таблица обновится на А1 (PRD 6.2). А4 «предпросмотр изменений» пока не реализован (D-47).
   const { state, retry } = useCatalogRefresh(() => { void navigate(ROUTE_PATHS.adminCatalog, { replace: true }) })
 
   return (

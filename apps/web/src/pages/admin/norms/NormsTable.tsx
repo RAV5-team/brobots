@@ -24,7 +24,7 @@ function NormTableRow({ row, disabled, onEdit }: { readonly row: NormRow; readon
       <TableCell>
         <Badge variant="pill" kind={norm.kind} className="w-(--rav-norms-pill-width)" />
       </TableCell>
-      {/* Отступ прокрутки: поле в фокусе не уходит под липкую панель сохранения (D-39, WCAG 2.4.11). */}
+      {/* Отступ прокрутки: поле в фокусе не уходит под липкую панель сохранения (D-49, WCAG 2.4.11). */}
       <TableCell className="[&_input]:scroll-mb-(--rav-norms-save-clearance)">
         <Input
           size="compact"

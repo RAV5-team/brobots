@@ -1,6 +1,6 @@
 import { specsCompleteness, type OperationClassCode, type Robot, type RobotId } from '@/domain'
 import { ROUTE_PATHS } from '@/app/routePaths'
-import { formatCount, formatDateOf, formatNumber, formatPercent, formatRubMillions } from '@/shared/format'
+import { formatCount, formatDayOf, formatNumber, formatPercent, formatRubMillions } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 
 const t = ru.adminCatalog
@@ -32,7 +32,7 @@ function normalize(text: string): string {
 }
 
 export function formatUpdated(iso: string, now: number): string {
-  return Math.abs(now - Date.parse(iso)) < JUST_NOW_MS ? t.updatedNow : formatDateOf(iso)
+  return Math.abs(now - Date.parse(iso)) < JUST_NOW_MS ? t.updatedNow : formatDayOf(iso)
 }
 
 function toRow(robot: Robot, now: number): CatalogRow {
@@ -67,7 +67,7 @@ function rank(robot: Robot, addedId: RobotId | null): number {
 
 /**
  * Строки каталога: сначала решения, которые ждут подтверждения, — это очередь работы администратора
- * (PRD 6.2, предложение «фильтры»), затем сохранённое на А2 решение (А3), дальше по идентификатору RB-NNNN, как в макете (D-36).
+ * (PRD 6.2, предложение «фильтры»), затем сохранённое на А2 решение (А3), дальше по идентификатору RB-NNNN, как в макете (D-46).
  */
 export function buildCatalogRows(robots: readonly Robot[], now: number, addedId: RobotId | null = null): readonly CatalogRow[] {
   return [...robots]

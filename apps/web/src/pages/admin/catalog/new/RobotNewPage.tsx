@@ -32,7 +32,7 @@ import { usePhotoList } from './usePhotoList'
 import { useRobotNew, type RobotNewData } from './useRobotNew'
 
 const t = ru.robotNew
-/** Черновик карточки в браузере (D-21); фото в него не пишутся (D-43). */
+/** Черновик карточки в браузере (D-21); фото в него не пишутся (D-53). */
 const DRAFT_KEY = 'rav5.draft.robot-new.v1'
 
 function RobotNewSkeleton() {

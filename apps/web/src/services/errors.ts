@@ -12,3 +12,8 @@ export class InvalidCredentialsError extends Error {
 export class ValidationError extends Error {
   override readonly name = 'ValidationError'
 }
+
+/** Действие противоречит текущему состоянию: например, шаблон уже на локации. Текст — для пользователя. */
+export class ConflictError extends Error {
+  override readonly name = 'ConflictError'
+}

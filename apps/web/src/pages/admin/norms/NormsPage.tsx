@@ -24,7 +24,7 @@ interface SaveBarProps {
   readonly onReset: () => void
 }
 
-/** Панель сохранения: видна, пока есть несохранённые правки, и липнет к низу окна (D-39). */
+/** Панель сохранения: видна, пока есть несохранённые правки, и липнет к низу окна (D-49). */
 function SaveBar({ changedCount, invalidCount, isSaving, onSave, onReset }: SaveBarProps) {
   const message = invalidCount > 0
     ? t.invalid(formatCount(invalidCount, ru.plural.fields))

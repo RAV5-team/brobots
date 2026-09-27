@@ -15,7 +15,7 @@ export interface AdminService {
   updateDataSource(key: string, patch: DataSourcePatch): Promise<DataSource>
   /**
    * «Проверить» ссылку до добавления источника (окно А7б): открывается ли страница и когда она менялась.
-   * Эндпоинта в API пока нет (D-42). Недоступная страница — итог `reachable: false`, а не ошибка; сбой сервиса — ошибка.
+   * Эндпоинта в API пока нет (D-52). Недоступная страница — итог `reachable: false`, а не ошибка; сбой сервиса — ошибка.
    */
   checkDataSourceUrl(url: string): Promise<DataSourceUrlCheck>
   /** Перечитать источник по запросу («Обновить» на А6); вернёт источник с новой датой актуализации. */

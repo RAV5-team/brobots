@@ -9,7 +9,7 @@ export interface OperationClass {
   readonly description: string
   /** Единица объёма: «ед. груза», «строк», «м²». */
   readonly unit: string
-  /** Есть у классов из справочника источника; в форме А10 такого поля нет (PRD 6.7, D-35). */
+  /** Есть у классов из справочника источника; в форме А10 такого поля нет (PRD 6.7, D-45). */
   readonly workCategory?: WorkCategoryCode
   readonly typicalCarriers: readonly string[]
   readonly exampleProcesses: readonly string[]

@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Config holds the runtime settings of the service.
@@ -18,6 +19,9 @@ type Config struct {
 	MigrateOnStart bool
 	SeedDemo       bool
 	SwaggerEnabled bool
+	// EconomicsURL is the calculation service (docs/orchestrator.md); empty — the in-process mock model.
+	EconomicsURL     string
+	EconomicsTimeout time.Duration
 	// Keycloak access token verification (docs/keycloak/middleware.md).
 	OIDCIssuer   string
 	OIDCJWKSURL  string
@@ -88,7 +92,23 @@ func (c Config) finish() (Config, error) {
 	if c.SwaggerEnabled, err = parseBool("SWAGGER_ENABLED", true); err != nil {
 		return Config{}, err
 	}
+	c.EconomicsURL = strings.TrimSpace(os.Getenv("ECONOMICS_URL"))
+	if c.EconomicsTimeout, err = parseDuration("ECONOMICS_TIMEOUT", 10*time.Second); err != nil {
+		return Config{}, err
+	}
 	return c, nil
+}
+
+func parseDuration(key string, def time.Duration) (time.Duration, error) {
+	v := os.Getenv(key)
+	if v == "" {
+		return def, nil
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil || d <= 0 {
+		return 0, fmt.Errorf("%s: %q is not a positive duration such as 10s", key, v)
+	}
+	return d, nil
 }
 
 func splitList(v string) []string {

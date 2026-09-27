@@ -21,7 +21,7 @@ describe('buildCatalogRows (экран А1)', () => {
     expect(rows).toHaveLength(ROBOTS.length)
   })
 
-  it('marks only DMR 600 and Сёмабот as «требует подтверждения» (D-36, PRD 15 · №53)', () => {
+  it('marks only DMR 600 and Сёмабот as «требует подтверждения» (D-46, PRD 15 · №53)', () => {
     expect(rows.filter((r) => r.needsConfirmation).map((r) => r.name)).toEqual(['DMR 600', 'Сёмабот'])
     expect(row('Ronavi RCM').needsConfirmation).toBe(false)
   })
@@ -37,7 +37,7 @@ describe('buildCatalogRows (экран А1)', () => {
     expect(row('AMR 800').updated).toBe('19.09.2026')
   })
 
-  it('counts ТТХ completeness from the eight technical parameters (D-36, PRD 15 · №16)', () => {
+  it('counts ТТХ completeness from the eight technical parameters (D-46, PRD 15 · №16)', () => {
     expect(plain(row('AMR 800').completeness)).toBe('100 %')
     expect(plain(row('AMR 1500').completeness)).toBe('63 %')
     expect(plain(row('DMR 600').completeness)).toBe('13 %')

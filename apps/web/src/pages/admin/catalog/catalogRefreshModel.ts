@@ -7,7 +7,7 @@ const t = ru.catalogRefresh
 export interface RefreshView {
   /** «Опрашиваем источники · 2 из 3». */
   readonly title: string
-  /** Заполнение полосы, 0…100: шаг опроса из числа источников (D-37). */
+  /** Заполнение полосы, 0…100: шаг опроса из числа источников (D-47). */
   readonly percent: number
   /** «ФЦ БАС · catalog_export_v5.csv — получено 12 позиций · Ронави Роботикс — ждём ответа · …». */
   readonly detail: string

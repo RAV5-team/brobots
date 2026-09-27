@@ -5,7 +5,7 @@ const run = (...statuses: SourcePollStatus[]): CatalogRefresh => ({
   sources: statuses.map((status, i) => ({ key: `s${String(i)}`, label: `Источник ${String(i)}`, status, received: status === 'received' ? 1 : null })),
 })
 
-describe('catalogRefreshStep (А1а «Опрашиваем источники · 2 из 3», D-37)', () => {
+describe('catalogRefreshStep (А1а «Опрашиваем источники · 2 из 3», D-47)', () => {
   it('counts sources whose polling has started, not only those that answered', () => {
     expect(catalogRefreshStep(run('waiting', 'queued', 'queued'))).toBe(1)
     expect(catalogRefreshStep(run('received', 'waiting', 'queued'))).toBe(2)

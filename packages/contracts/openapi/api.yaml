@@ -1274,11 +1274,8 @@ paths:
         name: status
         schema:
           enum:
-          - params
-          - matching
-          - simulation
-          - economics
-          - result
+          - draft
+          - saved
           type: string
       - in: query
         name: q
@@ -1458,7 +1455,8 @@ paths:
       tags:
       - projects
     patch:
-      description: 'JSON merge patch: название, шаг, горизонт.'
+      description: 'JSON merge patch: название и горизонт. Статус меняют save и reopen;
+        горизонт сохранённого проекта не меняется (409).'
       parameters:
       - in: path
         name: id
@@ -1547,6 +1545,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
       security:
       - bearerAuth: []
       summary: Сбросить условия к задаче
@@ -1689,6 +1693,103 @@ paths:
       summary: Копировать проект
       tags:
       - projects
+  /api/v1/projects/{id}/evaluate:
+    post:
+      description: 'Вкладка «Подбор»: подбор по снимку проекта и расчёт парка и экономики
+        каждого кандидата (прошёл, требует проверки, добавлен вручную) для покупки
+        и RaaS. Поля кандидатов замораживаются во входе расчёта. Новый расчёт снимает
+        выбор робота. 503 — сервис расчёта не ответил, прогон подбора при этом сохранён.'
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Evaluation'
+          description: Created
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Service Unavailable
+      security:
+      - bearerAuth: []
+      summary: Рассчитать подбор
+      tags:
+      - orchestrator
+  /api/v1/projects/{id}/evaluation:
+    get:
+      description: Читает сохранённые цифры, калькулятор не вызывается. stale — параметры
+        проекта изменились после расчёта, modelOutdated — ядро расчёта обновилось.
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Evaluation'
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      security:
+      - {}
+      - bearerAuth: []
+      summary: Последний расчёт подбора
+      tags:
+      - orchestrator
   /api/v1/projects/{id}/evaluation-context:
     get:
       description: Снимок, условия и подходящие кандидаты последнего прогона с полными
@@ -1863,6 +1964,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
       security:
       - bearerAuth: []
       summary: Убрать решение, добавленное вручную
@@ -1871,7 +1978,7 @@ paths:
   /api/v1/projects/{id}/matching-runs:
     post:
       description: Совпадение класса операции и жёсткие проверки со значениями и причинами;
-        прогон сохраняется.
+        прогон сохраняется. Без расчёта экономики — его делает evaluate.
       parameters:
       - in: path
         name: id
@@ -1904,6 +2011,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
       security:
       - bearerAuth: []
       summary: Запустить подбор
@@ -1951,7 +2064,8 @@ paths:
       - matching
   /api/v1/projects/{id}/refresh-snapshot:
     post:
-      description: 'Экран saved: «данные изменились — пересчитать».'
+      description: '«Данные изменились — пересчитать»: перечитывает локацию и задачу,
+        снимает выбор робота (его цифры посчитаны на старых данных). Только для черновика.'
       parameters:
       - in: path
         name: id
@@ -1995,10 +2109,97 @@ paths:
       summary: Обновить снимок
       tags:
       - projects
+  /api/v1/projects/{id}/reopen:
+    post:
+      description: saved → draft. Сохранённые расчёты остаются в истории.
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+      security:
+      - bearerAuth: []
+      summary: Открыть проект для изменений
+      tags:
+      - orchestrator
+  /api/v1/projects/{id}/save:
+    post:
+      description: 'draft → saved: закрепляет снимок с выбранным роботом, расчёт и
+        версию ядра. Нужен выбор по актуальному расчёту.'
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+      security:
+      - bearerAuth: []
+      summary: Сохранить проект
+      tags:
+      - orchestrator
   /api/v1/projects/{id}/selection:
     put:
-      description: 'solutionId: null снимает выбор. Состав парка и экономику считает
-        оркестратор.'
+      description: 'Только из результатов последнего актуального расчёта. Поля робота
+        копируются в snapshot.robot из входа расчёта. solutionId: null снимает выбор.'
       parameters:
       - in: path
         name: id
@@ -2050,9 +2251,9 @@ paths:
           description: Unprocessable Entity
       security:
       - bearerAuth: []
-      summary: Выбрать конфигурацию
+      summary: Выбрать робота
       tags:
-      - projects
+      - orchestrator
   /api/v1/projects/{id}/snapshot:
     get:
       parameters:
@@ -3204,6 +3405,76 @@ components:
           nullable: true
           type: string
       type: object
+    CalcResult:
+      properties:
+        acquisitionModel:
+          enum:
+          - purchase
+          - raas
+          type: string
+        budgetOverPct:
+          description: Превышение бюджета, доля 0–1
+          nullable: true
+          type: number
+        budgetOverRub:
+          description: Превышение бюджета CAPEX; 0 — в бюджете, null — бюджет не задан
+          nullable: true
+          type: number
+        calculable:
+          description: false — не хватает данных, причина в reason
+          type: boolean
+        capexRub:
+          description: Первоначальные затраты; для RaaS — запуск без аренды
+          nullable: true
+          type: number
+        chargerCount:
+          nullable: true
+          type: integer
+        id:
+          $ref: '#/components/schemas/UUID'
+        laborSavingsYearRub:
+          description: Экономия ФОТ в год
+          nullable: true
+          type: number
+        netEffectYearRub:
+          description: Экономия ФОТ + иные эффекты − OPEX
+          nullable: true
+          type: number
+        opexYearRub:
+          description: Операционные затраты в год, для RaaS с арендой
+          nullable: true
+          type: number
+        paybackYears:
+          description: null — не окупается
+          nullable: true
+          type: number
+        reason:
+          nullable: true
+          type: string
+        robotCount:
+          nullable: true
+          type: integer
+        roi:
+          description: (эффект × горизонт − CAPEX) ÷ CAPEX
+          nullable: true
+          type: number
+        solutionId:
+          $ref: '#/components/schemas/UUID'
+        tcoRub:
+          description: CAPEX + OPEX × горизонт
+          nullable: true
+          type: number
+        trace:
+          items:
+            $ref: '#/components/schemas/TraceItem'
+          nullable: true
+          type: array
+        warnings:
+          items:
+            type: string
+          nullable: true
+          type: array
+      type: object
     Candidate:
       properties:
         capabilityId:
@@ -3619,6 +3890,66 @@ components:
           nullable: true
           type: integer
       type: object
+    EvaluatedCandidate:
+      properties:
+        match:
+          $ref: '#/components/schemas/Candidate'
+        results:
+          items:
+            $ref: '#/components/schemas/CalcResult'
+          nullable: true
+          type: array
+        robot:
+          $ref: '#/components/schemas/RobotCard'
+      type: object
+    Evaluation:
+      properties:
+        acquisitionModels:
+          items:
+            type: string
+          nullable: true
+          type: array
+        candidates:
+          items:
+            $ref: '#/components/schemas/EvaluatedCandidate'
+          nullable: true
+          type: array
+        catalogVersion:
+          type: integer
+        conditions:
+          items:
+            $ref: '#/components/schemas/Condition'
+          nullable: true
+          type: array
+        counts:
+          $ref: '#/components/schemas/MatchCounts'
+        createdAt:
+          format: date-time
+          type: string
+        currentModelVersion:
+          description: Версия ядра сейчас; null — калькулятор не ответил
+          nullable: true
+          type: string
+        horizonYears:
+          type: integer
+        id:
+          $ref: '#/components/schemas/UUID'
+        matchRunId:
+          $ref: '#/components/schemas/UUID'
+        modelOutdated:
+          description: Ядро обновилось после расчёта; сохранённые цифры не пересчитываются
+          type: boolean
+        modelVersion:
+          description: Версия ядра, которой посчитаны цифры
+          type: string
+        projectId:
+          $ref: '#/components/schemas/UUID'
+        rulesetVersion:
+          type: string
+        stale:
+          description: Параметры проекта изменились после расчёта — нужен новый расчёт
+          type: boolean
+      type: object
     EvaluationCandidate:
       properties:
         match:
@@ -3644,6 +3975,19 @@ components:
           $ref: '#/components/schemas/UUID'
         snapshot:
           $ref: '#/components/schemas/ProjectSnapshot'
+      type: object
+    EvaluationInfo:
+      properties:
+        createdAt:
+          format: date-time
+          type: string
+        id:
+          $ref: '#/components/schemas/UUID'
+        modelVersion:
+          type: string
+        stale:
+          description: Параметры проекта изменились после расчёта
+          type: boolean
       type: object
     FieldError:
       properties:
@@ -4321,6 +4665,8 @@ components:
           $ref: '#/components/schemas/UUID'
         isDemo:
           type: boolean
+        latestEvaluation:
+          $ref: '#/components/schemas/EvaluationInfo'
         latestRun:
           $ref: '#/components/schemas/RunInfo'
         locationDeleted:
@@ -4333,18 +4679,20 @@ components:
           type: string
         pinnedSolutionId:
           $ref: '#/components/schemas/UUID'
+        savedAt:
+          format: date-time
+          nullable: true
+          type: string
         selection:
           $ref: '#/components/schemas/Selection'
         snapshotTakenAt:
           format: date-time
           type: string
         status:
+          description: draft — черновик, saved — оценка закреплена
           enum:
-          - params
-          - matching
-          - simulation
-          - economics
-          - result
+          - draft
+          - saved
           type: string
         task:
           $ref: '#/components/schemas/ProjectTaskRef'
@@ -4382,11 +4730,10 @@ components:
     ProjectPatchInput:
       properties:
         horizonYears:
+          description: 'Вход расчёта: у сохранённого проекта не меняется'
           nullable: true
           type: integer
         name:
-          type: string
-        status:
           type: string
       type: object
     ProjectSnapshot:
@@ -4398,6 +4745,8 @@ components:
             $ref: '#/components/schemas/ParameterValue'
           nullable: true
           type: array
+        robot:
+          $ref: '#/components/schemas/RobotSnapshot'
         task:
           $ref: '#/components/schemas/Task'
       type: object
@@ -4442,6 +4791,52 @@ components:
         version:
           type: integer
       type: object
+    RobotCard:
+      properties:
+        acquisitionModels:
+          items:
+            type: string
+          nullable: true
+          type: array
+        capability:
+          $ref: '#/components/schemas/Capability'
+        code:
+          type: string
+        manufacturer:
+          type: string
+        name:
+          type: string
+        offer:
+          $ref: '#/components/schemas/Offer'
+        serviceCostPct:
+          description: Обслуживание в год, % от стоимости робота
+          nullable: true
+          type: number
+        serviceLifeYears:
+          nullable: true
+          type: number
+        softwareCostPct:
+          description: Стоимость ПО в год, % от стоимости робота
+          nullable: true
+          type: number
+        solutionId:
+          $ref: '#/components/schemas/UUID'
+        solutionType:
+          nullable: true
+          type: string
+        spec:
+          $ref: '#/components/schemas/RobotSpec'
+        status:
+          enum:
+          - operation
+          - piloting
+          - rnd
+          nullable: true
+          type: string
+        trl:
+          nullable: true
+          type: integer
+      type: object
     RobotGroups:
       properties:
         conditions:
@@ -4466,6 +4861,64 @@ components:
           nullable: true
           type: array
         total:
+          type: integer
+      type: object
+    RobotSnapshot:
+      properties:
+        acquisitionModel:
+          enum:
+          - purchase
+          - raas
+          type: string
+        acquisitionModels:
+          items:
+            type: string
+          nullable: true
+          type: array
+        calcResultId:
+          $ref: '#/components/schemas/UUID'
+        calcRunId:
+          $ref: '#/components/schemas/UUID'
+        capability:
+          $ref: '#/components/schemas/Capability'
+        code:
+          type: string
+        manufacturer:
+          type: string
+        name:
+          type: string
+        offer:
+          $ref: '#/components/schemas/Offer'
+        serviceCostPct:
+          description: Обслуживание в год, % от стоимости робота
+          nullable: true
+          type: number
+        serviceLifeYears:
+          nullable: true
+          type: number
+        softwareCostPct:
+          description: Стоимость ПО в год, % от стоимости робота
+          nullable: true
+          type: number
+        solutionId:
+          $ref: '#/components/schemas/UUID'
+        solutionType:
+          nullable: true
+          type: string
+        spec:
+          $ref: '#/components/schemas/RobotSpec'
+        status:
+          enum:
+          - operation
+          - piloting
+          - rnd
+          nullable: true
+          type: string
+        takenAt:
+          format: date-time
+          type: string
+        trl:
+          nullable: true
           type: integer
       type: object
     RobotSpec:
@@ -4615,6 +5068,8 @@ components:
         acquisitionModel:
           nullable: true
           type: string
+        calcResultId:
+          $ref: '#/components/schemas/UUID'
         solutionId:
           $ref: '#/components/schemas/UUID'
         solutionName:
@@ -4623,6 +5078,9 @@ components:
     SelectionInput:
       properties:
         acquisitionModel:
+          enum:
+          - purchase
+          - raas
           nullable: true
           type: string
         solutionId:
@@ -5267,6 +5725,28 @@ components:
             $ref: '#/components/schemas/LocationTemplate'
           nullable: true
           type: array
+      type: object
+    TraceItem:
+      properties:
+        code:
+          type: string
+        formula:
+          type: string
+        label:
+          type: string
+        source:
+          enum:
+          - task
+          - location
+          - robot
+          - norm
+          - derived
+          type: string
+        unit:
+          type: string
+        value:
+          nullable: true
+          type: number
       type: object
     UUID:
       format: uuid

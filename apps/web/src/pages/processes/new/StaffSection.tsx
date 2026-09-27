@@ -7,7 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } fro
 import type { HandlingMethod } from '@/domain'
 import { formatNumber, formatRub } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
-import { FieldGrid, FormSection, NumberField, type SectionProps } from './FormParts'
+import { FieldGrid, FormSection } from '@/components/ui/FormSection'
+import { NumberField, type SectionProps } from './FormParts'
 import { replaceableMethods, updateStaffRow, type StaffRow } from './processForm'
 import { staffStats } from './processStats'
 

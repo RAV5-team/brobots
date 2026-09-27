@@ -1,10 +1,13 @@
 import { clsx } from 'clsx'
-import { Link } from 'react-router'
-import { SCREENS, SERIES_TITLES, samplePath, type ScreenSeries } from '@/app/screens'
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router'
+import { SCREENS, SERIES_TITLES, samplePath, type Screen, type ScreenSeries } from '@/app/screens'
 import { ROLES } from '@/domain'
+import { useServices } from '@/services/useServices'
 import { ROLE_QUERY_PARAM } from '@/shared/auth/resolveRole'
 import { useRole } from '@/shared/auth/useRole'
 import { ru } from '@/shared/i18n/ru'
+import { SCREEN_SCENARIOS, type ScreenScenario } from './screenScenarios'
 
 const SERIES_ORDER: readonly ScreenSeries[] = ['clean', 'first', 'pending']
 
@@ -32,13 +35,7 @@ export function ScreensIndex() {
                 <tr key={s.id}>
                   <td className="py-8 pr-16 text-text-secondary">{s.code}</td>
                   <td className="py-8">
-                    {s.route === null ? (
-                      <span className="text-text-muted">{s.title}</span>
-                    ) : (
-                      <Link to={samplePath(s.route)} className="rounded-xs text-text underline-offset-4 hover:underline">
-                        {s.title}
-                      </Link>
-                    )}
+                    <ScreenLink screen={s} />
                   </td>
                   <td className="py-8 text-text-secondary">{s.route ?? '—'}</td>
                 </tr>
@@ -48,6 +45,37 @@ export function ScreensIndex() {
         </section>
       ))}
     </main>
+  )
+}
+
+const LINK_CLASS = 'rounded-xs text-text underline-offset-4 hover:underline'
+
+function ScreenLink({ screen }: { readonly screen: Screen }) {
+  const scenario = SCREEN_SCENARIOS[screen.id]
+  if (scenario) return <ScenarioLink title={screen.title} scenario={scenario} />
+  if (screen.route === null) return <span className="text-text-muted">{screen.title}</span>
+  return <Link to={samplePath(screen.route)} className={LINK_CLASS}>{screen.title}</Link>
+}
+
+/** Экран-состояние: сначала сценарий (например, сохранить локацию), затем переход с состоянием навигации. */
+function ScenarioLink({ title, scenario }: { readonly title: string; readonly scenario: ScreenScenario }) {
+  const services = useServices()
+  const navigate = useNavigate()
+  const [failed, setFailed] = useState(false)
+  const open = () => {
+    setFailed(false)
+    scenario(services)
+      .then(({ to, state }) => navigate(to, { state }))
+      .catch((error: unknown) => {
+        console.error('Сценарий экрана не выполнился', error)
+        setFailed(true)
+      })
+  }
+  return (
+    <>
+      <button type="button" onClick={open} className={clsx(LINK_CLASS, 'cursor-pointer text-left')}>{title}</button>
+      {failed && <span role="alert" className="ml-8 text-danger">{ru.dev.scenarioFailed}</span>}
+    </>
   )
 }
 

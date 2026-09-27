@@ -1,6 +1,6 @@
 #!/bin/sh
-# Роли и пустые БД сервисов api и simulation. Схемы создают миграции самих сервисов
-# (goose в api при старте, alembic в контейнере simulation-migrate).
+# Роли и пустые БД сервисов api, simulation и economics. Схемы создают миграции сервисов
+# (goose в api при старте, alembic в контейнерах simulation-migrate и economics-migrate).
 # Выполняется только на пустом томе: после смены пароля в .env нужен `docker compose down -v`.
 set -eu
 
@@ -16,3 +16,4 @@ create_db() {
 
 create_db api "${API_DB_USERNAME:?}" "${API_DB_PASSWORD:?}"
 create_db simulation "${SIM_DB_USERNAME:?}" "${SIM_DB_PASSWORD:?}"
+create_db economics "${ECON_DB_USERNAME:?}" "${ECON_DB_PASSWORD:?}"

@@ -12,7 +12,7 @@ import { Toggle } from '@/components/ui/Toggle'
 import { canAutoRefresh, type DataSource } from '@/domain'
 import { canAccess } from '@/shared/auth/resolveRole'
 import { useRole } from '@/shared/auth/useRole'
-import { formatDateOf } from '@/shared/format'
+import { formatDayOf } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { AdminHeader } from '../AdminHeader'
 import { refreshLabel, sourceTypeLabel } from './dataSourcesModel'
@@ -42,7 +42,7 @@ function SourceRow({ source, isPending, onRefreshModeChange, onRefresh }: Source
       </TableCell>
       <TableCell className="text-text-secondary">{source.provides}</TableCell>
       <TableCell>
-        <span className="type-caption font-medium text-text-secondary">{formatDateOf(source.actualizedOn)}</span>
+        <span className="type-caption font-medium text-text-secondary">{formatDayOf(source.actualizedOn)}</span>
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-8">

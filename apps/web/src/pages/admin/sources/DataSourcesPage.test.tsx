@@ -5,7 +5,7 @@ import type { Services } from '@/services'
 import { createMockServices } from '@/services/mock'
 import { ServicesProvider } from '@/services/ServicesProvider'
 import { RoleProvider } from '@/shared/auth/RoleProvider'
-import { formatDateOf } from '@/shared/format'
+import { formatDayOf } from '@/shared/format'
 import { DataSourcesPage } from './DataSourcesPage'
 
 const renderPage = (search = '?as=admin', services: Services = createMockServices({ latencyMs: 0 })) =>
@@ -134,7 +134,7 @@ describe('DataSourcesPage (экран А6)', () => {
     expect(within(dialog).getByRole('radio', { name: 'подтверждено' })).toHaveAttribute('aria-checked', 'true')
     expect(within(dialog).getByRole('switch', { name: 'Автообновление источника' })).toBeDisabled()
     expect(within(dialog).getByText('вручную · это файл')).toBeInTheDocument()
-    expect(within(dialog).getByLabelText(/^Дата актуализации/)).toHaveValue(formatDateOf(new Date().toISOString()))
+    expect(within(dialog).getByLabelText(/^Дата актуализации/)).toHaveValue(formatDayOf(new Date().toISOString()))
     expect(within(dialog).getByRole('button', { name: 'Выбрать файл: Файл или ссылка' })).toHaveAccessibleDescription(/PDF, Excel, CSV или изображение до 20 МБ/)
   })
 

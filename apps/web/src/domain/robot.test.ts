@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { isSameRobot, nextRobotId, specsCompleteness } from './robot'
 
-describe('specsCompleteness (полнота ТТХ, D-36)', () => {
+describe('specsCompleteness (полнота ТТХ, D-46)', () => {
   it('is zero when no technical parameter is filled', () => {
     expect(specsCompleteness({ confidence: 'unconfirmed' })).toBe(0)
   })

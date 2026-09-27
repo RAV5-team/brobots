@@ -1,10 +1,11 @@
 # brobots — монорепозиторий
 
 Три бэкенд-сервиса, фронтенд и Postgres. Контейнеризация — Dockerfile на каждый
-сервис плюс docker compose на весь контур.
+сервис плюс Docker Compose на весь контур.
 
-Сейчас в репозитории **только каркас**: директории, Dockerfile'ы, compose и
-конфигурация окружения. Кода сервисов ещё нет — см. «Что дальше».
+Go API, simulation и internal-only economics service входят в Compose-контур.
+Экономическая модель использует отдельную PostgreSQL базу; проектный workflow
+пока не вызывает её автоматически.
 
 ## Структура
 
@@ -42,7 +43,7 @@ brobots/
 │   │   ├── migrations/          Alembic
 │   │   └── tests/
 │   │
-│   └── economics/               Python — CAPEX, OPEX, эффект, окупаемость (каркас)
+│   └── economics/               Python — CAPEX, OPEX, effect, payback, ranking-v1
 │
 ├── packages/                    общий код и контракты
 │   ├── pycommon/                общий слой Python-сервисов
@@ -54,7 +55,7 @@ brobots/
 ├── infra/
 │   ├── keycloak/                образ Keycloak и realm rav5 (роли, клиенты, демо-учётки)
 │   ├── nginx/                   шлюз к Keycloak на /auth: профили local и stand
-│   └── postgres/init/           роли и БД keycloak, api, simulation — при создании пустого тома
+│   └── postgres/init/           роли и БД keycloak, api, simulation, economics — при создании пустого тома
 │
 ├── docs/
 │   ├── RAV5_PRD.docx            требования к продукту
@@ -62,9 +63,10 @@ brobots/
 │   └── keycloak/
 │       ├── keycloak.md          Keycloak: запуск, realm, адреса, проверка
 │       └── middleware.md        проверка токенов Keycloak в сервисах (Go, Python)
+│   ├── economics/               методика, currency boundary и backlog economics
 ├── scripts/                     секреты и smoke-тесты Keycloak
 │
-├── docker-compose.yml           Postgres + Keycloak + шлюз + api + simulation, профиль local
+├── docker-compose.yml           Postgres + Keycloak + шлюз + api + simulation + economics
 ├── docker-compose.stand.yml     оверлей профиля stand: TLS, HSTS, allowlist админки
 ├── Makefile
 ├── .env.example
@@ -98,16 +100,18 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-Поднимаются Postgres, Keycloak, nginx-шлюз, api и simulation:
+Поднимаются Postgres, Keycloak, nginx-шлюз, api, simulation и economics:
 
 | Что | Адрес |
 |-----|-------|
 | Keycloak | http://localhost/auth/ |
 | api (Swagger — `/docs`) | http://localhost:8000 |
 | simulation (экран шага, API — `/api/...`) | http://localhost:8765 |
+| economics | только Docker internal, `http://economics:8002` |
 
-Схему БД simulation применяет разовый контейнер `simulation-migrate` (`alembic upgrade head`),
-api мигрирует себя сам при старте. economics и web пока каркасы и в compose не входят.
+Схемы БД применяют разовые контейнеры `simulation-migrate` и
+`economics-migrate` (`alembic upgrade head`); api мигрирует себя сам при
+старте. Economics не публикует порт на хост и не подключён к nginx gateway.
 Первый старт — **1–2 минуты**: Keycloak создаёт схему в своей БД и импортирует realm.
 Дождитесь `healthy` в `docker compose ps`.
 
@@ -128,8 +132,7 @@ api мигрирует себя сам при старте. economics и web п�
 
 ## Что дальше
 
-Каркас соберётся в образы только после того, как в директориях появится код.
-Минимум, которого не хватает:
+Оставшиеся этапы интеграции:
 
 1. **`apps/web`** — отсутствует `package.json`. Скаффолдинг:
    `npm create vite@latest apps/web -- --template react-ts`, затем
@@ -138,12 +141,11 @@ api мигрирует себя сам при старте. economics и web п�
 2. ~~**`services/api`**~~ — готов: локации, задачи, проекты, каталог, классы
    операций и подбор. Запуск, контракт и карта экранов — [docs/api](docs/api/README.md).
 3. ~~**`services/simulation`**~~ — готов, см. [services/simulation/README.md](services/simulation/README.md).
-   **`services/economics`** — `app/main.py`, который поднимает приложение FastAPI
-   (Dockerfile запускает `app.main:app`).
-4. **`packages/pycommon/pycommon`** — общий слой; в образ попадает через
-   `PYTHONPATH=/opt/pycommon`, отдельная сборка пакета не нужна.
-5. **`infra/postgres/init`** — скрипты создания ролей и БД. Выполняются **один раз**,
-   при создании пустого тома; после изменения нужен `make clean`.
+4. ~~**`services/economics`**~~ — развёртывается отдельно во внутренней сети.
+   Автоматический вызов из Go API и интерфейса остаётся следующим этапом.
 
-Каждый Dockerfile содержит стадию `test` (`docker build --target test ...`) —
-`make test` прогоняет её для всех трёх сервисов.
+CI for economics runs lint, unit/API, and PostgreSQL integration tests on
+Python 3.12, then builds test and runtime container stages. PostgreSQL tests
+require `POSTGRES_TEST_DATABASE_URL`; CI sets it and fails if it is missing.
+The release blockers are recorded in
+[the economics backlog](docs/economics/backlog.md).

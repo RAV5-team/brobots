@@ -10,7 +10,7 @@ import { Toggle } from '@/components/ui/Toggle'
 import { DATA_SOURCE_REFRESH_PERIODS, type DataSource, type DataSourceKind, type DataSourceLocator, type DataSourceRefreshPeriod, type DataSourceStatus } from '@/domain'
 import { useServices } from '@/services/useServices'
 import { UPLOAD_RULES } from '@/shared/config/upload'
-import { formatDateOf, parseDate } from '@/shared/format'
+import { formatDayOf, parseDate } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import {
   DATA_SOURCE_KINDS,
@@ -54,7 +54,7 @@ function urlCheckMessage(state: UrlCheckState): { readonly hint?: string; readon
   if (state.status === 'failed') return { error: t.checkFailed }
   if (state.status !== 'done') return {}
   if (!state.result.reachable) return { error: t.checkUnreachable }
-  return { hint: t.checkOk(state.result.lastModified === null ? null : formatDateOf(state.result.lastModified)) }
+  return { hint: t.checkOk(state.result.lastModified === null ? null : formatDayOf(state.result.lastModified)) }
 }
 
 interface NewDataSourceModalProps {
@@ -74,7 +74,7 @@ export function NewDataSourceModal({ existing, onClose, onCreated }: NewDataSour
   const formId = useId()
   const formRef = useRef<HTMLFormElement>(null)
   // Дата актуализации по умолчанию — сегодня по Москве: источник обычно добавляют в день получения.
-  const [today] = useState(() => formatDateOf(new Date().toISOString()))
+  const [today] = useState(() => formatDayOf(new Date().toISOString()))
   const [form, setForm] = useState<DataSourceForm>({ ...EMPTY_DATA_SOURCE_FORM, actualizedOn: today })
   const [errors, setErrors] = useState<DataSourceFormErrors>({})
   const [fileRejection, setFileRejection] = useState<string | null>(null)
@@ -153,6 +153,7 @@ export function NewDataSourceModal({ existing, onClose, onCreated }: NewDataSour
 
   return (
     <Modal
+      size="form"
       open
       onOpenChange={(open) => { if (!open) onClose() }}
       title={t.title}

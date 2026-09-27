@@ -18,7 +18,7 @@ const t = ru.robotNew
 export type ReadinessChoice = Exclude<RobotReadiness, 'unknown'>
 export type YesNo = 'yes' | 'no'
 
-/** Поля формы А2 строками, как их вводит администратор (PRD 6.3). Фото — отдельно: в черновик браузера не пишутся (D-43). */
+/** Поля формы А2 строками, как их вводит администратор (PRD 6.3). Фото — отдельно: в черновик браузера не пишутся (D-53). */
 export interface RobotForm {
   readonly name: string
   readonly manufacturer: string
@@ -46,7 +46,7 @@ export interface RobotForm {
 export type RobotFormKey = keyof RobotForm
 export type RobotFormErrors = Readonly<Partial<Record<RobotFormKey, string>>>
 
-/** Значения макета — примеры в плейсхолдерах, а не предзаполнение: робот новый (как D-35, D-41). */
+/** Значения макета — примеры в плейсхолдерах, а не предзаполнение: робот новый (как D-45, D-51). */
 export const EMPTY_ROBOT_FORM: RobotForm = {
   name: '',
   manufacturer: '',
@@ -80,7 +80,7 @@ const SIGNED_SPECS: ReadonlySet<SimpleSpec> = new Set(['minTempC'])
 const REQUIRED_TEXT = ['name', 'manufacturer', 'readiness', 'trl', 'price', 'solutionType'] as const
 
 /**
- * Позиции со звёздочкой на форме: шесть полей секции 1, идентификатор, классы, фото — девять (PRD 15 · №34, D-43).
+ * Позиции со звёздочкой на форме: шесть полей секции 1, идентификатор, классы, фото — девять (PRD 15 · №34, D-53).
  * Идентификатор присваивает система — он заполнен всегда.
  */
 export const REQUIRED_TOTAL = REQUIRED_TEXT.length + 3

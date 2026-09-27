@@ -116,12 +116,7 @@ export function countFormulas(): number {
   return Object.values(NUMERIC_SPECS).filter((s) => s.badge === 'formula').length
 }
 
-/** «2 000», «1,5», «0.8» → число; пусто или не число → null. */
-export function parseDecimal(raw: string): number | null {
-  const normalized = raw.replace(/[\s\u00a0\u202f]/g, '').replace(',', '.')
-  if (normalized === '' || !/^-?\d*\.?\d+$/.test(normalized)) return null
-  return Number(normalized)
-}
+export { parseDecimal } from '@/shared/format'
 
 export const categoryValue = (facilityType: FacilityTypeCode, workCategory: WorkCategoryCode): string =>
   `${facilityType}:${workCategory}`

@@ -61,7 +61,7 @@ export interface Robot {
   readonly specs: RobotSpecs
   /**
    * Пришёл из опроса источника и ещё не подтверждён администратором: метка «требует подтверждения»,
-   * в подбор не идёт (PRD 6.1; правило метки — D-36, PRD 15 · №53).
+   * в подбор не идёт (PRD 6.1; правило метки — D-46, PRD 15 · №53).
    */
   readonly needsConfirmation: boolean
   /** Момент последнего изменения карточки, ISO 8601 (колонка «Обновлено» А1). */
@@ -70,7 +70,7 @@ export interface Robot {
   readonly inRegistry719: boolean
   /**
    * Фото карточки по порядку, первое — обложка (PRD 6.3, D-18). Пока только имена файлов:
-   * эндпоинта загрузки нет, как у файла источника (D-41).
+   * эндпоинта загрузки нет, как у файла источника (D-51).
    */
   readonly photos?: readonly string[]
 }
@@ -108,7 +108,7 @@ const SPEC_PARAMETERS: readonly (readonly (keyof RobotSpecs)[])[] = [
   ['loadTimeS', 'unloadTimeS'],
 ]
 
-/** Полнота ТТХ, доля 0…1: заполненные технические параметры из восьми (D-36, PRD 15 · №16). */
+/** Полнота ТТХ, доля 0…1: заполненные технические параметры из восьми (D-46, PRD 15 · №16). */
 export function specsCompleteness(specs: RobotSpecs): number {
   const filled = SPEC_PARAMETERS.filter((keys) => keys.every((key) => specs[key] !== undefined)).length
   return filled / SPEC_PARAMETERS.length

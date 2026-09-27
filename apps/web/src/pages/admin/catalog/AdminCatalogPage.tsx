@@ -106,6 +106,7 @@ function AddedBanner({ row }: { readonly row: CatalogRow }) {
   const to = { pathname: ROUTE_PATHS.catalog, search: `?${new URLSearchParams({ [QUERY_PARAM]: row.name }).toString()}` }
   return (
     <StatusBanner
+      variant="inverse"
       title={t.added.title}
       action={<ButtonLink variant="accent" to={to} className="h-40 px-20">{t.added.open}</ButtonLink>}
     />

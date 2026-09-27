@@ -92,6 +92,7 @@ export function NewOperationClassModal({ existing, onClose, onCreated }: NewOper
 
   return (
     <Modal
+      size="form"
       open
       onOpenChange={(open) => { if (!open) onClose() }}
       title={t.title}

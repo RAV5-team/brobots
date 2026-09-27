@@ -21,32 +21,42 @@ SELECT p.id, p.name, p.location_id, l.name, l.facility_type_code, t.id, t.name, 
        l.deleted_at IS NOT NULL,
        p.pinned_solution_id, p.selected_solution_id, ss.name, p.selected_acquisition_model, p.copied_from_id, p.is_demo,
        p.owner_id, r.id, r.created_at, r.total_candidates, r.passed_count, r.verify_count, r.excluded_count,
+       p.saved_at, p.selected_calc_result_id, cr.id, cr.model_version, cr.created_at, cr.inputs_version <> p.inputs_version,
        p.created_at, p.updated_at
 FROM project p
 JOIN location l ON l.id = p.location_id
 JOIN task t ON t.id = p.task_id
 JOIN work_type w ON w.id = t.work_type_id
 LEFT JOIN solution ss ON ss.id = p.selected_solution_id
-LEFT JOIN LATERAL (SELECT * FROM match_run mr WHERE mr.project_id = p.id ORDER BY mr.created_at DESC LIMIT 1) r ON true`
+LEFT JOIN LATERAL (SELECT * FROM match_run mr WHERE mr.project_id = p.id ORDER BY mr.created_at DESC LIMIT 1) r ON true
+LEFT JOIN LATERAL (SELECT * FROM calc_run c WHERE c.project_id = p.id ORDER BY c.created_at DESC LIMIT 1) cr ON true`
 
 func scanProject(r pgx.Row) (domain.Project, error) {
 	var p domain.Project
-	var selID *uuid.UUID
+	var selID, selResultID *uuid.UUID
 	var selName, selModel *string
-	var runID *uuid.UUID
-	var runAt *time.Time
+	var runID, calcID *uuid.UUID
+	var runAt, calcAt *time.Time
 	var total, passed, verify, excluded *int
+	var calcModel *string
+	var calcStale *bool
 	err := r.Scan(&p.ID, &p.Name, &p.LocationID, &p.LocationName, &p.FacilityTypeCode, &p.Task.ID, &p.Task.Name,
 		&p.Task.WorkType.ID, &p.Task.WorkType.Code, &p.Task.WorkType.Name, &p.Task.WorkType.UnitLabel,
 		&p.Status, &p.HorizonYears, &p.Versions.Catalog, &p.Versions.Dictionaries, &p.Versions.Model, &p.SnapshotTakenAt,
 		&p.DataChanged, &p.CatalogUpdated, &p.LocationDeleted,
 		&p.PinnedSolutionID, &selID, &selName, &selModel, &p.CopiedFromID, &p.IsDemo,
-		&p.OwnerID, &runID, &runAt, &total, &passed, &verify, &excluded, &p.CreatedAt, &p.UpdatedAt)
+		&p.OwnerID, &runID, &runAt, &total, &passed, &verify, &excluded,
+		&p.SavedAt, &selResultID, &calcID, &calcModel, &calcAt, &calcStale, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		return p, err
 	}
 	if selID != nil {
-		p.Selection = &domain.Selection{SolutionID: *selID, SolutionName: domain.Deref(selName), AcquisitionModel: selModel}
+		p.Selection = &domain.Selection{SolutionID: *selID, SolutionName: domain.Deref(selName), AcquisitionModel: selModel,
+			CalcResultID: selResultID}
+	}
+	if calcID != nil {
+		p.LatestEvaluation = &domain.EvaluationInfo{ID: *calcID, ModelVersion: domain.Deref(calcModel), CreatedAt: *calcAt,
+			Stale: domain.Deref(calcStale)}
 	}
 	if runID != nil {
 		p.LatestRun = &domain.RunInfo{ID: *runID, CreatedAt: *runAt, Counts: domain.MatchCounts{
@@ -98,7 +108,11 @@ type ProjectRecord struct {
 	CopiedFromID       *uuid.UUID
 	IsDemo             bool
 	// OwnerID is the Keycloak sub of the author; nil for demo projects. Set on insert only.
-	OwnerID *uuid.UUID
+	OwnerID              *uuid.UUID
+	SavedAt              *time.Time
+	SelectedCalcResultID *uuid.UUID
+	// InputsVersion is read only here; BumpProjectInputs and the input writers change it.
+	InputsVersion int
 }
 
 // SaveProject inserts or updates a project.
@@ -110,16 +124,23 @@ func (q Q) SaveProject(ctx context.Context, r ProjectRecord) error {
 	_, err = q.db.Exec(ctx, `
 INSERT INTO project (id, name, location_id, task_id, status, horizon_years, catalog_version, dictionaries_version,
                      model_version, snapshot, snapshot_taken_at, pinned_solution_id, selected_solution_id,
-                     selected_acquisition_model, copied_from_id, is_demo, owner_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+                     selected_acquisition_model, copied_from_id, is_demo, owner_id, saved_at, selected_calc_result_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, status = EXCLUDED.status, horizon_years = EXCLUDED.horizon_years,
   catalog_version = EXCLUDED.catalog_version, dictionaries_version = EXCLUDED.dictionaries_version,
   model_version = EXCLUDED.model_version, snapshot = EXCLUDED.snapshot, snapshot_taken_at = EXCLUDED.snapshot_taken_at,
   pinned_solution_id = EXCLUDED.pinned_solution_id, selected_solution_id = EXCLUDED.selected_solution_id,
-  selected_acquisition_model = EXCLUDED.selected_acquisition_model, updated_at = now()`,
+  selected_acquisition_model = EXCLUDED.selected_acquisition_model, saved_at = EXCLUDED.saved_at,
+  selected_calc_result_id = EXCLUDED.selected_calc_result_id, updated_at = now()`,
 		r.ID, r.Name, r.LocationID, r.TaskID, r.Status, r.HorizonYears, r.Versions.Catalog, r.Versions.Dictionaries,
 		r.Versions.Model, snap, r.SnapshotTakenAt, r.PinnedSolutionID, r.SelectedSolutionID, r.SelectedModel,
-		r.CopiedFromID, r.IsDemo, r.OwnerID)
+		r.CopiedFromID, r.IsDemo, r.OwnerID, r.SavedAt, r.SelectedCalcResultID)
+	return err
+}
+
+// BumpProjectInputs marks a change of the calculation inputs, so the latest calculation becomes stale.
+func (q Q) BumpProjectInputs(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, `UPDATE project SET inputs_version = inputs_version + 1, updated_at = now() WHERE id = $1`, id)
 	return err
 }
 
@@ -130,10 +151,11 @@ func (q Q) ProjectRecordOf(ctx context.Context, id uuid.UUID) (ProjectRecord, er
 	err := q.db.QueryRow(ctx, `
 SELECT id, name, location_id, task_id, status, horizon_years, catalog_version, dictionaries_version, model_version,
        snapshot, snapshot_taken_at, pinned_solution_id, selected_solution_id, selected_acquisition_model, copied_from_id, is_demo,
-       owner_id
+       owner_id, saved_at, selected_calc_result_id, inputs_version
 FROM project WHERE id = $1 AND deleted_at IS NULL`, id).Scan(&r.ID, &r.Name, &r.LocationID, &r.TaskID, &r.Status,
 		&r.HorizonYears, &r.Versions.Catalog, &r.Versions.Dictionaries, &r.Versions.Model, &snap, &r.SnapshotTakenAt,
-		&r.PinnedSolutionID, &r.SelectedSolutionID, &r.SelectedModel, &r.CopiedFromID, &r.IsDemo, &r.OwnerID)
+		&r.PinnedSolutionID, &r.SelectedSolutionID, &r.SelectedModel, &r.CopiedFromID, &r.IsDemo, &r.OwnerID,
+		&r.SavedAt, &r.SelectedCalcResultID, &r.InputsVersion)
 	if err != nil {
 		return r, notFound(err, "project", id)
 	}
@@ -177,8 +199,7 @@ func (q Q) ReplaceOverrides(ctx context.Context, projectID uuid.UUID, list []mat
 			return err
 		}
 	}
-	_, err := q.db.Exec(ctx, `UPDATE project SET updated_at = now() WHERE id = $1`, projectID)
-	return err
+	return q.BumpProjectInputs(ctx, projectID)
 }
 
 // ManualCandidates returns solutions added by hand to a project.
@@ -197,18 +218,23 @@ func (q Q) ManualCandidates(ctx context.Context, projectID uuid.UUID) ([]domain.
 
 // AddManualCandidate adds a solution to the comparison by hand.
 func (q Q) AddManualCandidate(ctx context.Context, projectID, solutionID uuid.UUID, reason *string) error {
-	_, err := q.db.Exec(ctx, `INSERT INTO project_manual_candidate (project_id, solution_id, reason) VALUES ($1, $2, $3)
-		ON CONFLICT (project_id, solution_id) DO UPDATE SET reason = EXCLUDED.reason`, projectID, solutionID, reason)
-	return err
+	if _, err := q.db.Exec(ctx, `INSERT INTO project_manual_candidate (project_id, solution_id, reason) VALUES ($1, $2, $3)
+		ON CONFLICT (project_id, solution_id) DO UPDATE SET reason = EXCLUDED.reason`, projectID, solutionID, reason); err != nil {
+		return err
+	}
+	return q.BumpProjectInputs(ctx, projectID)
 }
 
 // RemoveManualCandidate removes a hand-added solution.
 func (q Q) RemoveManualCandidate(ctx context.Context, projectID, solutionID uuid.UUID) error {
 	tag, err := q.db.Exec(ctx, `DELETE FROM project_manual_candidate WHERE project_id = $1 AND solution_id = $2`, projectID, solutionID)
-	if err == nil && tag.RowsAffected() == 0 {
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
 		return domain.NotFound("manual_candidate", solutionID.String())
 	}
-	return err
+	return q.BumpProjectInputs(ctx, projectID)
 }
 
 // SaveRun persists a matching run with candidates and checks.

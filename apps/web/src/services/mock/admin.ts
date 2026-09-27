@@ -45,7 +45,7 @@ export function createMockAdmin(options: MockOptions): AdminService {
       }
       return replaceSource(key, (source) => ({ ...source, ...patch }))
     },
-    // Проверки ссылки в API нет (D-42): мок считает недоступными адреса в зоне .invalid (RFC 2606),
+    // Проверки ссылки в API нет (D-52): мок считает недоступными адреса в зоне .invalid (RFC 2606),
     // остальные — открывшимися сегодня.
     checkDataSourceUrl: (url) => {
       const host = URL.canParse(url) ? new URL(url).hostname : ''

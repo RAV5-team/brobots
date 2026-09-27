@@ -27,10 +27,12 @@ interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'>
   readonly invalid?: boolean
   /** Действие справа внутри капсулы; не отправляет форму. */
   readonly action?: InputAction
+  /** Пусто, но понадобится позже: лаймовая обводка (оклад группы без данных, 15950:2125). Ошибка важнее. */
+  readonly attention?: boolean
 }
 
 /** Текстовое поле во вдавленной капсуле (components.md: Input; 15935:946). */
-export function Input({ size = 'md', suffix, leading, computed = false, invalid, action, className, id, ...rest }: InputProps) {
+export function Input({ size = 'md', suffix, leading, computed = false, invalid, attention = false, action, className, id, ...rest }: InputProps) {
   const field = useFieldControl()
   const isInvalid = invalid ?? field?.invalid ?? false
   const SIZES: Record<InputSize, string> = {
@@ -51,9 +53,11 @@ export function Input({ size = 'md', suffix, leading, computed = false, invalid,
           ? 'bg-surface-sunken'
           : isInvalid
             ? 'border-[1.5px] border-danger-border bg-danger-bg shadow-inset-sm'
-            : size === 'lg'
-              ? 'bg-bg shadow-inset-md'
-              : 'bg-surface-muted shadow-inset-sm',
+            : attention
+              ? 'border-[1.5px] border-accent-border bg-surface-muted shadow-inset-sm'
+              : size === 'lg'
+                ? 'bg-bg shadow-inset-md'
+                : 'bg-surface-muted shadow-inset-sm',
         className,
       )}
     >

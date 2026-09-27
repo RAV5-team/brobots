@@ -1,12 +1,14 @@
 import { ArrowLeft } from 'lucide-react'
 import { useState } from 'react'
-import { Button } from '@/components/ui/Button'
+import { ROUTE_PATHS } from '@/app/routePaths'
+import { Button, ButtonLink } from '@/components/ui/Button'
 import { FormulaStats } from '@/components/ui/FormulaStats'
 import { SectionNav } from '@/components/ui/SectionNav'
 import { StatusBanner } from '@/components/ui/StatusBanner'
 import { TabNav } from '@/components/ui/TabNav'
 import { TextLink } from '@/components/ui/TextLink'
 import { ru } from '@/shared/i18n/ru'
+import { ADMIN_TABS } from '../../admin/adminTabs'
 import { ShowcaseSection, StateGrid } from './StateGrid'
 
 // Образцы — тексты экрана 09а: у примитивов нет своих подписей.
@@ -46,32 +48,50 @@ export function TextLinkShowcase() {
   )
 }
 
-// Вкладки раздела «Администрирование» (А8, 15966:8024); ссылки ведут в разделы, активная — «Классы операций».
-const ADMIN_TABS = (['catalog', 'norms', 'sources', 'operationClasses', 'journal'] as const).map((key) => ({
-  key,
-  label: ru.admin.tabs[key],
-  to: `/dev/ui/tab-nav#${key}`,
-}))
-
-export function TabNavShowcase() {
-  return (
-    <ShowcaseSection title="TabNav">
-      <StateGrid
-        states={['default', 'hover', 'focus']}
-        rows={[{ label: 'admin', render: (st) => <TabNav label={ru.admin.tabsLabel} items={ADMIN_TABS} activeKey="operationClasses" data-demo-state={st === 'default' ? undefined : st} /> }]}
-      />
-    </ShowcaseSection>
-  )
-}
-
 export function StatusBannerShowcase() {
+  const c = ru.locations.created
   const a = ru.adminCatalog.added
   return (
     <ShowcaseSection title="StatusBanner">
       <div className="flex w-[1000px] flex-col gap-16">
-        <StatusBanner title={a.title} action={<Button variant="accent" className="h-40 px-20">{a.open}</Button>} />
-        <StatusBanner title={a.title} />
+        {/* outline — 12а «локация создана» (15950:2251). */}
+        <StatusBanner
+          title={c.title('РЦ Химки')}
+          description={c.profile(['Склад', 'Москва', '20 000 м²', '180 сотрудников'], '78%')}
+          action={<ButtonLink to="/locations">{c.open}</ButtonLink>}
+        />
+        <StatusBanner title={c.title('РЦ Химки')} />
+        {/* inverse — А3 «каталог обновлён» (15966:6274). */}
+        <StatusBanner variant="inverse" title={a.title} action={<Button variant="accent" className="h-40 px-20">{a.open}</Button>} />
+        <StatusBanner variant="inverse" title={a.title} />
       </div>
+    </ShowcaseSection>
+  )
+}
+
+/** Состояние показывается на первой неактивной вкладке: капсула слишком широкая для колонок. */
+const TAB_STATES = ['default', 'hover', 'active', 'focus'] as const
+
+export function TabNavShowcase() {
+  const l = ru.location
+  const items = [
+    { to: '/locations/LOC-01/params', label: l.tabs.params },
+    { to: '/locations/LOC-01/processes', label: l.tabs.processes },
+    { to: '/locations/LOC-01/documents', label: l.tabs.documents },
+  ]
+  return (
+    <ShowcaseSection title="TabNav">
+      <StateGrid
+        states={['default']}
+        rows={[
+          ...TAB_STATES.map((state) => ({
+            label: ru.dev.states[state],
+            render: () => <TabNav label={l.tabsLabel} items={items} activeTo="/locations/LOC-01/processes" data-demo-state={state} />,
+          })),
+          // Вкладки «Администрирование» (А8, 15966:8024), активная — «Классы операций».
+          { label: ru.admin.title, render: () => <TabNav label={ru.admin.tabsLabel} items={ADMIN_TABS} activeTo={ROUTE_PATHS.adminOperationClasses} /> },
+        ]}
+      />
     </ShowcaseSection>
   )
 }

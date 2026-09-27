@@ -29,7 +29,7 @@ function ClassRow({ row }: { readonly row: OperationClassRow }) {
         <p className="mt-4 type-body-sm text-text-secondary">{row.description}</p>
       </TableCell>
       <TableCell>
-        {/* 0 роботов — новый класс ещё не отмечен в карточках: плашка приглушена (D-34). */}
+        {/* 0 роботов — новый класс ещё не отмечен в карточках: плашка приглушена (D-44). */}
         <Chip tone={row.robotCount === 0 ? 'muted' : 'neutral'}>{formatCount(row.robotCount, ru.plural.robots)}</Chip>
       </TableCell>
       <TableCell>

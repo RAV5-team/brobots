@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { DataSource, DataSourceRefresh } from '@/domain'
 import { useServices } from '@/services/useServices'
-import { formatDateOf } from '@/shared/format'
+import { formatDayOf } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 
 const t = ru.dataSources
@@ -75,7 +75,7 @@ export function useDataSources(): DataSourcesModel {
   }, [run, services])
 
   const refresh = useCallback((source: DataSource) => {
-    run(source, services.admin.refreshDataSource(source.key), (next) => t.refreshed(next.name, formatDateOf(next.actualizedOn)), t.refreshFailed(source.name))
+    run(source, services.admin.refreshDataSource(source.key), (next) => t.refreshed(next.name, formatDayOf(next.actualizedOn)), t.refreshFailed(source.name))
   }, [run, services])
 
   const added = useCallback((source: DataSource) => {

@@ -1,0 +1,696 @@
+openapi: 3.0.3
+info:
+  description: |-
+    Контракт калькуляции, который вызывает оркестратор сервиса api (docs/orchestrator.md).
+
+    Запрос — замороженный вход расчёта одного проекта: локация, задача и кандидаты подбора с полями каталога. Ответ — ровно один результат на кандидата и модель приобретения из acquisitionModels запроса, которую предлагает робот (пустой acquisitionModels кандидата — все модели). modelVersion обязателен: проект хранит его, чтобы старые расчёты воспроизводились после смены формул. У каждого числа — строка trace с формулой и источником. Деньги — рубли с НДС, доли — от 0 до 1.
+
+    Пока сервиса нет, api считает встроенной мок-моделью mock-calc/v1 (ECONOMICS_URL пуст).
+  title: RAV5 Economics · расчёт парка и экономики
+  version: 0.1.0
+paths:
+  /api/v1/calculations:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Request'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+          description: OK
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
+      summary: Рассчитать кандидатов проекта
+      tags:
+      - economics
+  /api/v1/model-version:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelVersionResponse'
+          description: OK
+      summary: Версия ядра расчёта
+      tags:
+      - economics
+components:
+  schemas:
+    Budget:
+      properties:
+        amount:
+          nullable: true
+          type: number
+        currency:
+          type: string
+        source:
+          nullable: true
+          type: string
+        sourceUnit:
+          nullable: true
+          type: string
+      type: object
+    Candidate:
+      properties:
+        acquisitionModels:
+          items:
+            type: string
+          nullable: true
+          type: array
+        capability:
+          $ref: '#/components/schemas/Capability'
+        code:
+          type: string
+        isManual:
+          type: boolean
+        manufacturer:
+          type: string
+        matchState:
+          enum:
+          - passed
+          - needs_verification
+          - excluded
+          type: string
+        name:
+          type: string
+        offer:
+          $ref: '#/components/schemas/Offer'
+        serviceCostPct:
+          description: Обслуживание в год, % от стоимости робота
+          nullable: true
+          type: number
+        serviceLifeYears:
+          nullable: true
+          type: number
+        softwareCostPct:
+          description: Стоимость ПО в год, % от стоимости робота
+          nullable: true
+          type: number
+        solutionId:
+          $ref: '#/components/schemas/UUID'
+        solutionType:
+          nullable: true
+          type: string
+        spec:
+          $ref: '#/components/schemas/RobotSpec'
+        status:
+          enum:
+          - operation
+          - piloting
+          - rnd
+          nullable: true
+          type: string
+        trl:
+          nullable: true
+          type: integer
+      type: object
+    Capability:
+      properties:
+        effective:
+          $ref: '#/components/schemas/Effective'
+        environment:
+          description: Пусто — по допускам робота
+          enum:
+          - indoor
+          - outdoor
+          - both
+          nullable: true
+          type: string
+        handlingMethodCode:
+          description: Пусто — берётся из ТТХ робота
+          nullable: true
+          type: string
+        id:
+          $ref: '#/components/schemas/UUID'
+        isActive:
+          type: boolean
+        liftHeightMm:
+          nullable: true
+          type: integer
+        solutionId:
+          $ref: '#/components/schemas/UUID'
+        sourceId:
+          $ref: '#/components/schemas/UUID'
+        sourceText:
+          nullable: true
+          type: string
+        throughputExact:
+          type: boolean
+        throughputPerHour:
+          nullable: true
+          type: number
+        throughputRangeText:
+          nullable: true
+          type: string
+        workType:
+          $ref: '#/components/schemas/WorkTypeRef'
+      type: object
+    Date:
+      format: date
+      type: string
+    Effective:
+      properties:
+        environment:
+          nullable: true
+          type: string
+        handlingMethodCode:
+          nullable: true
+          type: string
+        liftHeightMm:
+          nullable: true
+          type: integer
+      type: object
+    FieldError:
+      properties:
+        code:
+          type: string
+        field:
+          type: string
+        hint:
+          type: string
+        message:
+          type: string
+      type: object
+    HandlingShare:
+      properties:
+        code:
+          type: string
+        laborReplacementRatio:
+          nullable: true
+          type: number
+      type: object
+    Location:
+      properties:
+        capexBudget:
+          $ref: '#/components/schemas/Budget'
+        facilityTypeCode:
+          type: string
+        id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+        parameters:
+          additionalProperties: {}
+          description: Значения параметров объекта по кодам
+          nullable: true
+          type: object
+        staffGroups:
+          items:
+            $ref: '#/components/schemas/StaffGroup'
+          nullable: true
+          type: array
+      type: object
+    ModelVersionResponse:
+      properties:
+        modelVersion:
+          type: string
+      type: object
+    Offer:
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        isDefault:
+          type: boolean
+        label:
+          type: string
+        organizerRowRef:
+          nullable: true
+          type: string
+        price:
+          $ref: '#/components/schemas/Price'
+        sourceId:
+          $ref: '#/components/schemas/UUID'
+      type: object
+    Price:
+      properties:
+        amountRub:
+          nullable: true
+          type: number
+        includesVat:
+          type: boolean
+        offerId:
+          $ref: '#/components/schemas/UUID'
+        percent:
+          nullable: true
+          type: number
+        unit:
+          type: string
+      type: object
+    Problem:
+      properties:
+        code:
+          type: string
+        detail:
+          type: string
+        errors:
+          items:
+            $ref: '#/components/schemas/FieldError'
+          type: array
+        status:
+          type: integer
+        title:
+          type: string
+        type:
+          type: string
+      type: object
+    Request:
+      properties:
+        acquisitionModels:
+          description: 'Модели приобретения для расчёта: purchase, raas'
+          items:
+            type: string
+          nullable: true
+          type: array
+        candidates:
+          items:
+            $ref: '#/components/schemas/Candidate'
+          nullable: true
+          type: array
+        horizonYears:
+          description: Горизонт расчёта ROI и TCO, лет
+          type: integer
+        location:
+          $ref: '#/components/schemas/Location'
+        projectId:
+          $ref: '#/components/schemas/UUID'
+        task:
+          $ref: '#/components/schemas/Task'
+      type: object
+    Response:
+      properties:
+        modelVersion:
+          type: string
+        results:
+          items:
+            $ref: '#/components/schemas/Result'
+          nullable: true
+          type: array
+      type: object
+    Result:
+      properties:
+        acquisitionModel:
+          enum:
+          - purchase
+          - raas
+          type: string
+        budgetOverPct:
+          description: Превышение бюджета, доля 0–1
+          nullable: true
+          type: number
+        budgetOverRub:
+          description: Превышение бюджета CAPEX; 0 — в бюджете, null — бюджет не задан
+          nullable: true
+          type: number
+        calculable:
+          description: false — не хватает данных, причина в reason
+          type: boolean
+        capexRub:
+          description: Первоначальные затраты; для RaaS — запуск без аренды
+          nullable: true
+          type: number
+        chargerCount:
+          nullable: true
+          type: integer
+        laborSavingsYearRub:
+          description: Экономия ФОТ в год
+          nullable: true
+          type: number
+        netEffectYearRub:
+          description: Экономия ФОТ + иные эффекты − OPEX
+          nullable: true
+          type: number
+        opexYearRub:
+          description: Операционные затраты в год, для RaaS с арендой
+          nullable: true
+          type: number
+        paybackYears:
+          description: null — не окупается
+          nullable: true
+          type: number
+        reason:
+          nullable: true
+          type: string
+        robotCount:
+          nullable: true
+          type: integer
+        roi:
+          description: (эффект × горизонт − CAPEX) ÷ CAPEX
+          nullable: true
+          type: number
+        solutionId:
+          $ref: '#/components/schemas/UUID'
+        tcoRub:
+          description: CAPEX + OPEX × горизонт
+          nullable: true
+          type: number
+        trace:
+          items:
+            $ref: '#/components/schemas/TraceItem'
+          nullable: true
+          type: array
+        warnings:
+          items:
+            type: string
+          nullable: true
+          type: array
+      type: object
+    RobotSpec:
+      properties:
+        autonomyH:
+          nullable: true
+          type: number
+        avgPowerKw:
+          nullable: true
+          type: number
+        chargeTimeMin:
+          nullable: true
+          type: number
+        chargingInfra:
+          nullable: true
+          type: string
+        connectivity:
+          items:
+            type: string
+          nullable: true
+          type: array
+        dimensionsExact:
+          type: boolean
+        floorRequirements:
+          nullable: true
+          type: string
+        handlingMethodCode:
+          nullable: true
+          type: string
+        heightMm:
+          nullable: true
+          type: integer
+        indoorAllowed:
+          nullable: true
+          type: boolean
+        integrations:
+          items:
+            type: string
+          nullable: true
+          type: array
+        lengthMm:
+          nullable: true
+          type: integer
+        liftHeightMm:
+          nullable: true
+          type: integer
+        loadTimeS:
+          nullable: true
+          type: number
+        massKg:
+          nullable: true
+          type: number
+        maxSpeedMps:
+          nullable: true
+          type: number
+        maxTempC:
+          nullable: true
+          type: number
+        minPassageMm:
+          nullable: true
+          type: integer
+        minTempC:
+          nullable: true
+          type: number
+        minTempExact:
+          type: boolean
+        navigationType:
+          nullable: true
+          type: string
+        outdoorAllowed:
+          nullable: true
+          type: boolean
+        payloadExact:
+          type: boolean
+        payloadKg:
+          nullable: true
+          type: number
+        positioningAccuracyMm:
+          nullable: true
+          type: number
+        serviceTerms:
+          nullable: true
+          type: string
+        specsActualizedOn:
+          $ref: '#/components/schemas/Date'
+        specsConfirmed:
+          enum:
+          - "yes"
+          - partial
+          - "no"
+          type: string
+        specsSourceId:
+          $ref: '#/components/schemas/UUID'
+        specsSourceText:
+          nullable: true
+          type: string
+        unloadTimeS:
+          nullable: true
+          type: number
+        widthMm:
+          nullable: true
+          type: integer
+      type: object
+    StaffGroup:
+      properties:
+        headcount:
+          type: integer
+        id:
+          $ref: '#/components/schemas/UUID'
+        roleName:
+          type: string
+        salaryGrossMonthRub:
+          nullable: true
+          type: number
+        sort:
+          type: integer
+        source:
+          nullable: true
+          type: string
+      type: object
+    Task:
+      properties:
+        derived:
+          $ref: '#/components/schemas/TaskDerived'
+        handlingMethods:
+          items:
+            $ref: '#/components/schemas/HandlingShare'
+          nullable: true
+          type: array
+        id:
+          $ref: '#/components/schemas/UUID'
+        kpiUnit:
+          nullable: true
+          type: string
+        name:
+          type: string
+        params:
+          $ref: '#/components/schemas/TaskParams'
+        workType:
+          $ref: '#/components/schemas/WorkTypeRef'
+        workers:
+          items:
+            $ref: '#/components/schemas/TaskWorker'
+          nullable: true
+          type: array
+      type: object
+    TaskDerived:
+      properties:
+        avgHourlyToRobotize:
+          nullable: true
+          type: number
+        basePayrollRubYear:
+          nullable: true
+          type: number
+        maxRobotWidthM:
+          nullable: true
+          type: number
+        payrollTaxCoef:
+          format: double
+          type: number
+        peakIntensityPerHour:
+          nullable: true
+          type: number
+        peakToRobotizePerHour:
+          nullable: true
+          type: number
+        targetFte:
+          nullable: true
+          type: number
+        targetPayrollRubYear:
+          nullable: true
+          type: number
+      type: object
+    TaskParams:
+      properties:
+        automationShare:
+          description: Доля автоматизируемых операций, 0–1
+          nullable: true
+          type: number
+        cargoDivisible:
+          description: Груз делимый на несколько рейсов робота
+          nullable: true
+          type: boolean
+        cargoUnit:
+          description: 'Единица груза (носитель): паллета на полу, тележка…'
+          nullable: true
+          type: string
+        consumablesPerRobotRub:
+          description: Расходники на робота, ₽/год
+          nullable: true
+          type: number
+        dailyVolume:
+          description: Объём операций в сутки, в единице процесса
+          nullable: true
+          type: number
+        environment:
+          description: Среда работы
+          enum:
+          - indoor
+          - outdoor
+          nullable: true
+          type: string
+        fleetOperatorSalaryRub:
+          description: Оклад оператора флота, ₽/мес.
+          nullable: true
+          type: number
+        fleetOperatorsPerShift:
+          description: Операторов флота на смену
+          nullable: true
+          type: number
+        itIntegrationRub:
+          description: Интеграция с ИТ-системами, ₽
+          nullable: true
+          type: number
+        liftTimeS:
+          description: Ожидание и проезд лифта, с
+          nullable: true
+          type: number
+        liftTripShare:
+          description: Доля рейсов через лифт, 0–1
+          nullable: true
+          type: number
+        minAisleWidthM:
+          description: Минимальная ширина прохода, м
+          nullable: true
+          type: number
+        minOperatingTempC:
+          description: Мин. температура эксплуатации в зоне, °C
+          nullable: true
+          type: number
+        otherEffectsRub:
+          description: Иные измеримые эффекты, ₽/год
+          nullable: true
+          type: number
+        peakFactor:
+          description: 'Пиковый коэффициент: макс. час ÷ средний час'
+          nullable: true
+          type: number
+        requiredLiftHeightMm:
+          description: Требуемая высота подъёма на ярус, мм
+          nullable: true
+          type: number
+        routeLengthM:
+          description: Средняя длина маршрута в одну сторону, м
+          nullable: true
+          type: number
+        routePoints:
+          description: 'Типовой маршрут: точки «откуда → куда»'
+          items:
+            type: string
+          nullable: true
+          type: array
+        sitePrepShare:
+          description: Подготовка объекта, доля стоимости парка, 0–1
+          nullable: true
+          type: number
+        siteSpeedLimitMps:
+          description: Ограничение скорости на объекте, м/с
+          nullable: true
+          type: number
+        turnoverRate:
+          description: Годовая текучесть исполнителей, 0–1
+          nullable: true
+          type: number
+        unitMassKg:
+          description: Масса единицы груза, кг
+          nullable: true
+          type: number
+        widthClearanceM:
+          description: Запас по ширине для безопасного движения, м
+          nullable: true
+          type: number
+        workHoursPerDay:
+          description: Часов работы процесса в сутки
+          nullable: true
+          type: number
+        workTimeLoss:
+          description: Потери рабочего времени, 0–1
+          nullable: true
+          type: number
+      type: object
+    TaskWorker:
+      properties:
+        headcount:
+          type: integer
+        roleName:
+          type: string
+        salaryGrossMonthRub:
+          nullable: true
+          type: number
+        staffGroupId:
+          $ref: '#/components/schemas/UUID'
+        timeShare:
+          format: double
+          type: number
+      type: object
+    TraceItem:
+      properties:
+        code:
+          type: string
+        formula:
+          type: string
+        label:
+          type: string
+        source:
+          enum:
+          - task
+          - location
+          - robot
+          - norm
+          - derived
+          type: string
+        unit:
+          type: string
+        value:
+          nullable: true
+          type: number
+      type: object
+    UUID:
+      format: uuid
+      type: string
+    WorkTypeRef:
+      properties:
+        code:
+          type: string
+        id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+        unitLabel:
+          type: string
+      type: object
