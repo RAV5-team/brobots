@@ -1,6 +1,7 @@
 import type { Services } from '../index'
 import { createMockAdmin } from './admin'
 import { createMockCatalog } from './catalog'
+import { createMockCompare } from './compare'
 import { createMockDashboard } from './dashboard'
 import { createMockLocations } from './locations'
 import { createMockProcesses } from './processes'
@@ -15,6 +16,7 @@ const DEFAULT_LATENCY_MS = 150
 export function createMockServices(options: MockOptions = { latencyMs: DEFAULT_LATENCY_MS }): Services {
   return {
     catalog: createMockCatalog(options),
+    compare: createMockCompare(options),
     processes: createMockProcesses(options),
     locations: createMockLocations(options),
     projects: createMockProjects(options),

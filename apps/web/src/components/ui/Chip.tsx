@@ -2,12 +2,14 @@ import { clsx } from 'clsx'
 import { Check } from 'lucide-react'
 import { useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
 
-export type ChipTone = 'neutral' | 'muted' | 'inverse' | 'success' | 'accent'
+export type ChipTone = 'neutral' | 'muted' | 'unconfirmed' | 'inverse' | 'success' | 'accent'
 export type ChipSize = 'xs' | 'sm' | 'md'
 
 const TONES: Record<ChipTone, string> = {
   neutral: 'bg-surface-sunken text-text',
   muted: 'bg-surface-sunken text-text-secondary',
+  // Неподтверждённая характеристика позиции каталога: «REST, MQTT» на К-1 (16642:1549), D-64; контраст — D-23.
+  unconfirmed: 'bg-surface-sunken text-text-muted',
   inverse: 'bg-inverse text-on-inverse',
   success: 'border border-border-strong bg-bg text-on-accent',
   // Лаймовая плашка на светлом: статус «подтверждено» источника (А6 15966:7295, А7).

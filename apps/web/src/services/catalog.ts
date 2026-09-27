@@ -1,4 +1,4 @@
-import type { HandlingMethod, NewOperationClass, NewRobot, OperationClass, OperationClassCode, Robot, RobotId } from '@/domain'
+import type { HandlingMethod, LaunchItem, NewOperationClass, NewRobot, OperationClass, OperationClassCode, Robot, RobotId } from '@/domain'
 
 export interface RobotFilter {
   readonly operationClass?: OperationClassCode
@@ -13,6 +13,8 @@ export interface CatalogService {
    * Робот с тем же названием и производителем уже есть — ValidationError (PRD 6.1: вторую строку не создаём).
    */
   createRobot(input: NewRobot): Promise<Robot>
+  /** Позиции для запуска: инфраструктура, ПО, услуги и поддержка (PRD 7.5). */
+  listLaunchItems(): Promise<readonly LaunchItem[]>
   listOperationClasses(): Promise<readonly OperationClass[]>
   /** Добавить класс в справочник (экран А10); вернёт класс с присвоенным кодом OP-NN. */
   createOperationClass(input: NewOperationClass): Promise<OperationClass>

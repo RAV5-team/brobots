@@ -1,4 +1,5 @@
-import { isSameRobot, nextOperationClassCode, nextRobotId, type OperationClass, type OperationClassCode, type Robot } from '@/domain'
+import { deriveLaunchRequired, isSameRobot, nextOperationClassCode, nextRobotId, type OperationClass, type OperationClassCode, type Robot } from '@/domain'
+import { LAUNCH_ITEMS } from '@/mocks/fixtures/launchItems'
 import { HANDLING_METHODS, OPERATION_CLASSES } from '@/mocks/fixtures/operationClasses'
 import { ROBOTS } from '@/mocks/fixtures/robots'
 import type { CatalogService } from '../catalog'
@@ -21,9 +22,10 @@ export function createMockCatalog(options: MockOptions): CatalogService {
     createRobot: (input) => {
       const twin = robots.find((r) => isSameRobot(r, input))
       if (twin) return Promise.reject(new ValidationError(`Решение уже есть в каталоге: ${twin.id}`))
+      const id = nextRobotId(robots.map((r) => r.id))
       const created: Robot = {
         ...input,
-        id: nextRobotId(robots.map((r) => r.id)),
+        id,
         alternativePricesRub: [],
         industries: [],
         scenarios: [],
@@ -33,10 +35,15 @@ export function createMockCatalog(options: MockOptions): CatalogService {
         updatedAt: new Date().toISOString(),
         testedByFcbas: false,
         inRegistry719: false,
+        // Новый робот ещё не указан в совместимости позиций — по правилу D-63 остаётся «внедрение».
+        launchRequired: deriveLaunchRequired(id, LAUNCH_ITEMS),
+        // Позиции «в зависимости от объекта» для нового робота не выводятся из данных (D-78).
+        launchConditional: [],
       }
       robots = [...robots, created]
       return respond(created, options)
     },
+    listLaunchItems: () => respond(LAUNCH_ITEMS, options),
     listOperationClasses: () => respond(classes, options),
     createOperationClass: (input) => {
       const created: OperationClass = { ...input, code: nextOperationClassCode(classes.map((c) => c.code)) }

@@ -5,6 +5,7 @@ import { CheckboxShowcase, RadioShowcase, SegmentedShowcase, SelectShowcase } fr
 import { BadgeShowcase, ChipShowcase, ToggleShowcase } from './step3Showcases'
 import { CardShowcase, ProgressShowcase, SectionHeaderShowcase, TableShowcase } from './step4Showcases'
 import { DropzoneShowcase, FileInputShowcase, ModalShowcase, StatesShowcase } from './step5Showcases'
+import { CharacteristicRowShowcase, ChipListShowcase, CompareTableShowcase, MultiSelectShowcase } from './step7Showcases'
 import { FormulaStatsShowcase, SectionNavShowcase, StatusBannerShowcase, TabNavShowcase, TextLinkShowcase } from './step6Showcases'
 
 export interface Showcase {
@@ -22,14 +23,18 @@ export const SHOWCASES: readonly Showcase[] = [
   { slug: 'search', title: 'Search', Component: SearchShowcase },
   { slug: 'segmented', title: 'Segmented control', Component: SegmentedShowcase },
   { slug: 'select', title: 'Select / Option', Component: SelectShowcase },
+  { slug: 'multi-select', title: 'MultiSelectFilter', Component: MultiSelectShowcase },
   { slug: 'checkbox', title: 'Checkbox', Component: CheckboxShowcase },
   { slug: 'radio', title: 'Radio', Component: RadioShowcase },
   { slug: 'toggle', title: 'Toggle', Component: ToggleShowcase },
   { slug: 'chip', title: 'Chip', Component: ChipShowcase },
+  { slug: 'chip-list', title: 'ChipList · MoreChip', Component: ChipListShowcase },
   { slug: 'badge', title: 'Badge · Pill', Component: BadgeShowcase },
   { slug: 'card', title: 'Card', Component: CardShowcase },
   { slug: 'section-header', title: 'Section header', Component: SectionHeaderShowcase },
   { slug: 'table', title: 'Table', Component: TableShowcase },
+  { slug: 'compare-table', title: 'CompareTable · FitCell', Component: CompareTableShowcase },
+  { slug: 'characteristic-row', title: 'CharacteristicRow · StatusChip', Component: CharacteristicRowShowcase },
   { slug: 'progress', title: 'Progress', Component: ProgressShowcase },
   { slug: 'modal', title: 'Modal', Component: ModalShowcase },
   { slug: 'dropzone', title: 'Dropzone', Component: DropzoneShowcase },

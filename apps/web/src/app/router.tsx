@@ -7,6 +7,9 @@ import { RobotNewPage } from '@/pages/admin/catalog/new/RobotNewPage'
 import { NormsPage } from '@/pages/admin/norms/NormsPage'
 import { DataSourcesPage } from '@/pages/admin/sources/DataSourcesPage'
 import { OperationClassesPage } from '@/pages/admin/operation-classes/OperationClassesPage'
+import { CatalogPage } from '@/pages/catalog/CatalogPage'
+import { ComparePage } from '@/pages/catalog/compare/ComparePage'
+import { CatalogItemPage } from '@/pages/catalog/item/CatalogItemPage'
 import { DashboardPage } from '@/pages/dashboard/DashboardPage'
 import { LocationsPage } from '@/pages/locations/LocationsPage'
 import { LocationPage } from '@/pages/locations/detail/LocationPage'
@@ -29,7 +32,7 @@ import { DEV_PATHS, ROUTE_PATHS, type RoutePath } from './routePaths'
 const OUTSIDE_SHELL: readonly RoutePath[] = [ROUTE_PATHS.login]
 // Готовые экраны; остальные маршруты пока отдают заглушку.
 const IMPLEMENTED: readonly RoutePath[] = [
-  ROUTE_PATHS.dashboard, ROUTE_PATHS.processes, ROUTE_PATHS.processNew, ROUTE_PATHS.process,
+  ROUTE_PATHS.dashboard, ROUTE_PATHS.catalog, ROUTE_PATHS.catalogCompare, ROUTE_PATHS.catalogItem, ROUTE_PATHS.processes, ROUTE_PATHS.processNew, ROUTE_PATHS.process,
   ROUTE_PATHS.locations, ROUTE_PATHS.locationNew, ROUTE_PATHS.location, ROUTE_PATHS.locationProcesses, ROUTE_PATHS.locationProcess, ROUTE_PATHS.locationParams, ROUTE_PATHS.locationDocuments,
   ROUTE_PATHS.adminCatalog, ROUTE_PATHS.adminCatalogImport, ROUTE_PATHS.adminCatalogNew, ROUTE_PATHS.adminNorms, ROUTE_PATHS.adminSources, ROUTE_PATHS.adminOperationClasses,
 ]
@@ -45,6 +48,9 @@ export const routes: RouteObject[] = [
         element: <AppShell />,
         children: [
           { path: ROUTE_PATHS.dashboard, element: <DashboardPage /> },
+          { path: ROUTE_PATHS.catalog, element: <CatalogPage /> },
+          { path: ROUTE_PATHS.catalogCompare, element: <ComparePage /> },
+          { path: ROUTE_PATHS.catalogItem, element: <CatalogItemPage /> },
           { path: ROUTE_PATHS.processes, element: <ProcessesPage /> },
           { path: ROUTE_PATHS.processNew, element: <ProcessNewPage /> },
           { path: ROUTE_PATHS.process, element: <ProcessDetailPage /> },
