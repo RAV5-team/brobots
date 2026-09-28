@@ -797,6 +797,8 @@ export const ru = {
       email: 'Рабочая почта',
       emailPlaceholder: 'name@company.ru',
       password: 'Пароль',
+      /** Вход через Keycloak: пароль вводится на его странице. */
+      passwordlessHint: 'Пароль спросим на следующем шаге — на защищённой странице входа',
       submit: 'Войти',
       submitting: 'Входим…',
     },

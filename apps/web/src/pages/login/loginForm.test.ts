@@ -16,4 +16,9 @@ describe('validateLogin (ТЗ 4.5.4: ошибка со способом испр
   it('accepts a work email with spaces around it', () => {
     expect(validateLogin({ email: ' name@company.ru ', password: 'x' })).toEqual({})
   })
+
+  it('with Keycloak needs no password and treats the email as an optional hint', () => {
+    expect(validateLogin({ email: '', password: '' }, { passwordless: true })).toEqual({})
+    expect(validateLogin({ email: 'demo@rav5', password: '' }, { passwordless: true })).toEqual({ email: t.emailInvalid })
+  })
 })

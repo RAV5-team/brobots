@@ -9,12 +9,17 @@ import '@fontsource/onest/500.css'
 import '@fontsource/onest/600.css'
 import '@fontsource/unbounded/300.css'
 import '@/styles/global.css'
+import { initAuth } from '@/shared/auth/oidc'
 
 const rootElement = document.getElementById('root')
 if (!rootElement) throw new Error('Не найден элемент #root в index.html')
+const root = rootElement
 
-createRoot(rootElement).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+// Роль и токен нужны первому же запросу экрана: рендер — после проверки сессии Keycloak (без Keycloak — сразу).
+void initAuth().finally(() => {
+  createRoot(root).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  )
+})

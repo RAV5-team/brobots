@@ -6,6 +6,7 @@ import { Logo } from '@/components/ui/Logo'
 import type { Profile } from '@/domain'
 import { useServices } from '@/services/useServices'
 import { DEMO_ACCOUNTS, type DemoAccount } from '@/shared/auth/demoAccounts'
+import { OIDC_ENABLED } from '@/shared/auth/oidc'
 import { useSwitchRole } from '@/shared/auth/useSwitchRole'
 import { ru } from '@/shared/i18n/ru'
 import { DemoOfferCard } from './DemoOfferCard'
@@ -43,7 +44,12 @@ export function LoginPage({ demoAccounts = DEMO_ACCOUNTS }: LoginPageProps) {
 
         <Card as="div" padding={28} gap={28} className="md:flex-row">
           <DemoOfferCard onOpenDemo={() => { enter('guest') }} />
-          <SignInCard demoAccounts={demoAccounts} signIn={(credentials) => session.signIn(credentials)} onSignedIn={(profile) => { enter(profile.role) }} />
+          <SignInCard
+            demoAccounts={demoAccounts}
+            passwordless={OIDC_ENABLED}
+            signIn={(credentials) => session.signIn(credentials)}
+            onSignedIn={(profile) => { enter(profile.role) }}
+          />
         </Card>
       </div>
     </main>

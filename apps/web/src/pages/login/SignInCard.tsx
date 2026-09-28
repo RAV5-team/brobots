@@ -14,12 +14,14 @@ interface SignInCardProps {
   readonly demoAccounts: readonly DemoAccount[]
   readonly signIn: (credentials: Credentials) => Promise<Profile>
   readonly onSignedIn: (profile: Profile) => void
+  /** Вход через Keycloak: без поля пароля, почта уходит подсказкой на страницу входа. */
+  readonly passwordless?: boolean
 }
 
 const EMPTY: Credentials = { email: '', password: '' }
 
 /** Правая карточка экрана 05: вход пользователя и администратора по приглашению (PRD 4; 15935:73). */
-export function SignInCard({ demoAccounts, signIn, onSignedIn }: SignInCardProps) {
+export function SignInCard({ demoAccounts, signIn, onSignedIn, passwordless = false }: SignInCardProps) {
   const t = ru.login.cabinet
   const [values, setValues] = useState<Credentials>(EMPTY)
   const [errors, setErrors] = useState<LoginErrors>({})
@@ -39,7 +41,7 @@ export function SignInCard({ demoAccounts, signIn, onSignedIn }: SignInCardProps
 
   const submit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const found = validateLogin(values)
+    const found = validateLogin(values, { passwordless })
     setErrors(found)
     if (Object.keys(found).length > 0) return
 
@@ -75,15 +77,19 @@ export function SignInCard({ demoAccounts, signIn, onSignedIn }: SignInCardProps
             onChange={(e) => { update('email', e.target.value) }}
           />
         </Field>
-        <Field label={t.password} labelVariant="overline" error={errors.password}>
-          <Input
-            size="lg"
-            type="password"
-            autoComplete="current-password"
-            value={values.password}
-            onChange={(e) => { update('password', e.target.value) }}
-          />
-        </Field>
+        {passwordless ? (
+          <p className="type-caption text-text-muted">{t.passwordlessHint}</p>
+        ) : (
+          <Field label={t.password} labelVariant="overline" error={errors.password}>
+            <Input
+              size="lg"
+              type="password"
+              autoComplete="current-password"
+              value={values.password}
+              onChange={(e) => { update('password', e.target.value) }}
+            />
+          </Field>
+        )}
         <ActionButton ref={submitRef} type="submit" tone="strong" className="mt-auto" disabled={pending} aria-busy={pending}>
           {pending ? t.submitting : t.submit}
         </ActionButton>

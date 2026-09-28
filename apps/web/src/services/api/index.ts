@@ -1,5 +1,6 @@
 import { createHttpClient, type HttpClient } from '@/api/http'
 import { getAccessToken } from '@/shared/auth/accessToken'
+import { login, OIDC_ENABLED } from '@/shared/auth/oidc'
 import { API_BASE_URL } from '@/shared/config/api'
 import type { Services } from '../index'
 import { createMockServices } from '../mock'
@@ -33,6 +34,11 @@ export function createApiServices(fallback: Services = createMockServices()): Se
   return composeServices(fallback, {})
 }
 
-export function createDefaultHttpClient(onUnauthorized?: () => void): HttpClient {
-  return createHttpClient({ baseUrl: API_BASE_URL, getToken: getAccessToken, ...(onUnauthorized ? { onUnauthorized } : {}) })
+/** 401 с Keycloak — на страницу входа: токен не обновился или сессию завершили в другом окне. */
+export function createDefaultHttpClient(): HttpClient {
+  return createHttpClient({
+    baseUrl: API_BASE_URL,
+    getToken: getAccessToken,
+    ...(OIDC_ENABLED ? { onUnauthorized: () => { void login() } } : {}),
+  })
 }

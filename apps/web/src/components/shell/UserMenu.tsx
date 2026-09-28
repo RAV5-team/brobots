@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { ROUTE_PATHS } from '@/app/routePaths'
 import type { DataVersion, Profile } from '@/domain'
+import { logout, OIDC_ENABLED } from '@/shared/auth/oidc'
 import { ru } from '@/shared/i18n/ru'
 
 interface UserMenuProps {
@@ -94,7 +95,10 @@ function CabinetMenu({ profile, dataVersion, onNavigate }: UserMenuProps & { rea
       </li>
       <MenuLink to={ROUTE_PATHS.help} onNavigate={onNavigate}>{ru.cabinetMenu.help}</MenuLink>
       <Divider />
-      <MenuLink to={ROUTE_PATHS.login} onNavigate={onNavigate} danger>{ru.cabinetMenu.logout}</MenuLink>
+      {/* С Keycloak выход завершает его сессию, и он сам вернёт на экран входа. */}
+      <MenuLink to={ROUTE_PATHS.login} onNavigate={OIDC_ENABLED ? () => { void logout() } : onNavigate} danger>
+        {ru.cabinetMenu.logout}
+      </MenuLink>
     </ul>
   )
 }
@@ -110,16 +114,15 @@ function GuestMenu({ onNavigate }: { readonly onNavigate: () => void }) {
   )
 }
 
+const MENU_ITEM = 'flex h-40 items-center px-20 type-body font-semibold transition-colors hover:bg-surface-sunken'
+
 function MenuLink({ to, children, danger = false, onNavigate }: { to: string; children: ReactNode; danger?: boolean; onNavigate: () => void }) {
   return (
     <li>
       <Link
         to={to}
         onClick={onNavigate}
-        className={clsx(
-          'flex h-40 items-center px-20 type-body font-semibold transition-colors hover:bg-surface-sunken',
-          danger ? 'text-danger' : 'text-text',
-        )}
+        className={clsx(MENU_ITEM, danger ? 'text-danger' : 'text-text')}
       >
         {children}
       </Link>
