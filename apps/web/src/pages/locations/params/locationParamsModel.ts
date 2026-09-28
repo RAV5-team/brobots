@@ -12,6 +12,14 @@ import {
   type ParameterIndex,
   type StaffGroupRow,
 } from '../new/locationForm'
+import { SITE_PROFILE_CODES, siteParametersOf, siteValuesFromLocation, type SiteValues } from './siteProfileFields'
+
+/** Ссылки шага 1 («Профиль», «заполнить в профиле»): 17а сразу в правке, а не в просмотре D-41. */
+export const EDIT_LOCATION_STATE = { edit: true } as const
+
+export function isEditLocationState(state: unknown): boolean {
+  return typeof state === 'object' && state !== null && (state as { edit?: unknown }).edit === true
+}
 
 /** Значение профиля строкой формы; нет в профиле — база датасета (domain: Location.parameters). */
 function valueText(location: Location, params: ParameterIndex, code: string | null): string {
@@ -67,6 +75,7 @@ export function formFromLocation(location: Location, params: ParameterIndex): Lo
 const FORM_CODES: ReadonlySet<string> = new Set([
   ...NUMERIC_KEYS.map((key) => NUMERIC_SPECS[key].code),
   ...STAFF_PRESETS.flatMap((p) => (p.salaryCode === null ? [p.headcountCode] : [p.headcountCode, p.salaryCode])),
+  ...SITE_PROFILE_CODES,
 ])
 
 /** Неизменённое значение сохраняет прежний источник («датасет», «допущение»); изменённое — ввод пользователя. */
@@ -76,11 +85,16 @@ function keepSource(code: string, next: ParameterValue, location: Location): Par
 }
 
 /**
- * Локация для `updateLocation`. Параметры вне формы (проходы, покрытие, мощность…) остаются как были;
+ * Локация для `updateLocation`. Параметры вне формы (мощность, WMS, CAPEX…) остаются как были;
  * очищенное необязательное поле удаляется из профиля. Бюджет и горизонт не меняются — они в параметрах проекта.
  * У аэропорта и медучреждения разделов нет (D-36) — меняется только «Основное».
  */
-export function toLocationUpdate(form: LocationForm, params: ParameterIndex, location: Location): NewLocation {
+export function toLocationUpdate(
+  form: LocationForm,
+  params: ParameterIndex,
+  location: Location,
+  site: SiteValues = siteValuesFromLocation(location),
+): NewLocation {
   const basics = { name: form.name.trim(), city: form.city.trim(), address: form.address.trim() }
   const kept: NewLocation = {
     name: location.name,
@@ -96,6 +110,7 @@ export function toLocationUpdate(form: LocationForm, params: ParameterIndex, loc
 
   const fromForm = toNewLocation(form, params)
   const outside = Object.entries(location.parameters).filter(([code]) => !FORM_CODES.has(code))
-  const edited = Object.entries(fromForm.parameters).map(([code, value]): [string, ParameterValue] => [code, keepSource(code, value, location)])
+  const edited = Object.entries({ ...fromForm.parameters, ...siteParametersOf(site) })
+    .map(([code, value]): [string, ParameterValue] => [code, keepSource(code, value, location)])
   return { ...kept, ...basics, parameters: Object.fromEntries([...outside, ...edited]), staffGroups: fromForm.staffGroups }
 }

@@ -1,7 +1,7 @@
 import { ArrowDown } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Chip } from '@/components/ui/Chip'
-import { IconButtonAnchor } from '@/components/ui/IconButton'
+import { IconButton } from '@/components/ui/IconButton'
 import { RadioGroup, type RadioOption } from '@/components/ui/RadioGroup'
 import type { LocationProcessId } from '@/domain'
 import { ru } from '@/shared/i18n/ru'
@@ -33,6 +33,17 @@ function CardBody({ card }: { readonly card: ProcessCard }) {
   )
 }
 
+const prefersReducedMotion = (): boolean =>
+  typeof window.matchMedia !== 'function' || window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+/** «↓»: React Router `Link` на `#…` не скроллит — ведём к строке сами (PRD 11.2). */
+function goToValue(code: string) {
+  const el = document.getElementById(valueAnchor(code))
+  if (!el) return
+  el.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'center' })
+  if (el instanceof HTMLElement) el.focus({ preventScroll: true })
+}
+
 /** Плашка незаполненных значений выбранного процесса: «↓» ведёт к значению в блоке (PRD 11.2). */
 function MissingPlate({ items }: { readonly items: readonly MissingItem[] }) {
   if (items.length === 0) return <p className="type-caption text-text-secondary">{t.process.allFilled}</p>
@@ -46,7 +57,7 @@ function MissingPlate({ items }: { readonly items: readonly MissingItem[] }) {
               {item.label}
               <span className="type-caption text-text-secondary"> · {t.impact[item.impact]}</span>
             </span>
-            <IconButtonAnchor href={`#${valueAnchor(item.code)}`} label={t.process.goToValue(item.label)} icon={ArrowDown} size={36} />
+            <IconButton label={t.process.goToValue(item.label)} icon={ArrowDown} size={36} onClick={() => { goToValue(item.code) }} />
           </li>
         ))}
       </ul>

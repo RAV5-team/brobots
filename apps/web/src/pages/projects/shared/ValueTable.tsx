@@ -32,7 +32,7 @@ export function ValueTable({ title, rows, missingAction }: ValueTableProps) {
         <TableBody>
           {rows.map((row) => (
             <TableRow key={row.key}>
-              <TableCell className="text-text-secondary" {...(row.anchor ? { id: row.anchor } : {})}>{row.label}</TableCell>
+              <TableCell className="text-text-secondary" {...(row.anchor ? { id: row.anchor, tabIndex: -1 } : {})}>{row.label}</TableCell>
               <TableCell>
                 <span className="flex flex-col gap-2">
                   <span className={row.value === null ? 'text-text-muted' : 'font-medium'}>{row.value ?? t.rows.noData}</span>

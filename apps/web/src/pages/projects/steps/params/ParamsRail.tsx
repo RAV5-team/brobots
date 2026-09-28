@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/Card'
 import { MergedButton } from '@/components/ui/MergedButton'
 import { TextLink } from '@/components/ui/TextLink'
 import type { LocationProcessId, ParamsReadiness, Project, ProjectParamsSnapshot } from '@/domain'
+import { EDIT_LOCATION_STATE } from '@/pages/locations/params/locationParamsModel'
 import { formatCount, formatDate } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import type { MissingItem } from './paramsModel'
@@ -82,7 +83,7 @@ export function ParamsRail({
                   <ul className="flex flex-col gap-4">
                     {missing.map((item) => (
                       <li key={item.code}>
-                        <TextLink to={fillPath(project, processId, item)}>{capitalize(item.label)}</TextLink>
+                        <TextLink to={fillPath(project, processId, item)} state={item.scope === 'site' ? EDIT_LOCATION_STATE : undefined}>{capitalize(item.label)}</TextLink>
                       </li>
                     ))}
                   </ul>

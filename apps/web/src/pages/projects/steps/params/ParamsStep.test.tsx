@@ -47,6 +47,16 @@ describe('Шаг 1 «Параметры проекта» (экран 02, PRD 11.
     expect(within(readiness).getByRole('link', { name: 'Нагрузка на пол' })).toHaveAttribute('href', '/locations/LOC-01/params#site_floor_load_tm2')
   })
 
+  it('«↓» у незаполненного значения скроллит к строке на шаге (PRD 11.2)', async () => {
+    renderAt('/projects/PJ-07/params?as=user')
+    const button = await screen.findByRole('button', { name: 'Перейти к значению: частота пересчёта' })
+    const target = document.getElementById('param-recountsPerMonth')
+    expect(target).not.toBeNull()
+    const scroll = vi.spyOn(target as HTMLElement, 'scrollIntoView')
+    fireEvent.click(button)
+    expect(scroll).toHaveBeenCalled()
+  })
+
   it('пользователь: смена процесса сохраняется в черновик (D-21, D-94)', async () => {
     const services = createMockServices({ latencyMs: 0 })
     const selectProcess = vi.spyOn(services.projects, 'selectProcess')

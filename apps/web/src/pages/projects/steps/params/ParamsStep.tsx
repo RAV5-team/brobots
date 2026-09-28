@@ -5,6 +5,7 @@ import { ButtonLink } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { ErrorState, Skeleton } from '@/components/ui/States'
 import { isReadOnly, type ProjectParamsSnapshot } from '@/domain'
+import { EDIT_LOCATION_STATE } from '@/pages/locations/params/locationParamsModel'
 import { numberParameter } from '@/pages/processes/locationStaffing'
 import { formatCount, formatDate, formatNumber, formatTime } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
@@ -44,7 +45,7 @@ function ObjectCard({ snapshot, snapshotAt }: { readonly snapshot: ProjectParams
           <h2 id="params-object-title" className="type-title-md text-text">{snapshot.location.name}</h2>
           <p className="type-caption text-text-secondary">{objectLine(snapshot, snapshotAt)}</p>
         </div>
-        <ButtonLink to={generatePath(ROUTE_PATHS.locationParams, { locationId: snapshot.location.id })}>{t.object.profile}</ButtonLink>
+        <ButtonLink to={generatePath(ROUTE_PATHS.locationParams, { locationId: snapshot.location.id })} state={EDIT_LOCATION_STATE}>{t.object.profile}</ButtonLink>
       </div>
     </Card>
   )

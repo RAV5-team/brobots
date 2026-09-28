@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/Card'
 import { TextLink } from '@/components/ui/TextLink'
 import { Toggle } from '@/components/ui/Toggle'
 import type { LocationId } from '@/domain'
+import { EDIT_LOCATION_STATE } from '@/pages/locations/params/locationParamsModel'
 import { ru } from '@/shared/i18n/ru'
 import type { SiteRowGroup } from './paramsModel'
 import { ValueTable } from '../../shared/ValueTable'
@@ -24,7 +25,7 @@ export function SiteBlock({ groups, locationId }: SiteBlockProps) {
   const [onlyApplicable, setOnlyApplicable] = useState(true)
   const total = groups.reduce((sum, g) => sum + g.rows.length, 0)
   const visible = groups
-    .map((g) => ({ ...g, rows: onlyApplicable ? g.rows.filter((r) => r.applicable) : g.rows }))
+    .map((g) => ({ ...g, rows: onlyApplicable ? g.rows.filter((r) => r.applicable || r.anchor) : g.rows }))
     .filter((g) => g.rows.length > 0)
   const shown = visible.reduce((sum, g) => sum + g.rows.length, 0)
   const profile = generatePath(ROUTE_PATHS.locationParams, { locationId })
@@ -45,7 +46,7 @@ export function SiteBlock({ groups, locationId }: SiteBlockProps) {
           key={group.key}
           title={group.title}
           rows={group.rows}
-          missingAction={(row) => <TextLink to={`${profile}#${row.key}`}>{row.note}</TextLink>}
+          missingAction={(row) => <TextLink to={`${profile}#${row.key}`} state={EDIT_LOCATION_STATE}>{row.note}</TextLink>}
         />
       ))}
     </Card>
