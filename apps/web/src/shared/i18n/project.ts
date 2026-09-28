@@ -235,7 +235,13 @@ export const project = {
     acquisition: { purchase: 'Покупка', raas: 'RaaS' } satisfies Record<AcquisitionModel, string>,
     variantName: (solution: string, acquisition: string) => `${solution} · ${acquisition}`,
     loadError: { title: 'Не удалось загрузить подбор', message: 'Проверьте соединение и попробуйте ещё раз' },
-    notCalculated: { title: 'Подбор ещё не рассчитан', description: 'Для этого процесса расчёта нет. Проверьте параметры на шаге 1' },
+    notCalculated: {
+      title: 'Подбор ещё не рассчитан',
+      description: 'У черновика нет сохранённого расчёта. Нажмите «Рассчитать», либо вернитесь к параметрам',
+      action: 'Рассчитать',
+      running: 'Рассчитываем…',
+      failed: 'Не удалось рассчитать подбор — попробуйте ещё раз',
+    },
     stale: {
       title: 'Параметры изменились — рейтинг посчитан по прежним значениям',
       description: 'Выбранный вариант сохранён. Пересчитайте подбор: обновятся рейтинг, сценарии и рекомендация',

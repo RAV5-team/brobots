@@ -143,10 +143,14 @@ export function useMatchingStep(initial: Project, canSave: boolean): MatchingSte
     setRecalculating(true)
     services.projects.evaluateMatching(initial.id)
       .then(async (evaluation) => {
-        const fresh = await services.projects.getProject(initial.id)
+        const [fresh, snapshot, robots] = await Promise.all([
+          services.projects.getProject(initial.id),
+          services.projects.getParamsSnapshot(initial.id),
+          services.catalog.listRobots(),
+        ])
         setProject(fresh)
         setStale(evaluation.stale)
-        setLoad((current) => (current.status === 'ready' ? { status: 'ready', data: { ...current.data, evaluation } } : current))
+        setLoad({ status: 'ready', data: { evaluation, snapshot, robots: new Map(robots.map((r) => [r.id, r])) } })
       })
       .catch((error: unknown) => {
         console.error('Не удалось пересчитать подбор', error)

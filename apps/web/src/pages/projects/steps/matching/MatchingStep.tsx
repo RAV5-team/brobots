@@ -97,7 +97,22 @@ export function MatchingStep({ project: initial, locationName, isGuest }: Projec
 
   if (load.status === 'loading') return layout(<div aria-busy="true"><Skeleton className="h-(--rav-location-card-height)" /></div>)
   if (load.status === 'error') return layout(<ErrorState title={t.loadError.title} message={t.loadError.message} onRetry={state.retry} />)
-  if (load.status === 'notCalculated') return layout(<EmptyState title={t.notCalculated.title} description={t.notCalculated.description} />)
+  if (load.status === 'notCalculated') {
+    return layout(
+      <EmptyState
+        title={t.notCalculated.title}
+        description={t.notCalculated.description}
+        action={persist && (
+          <>
+            <Button variant="primary" disabled={state.recalculating} onClick={state.recalculate}>
+              {state.recalculating ? t.notCalculated.running : t.notCalculated.action}
+            </Button>
+            {state.recalcError && <p role="alert" className="type-caption text-danger">{t.notCalculated.failed}</p>}
+          </>
+        )}
+      />,
+    )
+  }
 
   const { data } = load
   const { evaluation } = data

@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Services } from '@/services'
+import { NotFoundError } from '@/services/errors'
 import { createMockServices } from '@/services/mock'
 import { ServicesProvider } from '@/services/ServicesProvider'
 import { RoleProvider } from '@/shared/auth/RoleProvider'
@@ -35,6 +36,16 @@ describe('Шаг 2 «Подбор решения» (экран 03, PRD 11.3)', (
     const excluded = screen.getByRole('region', { name: 'Исключённые решения' })
     expect(within(excluded).getAllByRole('button', { name: /Добавить вручную/ })).toHaveLength(4)
     expect(screen.getByRole('region', { name: 'Выбранный вариант' })).toHaveTextContent('AMR 800 · RaaS')
+  })
+
+  it('нет расчёта: «Рассчитать» вызывает evaluate и показывает рейтинг', async () => {
+    const services = createMockServices({ latencyMs: 0 })
+    vi.spyOn(services.projects, 'getMatching').mockRejectedValueOnce(new NotFoundError('расчёта нет'))
+    const evaluate = vi.spyOn(services.projects, 'evaluateMatching')
+    renderAt('/projects/PJ-DEMO/matching?as=user', services)
+    fireEvent.click(await screen.findByRole('button', { name: 'Рассчитать' }))
+    expect(evaluate).toHaveBeenCalledWith('PJ-DEMO')
+    expect(await screen.findByRole('table', { name: /Рейтинг вариантов подбора/ })).toBeInTheDocument()
   })
 
   it('выбор другого варианта сохраняется в черновик (D-21)', async () => {
