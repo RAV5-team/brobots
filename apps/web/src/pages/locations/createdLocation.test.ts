@@ -10,7 +10,7 @@ describe('readCreatedLocationId', () => {
     ['no state', null],
     ['a foreign state', { from: '/processes' }],
     ['a non-string id', { createdLocationId: 5 }],
-    ['an id of another entity', { createdLocationId: 'PR-0001' }],
+    ['an empty id', { createdLocationId: ' ' }],
   ])('ignores %s', (_case, state) => {
     expect(readCreatedLocationId(state)).toBeNull()
   })

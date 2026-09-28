@@ -6,3 +6,8 @@ export type DataConfidence = 'confirmed' | 'partial' | 'unconfirmed'
 
 /** Дата-время в ISO 8601 (UTC). */
 export type IsoDateTime = string
+
+const ENTITY_ID = /^[\w-]{3,64}$/u
+
+/** Похоже на id сущности из адреса: UUID API или код фикстуры (LOC-02, RB-0008); остальное — чужое значение. */
+export const isEntityId = (value: string | null | undefined): value is string => value != null && ENTITY_ID.test(value)

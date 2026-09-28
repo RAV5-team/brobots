@@ -5,6 +5,7 @@ export { CHARACTERISTIC_STATUSES, completeness, countByStatus } from './characte
 export type * from './catalogRefresh'
 export { catalogRefreshStep, isCatalogRefreshDone } from './catalogRefresh'
 export type * from './common'
+export { isEntityId } from './common'
 export type * from './compare'
 export { addEntry, COMPARE_LIMIT, hasEntry, isSameEntry, removeEntry } from './compare'
 export type * from './dashboard'

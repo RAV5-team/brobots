@@ -5,7 +5,7 @@ import { ButtonLink } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { MergedButton } from '@/components/ui/MergedButton'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
-import type { LocationDocument, LocationId } from '@/domain'
+import type { LocationDocument } from '@/domain'
 import { useRole } from '@/shared/auth/useRole'
 import { UPLOAD_RULES } from '@/shared/config/upload'
 import { formatNumber } from '@/shared/format'
@@ -74,8 +74,8 @@ function DocumentsPanel({ documents, canUpload }: DocumentsPanelProps) {
 export function LocationDocumentsPage() {
   const { locationId = '' } = useParams()
   const role = useRole()
-  const { state, retry, refresh } = useLocationDocuments(locationId as LocationId)
-  const upload = useDocumentUpload(locationId as LocationId, refresh)
+  const { state, retry, refresh } = useLocationDocuments(locationId)
+  const upload = useDocumentUpload(locationId, refresh)
 
   if (state.status === 'loading') return <LocationDocumentsSkeleton />
   if (state.status === 'error') return <ErrorState title={t.error.title} message={t.error.message} onRetry={retry} />

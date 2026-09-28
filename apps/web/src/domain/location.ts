@@ -1,7 +1,8 @@
 import type { IsoDateTime } from './common'
 import type { FacilityTypeCode, ParameterValue } from './facility'
 
-export type LocationId = `LOC-${string}`
+/** В API — UUID, в фикстурах — LOC-NN. */
+export type LocationId = string
 
 /** Локация: тип объекта и параметры площадки (глоссарий). */
 export interface Location {

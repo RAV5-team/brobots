@@ -1,4 +1,4 @@
-import type { LocationId, LocationProcessId, Project, ProjectId, ProjectInputs, ProjectResultSnapshot, ProjectStep } from '@/domain'
+import type { Project, ProjectInputs, ProjectResultSnapshot, ProjectStep } from '@/domain'
 import { ContractError, oneOf, optional, required, type ApiSchemas } from '../contract'
 
 /**
@@ -17,9 +17,9 @@ const ENTITY = 'Project'
 export function toProject(dto: ApiSchemas['Project'], local: ProjectLocalState): Project {
   const versions = required(dto, 'versions', ENTITY)
   const base = {
-    id: required(dto, 'id', ENTITY) as ProjectId,
+    id: required(dto, 'id', ENTITY),
     name: required(dto, 'name', ENTITY),
-    locationId: required(dto, 'locationId', ENTITY) as LocationId,
+    locationId: required(dto, 'locationId', ENTITY),
     versions: {
       snapshotAt: required(dto, 'snapshotTakenAt', ENTITY).slice(0, 10),
       catalog: required(versions, 'catalog', `${ENTITY}.versions`),
@@ -36,7 +36,7 @@ export function toProject(dto: ApiSchemas['Project'], local: ProjectLocalState):
     return {
       ...base,
       status,
-      locationProcessId: processId as LocationProcessId | null,
+      locationProcessId: processId,
       step: local.step,
       ...(dto.pinnedSolutionId ? { pinnedSolutionId: dto.pinnedSolutionId } : {}),
     }
@@ -45,7 +45,7 @@ export function toProject(dto: ApiSchemas['Project'], local: ProjectLocalState):
   return {
     ...base,
     status,
-    locationProcessId: required(required(dto, 'task', ENTITY), 'id', `${ENTITY}.task`) as LocationProcessId,
+    locationProcessId: required(required(dto, 'task', ENTITY), 'id', `${ENTITY}.task`),
     savedAt: required(dto, 'savedAt', ENTITY),
     result: local.result,
   }

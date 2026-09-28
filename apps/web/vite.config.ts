@@ -4,8 +4,8 @@ import { defineConfig } from 'vite'
 
 // Адрес dev-сервера фиксирован: на него опираются правила визуальной проверки (AGENTS.md).
 const DEV_PORT = 5173
-// services/api, запущенный локально (docs/api/README.md). В контейнере /api проксирует nginx.
-const API_PROXY_TARGET = 'http://localhost:8000'
+// services/api, запущенный локально (docs/api/README.md); другой адрес — API_PROXY_TARGET. В контейнере /api проксирует nginx.
+const API_PROXY_TARGET = process.env.API_PROXY_TARGET ?? 'http://localhost:8000'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],

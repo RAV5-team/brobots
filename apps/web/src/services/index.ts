@@ -28,5 +28,14 @@ export interface Services {
 export type { AdminService, CatalogService, CompareService, DashboardService, LocationService, ProcessService, ProjectService, SessionService }
 export type { RobotFilter } from './catalog'
 export type { SimulationRunProgress, SimulationRunService } from './simulationRuns'
-export { InvalidCredentialsError, NotFoundError, ValidationError } from './errors'
+export {
+  ConflictError,
+  ForbiddenError,
+  InvalidCredentialsError,
+  NotFoundError,
+  UnauthorizedError,
+  UnavailableError,
+  ValidationError,
+} from './errors'
+export type { FieldIssue } from './errors'
 export type { Credentials } from './session'

@@ -17,7 +17,5 @@ export function createdLocationState(createdLocationId: LocationId): CreatedLoca
 export function readCreatedLocationId(state: unknown): LocationId | null {
   if (typeof state !== 'object' || state === null || !('createdLocationId' in state)) return null
   const { createdLocationId } = state
-  return typeof createdLocationId === 'string' && createdLocationId.startsWith('LOC-')
-    ? (createdLocationId as LocationId)
-    : null
+  return typeof createdLocationId === 'string' && createdLocationId.trim() !== '' ? createdLocationId : null
 }

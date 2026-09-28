@@ -96,9 +96,9 @@ function CatalogResults({ rows, query }: { readonly rows: readonly CatalogRow[];
   )
 }
 
-/** Параметр ?added= из адреса: берём только идентификатор вида RB-…, остальное — обычный А1. */
+/** Параметр ?added= из адреса: id робота; пусто или нет в каталоге — обычный А1. */
 function parseRobotId(value: string | null): RobotId | null {
-  return value !== null && value.startsWith('RB-') ? (value as RobotId) : null
+  return value !== null && value.trim() !== '' ? value : null
 }
 
 /** А3: «Каталог обновлён» и переход к решению в пользовательском каталоге (PRD 6.2, раздел 7). */

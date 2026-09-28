@@ -5,8 +5,8 @@ import type { HandlingMethodCode } from './handling'
 import type { OperationClassCode } from './operationClass'
 import type { RobotCharacteristicKey } from './robotCharacteristics'
 
-/** Идентификатор робота в каталоге: RB-NNNN, не меняется (глоссарий). */
-export type RobotId = `RB-${string}`
+/** Идентификатор робота в каталоге, не меняется (глоссарий): в API — UUID решения, в фикстурах — RB-NNNN. */
+export type RobotId = string
 
 /**
  * Класс операции робота. Производительность необязательна: в макете А2 её нет,

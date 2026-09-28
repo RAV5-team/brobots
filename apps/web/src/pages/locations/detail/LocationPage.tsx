@@ -5,7 +5,7 @@ import { ROUTE_PATHS } from '@/app/routePaths'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import { MergedButtonLink } from '@/components/ui/MergedButton'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
-import type { LocationId, LocationProcessId, ProcessCode } from '@/domain'
+import type { LocationProcessId, ProcessCode } from '@/domain'
 import { useServices } from '@/services/useServices'
 import { ProcessFilters } from '@/pages/processes/ProcessFilters'
 import { EMPTY_FILTER, filterProcesses, isFilterActive, type ProcessFilter } from '@/pages/processes/processesModel'
@@ -187,9 +187,9 @@ export function LocationPage() {
   const { locationId = '' } = useParams()
   const role = useRole()
   const services = useServices()
-  const { state, retry, refresh } = useLocationDetail(locationId as LocationId)
+  const { state, retry, refresh } = useLocationDetail(locationId)
   const addTemplate = async (code: ProcessCode) => {
-    await services.locations.addLocationProcess(locationId as LocationId, code)
+    await services.locations.addLocationProcess(locationId, code)
     await refresh()
   }
   const removeProcess = async (id: LocationProcessId) => {

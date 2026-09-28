@@ -6,7 +6,6 @@ import { Button, ButtonLink } from '@/components/ui/Button'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
 import { StatusBanner } from '@/components/ui/StatusBanner'
 import { TextLink } from '@/components/ui/TextLink'
-import type { ProjectId } from '@/domain'
 import { useRole } from '@/shared/auth/useRole'
 import { formatDate } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
@@ -114,7 +113,7 @@ function Report({ ctx }: { readonly ctx: ReportContext }) {
 export function ReportPage() {
   const { projectId = '' } = useParams()
   const role = useRole()
-  const { load, retry } = useReport(projectId as ProjectId)
+  const { load, retry } = useReport(projectId)
   const ctx = load.status === 'ready' ? reportContext(load.data, role === 'guest') : null
 
   const body = (() => {

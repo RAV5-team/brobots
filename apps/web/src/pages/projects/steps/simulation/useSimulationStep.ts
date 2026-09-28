@@ -5,7 +5,6 @@ import type {
   Project,
   ProjectParamsSnapshot,
   Robot,
-  RobotId,
   SimulationConditions,
   SimulationInputs,
   SimulationRequest,
@@ -96,7 +95,7 @@ export function useSimulationStep(initial: Project, canSave: boolean): Simulatio
     // Без робота этап 2 возьмёт коэффициент замещения первого способа процесса — загрузку шага это не останавливает.
     const robot = solutionId === null
       ? Promise.resolve(null)
-      : services.catalog.getRobot(solutionId as RobotId).catch((error: unknown) => {
+      : services.catalog.getRobot(solutionId).catch((error: unknown) => {
         console.error('Не удалось загрузить робота выбранного варианта', error)
         return null
       })

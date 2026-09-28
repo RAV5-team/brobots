@@ -3,6 +3,7 @@ import { formatRubMillions } from '@/shared/format/money'
 import { ru } from '@/shared/i18n/ru'
 import { ROUTE_PATHS } from '@/app/routePaths'
 import {
+  isEntityId,
   specsCompleteness,
   type CompareEntry,
   type FacilityTypeCode,
@@ -214,6 +215,7 @@ const allOf = <T extends string>(allowed: readonly T[] | null, values: readonly 
   values.filter((v): v is T => allowed === null || allowed.includes(v as T))
 
 export function parseCatalogSearch(params: URLSearchParams, operationClasses: readonly OperationClassCode[]): CatalogFilter {
+  const compatibleWith = params.get(PARAM.compatibleWith)
   return {
     tab: oneOf(CATALOG_TABS, params.get(PARAM.tab), EMPTY_FILTER.tab),
     query: params.get(PARAM.query) ?? '',
@@ -223,7 +225,7 @@ export function parseCatalogSearch(params: URLSearchParams, operationClasses: re
     readiness: allOf(READINESS_VALUES, params.getAll(PARAM.readiness)),
     costTypes: allOf(COST_TYPES, params.getAll(PARAM.costTypes)),
     priceRanges: allOf(PRICE_RANGES, params.getAll(PARAM.priceRanges)),
-    compatibleWith: /^RB-\d+$/.test(params.get(PARAM.compatibleWith) ?? '') ? (params.get(PARAM.compatibleWith) as RobotId) : null,
+    compatibleWith: isEntityId(compatibleWith) ? compatibleWith : null,
     sort: oneOf(SORT_KEYS, params.get(PARAM.sort), EMPTY_FILTER.sort),
   }
 }

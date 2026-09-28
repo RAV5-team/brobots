@@ -2,7 +2,7 @@ import { Navigate, useParams } from 'react-router'
 import { ROUTE_PATHS } from '@/app/routePaths'
 import { ButtonLink } from '@/components/ui/Button'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
-import type { ProjectId, ProjectStep } from '@/domain'
+import type { ProjectStep } from '@/domain'
 import { useRole } from '@/shared/auth/useRole'
 import { ru } from '@/shared/i18n/ru'
 import { EconomicsStep } from './economics/EconomicsStep'
@@ -20,7 +20,7 @@ const t = ru.project.page
 export function ProjectStepPage({ step }: { readonly step: ProjectStep }) {
   const { projectId = '' } = useParams()
   const role = useRole()
-  const { state, retry } = useProjectStep(projectId as ProjectId, step)
+  const { state, retry } = useProjectStep(projectId, step)
   const title = ru.projectStepTitles[step]
 
   if (state.status === 'redirect') return <Navigate to={state.to} replace />

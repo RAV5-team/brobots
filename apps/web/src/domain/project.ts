@@ -3,7 +3,8 @@ import type { LocationId } from './location'
 import type { LocationProcessId } from './locationProcess'
 import type { ProjectInputs } from './projectInputs'
 
-export type ProjectId = `PJ-${string}`
+/** В API — UUID, в фикстурах — PJ-NN. */
+export type ProjectId = string
 
 /** Шаг проекта: параметры → подбор → симуляция → итог и экономика (PRD 0.9, раздел 11). */
 export type ProjectStep = 'params' | 'matching' | 'simulation' | 'economics'

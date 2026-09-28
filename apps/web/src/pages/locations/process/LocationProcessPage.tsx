@@ -3,7 +3,6 @@ import { generatePath, useNavigate, useParams } from 'react-router'
 import { ROUTE_PATHS } from '@/app/routePaths'
 import { ButtonLink } from '@/components/ui/Button'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
-import type { LocationId, LocationProcessId } from '@/domain'
 import { ProcessFormLayout } from '@/pages/processes/new/ProcessFormLayout'
 import { countFormulas, countRequired, type ProcessForm } from '@/pages/processes/new/processForm'
 import { carrierOptions, categoryOptions, classOptions } from '@/pages/processes/new/processNewModel'
@@ -96,7 +95,7 @@ function LocationProcessForm({ data, canSave }: { readonly data: LocationProcess
 export function LocationProcessPage() {
   const { locationId = '', locationProcessId = '' } = useParams()
   const role = useRole()
-  const { state, retry } = useLocationProcess(locationId as LocationId, locationProcessId as LocationProcessId)
+  const { state, retry } = useLocationProcess(locationId, locationProcessId)
 
   if (state.status === 'loading') return <LocationProcessSkeleton />
   if (state.status === 'error') return <ErrorState title={t.error.title} message={t.error.message} onRetry={retry} />

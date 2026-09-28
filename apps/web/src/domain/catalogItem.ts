@@ -8,8 +8,8 @@ import type { RobotId } from './robot'
 export type CatalogItemType = 'robot' | 'infrastructure' | 'software' | 'service' | 'support'
 export type LaunchItemType = Exclude<CatalogItemType, 'robot'>
 
-/** Код позиции для запуска — как в `services/api/internal/seed/data/startup_items.yaml`. */
-export type LaunchItemId = `SI-${string}`
+/** Позиция для запуска: в API — UUID решения, в фикстурах — код из `services/api/internal/seed/data/startup_items.yaml`. */
+export type LaunchItemId = string
 
 /**
  * Обязательная часть конфигурации для запуска робота (PRD 7.7, D-63). На карточке каталога — только она;

@@ -4,7 +4,6 @@ import { ROUTE_PATHS } from '@/app/routePaths'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import { SectionNav } from '@/components/ui/SectionNav'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
-import type { LocationId } from '@/domain'
 import { useServices } from '@/services/useServices'
 import { useRole } from '@/shared/auth/useRole'
 import { useActiveSection } from '@/shared/dom/useActiveSection'
@@ -145,7 +144,7 @@ function ParamsForm({ data, editing, onSaved, status }: ParamsFormProps) {
 export function LocationParamsPage() {
   const { locationId = '' } = useParams()
   const role = useRole()
-  const { state, retry, refresh } = useLocationParams(locationId as LocationId)
+  const { state, retry, refresh } = useLocationParams(locationId)
   const [editing, setEditing] = useState(false)
   // Сеанс правки: «Отменить изменения» и сохранение пересоздают форму со значениями локации.
   const [session, setSession] = useState(0)

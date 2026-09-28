@@ -1,7 +1,8 @@
 import type { LocationId } from './location'
 import type { ProcessCode, ProcessDefaults, ProcessHandling, ProcessTemplate } from './process'
 
-export type LocationProcessId = `LP-${string}`
+/** В API — UUID задачи (`Task`), в фикстурах — LP-NN. */
+export type LocationProcessId = string
 
 /** Исполнители процесса на площадке и доля их времени на процессе. */
 export interface ProcessWorkers {
