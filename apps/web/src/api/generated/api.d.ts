@@ -2703,7 +2703,7 @@ export interface paths {
         put?: never;
         /**
          * Рассчитать подбор
-         * @description Вкладка «Подбор»: подбор по снимку проекта и расчёт парка и экономики каждого кандидата (прошёл, требует проверки, добавлен вручную) для покупки и RaaS. Поля кандидатов замораживаются во входе расчёта. Новый расчёт снимает выбор робота. 503 — сервис расчёта не ответил, прогон подбора при этом сохранён.
+         * @description Вкладка «Подбор»: подбор по снимку проекта и расчёт парка и экономики каждого кандидата (прошёл, требует проверки, добавлен вручную) для покупки и RaaS. Поля кандидатов замораживаются во входе расчёта. calcOverrides — «Параметры расчёта» проекта (PRD 11.3), заменяют прежние; поля робота относятся к solutionId. Выбор робота переносится на новый расчёт, если вариант снова посчитан, иначе снимается. 503 — сервис расчёта не ответил, прогон подбора при этом сохранён.
          */
         post: {
             parameters: {
@@ -2714,7 +2714,11 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["EvaluateInput"];
+                };
+            };
             responses: {
                 /** @description Created */
                 201: {
@@ -2754,6 +2758,15 @@ export interface paths {
                 };
                 /** @description Conflict */
                 409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -5237,6 +5250,23 @@ export interface components {
             source?: string | null;
             sourceUnit?: string | null;
         };
+        CalcParams: {
+            /** @description Горизонт расчёта, лет, не меньше 5 */
+            horizonYears?: number | null;
+            /** @description Цена единицы решения solutionId, ₽ */
+            robotPriceRub?: number | null;
+            /** @description Рейсов в час у решения solutionId; пока справочно — модель экономики её не принимает */
+            robotTripsPerHour?: number | null;
+            /** @description Обслуживание парка решения solutionId, ₽ в год (покупка) */
+            serviceCostRubPerYear?: number | null;
+            solutionId?: components["schemas"]["UUID"];
+            /** @description Оклад исполнителя gross, ₽ в месяц */
+            staffCostRubPerMonth?: number | null;
+            /** @description Загрузка парка, доля 0–1; пока справочно — модель экономики её считает сама */
+            utilization?: number | null;
+            /** @description Часов работы процесса в сутки */
+            workHoursPerDay?: number | null;
+        };
         CalcResult: {
             /** @enum {string} */
             acquisitionModel?: "purchase" | "raas";
@@ -5475,6 +5505,9 @@ export interface components {
             handlingMethodCode?: string | null;
             liftHeightMm?: number | null;
         };
+        EvaluateInput: {
+            calcOverrides?: components["schemas"]["CalcParams"];
+        };
         EvaluatedCandidate: {
             match?: components["schemas"]["Candidate"];
             results?: components["schemas"]["CalcResult"][] | null;
@@ -5482,6 +5515,8 @@ export interface components {
         };
         Evaluation: {
             acquisitionModels?: string[] | null;
+            calcDefaults?: components["schemas"]["CalcParams"];
+            calcOverrides?: components["schemas"]["CalcParams"];
             /** @description Сначала кандидаты с лучшим местом в рейтинге, затем без места, исключённые в конце */
             candidates?: components["schemas"]["EvaluatedCandidate"][] | null;
             catalogVersion?: number;

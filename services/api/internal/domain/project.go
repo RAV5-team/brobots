@@ -16,6 +16,25 @@ const (
 // ProjectSteps are the steps of the assessment (PRD 11): params → matching → simulation → economics.
 var ProjectSteps = []string{"params", "matching", "simulation", "economics"}
 
+// CalcParams are the seven fields of the «Параметры расчёта» panel (PRD 11.3, ТЗ 3.5.3). As overrides every
+// field is optional: empty keeps the value of the snapshot.
+type CalcParams struct {
+	StaffCostRubPerMonth  *float64 `json:"staffCostRubPerMonth" description:"Оклад исполнителя gross, ₽ в месяц"`
+	WorkHoursPerDay       *float64 `json:"workHoursPerDay" description:"Часов работы процесса в сутки"`
+	RobotTripsPerHour     *float64 `json:"robotTripsPerHour" description:"Рейсов в час у решения solutionId; пока справочно — модель экономики её не принимает"`
+	RobotPriceRub         *float64 `json:"robotPriceRub" description:"Цена единицы решения solutionId, ₽"`
+	ServiceCostRubPerYear *float64 `json:"serviceCostRubPerYear" description:"Обслуживание парка решения solutionId, ₽ в год (покупка)"`
+	Utilization           *float64 `json:"utilization" description:"Загрузка парка, доля 0–1; пока справочно — модель экономики её считает сама"`
+	HorizonYears          *int     `json:"horizonYears" description:"Горизонт расчёта, лет, не меньше 5"`
+	SolutionID            *uuid.UUID `json:"solutionId" description:"Решение, к которому относятся поля робота; пусто — выбранное или рекомендованное"`
+}
+
+// IsEmpty reports that no field is overridden.
+func (c CalcParams) IsEmpty() bool {
+	return c.StaffCostRubPerMonth == nil && c.WorkHoursPerDay == nil && c.RobotTripsPerHour == nil && c.RobotPriceRub == nil &&
+		c.ServiceCostRubPerYear == nil && c.Utilization == nil && c.HorizonYears == nil
+}
+
 // ResultSummary is the figures of the selected scenario frozen at save (PRD 11.1, 11.6).
 type ResultSummary struct {
 	AcquisitionModel string   `json:"acquisitionModel" enum:"purchase,raas" required:"true"`

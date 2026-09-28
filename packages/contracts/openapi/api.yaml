@@ -1842,8 +1842,10 @@ paths:
     post:
       description: 'Вкладка «Подбор»: подбор по снимку проекта и расчёт парка и экономики
         каждого кандидата (прошёл, требует проверки, добавлен вручную) для покупки
-        и RaaS. Поля кандидатов замораживаются во входе расчёта. Новый расчёт снимает
-        выбор робота. 503 — сервис расчёта не ответил, прогон подбора при этом сохранён.'
+        и RaaS. Поля кандидатов замораживаются во входе расчёта. calcOverrides — «Параметры
+        расчёта» проекта (PRD 11.3), заменяют прежние; поля робота относятся к solutionId.
+        Выбор робота переносится на новый расчёт, если вариант снова посчитан, иначе
+        снимается. 503 — сервис расчёта не ответил, прогон подбора при этом сохранён.'
       parameters:
       - in: path
         name: id
@@ -1851,6 +1853,11 @@ paths:
         schema:
           format: uuid
           type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvaluateInput'
       responses:
         "201":
           content:
@@ -1882,6 +1889,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Entity
         "503":
           content:
             application/problem+json:
@@ -3609,6 +3622,41 @@ components:
           nullable: true
           type: string
       type: object
+    CalcParams:
+      properties:
+        horizonYears:
+          description: Горизонт расчёта, лет, не меньше 5
+          nullable: true
+          type: integer
+        robotPriceRub:
+          description: Цена единицы решения solutionId, ₽
+          nullable: true
+          type: number
+        robotTripsPerHour:
+          description: Рейсов в час у решения solutionId; пока справочно — модель
+            экономики её не принимает
+          nullable: true
+          type: number
+        serviceCostRubPerYear:
+          description: Обслуживание парка решения solutionId, ₽ в год (покупка)
+          nullable: true
+          type: number
+        solutionId:
+          $ref: '#/components/schemas/UUID'
+        staffCostRubPerMonth:
+          description: Оклад исполнителя gross, ₽ в месяц
+          nullable: true
+          type: number
+        utilization:
+          description: Загрузка парка, доля 0–1; пока справочно — модель экономики
+            её считает сама
+          nullable: true
+          type: number
+        workHoursPerDay:
+          description: Часов работы процесса в сутки
+          nullable: true
+          type: number
+      type: object
     CalcResult:
       properties:
         acquisitionModel:
@@ -4162,6 +4210,11 @@ components:
           nullable: true
           type: integer
       type: object
+    EvaluateInput:
+      properties:
+        calcOverrides:
+          $ref: '#/components/schemas/CalcParams'
+      type: object
     EvaluatedCandidate:
       properties:
         match:
@@ -4181,6 +4234,10 @@ components:
             type: string
           nullable: true
           type: array
+        calcDefaults:
+          $ref: '#/components/schemas/CalcParams'
+        calcOverrides:
+          $ref: '#/components/schemas/CalcParams'
         candidates:
           description: Сначала кандидаты с лучшим местом в рейтинге, затем без места,
             исключённые в конце

@@ -121,7 +121,7 @@ func (a *API) putSelection(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) evaluate(w http.ResponseWriter, r *http.Request) {
-	a.withID(w, r, func(id uuid.UUID) (any, error) { return a.svc.Evaluate(r.Context(), id) }, http.StatusCreated)
+	a.withIDBody(w, r, func(id uuid.UUID, b []byte) (any, error) { return a.svc.Evaluate(r.Context(), id, b) }, http.StatusCreated)
 }
 
 func (a *API) evaluation(w http.ResponseWriter, r *http.Request) {

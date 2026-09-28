@@ -23,6 +23,70 @@ type projectState struct {
 	} `json:"resultSummary"`
 }
 
+type calcParamsOut struct {
+	RobotPriceRub   *float64 `json:"robotPriceRub"`
+	WorkHoursPerDay *float64 `json:"workHoursPerDay"`
+	HorizonYears    *int     `json:"horizonYears"`
+	SolutionID      *string  `json:"solutionId"`
+}
+
+// TestCalcOverrides: «Параметры расчёта» change the figures of their robot, the defaults stay the snapshot values,
+// and the selection survives the recalculation.
+func TestCalcOverrides(t *testing.T) {
+	e := setup(t)
+	var loc named
+	e.do(t, http.MethodPost, "/api/v1/locations", map[string]any{
+		"name": "Склад Параметры", "facilityTypeCode": "warehouse", "city": "Пермь", "fillDefaults": true,
+		"capexBudget": map[string]any{"amount": 40_000_000, "currency": "RUB"},
+	}, 201, &loc)
+	var procs struct{ Items []named }
+	e.do(t, http.MethodGet, "/api/v1/processes?facilityType=warehouse", nil, 200, &procs)
+	var task named
+	for _, p := range procs.Items {
+		if p.Code == "PR-0001" {
+			e.do(t, http.MethodPost, "/api/v1/locations/"+loc.ID+"/tasks", map[string]any{"processId": p.ID}, 201, &task)
+		}
+	}
+	var p projectState
+	e.do(t, http.MethodPost, "/api/v1/projects", map[string]any{"locationId": loc.ID, "taskId": task.ID}, 201, &p)
+	base := "/api/v1/projects/" + p.ID
+
+	var ev struct {
+		evaluation
+		CalcDefaults  calcParamsOut `json:"calcDefaults"`
+		CalcOverrides calcParamsOut `json:"calcOverrides"`
+	}
+	e.do(t, http.MethodPost, base+"/evaluate", nil, 201, &ev)
+	chosen := firstCalculated(t, ev.evaluation)
+	e.do(t, http.MethodPut, base+"/selection", map[string]any{"solutionId": chosen.SolutionID, "acquisitionModel": "purchase"}, 200, nil)
+	if ev.CalcDefaults.WorkHoursPerDay == nil || ev.CalcDefaults.HorizonYears == nil {
+		t.Fatalf("calc defaults = %+v", ev.CalcDefaults)
+	}
+
+	var before struct {
+		CalcDefaults calcParamsOut `json:"calcDefaults"`
+	}
+	e.do(t, http.MethodGet, base+"/evaluation", nil, 200, &before)
+	if before.CalcDefaults.SolutionID == nil || *before.CalcDefaults.SolutionID != chosen.SolutionID || before.CalcDefaults.RobotPriceRub == nil {
+		t.Fatalf("defaults must refer to the selected robot: %+v", before.CalcDefaults)
+	}
+	price, capex := *before.CalcDefaults.RobotPriceRub, *chosen.CapexRub
+	ev.CalcDefaults, ev.CalcOverrides, ev.evaluation = calcParamsOut{}, calcParamsOut{}, evaluation{}
+	e.do(t, http.MethodPost, base+"/evaluate", map[string]any{"calcOverrides": map[string]any{"robotPriceRub": price * 2, "solutionId": chosen.SolutionID}}, 201, &ev)
+	again := resultOf(ev.evaluation, chosen.SolutionID, "purchase")
+	if again == nil || *again.CapexRub <= capex {
+		t.Errorf("capex with a doubled price = %v, was %v", again, capex)
+	}
+	if ev.CalcDefaults.RobotPriceRub == nil || *ev.CalcDefaults.RobotPriceRub != price || ev.CalcOverrides.RobotPriceRub == nil || ev.Stale {
+		t.Errorf("defaults %+v overrides %+v stale %v", ev.CalcDefaults, ev.CalcOverrides, ev.Stale)
+	}
+	e.do(t, http.MethodGet, base, nil, 200, &p)
+	if p.Selection == nil || p.Selection.SolutionID != chosen.SolutionID {
+		t.Errorf("selection after the recalculation = %+v", p.Selection)
+	}
+	e.do(t, http.MethodPost, base+"/evaluate", map[string]any{"calcOverrides": map[string]any{"workHoursPerDay": 30}}, 422, nil)
+}
+
 // TestProjectStepState: decisions by steps are kept as is, a task switch starts the draft over, save
 // freezes the figures of the selected scenario, a quote request is accepted after save.
 func TestProjectStepState(t *testing.T) {

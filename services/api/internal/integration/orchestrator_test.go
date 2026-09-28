@@ -162,11 +162,16 @@ func TestOrchestratorFlow(t *testing.T) {
 	e.do(t, http.MethodDelete, base+"/conditions", nil, 200, nil)
 	e.do(t, http.MethodPost, base+"/evaluate", nil, 201, &ev)
 	e.do(t, http.MethodGet, base, nil, 200, &project)
-	if project.Selection != nil || project.LatestEvaluation == nil || project.LatestEvaluation.ID != ev.ID || project.LatestEvaluation.Stale {
-		t.Fatalf("a new calculation must drop the selection: %+v %+v", project.Selection, project.LatestEvaluation)
-	}
 	chosen = *resultOf(ev, chosen.SolutionID, "purchase")
-	e.do(t, http.MethodPut, base+"/selection", map[string]any{"solutionId": chosen.SolutionID, "acquisitionModel": "purchase"}, 200, nil)
+	// D-89: the selected configuration is calculated again, so the selection moves to the new calculation.
+	if project.Selection == nil || project.Selection.CalcResultID == nil || *project.Selection.CalcResultID != chosen.ID ||
+		project.LatestEvaluation == nil || project.LatestEvaluation.ID != ev.ID || project.LatestEvaluation.Stale {
+		t.Fatalf("a new calculation must keep the selection on its result: %+v %+v", project.Selection, project.LatestEvaluation)
+	}
+	e.do(t, http.MethodGet, base+"/snapshot", nil, 200, &snap)
+	if snap.Robot == nil || snap.Robot.CalcRunID != ev.ID || snap.Robot.CalcResultID != chosen.ID {
+		t.Fatalf("snapshot robot after recalculation = %+v", snap.Robot)
+	}
 
 	e.do(t, http.MethodPost, base+"/save", nil, 200, &project)
 	if project.Status != "saved" || project.SavedAt == nil || project.Versions.Model == nil || *project.Versions.Model != "mock-calc/v1" {
