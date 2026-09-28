@@ -8,7 +8,10 @@ import { createApiServices } from '.'
  *   API_SMOKE_URL=http://localhost:8000 npx vitest run src/services/api/live.test.ts
  * Без адреса тест пропускается.
  */
-const API_URL = process.env.API_SMOKE_URL
+const ENV = (globalThis as { readonly process?: { readonly env: Readonly<Record<string, string | undefined>> } }).process?.env
+const API_URL = ENV?.API_SMOKE_URL
+/** API_SMOKE_SIMULATION=1 — у api задан SIMULATION_URL: прогон идёт до вердикта (до 90 с). */
+const SIMULATION = ENV?.API_SMOKE_SIMULATION === '1'
 const http = createHttpClient({ baseUrl: `${API_URL ?? ''}/api/v1` })
 const services = createApiServices(createMockServices({ latencyMs: 0 }), http)
 
@@ -47,4 +50,52 @@ describe.skipIf(!API_URL)('services on the live API', () => {
     expect((await services.locations.listFacilityTypes()).map((t) => t.code)).toEqual(expect.arrayContaining(['warehouse', 'airport', 'medical']))
     expect((await services.locations.listFacilityParameters('warehouse')).length).toBeGreaterThan(20)
   })
+
+  it('project: draft → matching → selection → economics → save', async () => {
+    const location = (await services.locations.listLocations()).find((l) => l.facilityType === 'warehouse')
+    const draft = await services.projects.createDraft({ name: 'Смоук · проект', locationId: location?.id ?? '' })
+    expect(draft).toMatchObject({ status: 'draft', step: 'params' })
+    expect(draft.locationProcessId).not.toBeNull()
+
+    const snapshot = await services.projects.getParamsSnapshot(draft.id)
+    expect(snapshot.processes.length).toBeGreaterThan(0)
+    const palletProcess = snapshot.processes.find((p) => p.process.code === 'PR-0001')
+    if (palletProcess) await services.projects.selectProcess(draft.id, palletProcess.locationProcess.id)
+
+    await services.projects.updateInputs(draft.id, { params: { assumptions: [{ code: 'wh_total_area', value: 12_000, kind: 'fact' }] } })
+    expect((await services.projects.getProject(draft.id)).inputs.params.assumptions).toHaveLength(1)
+    await services.projects.updateInputs(draft.id, { matching: { calcParams: {} } })
+    expect((await services.projects.openStep(draft.id, 'params')).status).toBe('draft')
+
+    const matching = await services.projects.evaluateMatching(draft.id)
+    expect(matching.stale).toBe(false)
+    const variant = matching.variants.find((v) => v.acquisition === 'purchase' && v.paybackYears !== null) ?? matching.variants[0]
+    expect(variant).toBeDefined()
+    expect(matching.calcDefaults?.horizonYears).toBeGreaterThanOrEqual(5)
+    await services.projects.updateInputs(draft.id, { matching: { selection: { solutionId: variant?.solutionId ?? '', acquisition: variant?.acquisition ?? 'purchase' } } })
+
+    const economics = await services.projects.getEconomics(draft.id)
+    expect(economics.solutionId).toBe(variant?.solutionId)
+    expect(economics.scenarios.length).toBeGreaterThan(0)
+
+    if (SIMULATION) {
+      let job = await services.projects.startSimulation(draft.id, { fleet: { robots: variant?.robots ?? 1, stations: variant?.stations ?? 1 }, conditions: { maxWaitMin: 20 } })
+      for (let i = 0; i < 90 && (job.status === 'queued' || job.status === 'running'); i += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1_000))
+        job = await services.projects.getSimulationJob(job.id)
+      }
+      expect(job).toMatchObject({ status: 'done', error: null })
+      const run = await services.projects.getSimulationRun(job.runId ?? '')
+      expect(run.title).toBeTruthy()
+      expect((await services.projects.getSimulationTraces(job.runId ?? '')).length).toBeGreaterThan(0)
+    }
+
+    await services.projects.updateInputs(draft.id, { economics: { scenario: variant?.acquisition ?? 'purchase' } })
+    const saved = await services.projects.save(draft.id)
+    expect(saved.status).toBe('saved')
+    expect(saved.result.capexRub).toBe(economics.scenarios.find((s) => s.acquisition === variant?.acquisition)?.capexRub)
+    const quoted = await services.projects.requestQuote(draft.id)
+    expect(quoted.inputs.economics?.quoteRequestedAt).toBeTruthy()
+    expect((await services.projects.listProjects()).some((p) => p.id === draft.id && p.status === 'saved')).toBe(true)
+  }, 120_000)
 })

@@ -111,6 +111,13 @@ function toExcluded(candidate: EvaluatedCandidate): ExcludedSolution {
   }
 }
 
+/** Решение прошло проверки, но модель его не посчитала: причина расчёта — строкой проверки. */
+function toNotCalculated(candidate: EvaluatedCandidate): ExcludedSolution {
+  const excluded = toExcluded(candidate)
+  const reason = (candidate.results ?? []).map((r) => r.reason).find((r): r is string => Boolean(r)) ?? null
+  return { ...excluded, reasons: [...excluded.reasons, { code: 'calculation', label: 'Расчёт', status: 'fail', message: reason }] }
+}
+
 /** База сравнения — у всех результатов одна (текущий процесс); берём первую, где она есть. */
 function toBaseline(results: readonly CalcResult[]): MatchBaseline | null {
   const details = results.map((r) => r.details).find((d) => d?.baselineOpexYearRub != null)
@@ -130,13 +137,16 @@ export function toMatchingEvaluation(dto: ApiSchemas['Evaluation'], calcDefaults
   const state = (c: EvaluatedCandidate) =>
     oneOf(required(required(c, 'match', 'EvaluatedCandidate'), 'state', 'Candidate'), ['passed', 'needs_verification', 'excluded'], 'Candidate.state')
 
-  const variants = candidates
-    .filter((c) => state(c) !== 'excluded')
+  // «Не рассчитано» (calculable: false) — без парка и цифр: в рейтинг не идёт, решение показывается с причиной.
+  const calculable = (c: EvaluatedCandidate) => (c.results ?? []).filter((r) => r.calculable !== false)
+  const assessed = candidates.filter((c) => state(c) !== 'excluded')
+  const variants = assessed
     .flatMap((c) => {
       const status: VariantStatus = c.match?.isManual ? 'manual' : (state(c) as Exclude<VariantStatus, 'manual'>)
-      return (c.results ?? []).map((r) => toVariant(c, r, status))
+      return calculable(c).map((r) => toVariant(c, r, status))
     })
     .sort(byRank)
+  const notCalculated = assessed.filter((c) => calculable(c).length === 0 && (c.results ?? []).length > 0).map(toNotCalculated)
 
   const recommendedId = optional(dto.recommendedResultId)
   const recommended = candidates.flatMap((c) => c.results ?? []).find((r) => r.id === recommendedId)
@@ -148,7 +158,7 @@ export function toMatchingEvaluation(dto: ApiSchemas['Evaluation'], calcDefaults
     stale: dto.stale ?? false,
     conditions: required(dto, 'conditions', entity).map(toCondition),
     variants,
-    excluded: candidates.filter((c) => state(c) === 'excluded').map(toExcluded),
+    excluded: [...candidates.filter((c) => state(c) === 'excluded').map(toExcluded), ...notCalculated],
     counts: { total: count('total'), passed: count('passed'), needsVerification: count('needsVerification'), excluded: count('excluded'), manual: count('manual') },
     recommended: recommended
       ? { solutionId: required(recommended, 'solutionId', 'CalcResult'), acquisition: oneOf(required(recommended, 'acquisitionModel', 'CalcResult'), ACQUISITIONS, 'CalcResult.acquisitionModel') }

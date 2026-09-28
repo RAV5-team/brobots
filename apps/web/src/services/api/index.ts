@@ -2,12 +2,13 @@ import { createHttpClient, type HttpClient } from '@/api/http'
 import { getAccessToken } from '@/shared/auth/accessToken'
 import { login, OIDC_ENABLED } from '@/shared/auth/oidc'
 import { API_BASE_URL } from '@/shared/config/api'
-import type { Services } from '../index'
+import type { CatalogService, LocationService, ProcessService, Services } from '../index'
 import { createMockServices } from '../mock'
 import { createSimulationRuns } from '../simulationRuns'
 import { apiCatalog } from './catalog'
 import { apiLocations } from './locations'
 import { apiProcesses } from './processes'
+import { apiProjects } from './projects'
 import { createReference } from './reference'
 
 type DataServices = Omit<Services, 'simulationRuns'>
@@ -37,10 +38,14 @@ export function composeServices(fallback: Services, overrides: ApiOverrides): Se
 /** Методы, уже переведённые на services/api. */
 export function apiOverrides(http: HttpClient): ApiOverrides {
   const reference = createReference(http)
+  const catalog = apiCatalog(http, reference) as CatalogService
+  const processes = apiProcesses(http, reference) as ProcessService
+  const locations = apiLocations(http, reference) as LocationService
   return {
-    catalog: apiCatalog(http, reference),
-    processes: apiProcesses(http, reference),
-    locations: apiLocations(http, reference),
+    catalog,
+    processes,
+    locations,
+    projects: apiProjects(http, { catalog, locations, processes }),
   }
 }
 
