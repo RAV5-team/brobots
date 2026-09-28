@@ -78,7 +78,7 @@ function staffErrors(staff: readonly StaffGroupRow[], options: CheckOptions): [s
 }
 
 /** Поля секции «Персонал», которые стоят под таблицей групп (15950:2132). */
-export const AFTER_TABLE: readonly NumericKey[] = ['pickerProductivity', 'workTimeLoss', 'turnover']
+const AFTER_TABLE: readonly NumericKey[] = ['pickerProductivity', 'workTimeLoss', 'turnover']
 
 /** Проверка формы. Ключи — в порядке полей на экране: первая ошибка — первая по ходу формы. */
 export function validateLocation(form: LocationForm, params: ParameterIndex, options: CheckOptions): FormErrors {

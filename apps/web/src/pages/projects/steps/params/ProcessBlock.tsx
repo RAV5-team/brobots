@@ -7,7 +7,7 @@ import type { LocationProcessId } from '@/domain'
 import { ru } from '@/shared/i18n/ru'
 import type { MissingItem, ParamsView, ProcessCard } from './paramsModel'
 import { valueAnchor } from './paramsModel'
-import { ValueTable } from './ValueTable'
+import { ValueTable } from '../../shared/ValueTable'
 
 const t = ru.project.params
 

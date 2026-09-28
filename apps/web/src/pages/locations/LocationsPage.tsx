@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useLocation } from 'react-router'
 import { Button } from '@/components/ui/Button'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
 import type { LocationId } from '@/domain'
 import { useRole } from '@/shared/auth/useRole'
@@ -76,14 +77,16 @@ export function LocationsPage() {
 
   return (
     <>
-      <header className="flex flex-col gap-4">
-        <h1 className="type-display-lg text-text">{t.title}</h1>
-        <p className="type-body text-text-secondary">
-          {t.lead[0]}
-          <br />
-          {t.lead[1]}
-        </p>
-      </header>
+      <PageHeader
+        title={t.title}
+        lead={(
+          <>
+            {t.lead[0]}
+            <br />
+            {t.lead[1]}
+          </>
+        )}
+      />
 
       {state.status === 'loading' && <LocationsSkeleton />}
       {state.status === 'error' && <ErrorState title={t.error.title} message={t.error.message} onRetry={retry} />}

@@ -1,5 +1,5 @@
 export { formatDate, formatDayOf, formatDayTime, formatTime, parseDate } from './date'
-export { formatRub, formatRubCompact, formatRubMillions } from './money'
+export { formatRub, formatRubCompact, formatRubMillions, formatRubTenth, formatRubTenthFixed, formatRubTotal } from './money'
 export { formatFileSize, formatNumber, formatPercent, roundHalfUp } from './number'
 export { formatCount, formatYears, pluralize, type PluralForms } from './plural'
 export { parseDecimal } from './parse'

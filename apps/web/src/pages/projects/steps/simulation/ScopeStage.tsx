@@ -5,7 +5,7 @@ import { NumberStepper } from '@/components/ui/NumberStepper'
 import type { Fleet, RankedVariant } from '@/domain'
 import { formatCount, formatNumber, formatPercent, formatRubCompact, formatYears } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
-import { StatTile } from '../StatTile'
+import { StatTile } from '@/components/ui/StatTile'
 import { FLEET_LIMITS, robotsPerStation, type CalcRow } from './simulationModel'
 
 const s = ru.project.simulation
@@ -37,7 +37,7 @@ function SourceCard({ variant, calc }: Pick<ScopeStageProps, 'variant' | 'calc'>
   return (
     <Card as="section" padding={20} gap={16} aria-labelledby="simulation-source-title">
       <div className="flex flex-col gap-8">
-        <CardTitle>{t.source.title}</CardTitle>
+        <CardTitle as="h2">{t.source.title}</CardTitle>
         <p id="simulation-source-title" className="type-display-md text-text">{t.source.heading(name, formatCount(variant.robots, ru.plural.robots))}</p>
       </div>
       <ul className="grid grid-cols-4 gap-8">
@@ -58,7 +58,7 @@ function SourceCard({ variant, calc }: Pick<ScopeStageProps, 'variant' | 'calc'>
 function ChecksCard({ tolerance }: { readonly tolerance: number }) {
   return (
     <Card as="section" padding={20} gap={12} aria-labelledby="simulation-checks-title">
-      <h2 id="simulation-checks-title" className="type-overline text-text-muted">{t.checks.title}</h2>
+      <CardTitle as="h2" id="simulation-checks-title">{t.checks.title}</CardTitle>
       <ol className="flex flex-col gap-12">
         {t.checks.items(formatPercent(tolerance)).map((item, index) => (
           <li key={item} className="flex items-center gap-12 type-body text-text-secondary">
@@ -77,7 +77,7 @@ function FleetCard({ variant, fleet, fromMatching, canEdit, onFleet }: Pick<Scop
   const previous = (key: keyof Fleet) => (fleet[key] === fromMatching[key] ? {} : { previous: f.previous(fromMatching[key]) })
   return (
     <Card as="section" padding={20} gap={12} aria-labelledby="simulation-fleet-title">
-      <h2 id="simulation-fleet-title" className="type-overline text-text-muted">{f.title}</h2>
+      <CardTitle as="h2" id="simulation-fleet-title">{f.title}</CardTitle>
       <NumberStepper
         label={f.robots}
         value={fleet.robots}

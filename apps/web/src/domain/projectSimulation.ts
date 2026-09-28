@@ -4,7 +4,6 @@ import type { Fleet, SimulationConditions } from './projectInputs'
  * Вердикт симуляции (PRD 11.4). В API симуляции — `confirmed | can_reduce | needs_additions | layout_bottleneck | not_achievable`.
  */
 export type SimulationVerdict = 'confirmed' | 'can_reduce' | 'need_more' | 'layout_bottleneck' | 'unreachable'
-export const SIMULATION_VERDICTS: readonly SimulationVerdict[] = ['confirmed', 'can_reduce', 'need_more', 'layout_bottleneck', 'unreachable']
 
 /** Строка «Что происходило по часам» (PRD 11.4): рейсы, срок, состояния парка. */
 export interface HourlyStat {

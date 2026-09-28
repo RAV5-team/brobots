@@ -3,7 +3,7 @@ import type { CostItem } from './projectMatching'
 import type { CurrentProcessEconomics, ScenarioEconomics } from './projectEconomics'
 
 /** Начисления на ФОТ: страховые взносы 30,2 % [ДС-Легенда]. */
-export const PAYROLL_FACTOR = 1.302
+const PAYROLL_FACTOR = 1.302
 const MONTHS = 12
 
 /** Остаются в процессе после внедрения: ФОТ оставшихся исполнителей и обслуживание оставшихся погрузчиков. */
@@ -64,9 +64,9 @@ export function breakEvenYear(paybackYears: number | null): number | null {
 }
 
 export type SensitivityParameter = 'price' | 'labor' | 'volume'
-export const SENSITIVITY_PARAMETERS: readonly SensitivityParameter[] = ['price', 'labor', 'volume']
+const SENSITIVITY_PARAMETERS: readonly SensitivityParameter[] = ['price', 'labor', 'volume']
 /** ±20 % — допущение команды для одиночных проверок (PRD 11.5). */
-export const SENSITIVITY_SHIFT = 0.2
+const SENSITIVITY_SHIFT = 0.2
 
 /** Итог сценария при отклонённом параметре. */
 export interface ShiftedResult {

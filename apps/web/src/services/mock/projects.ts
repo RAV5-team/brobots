@@ -18,6 +18,7 @@ import {
   type ProjectId,
   type ProjectParamsSnapshot,
   type SavedProject,
+  type TraceResolution,
 } from '@/domain'
 import { FACILITY_PARAMETERS } from '@/mocks/fixtures/facilityParameters'
 import { LOCATION_PROCESSES } from '@/mocks/fixtures/locationProcesses'
@@ -29,6 +30,8 @@ import { SITE_PARAMETERS, SITE_VALUES } from '@/mocks/fixtures/siteParameters'
 import { CONDITIONS_LP01, OPERATIONS_PER_DAY_LP01 } from '@/mocks/fixtures/projectEconomics'
 import { CALC_DEFAULTS_BY_PROCESS, EVALUATIONS_BY_PROCESS } from '@/mocks/fixtures/projectMatching'
 import { DEMO_PROJECT_DTO, PROJECT_DTOS, PROJECT_LOCAL_STATE } from '@/mocks/fixtures/projects'
+import demo165Url from '@/mocks/fixtures/traces/demo-16-5.json?url'
+import demo186Url from '@/mocks/fixtures/traces/demo-18-6.json?url'
 import { formatNumber } from '@/shared/format'
 import { ConflictError, NotFoundError } from '../errors'
 import type { ProjectService } from '../projects'
@@ -44,17 +47,28 @@ const READ_ONLY = 'Сохранённая оценка открывается т
 const DEFAULT_RUN_ID = 'SIM-0926-01'
 
 /**
- * Записанные 2D-трассы (scripts/gen2dTraces.py — настоящий движок simcore): грузятся по запросу, в основной бандл
- * не попадают. Есть у прогонов 01 (состав не менялся — одна трасса) и 02 (18/6 → 16/5); у остальных — пусто.
+ * Записанные 2D-трассы (scripts/gen2dTraces.py — настоящий движок simcore): в основной бандл не попадают.
+ * Полная запись (1,6–1,8 МБ) — отдельным файлом через fetch: разбор JSON дешевле, чем JS-модуля того же размера.
+ * Почасовой срез (scripts/genHourlyTraces.ts, около 50 КБ) — для кадра отчёта 09, которому нужна одна минута.
+ * Есть у прогонов 01 (состав не менялся — одна трасса) и 02 (18/6 → 16/5); у остальных — пусто.
  */
-const TRACE_FILES = {
-  'demo-18-6': () => import('@/mocks/fixtures/traces/demo-18-6.json'),
-  'demo-16-5': () => import('@/mocks/fixtures/traces/demo-16-5.json'),
+const TRACE_URLS = { 'demo-18-6': demo186Url, 'demo-16-5': demo165Url } as const
+const HOURLY_TRACES = {
+  'demo-18-6': () => import('@/mocks/fixtures/traces/demo-18-6.hourly.json'),
+  'demo-16-5': () => import('@/mocks/fixtures/traces/demo-16-5.hourly.json'),
 } as const
-export type TraceFile = keyof typeof TRACE_FILES
-/** Ответ сервиса трасс по файлу; тесты подставляют маленькие трассы вместо файлов по 1,7 МБ. */
-export type TraceLoader = (file: TraceFile) => Promise<unknown>
-const loadTraceFile: TraceLoader = (file) => TRACE_FILES[file]().then((module) => module.default)
+export type TraceFile = keyof typeof TRACE_URLS
+/** Ответ сервиса трасс по файлу; тесты подставляют маленькие трассы вместо настоящих файлов. */
+export type TraceLoader = (file: TraceFile, resolution: TraceResolution) => Promise<unknown>
+
+async function fetchTrace(url: string): Promise<unknown> {
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`Трасса ${url}: HTTP ${String(response.status)}`)
+  return response.json()
+}
+
+const loadTraceFile: TraceLoader = (file, resolution) =>
+  resolution === 'hourly' ? HOURLY_TRACES[file]().then((module) => module.default) : fetchTrace(TRACE_URLS[file])
 const TRACES_BY_RUN: Readonly<Record<string, readonly TraceFile[]>> = {
   'SIM-0926-01': ['demo-18-6'],
   'SIM-0926-02': ['demo-18-6', 'demo-16-5'],
@@ -263,10 +277,10 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
       return respond(toSimulationRun(run), options)
     },
 
-    getSimulationTraces: async (runId) => {
+    getSimulationTraces: async (runId, resolution = 'full') => {
       const files = TRACES_BY_RUN[runId]
       if (!files) throw new NotFoundError(`Прогон ${runId} не найден`)
-      const dtos = await Promise.all(files.map(loadTrace))
+      const dtos = await Promise.all(files.map((file) => loadTrace(file, resolution)))
       return respond(dtos.map(toSimulationTrace), options)
     },
 

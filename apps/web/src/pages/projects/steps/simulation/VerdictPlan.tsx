@@ -70,7 +70,7 @@ export function PlanCard({ run, fromMatching, plan, acceptRisk, canEdit, onPlan,
       {canAcceptRisk(run) && (
         <div className="flex flex-col gap-4 rounded-lg bg-surface-sunken px-16 py-12">
           <Checkbox label={t.risk.label(base.robots, base.stations)} checked={acceptRisk} disabled={!canEdit} onCheckedChange={onAcceptRisk} />
-          <p className="pl-30 type-caption text-text-secondary">{t.risk.description(servedShare(run.before))}</p>
+          <p className="pl-[calc(var(--rav-size-18)+var(--rav-space-12))] type-caption text-text-secondary">{t.risk.description(servedShare(run.before))}</p>
         </div>
       )}
       <p className="type-caption text-text-secondary">{t.plan.note}</p>
@@ -95,9 +95,9 @@ export function EconomicsCard({ variant, plan }: { readonly variant: RankedVaria
         {/* Подписей колонок на макете нет: заголовки — для чтения с экрана, ширины — колонками. */}
         <colgroup>
           <col />
-          <col className="w-150" />
-          <col className="w-150" />
-          <col className="w-150" />
+          <col className="w-(--rav-verdict-economics-col-width)" />
+          <col className="w-(--rav-verdict-economics-col-width)" />
+          <col className="w-(--rav-verdict-economics-col-width)" />
         </colgroup>
         <TableHead>
           <tr className="sr-only">

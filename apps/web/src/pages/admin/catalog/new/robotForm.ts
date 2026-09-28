@@ -71,7 +71,7 @@ export const EMPTY_ROBOT_FORM: RobotForm = {
 }
 
 /** Числовые технические параметры одной величиной; габариты и загрузка / разгрузка разбираются отдельно. */
-export const SIMPLE_SPECS = ['payloadKg', 'maxSpeedMps', 'autonomyH', 'chargeTimeMin', 'minTempC', 'avgPowerKw'] as const
+const SIMPLE_SPECS = ['payloadKg', 'maxSpeedMps', 'autonomyH', 'chargeTimeMin', 'minTempC', 'avgPowerKw'] as const
 type SimpleSpec = (typeof SIMPLE_SPECS)[number]
 
 /** Может быть нулём или меньше: температура. Остальные величины — строго больше нуля. */
@@ -86,7 +86,7 @@ const REQUIRED_TEXT = ['name', 'manufacturer', 'readiness', 'trl', 'price', 'sol
 export const REQUIRED_TOTAL = REQUIRED_TEXT.length + 3
 
 /** Число из ввода: «1 800 000», «1,5», «-25». Пусто или не число — null. */
-export function parseNumber(raw: string): number | null {
+function parseNumber(raw: string): number | null {
   const text = raw.replace(/\s/g, '').replace(',', '.')
   if (text === '' || !/^-?\d+(\.\d+)?$/.test(text)) return null
   return Number(text)

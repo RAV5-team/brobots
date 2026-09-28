@@ -2,7 +2,7 @@ import { ArrowLeft, RefreshCw } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { projectStepPath } from '@/app/routePaths'
 import { Button, ButtonLink } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
+import { StatusBanner } from '@/components/ui/StatusBanner'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
 import { COMPARE_LIMIT, isReadOnly, type Project } from '@/domain'
 import { numberParameter } from '@/pages/processes/locationStaffing'
@@ -24,34 +24,29 @@ import { effectiveOverrides, findVariant, manualEntries, recommendedVariant, sce
 import { RankingBlock } from './RankingBlock'
 import { RecommendationCard } from './RecommendationCard'
 import { useMatchingStep, type MatchingData, type MatchingStepState } from './useMatchingStep'
+import type { ProjectStepProps } from '../stepProps'
 
 const t = ru.project.matching
-
-interface MatchingStepProps {
-  readonly project: Project
-  readonly locationName: string
-  readonly isGuest: boolean
-}
 
 type Panel = 'hint' | 'params' | null
 
 /** Плашка D-89: параметры изменились после расчёта — рейтинг по прежним значениям, выбор сохранён. */
 function StaleNotice({ state }: { readonly state: MatchingStepState }) {
   return (
-    <Card as="section" variant="accent" padding={20} gap={8} role="status" aria-labelledby="matching-stale-title">
-      <div className="flex items-center justify-between gap-16">
-        <div className="flex min-w-0 flex-col gap-4">
-          <h2 id="matching-stale-title" className="type-body font-semibold text-on-accent">{t.stale.title}</h2>
-          <p className="type-caption text-on-accent">{t.stale.description}</p>
-        </div>
+    <StatusBanner
+      variant="accent"
+      title={t.stale.title}
+      description={t.stale.description}
+      action={(
         <Button variant="primary" className="shrink-0" disabled={state.recalculating} onClick={state.recalculate}>
           <RefreshCw aria-hidden size={16} />
           {state.recalculating ? t.stale.running : t.stale.action}
         </Button>
-      </div>
+      )}
+    >
       <p className="type-caption text-on-accent">{t.stale.mock}</p>
       {state.recalcError && <p role="alert" className="type-caption text-danger">{t.stale.failed}</p>}
-    </Card>
+    </StatusBanner>
   )
 }
 
@@ -74,7 +69,7 @@ function budgetOf({ snapshot }: MatchingData): number | null {
  * Шаг 2 «Подбор решения» (экран 03, 16197:713; PRD 11.3). Гость проходит путь без сохранения (D-14),
  * сохранённая оценка — только просмотр (D-17). Правка «Параметров расчёта» — подбор устарел до пересчёта (D-89).
  */
-export function MatchingStep({ project: initial, locationName, isGuest }: MatchingStepProps) {
+export function MatchingStep({ project: initial, locationName, isGuest }: ProjectStepProps) {
   const readOnly = isReadOnly(initial)
   const state = useMatchingStep(initial, !isGuest && !readOnly)
   const { project, draft, load } = state

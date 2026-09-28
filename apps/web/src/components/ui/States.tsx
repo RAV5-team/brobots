@@ -62,3 +62,20 @@ export function ErrorState({ title, message, onRetry }: ErrorStateProps) {
 export function Skeleton({ className, style }: { readonly className?: string; readonly style?: CSSProperties }) {
   return <div aria-hidden="true" className={clsx('rounded-md bg-surface-sunken motion-safe:animate-pulse', className)} style={style} />
 }
+
+interface SkeletonListProps {
+  /** Сколько строк-заглушек: по числу строк первого экрана таблицы или списка. */
+  readonly rows: number
+  /** Высота строки — как у настоящей строки: `h-44`, `h-48`. */
+  readonly rowClassName: string
+  readonly className?: string
+}
+
+/** Список строк-скелетонов на время загрузки таблицы или списка (А1, А5, А6, А8, окно «Новый проект»); занят для скринридера. */
+export function SkeletonList({ rows, rowClassName, className }: SkeletonListProps) {
+  return (
+    <div aria-busy="true" className={clsx('flex flex-col gap-8', className)}>
+      {Array.from({ length: rows }, (_, i) => <Skeleton key={i} className={rowClassName} />)}
+    </div>
+  )
+}

@@ -8,7 +8,7 @@ import type { HandlingMethod } from '@/domain'
 import { formatNumber, formatRub } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { FieldGrid, FormSection } from '@/components/ui/FormSection'
-import { NumberField, type SectionProps } from './FormParts'
+import { ProcessNumberField, type SectionProps } from './FormParts'
 import { replaceableMethods, updateStaffRow, type StaffRow } from './processForm'
 import { staffStats } from './processStats'
 
@@ -85,7 +85,7 @@ interface StaffSectionProps extends SectionProps {
 }
 
 /** Секция 4 «Исполнители и замещение труда» (PRD 9.2; 15935:1127). Коэффициент — строкой на каждый выбранный способ. */
-export function StaffSection({ handlingMethods, payrollCoef, ...props }: StaffSectionProps) {
+export function ProcessStaffSection({ handlingMethods, payrollCoef, ...props }: StaffSectionProps) {
   const { form, errors, update } = props
   const selected = replaceableMethods(form)
   const methodName = (code: string) => handlingMethods.find((m) => m.code === code)?.name ?? code
@@ -113,8 +113,8 @@ export function StaffSection({ handlingMethods, payrollCoef, ...props }: StaffSe
             />
           </Field>
         ))}
-        <NumberField name="turnoverPct" {...props} />
-        <NumberField name="workTimeLossPct" {...props} />
+        <ProcessNumberField name="turnoverPct" {...props} />
+        <ProcessNumberField name="workTimeLossPct" {...props} />
       </FieldGrid>
     </FormSection>
   )

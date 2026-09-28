@@ -6,14 +6,24 @@ import type { Services } from '@/services'
 import { createMockServices } from '@/services/mock'
 import { ServicesProvider } from '@/services/ServicesProvider'
 import { RoleProvider } from '@/shared/auth/RoleProvider'
+import { EconomicsStep } from './economics/EconomicsStep'
+import { MatchingStep } from './matching/MatchingStep'
+import { ParamsStep } from './params/ParamsStep'
 import { ProjectStepPage } from './ProjectStepPage'
+import { SimulationStep } from './simulation/SimulationStep'
+import type { ProjectStepComponent } from './stepProps'
 
 function WhereAmI() {
   const { pathname } = useLocation()
   return <p data-testid="location">{pathname}</p>
 }
 
-const STEPS: readonly ProjectStep[] = ['params', 'matching', 'simulation', 'economics']
+const STEPS: Readonly<Record<ProjectStep, ProjectStepComponent>> = {
+  params: ParamsStep,
+  matching: MatchingStep,
+  simulation: SimulationStep,
+  economics: EconomicsStep,
+}
 
 const renderAt = (path: string, services: Services = createMockServices({ latencyMs: 0 })) =>
   render(
@@ -21,8 +31,8 @@ const renderAt = (path: string, services: Services = createMockServices({ latenc
       <ServicesProvider services={services}>
         <RoleProvider>
           <Routes>
-            {STEPS.map((step) => (
-              <Route key={step} path={`/projects/:projectId/${step}`} element={<><ProjectStepPage step={step} /><WhereAmI /></>} />
+            {(Object.entries(STEPS) as [ProjectStep, ProjectStepComponent][]).map(([step, Step]) => (
+              <Route key={step} path={`/projects/:projectId/${step}`} element={<><ProjectStepPage step={step} Step={Step} /><WhereAmI /></>} />
             ))}
             <Route path="*" element={<WhereAmI />} />
           </Routes>

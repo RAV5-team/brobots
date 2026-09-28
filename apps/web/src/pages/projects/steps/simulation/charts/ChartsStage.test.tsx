@@ -7,6 +7,7 @@ import { createMockServices } from '@/services/mock'
 import { ServicesProvider } from '@/services/ServicesProvider'
 import { RoleProvider } from '@/shared/auth/RoleProvider'
 import { ProjectStepPage } from '../../ProjectStepPage'
+import { SimulationStep } from '../SimulationStep'
 
 const RUNS: Partial<Record<SimulationVerdict, string>> = { confirmed: 'SIM-0926-01', can_reduce: 'SIM-0926-02', need_more: 'SIM-0926-03' }
 const LOAD = { timeout: 5_000 }
@@ -38,7 +39,7 @@ const renderTab = (services: Services) =>
       <ServicesProvider services={services}>
         <RoleProvider>
           <Routes>
-            <Route path="/projects/:projectId/simulation" element={<ProjectStepPage step="simulation" />} />
+            <Route path="/projects/:projectId/simulation" element={<ProjectStepPage step="simulation" Step={SimulationStep} />} />
             <Route path="/projects/:projectId/economics" element={<p>итог и экономика</p>} />
           </Routes>
         </RoleProvider>

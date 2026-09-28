@@ -18,7 +18,7 @@ import { defaultRows, rateUnit, type DefaultRow, type FilterableProcess } from '
 const t = ru.location
 
 /** Обязательных значений у процесса на локации: семь значений карточки, исполнители и оклад (PRD 10.4). */
-export const REQUIRED_VALUES = 9
+const REQUIRED_VALUES = 9
 
 /** Чего может не хватать процессу: значения шаблона заданы всегда, кроме объёма, который бывает пустым на площадке. */
 export type MissingItem = keyof typeof t.card.missingItems

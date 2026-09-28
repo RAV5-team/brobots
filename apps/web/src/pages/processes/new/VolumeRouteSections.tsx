@@ -3,7 +3,7 @@ import { FormulaStats } from '@/components/ui/FormulaStats'
 import { Segmented } from '@/components/ui/Segmented'
 import { ru } from '@/shared/i18n/ru'
 import { FieldGrid, FormSection } from '@/components/ui/FormSection'
-import { NumberField, type SectionProps } from './FormParts'
+import { ProcessNumberField, type SectionProps } from './FormParts'
 import { volumeStats } from './processStats'
 
 const t = ru.processNew
@@ -18,10 +18,10 @@ export function VolumeSection(props: SectionProps) {
   return (
     <FormSection id="volume" title={s.title} description={s.description}>
       <FieldGrid>
-        <NumberField name="dailyVolume" {...props} />
-        <NumberField name="workHours" {...props} />
-        <NumberField name="peakFactor" {...props} />
-        <NumberField name="automationPct" {...props} />
+        <ProcessNumberField name="dailyVolume" {...props} />
+        <ProcessNumberField name="workHours" {...props} />
+        <ProcessNumberField name="peakFactor" {...props} />
+        <ProcessNumberField name="automationPct" {...props} />
       </FieldGrid>
       <FormulaStats label={t.volumeStats.label} stats={volumeStats(props.form)} />
     </FormSection>
@@ -35,11 +35,11 @@ export function RouteSection(props: SectionProps) {
   return (
     <FormSection id="route" title={s.title} description={s.description}>
       <FieldGrid>
-        <NumberField name="routeLengthM" {...props} />
-        <NumberField name="speedLimitMps" {...props} />
-        <NumberField name="widthMarginM" {...props} />
-        <NumberField name="liftTripPct" {...props} />
-        <NumberField name="liftWaitS" {...props} />
+        <ProcessNumberField name="routeLengthM" {...props} />
+        <ProcessNumberField name="speedLimitMps" {...props} />
+        <ProcessNumberField name="widthMarginM" {...props} />
+        <ProcessNumberField name="liftTripPct" {...props} />
+        <ProcessNumberField name="liftWaitS" {...props} />
         <Field label={f.label} hint={f.hint}>
           <Segmented
             label={f.label}
@@ -49,8 +49,8 @@ export function RouteSection(props: SectionProps) {
             onChange={(v) => { props.update({ indoor: v === 'yes' }) }}
           />
         </Field>
-        <NumberField name="minAisleWidthM" {...props} />
-        <NumberField name="minTempC" {...props} />
+        <ProcessNumberField name="minAisleWidthM" {...props} />
+        <ProcessNumberField name="minTempC" {...props} />
       </FieldGrid>
     </FormSection>
   )
@@ -62,12 +62,12 @@ export function CostsSection(props: SectionProps) {
   return (
     <FormSection id="costs" title={s.title} description={s.description}>
       <FieldGrid>
-        <NumberField name="fleetOperators" {...props} />
-        <NumberField name="fleetSalaryRub" {...props} />
-        <NumberField name="sitePrepPct" {...props} />
-        <NumberField name="itIntegrationRub" {...props} />
-        <NumberField name="consumablesRub" {...props} />
-        <NumberField name="otherEffectsRub" {...props} />
+        <ProcessNumberField name="fleetOperators" {...props} />
+        <ProcessNumberField name="fleetSalaryRub" {...props} />
+        <ProcessNumberField name="sitePrepPct" {...props} />
+        <ProcessNumberField name="itIntegrationRub" {...props} />
+        <ProcessNumberField name="consumablesRub" {...props} />
+        <ProcessNumberField name="otherEffectsRub" {...props} />
       </FieldGrid>
     </FormSection>
   )

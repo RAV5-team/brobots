@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { ROUTE_PATHS } from '@/app/routePaths'
 import { Button } from '@/components/ui/Button'
 import { MergedButtonLink } from '@/components/ui/MergedButton'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
 import { useRole } from '@/shared/auth/useRole'
 import { ru } from '@/shared/i18n/ru'
@@ -66,10 +67,7 @@ export function ProcessesPage() {
 
   return (
     <>
-      <header className="flex flex-col gap-8">
-        <h1 className="type-display-lg text-text">{t.title}</h1>
-        <p className="type-body text-text-secondary">{t.lead}</p>
-      </header>
+      <PageHeader title={t.title} lead={t.lead} gap={8} />
 
       {state.status === 'loading' && <ProcessesSkeleton />}
       {state.status === 'error' && <ErrorState title={t.error.title} message={t.error.message} onRetry={retry} />}

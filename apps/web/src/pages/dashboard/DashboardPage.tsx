@@ -1,3 +1,4 @@
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Skeleton, ErrorState } from '@/components/ui/States'
 import { formatDate } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
@@ -35,10 +36,7 @@ export function DashboardPage() {
 
   return (
     <>
-      <header className="flex flex-col gap-4">
-        <h1 className="type-display-lg text-text">{t.title}</h1>
-        {state.status === 'ready' && <p className="type-body text-text-secondary">{versionLine(state)}</p>}
-      </header>
+      <PageHeader title={t.title} lead={state.status === 'ready' ? versionLine(state) : undefined} />
 
       {state.status === 'loading' && <DashboardSkeleton />}
       {state.status === 'error' && <ErrorState title={t.error.title} message={t.error.message} onRetry={retry} />}

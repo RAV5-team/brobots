@@ -1,6 +1,6 @@
 import { clsx } from 'clsx'
 import { Plus } from 'lucide-react'
-import { useLocation, useNavigate } from 'react-router'
+import { useNavigate } from 'react-router'
 import { ROUTE_PATHS } from '@/app/routePaths'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -9,13 +9,12 @@ import { ProgressPanel } from '@/components/ui/ProgressPanel'
 import { Search } from '@/components/ui/Search'
 import { ErrorState, Skeleton } from '@/components/ui/States'
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/Table'
-import { canAccess } from '@/shared/auth/resolveRole'
-import { useRole } from '@/shared/auth/useRole'
 import { ru } from '@/shared/i18n/ru'
 import { AdminHeader } from '../AdminHeader'
 import { CatalogTableHead } from './CatalogTableHead'
 import { refreshView } from './catalogRefreshModel'
 import { useCatalogRefresh, type CatalogRefreshState } from './useCatalogRefresh'
+import { AdminGuard } from '../AdminGuard'
 
 const t = ru.catalogRefresh
 const tc = ru.adminCatalog
@@ -107,17 +106,12 @@ function RefreshPanel() {
 
 /** Экран А1а «Администрирование · каталог · загрузка»: опрос источников по запросу (PRD 6.2; 16044:11). */
 export function AdminCatalogImportPage() {
-  const role = useRole()
-  const { pathname } = useLocation()
-
-  if (!canAccess(role, pathname)) {
-    return <ErrorState title={ru.errors.accessDenied(ru.roles[role])} message={ru.admin.accessHint} />
-  }
-
   return (
-    <div className="flex flex-col gap-24">
-      <AdminHeader active="catalog" />
-      <RefreshPanel />
-    </div>
+    <AdminGuard>
+      <div className="flex flex-col gap-24">
+        <AdminHeader active="catalog" />
+        <RefreshPanel />
+      </div>
+    </AdminGuard>
   )
 }

@@ -34,6 +34,11 @@
 
   --font-*: initial;
   --text-*: initial;
+  /* Начертания font-normal / medium / semibold — те же токены, что у type-* (400 / 500 / 600); остальные отключены. */
+  --font-weight-*: initial;
+  --font-weight-normal: var(--rav-font-weight-regular);
+  --font-weight-medium: var(--rav-font-weight-medium);
+  --font-weight-semibold: var(--rav-font-weight-semibold);
 
   --radius-*: initial;
   --radius-xs: var(--rav-radius-xs);

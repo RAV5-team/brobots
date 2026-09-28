@@ -41,7 +41,7 @@ function spec(robot: Robot, value: string | null): Characteristic {
 const signed = (value: number) => (value > 0 ? `+${formatNumber(value)}` : formatNumber(value))
 
 /** «+5…+40 °C», «от +5 °C», «до +40 °C» — общий вид температуры для К-3 и К-4. */
-export function temperatureText(specs: RobotSpecs): string | null {
+function temperatureText(specs: RobotSpecs): string | null {
   const t = ru.catalog.comparePage
   const { minTempC: min, maxTempC: max } = specs
   if (min !== undefined && max !== undefined) return t.temperatureRange(signed(min), signed(max))

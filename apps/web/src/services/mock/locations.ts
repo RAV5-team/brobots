@@ -41,7 +41,7 @@ function nextDocumentId(documents: readonly LocationDocument[]): LocationDocumen
 const IMAGES: readonly string[] = IMAGE_EXTENSIONS
 
 /** Вид документа по расширению — так его определит сервер. «Схемой» PDF становится только в демо-данных. */
-export function documentKindOf(extension: string): LocationDocumentKind {
+function documentKindOf(extension: string): LocationDocumentKind {
   if (extension === 'dwg') return 'cad'
   if (IMAGES.includes(extension)) return 'photo'
   if (extension === 'xlsx' || extension === 'xls') return 'excel'

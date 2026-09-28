@@ -6,7 +6,7 @@ import { Chip, type ChipTone } from './Chip'
 /** Плашка статуса (16777:991, 16777:1019, 16777:861): подтверждено — лаймовая, оценка — нейтральная, нет данных — приглушённая. */
 const STATUS_TONES: Record<CharacteristicStatus, ChipTone> = { confirmed: 'accent', estimate: 'neutral', missing: 'muted' }
 
-export function StatusChip({ status }: { readonly status: CharacteristicStatus }) {
+function StatusChip({ status }: { readonly status: CharacteristicStatus }) {
   return <Chip tone={STATUS_TONES[status]}>{ru.characteristicStatus[status]}</Chip>
 }
 

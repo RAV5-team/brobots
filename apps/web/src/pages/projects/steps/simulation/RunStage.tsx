@@ -1,7 +1,7 @@
 import { ArrowLeft, ArrowRight, RotateCcw } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button, ButtonLink } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
+import { Card, CardTitle } from '@/components/ui/Card'
 import { ProgressPanel } from '@/components/ui/ProgressPanel'
 import { EmptyState, ErrorState } from '@/components/ui/States'
 import type { SimulationRunProgress } from '@/services'
@@ -122,7 +122,7 @@ function RunProgress({ progress, verdictTo, onStop, onConditions }: Pick<RunStag
 function Explain() {
   return (
     <Card as="section" padding={20} gap={8} elevation="md" aria-labelledby="simulation-run-explain">
-      <h2 id="simulation-run-explain" className="type-overline text-text-muted">{t.explain.title}</h2>
+      <CardTitle as="h2" id="simulation-run-explain">{t.explain.title}</CardTitle>
       <p className="type-body text-text-secondary">{t.explain.text(LIMIT)}</p>
     </Card>
   )

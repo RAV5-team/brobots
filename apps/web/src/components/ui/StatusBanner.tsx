@@ -1,24 +1,30 @@
 import { clsx } from 'clsx'
 import { Check } from 'lucide-react'
 import { useId, type ReactNode } from 'react'
+import { Card } from './Card'
 
 /**
  * outline — светлая плашка с границей, галочка у заголовка («status · локация создана», 12а, 15950:2251);
  * inverse — тёмная плашка с лаймовым кругом ✓ («status · каталог обновлён», А3, 15966:6274);
  * danger — предупреждение без иконки на `danger-bg` («warning» отчёта 09, 16197:2325): дисклеймер ТЗ 3.7.5.
  * Не статус операции, а постоянная пометка — объявляется как `note`, а не `status`.
+ * accent — лаймовая вдавленная плашка «данные устарели» (D-89): подбор и прогон посчитаны по прежним параметрам;
+ * справа — действие («Пересчитать»), под текстом — дополнительные строки (`children`).
  */
-export type StatusBannerVariant = 'outline' | 'inverse' | 'danger'
+export type StatusBannerVariant = 'outline' | 'inverse' | 'danger' | 'accent'
 
 interface StatusBannerProps {
   /** «Локация „РЦ Химки“ создана», «Каталог обновлён» — без «✓»: галочка рисуется иконкой (D-03). */
   readonly title: string
-  /** Что получилось и что делать дальше — одной строкой (только outline, 12а). */
+  /** Что получилось и что делать дальше — одной строкой (outline 12а, danger, accent). */
   readonly description?: string
   /** Следующий шаг справа: «Открыть локацию» (secondary), «Открыть в каталоге» (`ButtonLink variant="accent"`). */
+  /** accent — «Пересчитать» подбор (D-89). */
   readonly action?: ReactNode
   readonly variant?: StatusBannerVariant
   readonly className?: string
+  /** Строки под текстом (только accent): пояснение мока, ошибка действия. */
+  readonly children?: ReactNode
 }
 
 function InverseBanner({ title, action, className }: Omit<StatusBannerProps, 'variant' | 'description'>) {
@@ -48,13 +54,40 @@ function DangerBanner({ title, description, className }: Omit<StatusBannerProps,
   )
 }
 
+function AccentBanner({ title, description, action, children }: Omit<StatusBannerProps, 'variant' | 'className'>) {
+  const titleId = useId()
+  const heading = <h2 id={titleId} className="type-body font-semibold text-on-accent">{title}</h2>
+  const text = description && <p className="type-caption text-on-accent">{description}</p>
+  if (action === undefined && children === undefined) {
+    return (
+      <Card as="section" variant="accent" padding={20} gap={4} role="status" aria-labelledby={titleId}>
+        {heading}
+        {text}
+      </Card>
+    )
+  }
+  return (
+    <Card as="section" variant="accent" padding={20} gap={8} role="status" aria-labelledby={titleId}>
+      <div className="flex items-center justify-between gap-16">
+        <div className="flex min-w-0 flex-col gap-4">
+          {heading}
+          {text}
+        </div>
+        {action}
+      </div>
+      {children}
+    </Card>
+  )
+}
+
 /**
  * Плашка успеха над списком после сохранения (components.md: StatusBanner; 15950:2251, 15966:6274).
  * Объявляется скринридером как статус.
  */
-export function StatusBanner({ title, description, action, variant = 'outline', className }: StatusBannerProps) {
+export function StatusBanner({ title, description, action, variant = 'outline', className, children }: StatusBannerProps) {
   const titleId = useId()
   if (variant === 'inverse') return <InverseBanner title={title} action={action} {...(className ? { className } : {})} />
+  if (variant === 'accent') return <AccentBanner title={title} action={action} {...(description ? { description } : {})}>{children}</AccentBanner>
   if (variant === 'danger') return <DangerBanner title={title} {...(description ? { description } : {})} {...(className ? { className } : {})} />
   return (
     <section

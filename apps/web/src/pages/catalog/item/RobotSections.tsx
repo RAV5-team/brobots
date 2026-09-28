@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { ROUTE_PATHS } from '@/app/routePaths'
 import { ButtonLink } from '@/components/ui/Button'
 import { FILTER_PILL_CLASSES } from '@/components/ui/buttonStyles'
-import { Card } from '@/components/ui/Card'
+import { Card, CardTitle } from '@/components/ui/Card'
 import { CharacteristicRow } from '@/components/ui/CharacteristicRow'
 import { ChipList } from '@/components/ui/ChipList'
 import {
@@ -113,7 +113,7 @@ function LaunchGroup({ title, ids, items, lastGroup }: { readonly title: string;
   if (found.length === 0) return null
   return (
     <section aria-label={title} className="flex flex-col gap-4">
-      <h3 className="type-overline text-text-muted">{title}</h3>
+      <CardTitle>{title}</CardTitle>
       <ul>{found.map((item, i) => <LaunchRow key={item.id} item={item} last={lastGroup && i === found.length - 1} />)}</ul>
     </section>
   )
@@ -169,7 +169,7 @@ export function RobotAllCharacteristics({ map, summary }: { readonly map: RobotC
       </div>
       {GROUP_ORDER.map((group) => (
         <section key={group} id={group === 'dataQuality' ? 'data-quality' : undefined} aria-label={t.groups[group]} className="scroll-mt-(--rav-form-nav-offset) pt-12">
-          <h3 className="type-overline text-text-muted">{t.groups[group]}</h3>
+          <CardTitle>{t.groups[group]}</CardTitle>
           <dl>
             {ROBOT_CHARACTERISTIC_GROUPS[group].map((key) => <Row key={key} label={t.rows[key]} c={map[key]} />)}
             {group === 'dataQuality' && (

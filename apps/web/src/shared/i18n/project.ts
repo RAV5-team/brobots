@@ -193,7 +193,6 @@ export const project = {
       readOnly: 'Сохранённая оценка использует снимок данных — значения не меняются',
       failed: 'Не удалось сохранить изменения. Проверьте соединение и повторите',
       processFailed: 'Не удалось сменить процесс. Проверьте соединение и повторите',
-      staleNote: 'Изменение допущений сделает подбор и прогон устаревшими — их нужно будет пересчитать',
     },
     snapshotError: { title: 'Не удалось загрузить данные шага', message: 'Проверьте соединение и попробуйте ещё раз' },
     /** Что будет с подбором без значения (PRD 11.2, «Правила готовности»). */
@@ -297,7 +296,7 @@ export const project = {
       compareSelected: (count: number) => `Сравнить выбранные · ${String(count)}`,
       compareHint: (limit: number) => `Отметьте от 2 до ${String(limit)} вариантов`,
       caption: 'Рейтинг вариантов подбора: решение и способ приобретения, суммы в млн ₽',
-      columns: { rank: '№', solution: 'Решение и приобретение', robots: 'Роб.', score: 'Балл', capex: 'CAPEX', raas: 'RaaS / мес', opex: 'OPEX / год', effect: 'Эффект / год', payback: 'Окупаем.', action: 'Выбор' },
+      columns: { rank: '№', solution: 'Решение и приобретение', robots: 'Роб.', score: 'Балл', capex: 'CAPEX', raas: 'RaaS / мес', opex: 'OPEX / год', effect: 'Эффект / год', payback: 'Окупаем.' },
       compareCheckbox: (name: string) => `Добавить к сравнению: ${name}`,
       why: 'почему',
       whyLabel: (name: string) => `Почему такой балл: ${name}`,

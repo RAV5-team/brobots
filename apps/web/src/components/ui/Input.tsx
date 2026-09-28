@@ -52,9 +52,9 @@ export function Input({ size = 'md', suffix, leading, computed = false, invalid,
         computed
           ? 'bg-surface-sunken'
           : isInvalid
-            ? 'border-[1.5px] border-danger-border bg-danger-bg shadow-inset-sm'
+            ? 'border-(length:--rav-border-width-control) border-danger-border bg-danger-bg shadow-inset-sm'
             : attention
-              ? 'border-[1.5px] border-accent-border bg-surface-muted shadow-inset-sm'
+              ? 'border-(length:--rav-border-width-control) border-accent-border bg-surface-muted shadow-inset-sm'
               : size === 'lg'
                 ? 'bg-bg shadow-inset-md'
                 : 'bg-surface-muted shadow-inset-sm',

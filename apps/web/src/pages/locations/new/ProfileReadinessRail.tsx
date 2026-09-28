@@ -1,8 +1,7 @@
 import { ArrowRight } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
 import { Card, CardStat, CardTitle } from '@/components/ui/Card'
+import { FormRail } from '@/components/ui/FormRail'
 import { IconButton } from '@/components/ui/IconButton'
-import { MergedButton } from '@/components/ui/MergedButton'
 import { Progress } from '@/components/ui/Progress'
 import { formatNumber } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
@@ -45,35 +44,28 @@ export function ProfileReadinessRail({ readiness, saveBlock, saving, message, on
   const { requiredDone, requiredTotal } = readiness
   const note = saveBlock === 'guest' ? t.guestSave : saveBlock === 'otherType' ? t.otherTypeSave : null
   return (
-    <aside className="sticky top-24 flex w-(--rav-form-rail-width) shrink-0 flex-col gap-16 self-start">
-      <Card className={dimmed ? 'opacity-(--rav-disabled-opacity)' : undefined}>
-        <CardTitle>{t.title}</CardTitle>
-        <p className="flex items-end gap-8">
-          <span className="type-display-lg text-text">{`${formatNumber(requiredDone)} / ${formatNumber(requiredTotal)}`}</span>
-          <span className="type-caption text-text-secondary">{t.requiredLabel}</span>
-        </p>
-        <Progress tone="inverse" label={t.requiredProgress} value={requiredTotal === 0 ? 0 : (requiredDone / requiredTotal) * PERCENT} />
-        <dl className="flex flex-col gap-12">
-          <CardStat label={t.filled} value={t.filledValue(formatNumber(readiness.filled), formatNumber(readiness.filledTotal))} />
-          <CardStat label={t.errors} value={<ErrorsValue count={readiness.errors} onGo={onGoToError} />} />
-          <CardStat label={t.assumptions} value={formatNumber(readiness.assumptions)} />
-          <CardStat label={t.optionalEmpty} value={formatNumber(readiness.optionalEmpty)} />
-        </dl>
-      </Card>
-      {message && <p role="alert" className="type-caption font-medium text-danger">{message}</p>}
-      {status && <p role="status" className="type-caption text-text-secondary">{status}</p>}
-      <MergedButton
-        type="submit"
-        block
-        label={saving ? t.saving : t.save}
-        icon={ArrowRight}
-        disabled={saveBlock !== null || saving}
-        aria-describedby={note ? 'location-save-note' : undefined}
-      />
-      {note && <p id="location-save-note" className="type-caption text-text-secondary">{note}</p>}
-      <Button className="w-full" disabled aria-describedby="location-excel-note">{t.importExcel}</Button>
-      <Button className="w-full" disabled aria-describedby="location-excel-note">{t.downloadTemplate}</Button>
-      <p id="location-excel-note" className="type-caption text-text-muted">{t.excelSoon}</p>
-    </aside>
+    <FormRail
+      label={t.title}
+      summary={(
+        <Card className={dimmed ? 'opacity-(--rav-disabled-opacity)' : undefined}>
+          <CardTitle>{t.title}</CardTitle>
+          <p className="flex items-end gap-8">
+            <span className="type-display-lg text-text">{`${formatNumber(requiredDone)} / ${formatNumber(requiredTotal)}`}</span>
+            <span className="type-caption text-text-secondary">{t.requiredLabel}</span>
+          </p>
+          <Progress tone="inverse" label={t.requiredProgress} value={requiredTotal === 0 ? 0 : (requiredDone / requiredTotal) * PERCENT} />
+          <dl className="flex flex-col gap-12">
+            <CardStat label={t.filled} value={t.filledValue(formatNumber(readiness.filled), formatNumber(readiness.filledTotal))} />
+            <CardStat label={t.errors} value={<ErrorsValue count={readiness.errors} onGo={onGoToError} />} />
+            <CardStat label={t.assumptions} value={formatNumber(readiness.assumptions)} />
+            <CardStat label={t.optionalEmpty} value={formatNumber(readiness.optionalEmpty)} />
+          </dl>
+        </Card>
+      )}
+      message={message}
+      status={status}
+      submit={{ label: saving ? t.saving : t.save, disabled: saveBlock !== null || saving, note }}
+      excel={{ importLabel: t.importExcel, templateLabel: t.downloadTemplate, note: t.excelSoon }}
+    />
   )
 }

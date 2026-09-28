@@ -1,22 +1,20 @@
 import { useRef, useState } from 'react'
-import { useLocation } from 'react-router'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Chip } from '@/components/ui/Chip'
-import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
+import { EmptyState, ErrorState, SkeletonList } from '@/components/ui/States'
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from '@/components/ui/Table'
 import { formatCount } from '@/shared/format'
-import { canAccess } from '@/shared/auth/resolveRole'
-import { useRole } from '@/shared/auth/useRole'
 import { ru } from '@/shared/i18n/ru'
 import { AdminHeader } from '../AdminHeader'
 import type { OperationClass } from '@/domain'
 import { NewOperationClassModal } from './NewOperationClassModal'
 import type { OperationClassRow } from './operationClassesModel'
 import { useOperationClasses } from './useOperationClasses'
+import { AdminGuard } from '../AdminGuard'
 
 const t = ru.operationClasses
-const SKELETON_ROWS = [0, 1, 2, 3, 4]
+const SKELETON_ROWS = 5
 
 function ClassRow({ row }: { readonly row: OperationClassRow }) {
   return (
@@ -91,9 +89,7 @@ function ClassesPanel() {
       {/* Живая область есть всегда, чтобы сообщение о новом классе прочитала экранная читалка; пустая — скрыта. */}
       <p role="status" className="type-body-sm text-text-secondary empty:hidden">{createdNote}</p>
       {state.status === 'loading' && (
-        <div className="flex flex-col gap-8" aria-busy="true">
-          {SKELETON_ROWS.map((i) => <Skeleton key={i} className="h-44" />)}
-        </div>
+        <SkeletonList rows={SKELETON_ROWS} rowClassName="h-44" />
       )}
       {state.status === 'error' && <ErrorState title={t.error.title} message={t.error.message} onRetry={retry} />}
       {state.status === 'ready' && <ClassesTable rows={state.rows} />}
@@ -106,19 +102,14 @@ function ClassesPanel() {
 
 /** Экран А8 «Администрирование · классы операций» — справочник ключей подбора (PRD 6.7; 15966:8018). */
 export function OperationClassesPage() {
-  const role = useRole()
-  const { pathname } = useLocation()
-
   // Справочник ведёт только администратор (PRD 5.3, 6.7).
-  if (!canAccess(role, pathname)) {
-    return <ErrorState title={ru.errors.accessDenied(ru.roles[role])} message={ru.admin.accessHint} />
-  }
-
   // Шаг 24 между шапкой, вкладками и панелью (15966:8019), а не общий 16 каркаса.
   return (
-    <div className="flex flex-col gap-24">
-      <AdminHeader active="operationClasses" />
-      <ClassesPanel />
-    </div>
+    <AdminGuard>
+      <div className="flex flex-col gap-24">
+        <AdminHeader active="operationClasses" />
+        <ClassesPanel />
+      </div>
+    </AdminGuard>
   )
 }

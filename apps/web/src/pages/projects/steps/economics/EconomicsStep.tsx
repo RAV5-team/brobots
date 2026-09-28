@@ -35,18 +35,13 @@ import { RecommendationCard } from './RecommendationCard'
 import { ScenarioCompare } from './ScenarioCompare'
 import { SensitivityCard } from './SensitivityCard'
 import { useEconomicsStep, type EconomicsData, type EconomicsStepState } from './useEconomicsStep'
+import type { ProjectStepProps } from '../stepProps'
 
 const t = ru.project.economics
 const YEARS = ru.project.matching.plural.years
 const VIEW_PARAM = 'scenario'
 /** Порядок сценариев — как в PRD 11.5 и на переключателе макета: покупка, затем RaaS. */
 const ORDER: readonly AcquisitionModel[] = ['purchase', 'raas']
-
-interface EconomicsStepProps {
-  readonly project: Project
-  readonly locationName: string
-  readonly isGuest: boolean
-}
 
 /** «Данные расчёта» (PRD 11.5): версии данных итога под шапкой, свёрнуто. */
 function CalcData({ project, runId, criteria, scope }: { readonly project: Project; readonly runId: string | null; readonly criteria: number; readonly scope: string }) {
@@ -193,7 +188,7 @@ function EconomicsBody({ data, state, locationName, isGuest, view }: ReadyProps)
  * Переключатель в шапке показывает сценарий (`?scenario=`), выбирает его — только «Выбрать этот сценарий» (D-106).
  * Сохранённая оценка — тот же экран только для просмотра (D-17), выбранный сценарий — из снимка (D-81).
  */
-export function EconomicsStep({ project: initial, locationName, isGuest }: EconomicsStepProps) {
+export function EconomicsStep({ project: initial, locationName, isGuest }: ProjectStepProps) {
   const readOnly = isReadOnly(initial)
   const state = useEconomicsStep(initial, !isGuest && !readOnly)
   const { project, load, selected } = state

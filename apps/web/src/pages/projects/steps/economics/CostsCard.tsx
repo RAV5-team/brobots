@@ -1,9 +1,10 @@
 import { clsx } from 'clsx'
 import { Card } from '@/components/ui/Card'
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from '@/components/ui/Table'
-import type { CostItem, ScenarioEconomics } from '@/domain'
+import type { ScenarioEconomics } from '@/domain'
 import { ru } from '@/shared/i18n/ru'
 import type { ChainRow } from './economicsTables'
+import { CostItemRows } from '../../shared/CostItemRows'
 import { acquisitionName, money } from './economicsView'
 
 const t = ru.project.economics.costs
@@ -13,27 +14,6 @@ interface CostsCardProps {
   readonly solutionName: string
   readonly chain: readonly ChainRow[]
   readonly laborSavingsRub: number
-}
-
-function ItemRows({ title, items }: { readonly title: string; readonly items: readonly CostItem[] }) {
-  const total = items.reduce((sum, item) => sum + item.amountRub, 0)
-  return (
-    <>
-      <TableRow>
-        <TableHeaderCell scope="rowgroup" colSpan={2}>{title}</TableHeaderCell>
-      </TableRow>
-      {items.map((item) => (
-        <TableRow key={item.code}>
-          <TableCell>{item.label}</TableCell>
-          <TableCell align="end">{money(item.amountRub)}</TableCell>
-        </TableRow>
-      ))}
-      <TableRow>
-        <TableCell className="font-semibold">{t.total}</TableCell>
-        <TableCell align="end" className="font-semibold">{money(total)}</TableCell>
-      </TableRow>
-    </>
-  )
 }
 
 /**
@@ -79,8 +59,8 @@ export function CostsCard({ scenario, solutionName, chain, laborSavingsRub }: Co
               </TableRow>
             </TableHead>
             <TableBody>
-              <ItemRows title={t.capexGroup} items={scenario.capexItems} />
-              <ItemRows title={t.opexGroup} items={scenario.opexItems} />
+              <CostItemRows title={t.capexGroup} items={scenario.capexItems} />
+              <CostItemRows title={t.opexGroup} items={scenario.opexItems} />
             </TableBody>
           </Table>
         )

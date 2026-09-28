@@ -1,7 +1,7 @@
 import type { CompareCell, CompareCellTone, CompareGroup } from '@/components/ui/CompareTable'
 import type { HandlingMethod, RankedVariant, Robot, SolutionCheck } from '@/domain'
 import { specsCompleteness } from '@/domain'
-import { formatCount, formatNumber, formatPercent, formatRubCompact, formatYears } from '@/shared/format'
+import { formatCount, formatNumber, formatPercent, formatRubTenth, formatYears } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { formatScore } from './matchingModel'
 
@@ -25,7 +25,7 @@ interface Context {
 
 type Row = readonly [key: string, label: string, value: (e: CompareEntry) => string | null, tone?: (e: CompareEntry) => CompareCellTone]
 
-const money = (value: number | null | undefined): string | null => (value == null ? null : formatRubCompact(value, { fractionDigits: 1 }))
+const money = (value: number | null | undefined): string | null => (value == null ? null : formatRubTenth(value))
 const years = (value: number | null): string => (value === null ? ru.project.matching.ranking.notPaying : formatYears(value))
 
 /** У решения вне рейтинга расчёта нет — «не рассчитано», а не «нет данных». */
