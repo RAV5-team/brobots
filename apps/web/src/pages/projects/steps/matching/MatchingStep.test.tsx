@@ -6,6 +6,7 @@ import { createMockServices } from '@/services/mock'
 import { ServicesProvider } from '@/services/ServicesProvider'
 import { RoleProvider } from '@/shared/auth/RoleProvider'
 import { ProjectStepPage } from '../ProjectStepPage'
+import { MatchingStep } from './MatchingStep'
 
 const renderAt = (path: string, services: Services = createMockServices({ latencyMs: 0 })) =>
   render(
@@ -13,7 +14,7 @@ const renderAt = (path: string, services: Services = createMockServices({ latenc
       <ServicesProvider services={services}>
         <RoleProvider>
           <Routes>
-            <Route path="/projects/:projectId/matching" element={<ProjectStepPage step="matching" />} />
+            <Route path="/projects/:projectId/matching" element={<ProjectStepPage step="matching" Step={MatchingStep} />} />
             <Route path="*" element={<p>другая страница</p>} />
           </Routes>
         </RoleProvider>

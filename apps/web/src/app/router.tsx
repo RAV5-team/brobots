@@ -25,6 +25,7 @@ import { ProjectsPage } from '@/pages/projects/ProjectsPage'
 import { ScreenStub } from '@/pages/_stub/ScreenStub'
 import { RootLayout } from './RootLayout'
 import type { ProjectStep } from '@/domain'
+import type { ProjectStepComponent } from '@/pages/projects/steps/stepProps'
 import { DEV_PATHS, PROJECT_STEP_PATHS, ROUTE_PATHS, type RoutePath } from './routePaths'
 
 // Экран входа 05 и печатный отчёт 09 (D-15) живут без меню; остальные разделы — внутри каркаса кабинета.
@@ -37,14 +38,24 @@ const IMPLEMENTED: readonly RoutePath[] = [
   ...Object.values(PROJECT_STEP_PATHS),
 ]
 
-// Шаги проекта — один каркас (ProjectStepPage), шаг — по ProjectStep (D-22). Грузятся по требованию:
-// шаги 02–08 тяжёлые и в JS первой загрузки не входят (бюджет 300 КБ).
+// Шаги проекта — один каркас (ProjectStepPage), шаг — по ProjectStep (D-22). Грузятся по требованию и каждый своим
+// чанком: шаги 02–08 тяжёлые и в JS первой загрузки не входят (бюджет 300 КБ), параметрам не нужны графики симуляции.
+const PROJECT_STEP_MODULES: Readonly<Record<ProjectStep, () => Promise<ProjectStepComponent>>> = {
+  params: async () => (await import('@/pages/projects/steps/params/ParamsStep')).ParamsStep,
+  matching: async () => (await import('@/pages/projects/steps/matching/MatchingStep')).MatchingStep,
+  simulation: async () => (await import('@/pages/projects/steps/simulation/SimulationStep')).SimulationStep,
+  economics: async () => (await import('@/pages/projects/steps/economics/EconomicsStep')).EconomicsStep,
+}
+
 const projectStepRoutes: RouteObject[] = (Object.entries(PROJECT_STEP_PATHS) as [ProjectStep, RoutePath][])
   .map(([step, path]) => ({
     path,
     lazy: async () => {
-      const { ProjectStepPage } = await import('@/pages/projects/steps/ProjectStepPage')
-      return { element: <ProjectStepPage key={step} step={step} /> }
+      const [{ ProjectStepPage }, Step] = await Promise.all([
+        import('@/pages/projects/steps/ProjectStepPage'),
+        PROJECT_STEP_MODULES[step](),
+      ])
+      return { element: <ProjectStepPage key={step} step={step} Step={Step} /> }
     },
   }))
 

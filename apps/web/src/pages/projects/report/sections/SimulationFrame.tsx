@@ -12,10 +12,11 @@ const LEGEND = robotLegend(player.groups)
 
 /**
  * Кадр 2D-схемы (PRD 15 · №132, ТЗ 3.7.4; D-107): те же `SimPlayer2D`, что на 07a, на паузе в первом пиковом часе —
- * для обоих составов в один момент. Трассы тяжёлые и грузятся отдельно; без них раздел остаётся без кадра.
+ * для обоих составов в один момент. Кадр — на границе часа, поэтому хватает почасового среза трасс (около 50 КБ
+ * вместо 1,6–1,8 МБ записи): позиции в нём те же, что в полной трассе. Без трасс раздел остаётся без кадра.
  */
 export function SimulationFrame({ run, fleets }: { readonly run: SimulationRun; readonly fleets: readonly ChartFleet[] }) {
-  const { load } = useRunTraces(run.id)
+  const { load } = useRunTraces(run.id, 'hourly')
   if (load.status === 'loading') return <p aria-busy="true" className="type-body-sm text-text-secondary">{t.frameLoading}</p>
   if (load.status === 'error') return <p className="type-body-sm text-text-secondary">{t.frameError}</p>
   const pairs = fleets.flatMap((fleet, i) => {

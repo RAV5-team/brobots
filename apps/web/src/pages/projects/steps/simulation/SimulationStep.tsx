@@ -7,7 +7,7 @@ import { StatusBanner } from '@/components/ui/StatusBanner'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
 import { Stepper } from '@/components/ui/Stepper'
 import { TabNav } from '@/components/ui/TabNav'
-import { SIMULATION_STAGES, isReadOnly, type Fleet, type Project, type SimulationRequest, type SimulationStage } from '@/domain'
+import { SIMULATION_STAGES, isReadOnly, type Fleet, type SimulationRequest, type SimulationStage } from '@/domain'
 import { formatTime } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { ProjectStepLayout } from '../ProjectStepLayout'
@@ -31,14 +31,9 @@ import { useSimulationStep, type SimulationStepState } from './useSimulationStep
 import { useVerdictRun } from './useVerdictRun'
 import { planOf } from './verdictModel'
 import { VerdictStage } from './VerdictStage'
+import type { ProjectStepProps } from '../stepProps'
 
 const t = ru.project.simulation
-
-interface SimulationStepProps {
-  readonly project: Project
-  readonly locationName: string
-  readonly isGuest: boolean
-}
 
 /** Адрес этапа с сохранением остальных параметров (`?as=` в dev-сборке); вкладка вердикта — только у этапа 4. */
 function withStage(params: URLSearchParams, stage: SimulationStage): URLSearchParams {
@@ -76,7 +71,7 @@ function StaleRunNotice({ runId }: { readonly runId: string }) {
  * Шаг 3 «Симуляция» (PRD 11.4): четыре этапа на одном адресе, этап — в `?stage=` (D-101). Без параметра — этап,
  * где остановились, а пока идёт прогон — «Прогон» (D-103). Этапы — экраны 04–07; вкладка графиков вердикта — 07a (заглушка).
  */
-export function SimulationStep({ project: initial, locationName, isGuest }: SimulationStepProps) {
+export function SimulationStep({ project: initial, locationName, isGuest }: ProjectStepProps) {
   const readOnly = isReadOnly(initial)
   const state = useSimulationStep(initial, !isGuest && !readOnly)
   const { project, inputs, load } = state

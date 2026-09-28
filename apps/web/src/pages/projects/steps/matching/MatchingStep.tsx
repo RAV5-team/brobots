@@ -24,14 +24,9 @@ import { effectiveOverrides, findVariant, manualEntries, recommendedVariant, sce
 import { RankingBlock } from './RankingBlock'
 import { RecommendationCard } from './RecommendationCard'
 import { useMatchingStep, type MatchingData, type MatchingStepState } from './useMatchingStep'
+import type { ProjectStepProps } from '../stepProps'
 
 const t = ru.project.matching
-
-interface MatchingStepProps {
-  readonly project: Project
-  readonly locationName: string
-  readonly isGuest: boolean
-}
 
 type Panel = 'hint' | 'params' | null
 
@@ -74,7 +69,7 @@ function budgetOf({ snapshot }: MatchingData): number | null {
  * Шаг 2 «Подбор решения» (экран 03, 16197:713; PRD 11.3). Гость проходит путь без сохранения (D-14),
  * сохранённая оценка — только просмотр (D-17). Правка «Параметров расчёта» — подбор устарел до пересчёта (D-89).
  */
-export function MatchingStep({ project: initial, locationName, isGuest }: MatchingStepProps) {
+export function MatchingStep({ project: initial, locationName, isGuest }: ProjectStepProps) {
   const readOnly = isReadOnly(initial)
   const state = useMatchingStep(initial, !isGuest && !readOnly)
   const { project, draft, load } = state
