@@ -1385,6 +1385,14 @@ export const ru = {
     computed: 'рассчитано',
     preliminary: 'предварительно',
     missing: 'нет данных',
+    /** Решение вне расчёта (шаг 2, 16325:101). */
+    outOfScope: 'вне расчёта',
+    /** Статусы проверки характеристик решения (2.1а, 16830:10). */
+    confirmed: 'подтверждено',
+    analog: 'по аналогу',
+    estimate: 'оценка',
+    pending: 'ещё не проверено',
+    needsCheck: 'требует проверки',
   },
 
   /** Экран A1 «Проекты» (PRD 11.1; 16325:14). */
@@ -1469,6 +1477,14 @@ export const ru = {
     simulation: 'Симуляция',
     economics: 'Итог и экономика',
   },
+
+  /** Короткая подпись шага в степпере доски 16325: «Параметры ✓ · Подбор ✓ · Симуляция 3 · Итог и экономика 4». */
+  projectStepShortTitles: {
+    params: 'Параметры',
+    matching: 'Подбор',
+    simulation: 'Симуляция',
+    economics: 'Итог и экономика',
+  } satisfies Record<ProjectStep, string>,
 
   /** Группы исполнителей склада из датасета (приложение А): форма процесса 09а, карточка процесса 11, профиль локации. */
   staffRoles: {
@@ -1574,6 +1590,21 @@ export const ru = {
     chipList: {
       more: (count: number) => `ещё ${String(count)}`,
       moreLabel: (labels: readonly string[]) => `ещё: ${labels.join(', ')}`,
+    },
+    /** Скорость плеера словами из множителя (доска 16325, 17083:1232): «Сутки за 2 мин 24 с» / «1 ч суток — за 6 с». */
+    playback: {
+      day: (duration: string) => `Сутки за ${duration}`,
+      hour: (duration: string) => `1 ч суток — за ${duration}`,
+      minutes: (n: number) => `${String(n)} мин`,
+      seconds: (n: number) => `${String(n)} с`,
+    },
+    /** Окна пиковых часов «08:00 — 11:00 · 3 ч · ×» (3.2, 16325:158). */
+    timeWindows: {
+      start: (list: string, n: number) => `${list}: начало окна ${String(n)}`,
+      end: (list: string, n: number) => `${list}: конец окна ${String(n)}`,
+      remove: (list: string, n: number) => `${list}: удалить окно ${String(n)}`,
+      hours: (n: number) => `${String(n)} ч`,
+      add: 'Добавить окно',
     },
   },
 

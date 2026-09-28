@@ -18,6 +18,8 @@ export interface CompareCell {
 export interface CompareRow {
   readonly key: string
   readonly label: string
+  /** Пояснение второй строкой под подписью: «CAPEX», «за весь парк» (2.1, 16325:101). */
+  readonly caption?: ReactNode
   readonly cells: readonly CompareCell[]
 }
 
@@ -32,6 +34,8 @@ export interface CompareColumn {
   /** Шапка колонки — карточка позиции (16642:2503); подпись колонки для чтения с экрана. */
   readonly label: string
   readonly header: ReactNode
+  /** Подпись второй строкой под шапкой: «без роботизации · база» (2.1, 16325:101). */
+  readonly caption?: ReactNode
 }
 
 interface CompareTableProps {
@@ -86,6 +90,7 @@ export function CompareTable({ caption, columns, groups, labelWidth = 'default' 
             {columns.map((c) => (
               <th key={c.key} scope="col" aria-label={c.label} className="p-0 text-left align-top font-normal">
                 {c.header}
+                {c.caption !== undefined && <span className="mt-4 block type-caption text-text-secondary">{c.caption}</span>}
               </th>
             ))}
           </tr>
@@ -99,7 +104,10 @@ export function CompareTable({ caption, columns, groups, labelWidth = 'default' 
             </tr>
             {group.rows.map((row) => (
               <tr key={row.key}>
-                <th scope="row" className="py-12 text-left align-top type-body font-normal text-text-secondary">{row.label}</th>
+                <th scope="row" className="py-12 text-left align-top type-body font-normal text-text-secondary">
+                  {row.label}
+                  {row.caption !== undefined && <span className="mt-4 block type-caption">{row.caption}</span>}
+                </th>
                 {row.cells.map((cell) => {
                   const tone = cell.tone ?? 'default'
                   return (

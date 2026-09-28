@@ -69,3 +69,42 @@ describe('Stepper · segments (этапы симуляции)', () => {
     expect(screen.getByRole('link', { name: /Что проверяем/ })).toHaveAttribute('href', '/?stage=scope')
   })
 })
+
+describe('Stepper · pills, метка после подписи (доска 16325)', () => {
+  it('подпись, затем ✓ у пройденного или номер; имя шага для чтения с экрана то же', () => {
+    renderStepper({ marker: 'end' })
+    const done = screen.getByRole('link', { name: 'Шаг 1. Параметры, пройден' })
+    expect(done).toHaveAttribute('href', '/p/params')
+    expect(done.lastElementChild?.querySelector('svg')).not.toBeNull()
+    const current = screen.getByText('Симуляция').closest('[aria-current]')
+    expect(current).toHaveAttribute('aria-current', 'step')
+    expect(current?.lastElementChild).toHaveTextContent('3')
+    expect(current?.lastElementChild).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByText('Итог и экономика').closest('span')).toHaveTextContent('Шаг 4. Итог и экономика, недоступен4')
+  })
+
+  it('без marker — прежний вид: номер в круге перед подписью', () => {
+    renderStepper()
+    const current = screen.getByText('Симуляция').closest('[aria-current]')
+    expect(current?.firstElementChild).toHaveTextContent('3')
+  })
+})
+
+describe('Stepper · capsule (этапы симуляции на доске 16325)', () => {
+  const STAGES: readonly StepperStep[] = [
+    { key: 'scope', label: '1. Что проверяется', state: 'done', to: '?stage=scope' },
+    { key: 'conditions', label: '2. Условия симуляции', state: 'current', to: '?stage=conditions' },
+    { key: 'run', label: '3. Моделирование', state: 'locked', to: '?stage=run' },
+    { key: 'verdict', label: '4. Вердикт', state: 'locked' },
+  ]
+
+  it('капсула из равных пунктов: пройденный — ссылка, текущий — aria-current, закрытый — не ссылка с пометкой', () => {
+    renderStepper({ variant: 'capsule', label: 'Этапы симуляции', steps: STAGES })
+    const nav = screen.getByRole('navigation', { name: 'Этапы симуляции' })
+    expect(within(nav).getAllByRole('listitem')).toHaveLength(4)
+    expect(within(nav).getAllByRole('link')).toHaveLength(1)
+    expect(screen.getByRole('link', { name: '1. Что проверяется, пройден' })).toHaveAttribute('href', '/?stage=scope')
+    expect(screen.getByText('2. Условия симуляции').closest('[aria-current]')).toHaveAttribute('aria-current', 'step')
+    expect(screen.getByText('3. Моделирование')).toHaveTextContent('3. Моделирование, недоступен')
+  })
+})

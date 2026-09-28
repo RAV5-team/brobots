@@ -5,6 +5,7 @@ import { ChipList } from '@/components/ui/ChipList'
 import { CompareTable } from '@/components/ui/CompareTable'
 import { MultiSelectFilter, type MultiSelectGroup } from '@/components/ui/MultiSelectFilter'
 import { RadioTable } from '@/components/ui/RadioTable'
+import { ScorePill } from '@/components/ui/ScorePill'
 import { OPERATION_CLASSES } from '@/mocks/fixtures/operationClasses'
 import { INDUSTRIES } from '@/pages/catalog/catalogModel'
 import { ru } from '@/shared/i18n/ru'
@@ -112,6 +113,26 @@ export function CompareTableShowcase() {
           },
         ]}
       />
+      {/* Подписи второй строкой у показателя и колонки: «Сравнение с текущим процессом» 2.1 (16325:101). */}
+      <CompareTable
+        caption="Сравнение с текущим процессом"
+        labelWidth="compact"
+        columns={[
+          { key: 'base', label: 'Текущий процесс', header: <span className="type-overline text-text-muted">Текущий процесс</span>, caption: 'без роботизации · база' },
+          { key: 'buy', label: 'Покупка', header: <span className="type-overline text-text-muted">Покупка</span>, caption: '18 роботов' },
+          { key: 'raas', label: 'RaaS', header: <span className="type-overline text-text-muted">RaaS · услуга</span>, caption: 'расчётный тариф' },
+        ]}
+        groups={[
+          {
+            key: 'money',
+            title: 'Экономика',
+            rows: [
+              { key: 'capex', label: 'Стартовые вложения', caption: 'CAPEX', cells: [{ key: 'base', tone: 'unconfirmed', content: '—' }, { key: 'buy', content: '47,4 млн ₽' }, { key: 'raas', content: '6,1 млн ₽' }] },
+              { key: 'raas', label: 'Платёж RaaS в месяц', caption: 'за весь парк', cells: [{ key: 'base', tone: 'unconfirmed', content: '—' }, { key: 'buy', tone: 'unconfirmed', content: '—' }, { key: 'raas', content: '0,83 млн ₽' }] },
+            ],
+          },
+        ]}
+      />
     </ShowcaseSection>
   )
 }
@@ -126,6 +147,19 @@ export function CharacteristicRowShowcase() {
         <CharacteristicRow label={it.rows.dimensions} value="940 × 640 × 230 мм" status="confirmed" source="морос.рф" date="2026-09-19" />
         <CharacteristicRow label={it.rows.floorRequirements} value="ровное твёрдое покрытие" status="estimate" source="типовое требование класса AMR" />
         <CharacteristicRow label={it.rows.productivity} value={null} status="missing" source="требует уточнения у поставщика" />
+      </dl>
+      <h3 className="type-overline text-text-muted">stacked · статусы проверки (2.1а, 16830:10)</h3>
+      <dl>
+        <CharacteristicRow variant="stacked" label="Грузоподъёмность" value="800 кг" verification="confirmed" source="Технический паспорт" date="2026-03-01" />
+        <CharacteristicRow variant="stacked" label="Скорость" value="1,5 м/с без груза · 1,2 м/с с грузом" verification="analog" source="Паспорт; с грузом — по аналогу" />
+        <CharacteristicRow variant="stacked" label="Эффективная производительность для процесса" value="8,6 рейса/ч" verification="estimate" source="Расчёт: цикл 312 с, погрузка 40 с" />
+        <CharacteristicRow variant="stacked" label="Производительность в симуляции" value={null} verification="pending" source="Симуляция ещё не выполнена" />
+        <CharacteristicRow variant="stacked" label="Покрытие Wi-Fi" value="нужно по всему маршруту" verification="needsCheck" />
+      </dl>
+      <h3 className="type-overline text-text-muted">plain (2.1а «Обзор», 16666:10)</h3>
+      <dl>
+        <CharacteristicRow variant="plain" label="Наименование" value="AMR 800 · базовая комплектация" />
+        <CharacteristicRow variant="plain" label="Производитель" value="Морос" />
       </dl>
     </ShowcaseSection>
   )
@@ -163,6 +197,80 @@ export function RadioTableShowcase() {
           ]}
         />
       </div>
+      <h3 className="type-overline text-text-muted">trailing · detail · danger (рейтинг 2.1, 16325:101)</h3>
+      <RankingDemo />
+      <h3 className="type-overline text-text-muted">selection=multiple (сравнить 2–4 варианта)</h3>
+      <CompareSelectDemo />
     </ShowcaseSection>
+  )
+}
+
+const RANKING_COLUMNS = [
+  { key: 'name', label: 'Решение' },
+  { key: 'capex', label: 'CAPEX', widthClass: 'w-(--rav-new-project-labor-width)' },
+] as const
+const SCORE_COLUMN = { key: 'score', label: 'Балл', widthClass: 'w-(--rav-new-project-labor-width)' }
+const RANKING = [
+  { id: 'amr', name: 'AMR 800 · RaaS', caption: 'Место 1 · Морос · 18 роб.', capex: '6,1 млн ₽', score: '0,91' },
+  { id: 'ronavi', name: 'Ronavi H1500 · RaaS', caption: 'Место 2 · Ронави Роботикс · 16 роб.', capex: '7,3 млн ₽', score: '0,78' },
+  { id: 'dmr', name: 'DMR Carrier P · RaaS', caption: 'Чистый эффект отрицательный', capex: '11,5 млн ₽', score: null },
+] as const
+
+const nameCell = (name: string, caption: string) => (
+  <span className="flex flex-col gap-4"><span className="type-body font-semibold text-text">{name}</span><span className="type-caption text-text-secondary">{caption}</span></span>
+)
+
+function RankingDemo() {
+  const [value, setValue] = useState<string | null>('amr')
+  const [why, setWhy] = useState<string | null>(null)
+  return (
+    <div className="w-(--rav-modal-wide-width)">
+      <RadioTable
+        label="Рейтинг вариантов"
+        columns={RANKING_COLUMNS}
+        trailingColumn={SCORE_COLUMN}
+        value={value}
+        onChange={setValue}
+        rows={RANKING.map((r) => ({
+          value: r.id,
+          label: `${r.name}, CAPEX ${r.capex}`,
+          cells: [nameCell(r.name, r.caption), r.capex],
+          tone: r.score === null ? 'danger' : 'default',
+          trailing: (
+            <ScorePill
+              score={r.score}
+              tone={r.id === value ? 'selected' : 'default'}
+              label={`Из чего складывается балл ${r.name}`}
+              expanded={why === r.id}
+              controls={`why-${r.id}`}
+              onClick={() => { setWhy(why === r.id ? null : r.id) }}
+            />
+          ),
+          expanded: why === r.id || r.id === value,
+          detail: <p id={`why-${r.id}`} className="type-caption text-text-secondary">{`Из чего складывается балл ${r.score ?? '—'} · окупаемость 0,30 · ROI 0,15`}</p>,
+        }))}
+      />
+    </div>
+  )
+}
+
+function CompareSelectDemo() {
+  const [values, setValues] = useState<readonly string[]>(['amr'])
+  return (
+    <div className="w-(--rav-modal-wide-width)">
+      <RadioTable
+        selection="multiple"
+        label="Сравнить варианты"
+        columns={RANKING_COLUMNS}
+        values={values}
+        onValuesChange={setValues}
+        rows={RANKING.map((r) => ({
+          value: r.id,
+          label: r.name,
+          cells: [nameCell(r.name, r.caption), r.capex],
+          disabled: r.score === null,
+        }))}
+      />
+    </div>
   )
 }

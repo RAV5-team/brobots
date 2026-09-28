@@ -133,6 +133,11 @@
   --rav-modal-wide-width: 640px;
   /* Боковая панель «Как рассчитано», «Параметры расчёта» (03a, 16202:490; 16202:979): вариант Modal side. */
   --rav-modal-side-width: 560px;
+  /* Окно сравнения 2.1б (16833:10) — Modal size="detail" по числу колонок: 2 — 640 (wide), 3 — 820, 4 — 1000. */
+  --rav-modal-compare-3-width: 820px;
+  --rav-modal-compare-4-width: 1000px;
+  /* Popover: панель у чипа статуса (шаг 1, 16969:10) и разбор балла (шаг 2). */
+  --rav-popover-width: 320px;
   /* Окна Modal md / form (620) и sm (560): «Новый проект», формы справочников, подтверждения. */
   --rav-modal-md-width: 620px;
   --rav-modal-sm-width: 560px;

@@ -41,3 +41,23 @@ export function rangeBox(from: number, to: number, max: number): { readonly star
   const high = clamp(Math.max(from, to))
   return { start: low / max, width: (high - low) / max }
 }
+
+/**
+ * Стопка столбцов одной категории (3.2): первая серия — у нулевой линии, следующие — над ней.
+ * Отрицательные значения в стопке не рисуются (высота 0).
+ */
+export function stackBoxes(values: readonly number[], domain: ValueDomain, height: number): readonly BarBox[] {
+  const zero = height * (1 - ratio(0, domain))
+  const scale = height / (domain.max - domain.min)
+  return values.reduce<{ readonly boxes: readonly BarBox[]; readonly top: number }>(
+    (acc, value) => {
+      const size = Math.max(0, value) * scale
+      return { boxes: [...acc.boxes, { top: acc.top - size, height: size }], top: acc.top - size }
+    },
+    { boxes: [], top: zero },
+  ).boxes
+}
+
+/** Отрезок пройден (лайм), если воспроизведение дошло до его начала: текущий час — тоже лаймом. */
+export const isPassed = (index: number, count: number, value: number, max: number): boolean =>
+  max > 0 && count > 0 && (index / count) * max < value
