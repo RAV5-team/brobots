@@ -5,6 +5,10 @@ import { API_BASE_URL } from '@/shared/config/api'
 import type { Services } from '../index'
 import { createMockServices } from '../mock'
 import { createSimulationRuns } from '../simulationRuns'
+import { apiCatalog } from './catalog'
+import { apiLocations } from './locations'
+import { apiProcesses } from './processes'
+import { createReference } from './reference'
 
 type DataServices = Omit<Services, 'simulationRuns'>
 
@@ -30,8 +34,18 @@ export function composeServices(fallback: Services, overrides: ApiOverrides): Se
   }
 }
 
-export function createApiServices(fallback: Services = createMockServices()): Services {
-  return composeServices(fallback, {})
+/** Методы, уже переведённые на services/api. */
+export function apiOverrides(http: HttpClient): ApiOverrides {
+  const reference = createReference(http)
+  return {
+    catalog: apiCatalog(http, reference),
+    processes: apiProcesses(http, reference),
+    locations: apiLocations(http, reference),
+  }
+}
+
+export function createApiServices(fallback: Services = createMockServices(), http: HttpClient = createDefaultHttpClient()): Services {
+  return composeServices(fallback, apiOverrides(http))
 }
 
 /** 401 с Keycloak — на страницу входа: токен не обновился или сессию завершили в другом окне. */
