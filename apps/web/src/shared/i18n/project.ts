@@ -31,6 +31,10 @@ export const project = {
     understood: 'Понятно',
     fleetStep: 'Цикл и парк',
   },
+  economics: {
+    cashFlow: { title: 'Денежный поток, накопленный', series: 'Накоплено, млн ₽', year: (n: number) => `год ${String(n)}`, yearHeader: 'Год' },
+    sensitivity: { title: 'Устойчивость: окупаемость при ±20 %', valueLabel: 'Окупаемость, лет' },
+  },
   simulation: {
     stagesNav: 'Этапы симуляции',
     stages: {
@@ -45,6 +49,27 @@ export const project = {
       stations: 'Зарядных станций',
       previous: (count: number) => `было ${String(count)} · из подбора`,
       perStation: (robots: number) => `1 станция на ${String(robots)} робота`,
+    },
+    demand: {
+      title: 'Потребность по часам',
+      series: 'Потребность, рейсов',
+      reference: 'пик, на который рассчитан подбор',
+    },
+    load: {
+      title: 'Загрузка по часам',
+      demand: 'потребность',
+      done: 'выполнено',
+    },
+    time: {
+      title: 'На что уходит время робота',
+      working: 'в работе: везёт, едет за паллетой, грузит',
+      charging: 'зарядка',
+      waitingCharger: 'ждёт станцию',
+      down: 'ремонт',
+      idle: 'свободен, нет заявок',
+      row: (title: string, robots: number, stations: number, share: string) => `${title}: ${String(robots)} роботов, ${String(stations)} станций — в работе ${share} времени`,
+      fromMatching: 'Из подбора',
+      recommended: 'Рекомендация',
     },
     hourly: {
       caption: 'Что происходило по часам',

@@ -128,6 +128,9 @@
   --rav-modal-wide-width: 640px;
   /* Боковая панель «Как рассчитано», «Параметры расчёта» (03a, 16202:490; 16202:979): вариант Modal side. */
   --rav-modal-side-width: 560px;
+  /* Графики (D-87): подпись и значение строки «Устойчивость ±20 %» (08, 16197:2216). */
+  --rav-chart-row-label-width: 360px;
+  --rav-chart-row-value-width: 160px;
   --rav-new-project-area-width: 69px;
   --rav-new-project-staff-width: 68px;
   --rav-new-project-labor-width: 104px;
