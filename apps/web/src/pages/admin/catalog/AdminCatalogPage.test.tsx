@@ -51,7 +51,7 @@ describe('AdminCatalogPage (экран А1)', () => {
     expect(plain(first.getByText(/^до .* кг$/).textContent)).toBe('до 600 кг')
     expect(plain(first.getByText(/млн/).textContent)).toBe('3,75 млн ₽')
     expect(first.getByText('12.08.2026')).toBeInTheDocument()
-    expect(first.getByRole('link', { name: 'Открыть карточку DMR 600' })).toHaveAttribute('href', '/admin/catalog/RB-0011')
+    expect(first.getByRole('link', { name: 'Открыть карточку DMR 600' })).toHaveAttribute('href', '/catalog/RB-0011')
     expect(plain(screen.getByRole('status').textContent)).toBe(`Показаны ${String(ROBOTS.length)} из ${String(ROBOTS.length)} решений`)
   })
 

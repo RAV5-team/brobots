@@ -33,7 +33,7 @@ function loadRun(services: ReturnType<typeof useServices>, runId: string | null)
  * Данные отчёта (PRD 11.6): те же ответы сервиса, что у итога 08 (экономика, подбор, снимок шага 1, прогон),
  * плюс проект и локация. Числа отчёта вычисляются теми же функциями — они совпадают с 08.
  */
-export function useReport(projectId: ProjectId): { readonly load: ReportLoad; readonly retry: () => void } {
+export function useReport(projectId: ProjectId | null): { readonly load: ReportLoad; readonly retry: () => void } {
   const services = useServices()
   const [load, setLoad] = useState<ReportLoad>({ status: 'loading' })
   const [attempt, setAttempt] = useState(0)
@@ -41,6 +41,7 @@ export function useReport(projectId: ProjectId): { readonly load: ReportLoad; re
   useEffect(() => {
     let cancelled = false
     const run = async (): Promise<ReportLoad> => {
+      if (projectId === null) return { status: 'notFound' }
       const project = await services.projects.getProject(projectId).catch((reason: unknown) => {
         if (reason instanceof NotFoundError) return null
         throw reason

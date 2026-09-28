@@ -1,11 +1,14 @@
 import type { BadgeKind } from '@/components/ui/Badge'
-import type {
-  FacilityTypeCode,
-  HandlingMethodCode,
-  OperationClassCode,
-  ProcessTemplate,
-  WorkCategoryCode,
+import {
+  HANDLING_METHOD_CODES,
+  isOperationClassCode,
+  type FacilityTypeCode,
+  type HandlingMethodCode,
+  type OperationClassCode,
+  type ProcessTemplate,
+  type WorkCategoryCode,
 } from '@/domain'
+import { isArrayOf, isBoolean, isFiniteNumber, isObject, isOneOf, isString } from '@/shared/guards'
 
 /** Секции формы в порядке навигации (PRD 9.2). */
 export const SECTION_IDS = ['process', 'volume', 'route', 'staff', 'costs'] as const
@@ -135,4 +138,35 @@ export function toggleHandling(form: ProcessForm, method: HandlingMethodCode): P
 
 export function updateStaffRow(form: ProcessForm, role: string, patch: Partial<StaffRow>): ProcessForm {
   return { ...form, staff: form.staff.map((row) => (row.role === role ? { ...row, ...patch } : row)) }
+}
+
+const isStaffRow = (value: unknown): value is StaffRow =>
+  isObject(value) &&
+  isString(value.role) &&
+  isFiniteNumber(value.headcount) &&
+  (value.salaryRub === null || isFiniteNumber(value.salaryRub)) &&
+  isBoolean(value.selected) &&
+  isString(value.timeSharePct)
+
+const isHandlingMethodCode = (value: unknown): value is HandlingMethodCode => isOneOf(HANDLING_METHOD_CODES, value)
+
+const isReplacement = (value: unknown): value is ProcessForm['replacement'] =>
+  isObject(value) && Object.entries(value).every(([code, ratio]) => isHandlingMethodCode(code) && isString(ratio))
+
+/**
+ * Черновик из браузера (D-21) годится, если у него форма той же версии: все поля нужного вида,
+ * включая строки групп исполнителей и способы обработки. Черновик старой формы не откроется — форма начнётся заново.
+ */
+export function isProcessForm(value: unknown): value is ProcessForm {
+  return (
+    isObject(value) &&
+    isOperationClassCode(value.operationClass) &&
+    [value.name, value.category, value.carrier, value.route].every(isString) &&
+    isBoolean(value.cargoDivisible) &&
+    isBoolean(value.indoor) &&
+    isArrayOf(value.handling, isHandlingMethodCode) &&
+    isArrayOf(value.staff, isStaffRow) &&
+    isReplacement(value.replacement) &&
+    Object.keys(NUMERIC_SPECS).every((key) => isString(value[key]))
+  )
 }

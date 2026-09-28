@@ -5,7 +5,7 @@ import { ButtonLink } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { MergedButton } from '@/components/ui/MergedButton'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
-import type { LocationDocument, LocationId } from '@/domain'
+import { parseLocationId, type LocationDocument } from '@/domain'
 import { useRole } from '@/shared/auth/useRole'
 import { UPLOAD_RULES } from '@/shared/config/upload'
 import { formatNumber } from '@/shared/format'
@@ -72,10 +72,10 @@ function DocumentsPanel({ documents, canUpload }: DocumentsPanelProps) {
  * планы, фото, таблицы, схемы. Платформа их хранит и показывает, содержимое не разбирает. Гость только смотрит (D-14).
  */
 export function LocationDocumentsPage() {
-  const { locationId = '' } = useParams()
+  const locationId = parseLocationId(useParams().locationId)
   const role = useRole()
-  const { state, retry, refresh } = useLocationDocuments(locationId as LocationId)
-  const upload = useDocumentUpload(locationId as LocationId, refresh)
+  const { state, retry, refresh } = useLocationDocuments(locationId)
+  const upload = useDocumentUpload(locationId, refresh)
 
   if (state.status === 'loading') return <LocationDocumentsSkeleton />
   if (state.status === 'error') return <ErrorState title={t.error.title} message={t.error.message} onRetry={retry} />

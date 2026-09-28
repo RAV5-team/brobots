@@ -1,7 +1,7 @@
 import { ButtonLink } from '@/components/ui/Button'
 import { Card, CardTitle } from '@/components/ui/Card'
 import { ru } from '@/shared/i18n/ru'
-import { useNewProjectLink } from '@/pages/projects/new/useNewProjectLink'
+import { useNewProjectLink } from '@/components/newProject/useNewProjectLink'
 import { newProjectContext, type LocationUsage } from './processDetailModel'
 
 const t = ru.processCard.locations

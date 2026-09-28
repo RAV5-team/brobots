@@ -1,6 +1,7 @@
 import * as RadixRadio from '@radix-ui/react-radio-group'
 import { clsx } from 'clsx'
 import { useRef, type KeyboardEvent, type ReactNode } from 'react'
+import { optionValue } from './optionValue'
 
 const ARROW_KEYS: readonly string[] = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']
 
@@ -59,7 +60,10 @@ export function RadioTable<T extends string>({ label, columns, rows, value, onCh
       <RadixRadio.Root
         aria-label={label}
         value={value ?? ''}
-        onValueChange={(next: string) => { onChange(next as T) }}
+        onValueChange={(next: string) => {
+          const row = optionValue(rows, next)
+          if (row !== undefined) onChange(row)
+        }}
         onKeyDown={handleKeyDown}
         className="flex flex-col"
       >

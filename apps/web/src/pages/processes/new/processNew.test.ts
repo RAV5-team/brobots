@@ -6,7 +6,7 @@ import { PROCESS_DEMO_TEXT, PROCESS_TEMPLATE_DEFAULTS } from '@/mocks/fixtures/p
 import { PROCESSES } from '@/mocks/fixtures/processes'
 import { staffTotals, toNewProcess, validateForm, volumeRates } from './processCalc'
 import { buildInitialForm, warehouseBase } from './processDemoForm'
-import { countFormulas, countRequired, parseDecimal, toggleHandling, updateStaffRow, type ProcessForm } from './processForm'
+import { countFormulas, countRequired, isProcessForm, parseDecimal, toggleHandling, updateStaffRow, type ProcessForm } from './processForm'
 import { carrierOptions, numericHints, templateCheck } from './processNewModel'
 import { staffStats, volumeStats } from './processStats'
 
@@ -167,5 +167,22 @@ describe('начальная форма без демо-режима (аудит
     const plain = buildInitialForm(WAREHOUSE, { ...PROCESS_TEMPLATE_DEFAULTS, widthMarginM: 0.6 }, null)
     expect([plain.name, plain.carrier, plain.route]).toEqual(['', '', ''])
     expect({ ...plain, name: '', carrier: '', route: '' }).toEqual({ ...demo(), name: '', carrier: '', route: '' })
+  })
+})
+
+describe('isProcessForm (черновик из браузера, D-21)', () => {
+  it('accepts a saved form', () => {
+    expect(isProcessForm(JSON.parse(JSON.stringify(demo())))).toBe(true)
+  })
+
+  it('rejects drafts of another form version', () => {
+    const form = demo()
+    expect(isProcessForm({ name: 'x' })).toBe(false)
+    expect(isProcessForm(null)).toBe(false)
+    expect(isProcessForm({ ...form, staff: [{ role: 'Отборщики' }] })).toBe(false)
+    expect(isProcessForm({ ...form, handling: ['forks', 'wings'] })).toBe(false)
+    expect(isProcessForm({ ...form, replacement: { forks: 0.8 } })).toBe(false)
+    expect(isProcessForm({ ...form, operationClass: 'Перемещение' })).toBe(false)
+    expect(isProcessForm({ ...form, dailyVolume: undefined })).toBe(false)
   })
 })

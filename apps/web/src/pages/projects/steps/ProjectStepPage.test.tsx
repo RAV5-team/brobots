@@ -83,6 +83,14 @@ describe('ProjectStepPage — каркас шага проекта', () => {
     expect(screen.getByRole('link', { name: 'К списку проектов' })).toHaveAttribute('href', '/projects')
   })
 
+  it('id чужого вида в адресе — «не найден» без запроса к сервису', async () => {
+    const services = createMockServices({ latencyMs: 0 })
+    const getProject = vi.spyOn(services.projects, 'getProject')
+    renderAt('/projects/LOC-01/params?as=user', services)
+    expect(await screen.findByRole('heading', { name: 'Проект не найден' })).toBeInTheDocument()
+    expect(getProject).not.toHaveBeenCalled()
+  })
+
   it('ошибка загрузки — «Повторить» загружает снова', async () => {
     const services = createMockServices({ latencyMs: 0 })
     const getProject = vi.spyOn(services.projects, 'getProject').mockRejectedValueOnce(new Error('сеть'))

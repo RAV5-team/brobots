@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Location, LocationDocument, LocationId, LocationSummary } from '@/domain'
-import { NotFoundError } from '@/services/errors'
+import { NotFoundError, requireId } from '@/services/errors'
 import type { Services } from '@/services'
 import { useServices } from '@/services/useServices'
 
@@ -19,7 +19,8 @@ export type LocationDocumentsState =
   | ({ readonly status: 'ready' } & LocationDocumentsData)
 
 /** Локация, затем сводки, типы объектов и документы параллельно. */
-async function loadLocationDocuments(services: Services, id: LocationId): Promise<LocationDocumentsData> {
+async function loadLocationDocuments(services: Services, locationId: LocationId | null): Promise<LocationDocumentsData> {
+  const id = requireId(locationId, 'location')
   const location = await services.locations.getLocation(id)
   const [summaries, facilityTypes, documents] = await Promise.all([
     services.locations.listLocationSummaries(),
@@ -35,7 +36,7 @@ async function loadLocationDocuments(services: Services, id: LocationId): Promis
 }
 
 /** Данные вкладки 17б: ошибка — экран ошибки с «Повторить», неизвестный id — «не найдена» (D-07). */
-export function useLocationDocuments(id: LocationId): {
+export function useLocationDocuments(id: LocationId | null): {
   readonly state: LocationDocumentsState
   readonly retry: () => void
   /** Перечитать без скелетона — после загрузки документа. */

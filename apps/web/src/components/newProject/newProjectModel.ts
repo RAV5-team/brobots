@@ -1,4 +1,6 @@
-import type { Location, LocationId, LocationProcessId, LocationSummary } from '@/domain'
+import {
+  parseLocationId, parseLocationProcessId, type Location, type LocationId, type LocationProcessId, type LocationSummary,
+} from '@/domain'
 import { formatDayOf, formatNumber, formatRubCompact } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 
@@ -21,20 +23,17 @@ export interface NewProjectContext {
   readonly locationProcessId?: LocationProcessId
 }
 
-const LOCATION_ID = /^LOC-[\w-]+$/u
-const LOCATION_PROCESS_ID = /^LP-[\w-]+$/u
-
 export const isNewProjectOpen = (params: URLSearchParams): boolean => params.get(NEW_PROJECT_PARAMS.open) === '1'
 
 /** Контекст из адреса; чужие значения отбрасываются — окно откроется без предвыбора. */
 export function parseNewProjectContext(params: URLSearchParams): NewProjectContext {
   const solutionId = params.get(NEW_PROJECT_PARAMS.solution)?.trim()
-  const locationId = params.get(NEW_PROJECT_PARAMS.location)
-  const locationProcessId = params.get(NEW_PROJECT_PARAMS.locationProcess)
+  const locationId = parseLocationId(params.get(NEW_PROJECT_PARAMS.location))
+  const locationProcessId = parseLocationProcessId(params.get(NEW_PROJECT_PARAMS.locationProcess))
   return {
     ...(solutionId ? { solutionId } : {}),
-    ...(locationId && LOCATION_ID.test(locationId) ? { locationId: locationId as LocationId } : {}),
-    ...(locationProcessId && LOCATION_PROCESS_ID.test(locationProcessId) ? { locationProcessId: locationProcessId as LocationProcessId } : {}),
+    ...(locationId ? { locationId } : {}),
+    ...(locationProcessId ? { locationProcessId } : {}),
   }
 }
 

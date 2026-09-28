@@ -33,7 +33,6 @@ export const ROUTE_PATHS = {
   adminCatalog: '/admin/catalog',
   adminCatalogImport: '/admin/catalog/import',
   adminCatalogNew: '/admin/catalog/new',
-  adminRobot: '/admin/catalog/:robotId',
   adminJournal: '/admin/journal',
   adminNorms: '/admin/norms',
   adminSources: '/admin/sources',

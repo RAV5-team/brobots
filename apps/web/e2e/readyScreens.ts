@@ -28,6 +28,7 @@ export const READY_ROUTES: readonly ReadyRoute[] = [
   { path: '/projects/PJ-DEMO/matching', roles: ALL },
   // Шаг 2 у сохранённой оценки — только просмотр (D-17); у PJ-04 подбор не рассчитан.
   { path: '/projects/PJ-01/matching', roles: SIGNED_IN },
+  { path: '/projects/PJ-04/matching', roles: SIGNED_IN },
   { path: '/projects/PJ-DEMO/simulation', roles: ALL },
   // Этап 1 симуляции (04); у сохранённой оценки состав только для просмотра (D-17, D-101).
   { path: '/projects/PJ-DEMO/simulation?stage=scope', roles: ALL },
@@ -64,6 +65,8 @@ export const READY_ROUTES: readonly ReadyRoute[] = [
   { path: '/locations/LOC-01/params', roles: ALL },
   { path: '/locations/LOC-01/documents', roles: ALL },
   { path: '/admin/catalog', roles: ADMIN },
+  // А3 «Робот добавлен» — состояние А1 (D-48).
+  { path: '/admin/catalog?added=RB-0008', roles: ADMIN },
   { path: '/admin/catalog/import', roles: ADMIN, busy: true },
   { path: '/admin/catalog/new', roles: ADMIN },
   { path: '/admin/norms', roles: ADMIN },
@@ -108,6 +111,13 @@ const click = (name: string | RegExp) => async (page: Page): Promise<void> => {
   await page.getByRole('dialog').waitFor()
 }
 
+/** 07c: план вердикта «подтверждено» с составом +1 робот — непроверенный состав и «Проверить состав прогоном». */
+const ownFleet = async (page: Page): Promise<void> => {
+  await openScenario('Симуляция · вердикт · подтверждено (демо-проект)')(page)
+  await page.getByRole('spinbutton', { name: 'Роботов' }).press('ArrowUp')
+  await page.getByRole('button', { name: 'Проверить состав прогоном' }).waitFor()
+}
+
 export const VISUAL_SCREENS: readonly VisualScreen[] = [
   { id: '05', path: '/login', role: 'guest' },
   { id: '06', path: '/', role: 'user' },
@@ -127,6 +137,8 @@ export const VISUAL_SCREENS: readonly VisualScreen[] = [
   { id: '17в', path: '/locations/LOC-01/processes', role: 'user', prepare: click('Удалить процесс «Перемещение паллет» с локации') },
   { id: 'locprocsempty', path: '/dev/screens', role: 'user', prepare: openScenario('Локации · процессы · пусто (D-07)') },
   { id: 'А1', path: '/admin/catalog', role: 'admin' },
+  // А3: состояние А1 после «Сохранить робота» — плашка «Каталог обновлён» (D-48).
+  { id: 'А3', path: '/admin/catalog?added=RB-0008', role: 'admin' },
   // Первый кадр опроса: ответ мока (150 мс) пришёл, следующий опрос (1,5 с) ещё не начался.
   { id: 'А1а', path: '/admin/catalog/import', role: 'admin', busy: true, frozenAfterMs: 500 },
   { id: 'А2', path: '/admin/catalog/new', role: 'admin' },
@@ -159,13 +171,16 @@ export const VISUAL_SCREENS: readonly VisualScreen[] = [
     },
   },
   { id: 'К-4', path: '/catalog/RB-0008', role: 'user' },
-  { id: 'A1', path: '/projects', role: 'user' },
-  { id: 'A2', path: '/projects?new=1', role: 'user' },
+  // P1, P2 — A1 и A2 доски проекта (латинская A): эталоны не путаются с А1, А2 администрирования (кириллица).
+  { id: 'P1', path: '/projects', role: 'user' },
+  { id: 'P2', path: '/projects?new=1', role: 'user' },
   { id: '02', path: '/projects/PJ-DEMO/params', role: 'user' },
   { id: '02-guest', path: '/projects/PJ-DEMO/params', role: 'guest' },
   { id: '02-blocked', path: '/projects/PJ-07/params', role: 'user' },
   { id: '03', path: '/projects/PJ-DEMO/matching', role: 'user' },
   { id: '03-guest', path: '/projects/PJ-DEMO/matching', role: 'guest' },
+  // 03a: боковая панель «Как рассчитано» у рекомендации поверх 03 (16202:490).
+  { id: '03a', path: '/projects/PJ-DEMO/matching', role: 'user', prepare: click(/^Как рассчитано$/) },
   { id: '04', path: '/projects/PJ-DEMO/simulation?stage=scope', role: 'user' },
   { id: '04-guest', path: '/projects/PJ-DEMO/simulation?stage=scope', role: 'guest' },
   // Номер 05 занят экраном входа чистовой серии — у экрана проекта суффикс «-sim».
@@ -179,6 +194,8 @@ export const VISUAL_SCREENS: readonly VisualScreen[] = [
   { id: '07-confirmed-guest', path: '/dev/screens', role: 'guest', prepare: openScenario('Симуляция · вердикт · подтверждено (демо-проект)') },
   { id: '07b-need-more', path: '/dev/screens', role: 'user', prepare: openScenario('Симуляция · вердикт · нужно докупить (демо-проект)') },
   { id: '07-layout', path: '/dev/screens', role: 'user', prepare: openScenario('Симуляция · вердикт · узкое место планировки (демо-проект)') },
+  // 07c: макета нет (D-86) — состояние по PRD 11.4.
+  { id: '07c', path: '/dev/screens', role: 'user', prepare: ownFleet },
   { id: '07-unreachable', path: '/dev/screens', role: 'user', prepare: openScenario('Симуляция · вердикт · поток недостижим (демо-проект)') },
   // Плеер на паузе в фиксированной точке — начале первого пикового часа (D-105): кадр не зависит от времени снимка.
   { id: '07a', path: '/dev/screens', role: 'user', prepare: withTraces(openScenario('Симуляция · графики и 2D-сравнение · можно уменьшить (демо-проект)')) },

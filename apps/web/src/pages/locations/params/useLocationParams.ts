@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Location, LocationId, LocationSummary } from '@/domain'
-import { NotFoundError } from '@/services/errors'
+import { NotFoundError, requireId } from '@/services/errors'
 import type { Services } from '@/services'
 import { useServices } from '@/services/useServices'
 import { indexParameters, type ParameterIndex } from '../new/locationForm'
@@ -24,7 +24,8 @@ export type LocationParamsState =
  * Локация, затем сводки, типы объектов и параметры склада параллельно. Параметры всегда складские:
  * разделы формы есть только у склада (D-36), у других типов вкладка показывает «Основное».
  */
-async function loadLocationParams(services: Services, id: LocationId): Promise<LocationParamsData> {
+async function loadLocationParams(services: Services, locationId: LocationId | null): Promise<LocationParamsData> {
+  const id = requireId(locationId, 'location')
   const location = await services.locations.getLocation(id)
   const [summaries, facilityTypes, parameters] = await Promise.all([
     services.locations.listLocationSummaries(),
@@ -40,7 +41,7 @@ async function loadLocationParams(services: Services, id: LocationId): Promise<L
 }
 
 /** Данные вкладки 17а: ошибка — экран ошибки с «Повторить», неизвестный id — «не найдена» (D-07). */
-export function useLocationParams(id: LocationId): {
+export function useLocationParams(id: LocationId | null): {
   readonly state: LocationParamsState
   readonly retry: () => void
   /** Перечитать без скелетона — после сохранения профиля: шапка и дата «Обновлено» меняются. */

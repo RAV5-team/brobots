@@ -1,6 +1,7 @@
 import * as RadixSelect from '@radix-ui/react-select'
 import { clsx } from 'clsx'
 import { Check, ChevronDown } from 'lucide-react'
+import { optionValue } from './optionValue'
 import { useFieldControl } from './useFieldControl'
 
 export interface SelectOption<T extends string> {
@@ -39,7 +40,7 @@ export function Select<T extends string>({
     <RadixSelect.Root
       {...(value !== undefined ? { value } : {})}
       {...(defaultValue !== undefined ? { defaultValue } : {})}
-      {...(onChange ? { onValueChange: (v: string) => { onChange(v as T) } } : {})}
+      {...(onChange ? { onValueChange: (v: string) => { const next = optionValue(options, v); if (next !== undefined) onChange(next) } } : {})}
       disabled={disabled}
     >
       <RadixSelect.Trigger

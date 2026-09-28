@@ -5,7 +5,8 @@ import { ROUTE_PATHS } from '@/app/routePaths'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import { MergedButtonLink } from '@/components/ui/MergedButton'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
-import type { LocationId, LocationProcessId, ProcessCode } from '@/domain'
+import { parseLocationId, type LocationProcessId, type ProcessCode } from '@/domain'
+import { requireId } from '@/services/errors'
 import { useServices } from '@/services/useServices'
 import { ProcessFilters } from '@/pages/processes/ProcessFilters'
 import { EMPTY_FILTER, filterProcesses, isFilterActive, type ProcessFilter } from '@/pages/processes/processesModel'
@@ -184,12 +185,12 @@ function ProcessesTab({ data, isGuest, onAddTemplate, onRemoveProcess }: Process
  * и адрес вкладки `/processes` (17) показывают одно и то же (D-37, D-40).
  */
 export function LocationPage() {
-  const { locationId = '' } = useParams()
+  const locationId = parseLocationId(useParams().locationId)
   const role = useRole()
   const services = useServices()
-  const { state, retry, refresh } = useLocationDetail(locationId as LocationId)
+  const { state, retry, refresh } = useLocationDetail(locationId)
   const addTemplate = async (code: ProcessCode) => {
-    await services.locations.addLocationProcess(locationId as LocationId, code)
+    await services.locations.addLocationProcess(requireId(locationId, 'location'), code)
     await refresh()
   }
   const removeProcess = async (id: LocationProcessId) => {

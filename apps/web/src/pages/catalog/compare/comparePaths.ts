@@ -1,6 +1,6 @@
 import type { LaunchItemType } from '@/domain'
 import { ROUTE_PATHS } from '@/app/routePaths'
-import type { NewProjectContext } from '@/pages/projects/new/newProjectModel'
+import type { NewProjectContext } from '@/components/newProject/newProjectModel'
 import { entryRef, type CatalogEntry } from '../catalogModel'
 
 /** Метка типа в шапке колонки (D-56): у робота — подтип из данных, у позиции — INF · SW · SRV · SUP. */

@@ -3,21 +3,22 @@ import { ROUTE_PATHS } from '@/app/routePaths'
 import { MergedButtonLink } from '@/components/ui/MergedButton'
 import { Search } from '@/components/ui/Search'
 import { Select, type SelectOption } from '@/components/ui/Select'
-import type { FacilityType, FacilityTypeCode } from '@/domain'
+import type { FacilityType } from '@/domain'
 import { ru } from '@/shared/i18n/ru'
 import {
   COMPLETENESS_FILTERS, LOCATION_SORTS, PROJECTS_FILTERS,
-  type CompletenessFilter, type LocationFilter, type LocationSort, type ProjectsFilter,
+  type LocationFilter, type LocationSort,
 } from './locationsModel'
 
 const t = ru.locations
 /** Radix Select не принимает пустое значение опции: «все» — отдельная опция, после выбора снова видна подпись фильтра (D-30). */
-const ALL = 'all'
+const ALL = 'all' as const
+type WithAll<T extends string> = T | typeof ALL
 
-const withAll = <T extends string>(allLabel: string, values: readonly T[], label: (v: T) => string): readonly SelectOption<string>[] =>
+const withAll = <T extends string>(allLabel: string, values: readonly T[], label: (v: T) => string): readonly SelectOption<WithAll<T>>[] =>
   [{ value: ALL, label: allLabel }, ...values.map((v) => ({ value: v, label: label(v) }))]
 
-const fromOption = (value: string): string | null => (value === ALL ? null : value)
+const fromOption = <T extends string>(value: WithAll<T>): T | null => (value === ALL ? null : value)
 
 interface LocationFiltersProps {
   readonly filter: LocationFilter
@@ -52,7 +53,7 @@ export function LocationFilters({ filter, onFilterChange, sort, onSortChange, fa
           placeholder={f.facilityType}
           options={facilityOptions}
           value={filter.facilityType ?? ''}
-          onChange={(v) => { onFilterChange({ ...filter, facilityType: fromOption(v) as FacilityTypeCode | null }) }}
+          onChange={(v) => { onFilterChange({ ...filter, facilityType: fromOption(v) }) }}
         />
         <Select
           variant="filter"
@@ -60,7 +61,7 @@ export function LocationFilters({ filter, onFilterChange, sort, onSortChange, fa
           placeholder={f.completeness}
           options={completenessOptions}
           value={filter.completeness ?? ''}
-          onChange={(v) => { onFilterChange({ ...filter, completeness: fromOption(v) as CompletenessFilter | null }) }}
+          onChange={(v) => { onFilterChange({ ...filter, completeness: fromOption(v) }) }}
         />
         <Select
           variant="filter"
@@ -68,7 +69,7 @@ export function LocationFilters({ filter, onFilterChange, sort, onSortChange, fa
           placeholder={f.projects}
           options={projectsOptions}
           value={filter.projects ?? ''}
-          onChange={(v) => { onFilterChange({ ...filter, projects: fromOption(v) as ProjectsFilter | null }) }}
+          onChange={(v) => { onFilterChange({ ...filter, projects: fromOption(v) }) }}
         />
         <div className="ml-auto">
           <Select variant="filter" aria-label={f.sort} options={sortOptions} value={sort} onChange={onSortChange} />
