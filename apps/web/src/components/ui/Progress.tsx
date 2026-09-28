@@ -1,7 +1,10 @@
 import { clsx } from 'clsx'
 
-/** sunken — дорожка на фоне страницы; strong — на утопленной плашке, где sunken сливается с фоном (А1а, 16044:378). */
-export type ProgressTrack = 'sunken' | 'strong'
+/**
+ * sunken — дорожка на фоне страницы; strong — на утопленной плашке, где sunken сливается с фоном (А1а, 16044:378);
+ * inverse — на тёмной карточке прогона (06, 16197:1754; D-103).
+ */
+export type ProgressTrack = 'sunken' | 'strong' | 'inverse'
 
 interface ProgressProps {
   /** Что выполняется: «Опрос источников». */
@@ -13,7 +16,7 @@ interface ProgressProps {
   readonly tone?: 'accent' | 'inverse'
 }
 
-const TRACKS: Record<ProgressTrack, string> = { sunken: 'bg-surface-sunken', strong: 'bg-border' }
+const TRACKS: Record<ProgressTrack, string> = { sunken: 'bg-surface-sunken', strong: 'bg-border', inverse: 'bg-inverse-well' }
 
 const clamp = (v: number) => Math.min(100, Math.max(0, Math.round(v)))
 

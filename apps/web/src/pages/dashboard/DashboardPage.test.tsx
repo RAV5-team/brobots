@@ -58,7 +58,7 @@ describe('DashboardPage (экран 06)', () => {
       'Комплектация заказов · Даркстор ЮгДаркстор Юг · изменён 13.09 11:20Результат1,6 года',
     ])
     expect(panel.getByRole('link', { name: 'Открыть проект «Только уборка · РЦ Химки»' })).toHaveAttribute('href', '/projects/PJ-02/params')
-    expect(panel.getByRole('link', { name: 'Открыть проект «Роботизация паллетного потока · РЦ Химки»' })).toHaveAttribute('href', '/projects/PJ-01/result')
+    expect(panel.getByRole('link', { name: 'Открыть проект «Роботизация паллетного потока · РЦ Химки»' })).toHaveAttribute('href', '/projects/PJ-01/economics')
     expect(panel.getByRole('link', { name: 'Все проекты' })).toHaveAttribute('href', '/projects')
   })
 

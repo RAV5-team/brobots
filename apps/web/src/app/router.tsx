@@ -23,20 +23,31 @@ import { ProcessDetailPage } from '@/pages/processes/detail/ProcessDetailPage'
 import { ProcessNewPage } from '@/pages/processes/new/ProcessNewPage'
 import { ProjectsPage } from '@/pages/projects/ProjectsPage'
 import { ScreenStub } from '@/pages/_stub/ScreenStub'
-import { ScreensIndex } from '@/pages/dev/ScreensIndex'
-import { TokensShowcase } from '@/pages/dev/TokensShowcase'
-import { UiShowcase } from '@/pages/dev/ui/UiShowcase'
+import { ProjectResultRedirect } from './ProjectResultRedirect'
 import { RootLayout } from './RootLayout'
-import { DEV_PATHS, ROUTE_PATHS, type RoutePath } from './routePaths'
+import type { ProjectStep } from '@/domain'
+import { DEV_PATHS, LEGACY_PATHS, PROJECT_STEP_PATHS, ROUTE_PATHS, type RoutePath } from './routePaths'
 
-// Экран входа 05 живёт без меню; остальные разделы — внутри каркаса кабинета.
-const OUTSIDE_SHELL: readonly RoutePath[] = [ROUTE_PATHS.login]
+// Экран входа 05 и печатный отчёт 09 (D-15) живут без меню; остальные разделы — внутри каркаса кабинета.
+const OUTSIDE_SHELL: readonly RoutePath[] = [ROUTE_PATHS.login, ROUTE_PATHS.projectReport]
 // Готовые экраны; остальные маршруты пока отдают заглушку.
 const IMPLEMENTED: readonly RoutePath[] = [
   ROUTE_PATHS.dashboard, ROUTE_PATHS.projects, ROUTE_PATHS.catalog, ROUTE_PATHS.catalogCompare, ROUTE_PATHS.catalogItem, ROUTE_PATHS.processes, ROUTE_PATHS.processNew, ROUTE_PATHS.process,
   ROUTE_PATHS.locations, ROUTE_PATHS.locationNew, ROUTE_PATHS.location, ROUTE_PATHS.locationProcesses, ROUTE_PATHS.locationProcess, ROUTE_PATHS.locationParams, ROUTE_PATHS.locationDocuments,
   ROUTE_PATHS.adminCatalog, ROUTE_PATHS.adminCatalogImport, ROUTE_PATHS.adminCatalogNew, ROUTE_PATHS.adminNorms, ROUTE_PATHS.adminSources, ROUTE_PATHS.adminOperationClasses,
+  ...Object.values(PROJECT_STEP_PATHS),
 ]
+
+// Шаги проекта — один каркас (ProjectStepPage), шаг — по ProjectStep (D-22). Грузятся по требованию:
+// шаги 02–08 тяжёлые и в JS первой загрузки не входят (бюджет 300 КБ).
+const projectStepRoutes: RouteObject[] = (Object.entries(PROJECT_STEP_PATHS) as [ProjectStep, RoutePath][])
+  .map(([step, path]) => ({
+    path,
+    lazy: async () => {
+      const { ProjectStepPage } = await import('@/pages/projects/steps/ProjectStepPage')
+      return { element: <ProjectStepPage key={step} step={step} /> }
+    },
+  }))
 
 const stubRoute = (path: RoutePath): RouteObject => ({ path, element: <ScreenStub route={path} /> })
 
@@ -50,6 +61,8 @@ export const routes: RouteObject[] = [
         children: [
           { path: ROUTE_PATHS.dashboard, element: <DashboardPage /> },
           { path: ROUTE_PATHS.projects, element: <ProjectsPage /> },
+          { path: LEGACY_PATHS.projectResult, element: <ProjectResultRedirect /> },
+          ...projectStepRoutes,
           { path: ROUTE_PATHS.catalog, element: <CatalogPage /> },
           { path: ROUTE_PATHS.catalogCompare, element: <ComparePage /> },
           { path: ROUTE_PATHS.catalogItem, element: <CatalogItemPage /> },
@@ -76,9 +89,13 @@ export const routes: RouteObject[] = [
         ],
       },
       { path: ROUTE_PATHS.login, element: <LoginPage /> },
-      { path: DEV_PATHS.screens, element: <ScreensIndex /> },
-      { path: DEV_PATHS.tokens, element: <TokensShowcase /> },
-      { path: DEV_PATHS.ui, element: <UiShowcase /> },
+      // Отчёт 09 — лист для печати без меню кабинета (D-107); грузится по требованию, как шаги проекта.
+      { path: ROUTE_PATHS.projectReport, lazy: async () => ({ Component: (await import('@/pages/projects/report/ReportPage')).ReportPage }) },
+      // Служебные страницы грузятся по требованию: в основной бандл кабинета они не входят (бюджет 300 КБ gzip).
+      { path: DEV_PATHS.screens, lazy: async () => ({ Component: (await import('@/pages/dev/ScreensIndex')).ScreensIndex }) },
+      { path: DEV_PATHS.tokens, lazy: async () => ({ Component: (await import('@/pages/dev/TokensShowcase')).TokensShowcase }) },
+      { path: DEV_PATHS.ui, lazy: async () => ({ Component: (await import('@/pages/dev/ui/UiShowcase')).UiShowcase }) },
+      { path: DEV_PATHS.spike2d, lazy: async () => ({ Component: (await import('@/pages/dev/spike2d/Spike2dPage')).Spike2dPage }) },
     ],
   },
 ]

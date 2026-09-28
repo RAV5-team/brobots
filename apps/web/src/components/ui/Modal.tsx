@@ -4,18 +4,24 @@ import { clsx } from 'clsx'
 import type { ReactNode } from 'react'
 import { ru } from '@/shared/i18n/ru'
 
-export type ModalSize = 'md' | 'form' | 'sm' | 'wide'
+export type ModalSize = 'md' | 'form' | 'sm' | 'wide' | 'side'
 
 // md — окно со списком (15а): 620, p28, gap16, футер без отступа снизу (15950:3082).
 // form — окно с формой (А7 15966:7697, А10 15966:8434): как md, футер 84 = 16 + кнопка 44 + 24 снизу.
 // sm — подтверждение (17в, 16036:573): 560, p32, gap20, под кнопками 24.
 // wide — выбор из таблицы (A2, 16429:2): 640, p32, gap20; футер отделён только зазором 20.
+// side — боковая панель справа на всю высоту (03a, 16202:979): 560, левые углы 32; шапка px28 pt24 pb12,
+// тело прокручивается px28 pb20, подвал на `surface-muted` px28 pt16 pb24.
 const SIZES: Record<ModalSize, { readonly content: string; readonly header: string; readonly footer: string }> = {
   md: { content: 'w-[620px] gap-16 p-28', header: 'gap-12', footer: 'pt-16' },
   form: { content: 'w-[620px] gap-16 p-28', header: 'gap-12', footer: 'pt-16 pb-24' },
   sm: { content: 'w-[560px] gap-20 p-32', header: 'gap-16', footer: 'pt-16 pb-24' },
   wide: { content: 'w-(--rav-modal-wide-width) gap-20 p-32', header: 'gap-16', footer: '' },
+  side: { content: 'w-(--rav-modal-side-width)', header: 'gap-12 px-28 pt-24 pb-12', footer: 'bg-surface-muted px-28 pt-16 pb-24' },
 }
+
+const CENTERED = 'top-1/2 left-1/2 max-h-[calc(100vh-var(--rav-space-40))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl'
+const SIDE = 'inset-y-0 right-0 h-full rounded-l-3xl shadow-raised-lg'
 
 interface ModalProps {
   readonly title: string
@@ -34,10 +40,12 @@ interface ModalProps {
 
 /**
  * Модальное окно (components.md: Modal): 620 px — со списком (15а) или формой (`size="form"`, А7, А10), 560 px — подтверждение (`size="sm"`, 16036:573),
- * 640 px — выбор строки таблицы (`size="wide"`, A2, 16429:2).
+ * 640 px — выбор строки таблицы (`size="wide"`, A2, 16429:2), боковая панель справа (`size="side"`, 03a, 16202:979):
+ * шапка и подвал на месте, прокручивается только тело — область с именем по заголовку.
  * Radix держит фокус внутри, закрывает по Esc и клику по подложке, возвращает фокус на кнопку.
  */
 export function Modal({ title, size = 'md', description, trigger, open, onOpenChange, footer, onCloseAutoFocus, children }: ModalProps) {
+  const side = size === 'side'
   return (
     <Dialog.Root {...(open !== undefined ? { open } : {})} {...(onOpenChange ? { onOpenChange } : {})}>
       {trigger && <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>}
@@ -47,7 +55,8 @@ export function Modal({ title, size = 'md', description, trigger, open, onOpenCh
           {...(description ? {} : { 'aria-describedby': undefined })}
           {...(onCloseAutoFocus ? { onCloseAutoFocus } : {})}
           className={clsx(
-            'fixed top-1/2 left-1/2 z-40 flex max-h-[calc(100vh-var(--rav-space-40))] max-w-[calc(100vw-var(--rav-space-32))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-y-auto rounded-2xl bg-bg focus-visible:outline-none',
+            'fixed z-40 flex max-w-[calc(100vw-var(--rav-space-32))] flex-col bg-bg focus-visible:outline-none',
+            side ? SIDE : CENTERED,
             SIZES[size].content,
           )}
         >
@@ -63,7 +72,14 @@ export function Modal({ title, size = 'md', description, trigger, open, onOpenCh
               <X aria-hidden size={16} />
             </Dialog.Close>
           </header>
-          {children}
+          {side
+            ? (
+                // Прокручиваемая область — в порядке Tab, чтобы её можно было листать с клавиатуры.
+                <section aria-label={title} tabIndex={0} className="flex min-h-0 flex-1 flex-col gap-16 overflow-y-auto px-28 pb-20">
+                  {children}
+                </section>
+              )
+            : children}
           {footer && <footer className={clsx('flex items-center justify-end gap-12', SIZES[size].footer)}>{footer}</footer>}
         </Dialog.Content>
       </Dialog.Portal>

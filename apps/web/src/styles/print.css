@@ -1,0 +1,49 @@
+/*
+ * Печать (D-107): отчёт 09 — A4, поля страницы с колонтитулом. Текст колонтитула — в ReportPage (словарь),
+ * здесь — размер страницы и оформление полей. Заливки плашек и шапок таблиц печатаются только под `.print-exact`.
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 14mm 16mm;
+
+    @bottom-left {
+      font-family: var(--rav-font-sans);
+      font-size: var(--rav-text-caption-xs-size);
+      color: var(--rav-color-text-muted);
+    }
+
+    @bottom-right {
+      font-family: var(--rav-font-sans);
+      font-size: var(--rav-text-caption-xs-size);
+      color: var(--rav-color-text-muted);
+    }
+  }
+
+  body {
+    background: none;
+  }
+
+  /* Лист 1240 макета сжимается до ширины A4: при 0,8 раскладка отчёта (плитки в ряд, колонки таблиц) сохраняется. */
+  .print-exact {
+    zoom: 0.8;
+  }
+
+  .print-exact,
+  .print-exact * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Заголовок не остаётся внизу страницы без своей таблицы. */
+  .print-exact h2,
+  .print-exact h3 {
+    break-after: avoid;
+  }
+
+  /* Строки таблиц и шаги формул не рвутся между страницами. */
+  .print-exact tr,
+  .print-exact dl > div {
+    break-inside: avoid;
+  }
+}

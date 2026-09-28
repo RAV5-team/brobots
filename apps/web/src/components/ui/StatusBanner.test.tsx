@@ -18,4 +18,10 @@ describe('StatusBanner', () => {
     )
     expect(screen.getByRole('link', { name: 'Открыть в каталоге' })).toHaveAttribute('href', '/catalog')
   })
+
+  it('renders the danger variant as a note, not a status', () => {
+    render(<StatusBanner variant="danger" title="Предварительная оценка" />)
+    expect(screen.getByRole('note', { name: 'Предварительная оценка' })).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
 })

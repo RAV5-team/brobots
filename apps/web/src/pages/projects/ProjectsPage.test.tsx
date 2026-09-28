@@ -46,7 +46,7 @@ describe('ProjectsPage (экран A1)', () => {
       'Багаж терминала · Внуково-2 | Терминал Внуково-2 | Черновикостановились на: Подбор | — | — | —',
       'Внутрибольничная логистика · ГКБ №17 | ГКБ №17 | Оценка готова | 84,0 млн ₽ | 12,5 млн ₽ | 7,0 лет',
       'Паллетный поток v2 · РЦ Химки | РЦ Химки | Оценка готова | 47,4 млн ₽ | 34,5 млн ₽ | 2,8 года',
-      'Инвентаризация · РЦ Химки | РЦ Химки | Черновикостановились на: Симуляция | — | — | —',
+      'Инвентаризация · РЦ Химки | РЦ Химки | Черновикостановились на: Параметры | — | — | —',
     ])
     expect(screen.getByText(/^Черновик — оценка в работе/)).toBeInTheDocument()
   })
@@ -76,14 +76,14 @@ describe('ProjectsPage (экран A1)', () => {
     renderPage('?as=user')
     await bodyRows()
     expect(screen.getByRole('link', { name: 'Открыть проект «Багаж терминала · Внуково-2»' })).toHaveAttribute('href', '/projects/PJ-04/matching')
-    expect(screen.getByRole('link', { name: 'Открыть проект «Роботизация паллетного потока · РЦ Химки»' })).toHaveAttribute('href', '/projects/PJ-01/result')
+    expect(screen.getByRole('link', { name: 'Открыть проект «Роботизация паллетного потока · РЦ Химки»' })).toHaveAttribute('href', '/projects/PJ-01/economics')
   })
 
   it('opens a project by a click on its row', async () => {
     renderPage('?as=user')
     await bodyRows()
     fireEvent.click(screen.getByText('Инвентаризация · РЦ Химки'))
-    expect(screen.getByTestId('location')).toHaveTextContent('/projects/PJ-07/simulation')
+    expect(screen.getByTestId('location')).toHaveTextContent('/projects/PJ-07/params')
   })
 
   it('shows the shared empty state when the search finds nothing and resets it', async () => {

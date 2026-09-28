@@ -4,7 +4,8 @@
 import type { LocationProcess } from '@/domain'
 
 export const LOCATION_PROCESSES: readonly LocationProcess[] = [
-  { id: "LP-01", locationId: "LOC-01", processCode: "PR-0001", name: "Перемещение паллет", overrides: {}, workers: [] },
+  // LP-01: максимальная масса, габариты и маршрут — PRD 11.2, группы А и В (полей нет в форме 16, PRD 10.4).
+  { id: "LP-01", locationId: "LOC-01", processCode: "PR-0001", name: "Перемещение паллет", overrides: { maxUnitMassKg: 1000, unitDimensionsMm: [1200, 800, 1500], routePoints: ["Ворота приёмки 1–6", "Стеллажи A–F"] }, workers: [] },
   { id: "LP-02", locationId: "LOC-01", processCode: "PR-0002", name: null, overrides: {}, workers: [] },
   { id: "LP-03", locationId: "LOC-01", processCode: "PR-0003", name: null, overrides: {"dailyVolume": 833}, workers: [] },
   { id: "LP-04", locationId: "LOC-01", processCode: "PR-0004", name: "Уборка склада", overrides: {}, workers: [] },

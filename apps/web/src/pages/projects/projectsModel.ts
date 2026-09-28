@@ -19,14 +19,7 @@ export interface ProjectRow {
 }
 
 /** Короткое название стадии черновика: «остановились на: Итог» (PRD 11.1). */
-const STAGE_LABELS: Record<ProjectStep, string> = {
-  params: ru.projectStages.parameters,
-  matching: ru.projectStages.selection,
-  simulation: ru.projectStages.simulation,
-  economics: ru.projectStages.result,
-}
-
-export const stageLabel = (step: ProjectStep): string => STAGE_LABELS[step]
+export const stageLabel = (step: ProjectStep): string => ru.projectStages[step]
 
 const isTab = (value: string | null): value is ProjectsTab => PROJECTS_TABS.includes(value as ProjectsTab)
 
