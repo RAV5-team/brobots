@@ -44,7 +44,7 @@ function fromCharacteristic(c: Characteristic): CompareValue {
 }
 
 /** Запас по ширине прохода: ширина робота + 0,6 м ≤ проход — правило карточки робота А2 (PRD 6.3, D-75). */
-export const AISLE_CLEARANCE_M = 0.6
+const AISLE_CLEARANCE_M = 0.6
 const MM_IN_M = 1000
 const PALLET_MASS = 'wh_pallet_mass'
 const RACK_AISLE = 'wh_rack_aisle_width'

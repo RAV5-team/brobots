@@ -23,10 +23,9 @@ import { ProcessDetailPage } from '@/pages/processes/detail/ProcessDetailPage'
 import { ProcessNewPage } from '@/pages/processes/new/ProcessNewPage'
 import { ProjectsPage } from '@/pages/projects/ProjectsPage'
 import { ScreenStub } from '@/pages/_stub/ScreenStub'
-import { ProjectResultRedirect } from './ProjectResultRedirect'
 import { RootLayout } from './RootLayout'
 import type { ProjectStep } from '@/domain'
-import { DEV_PATHS, LEGACY_PATHS, PROJECT_STEP_PATHS, ROUTE_PATHS, type RoutePath } from './routePaths'
+import { DEV_PATHS, PROJECT_STEP_PATHS, ROUTE_PATHS, type RoutePath } from './routePaths'
 
 // Экран входа 05 и печатный отчёт 09 (D-15) живут без меню; остальные разделы — внутри каркаса кабинета.
 const OUTSIDE_SHELL: readonly RoutePath[] = [ROUTE_PATHS.login, ROUTE_PATHS.projectReport]
@@ -61,7 +60,6 @@ export const routes: RouteObject[] = [
         children: [
           { path: ROUTE_PATHS.dashboard, element: <DashboardPage /> },
           { path: ROUTE_PATHS.projects, element: <ProjectsPage /> },
-          { path: LEGACY_PATHS.projectResult, element: <ProjectResultRedirect /> },
           ...projectStepRoutes,
           { path: ROUTE_PATHS.catalog, element: <CatalogPage /> },
           { path: ROUTE_PATHS.catalogCompare, element: <ComparePage /> },
@@ -95,7 +93,6 @@ export const routes: RouteObject[] = [
       { path: DEV_PATHS.screens, lazy: async () => ({ Component: (await import('@/pages/dev/ScreensIndex')).ScreensIndex }) },
       { path: DEV_PATHS.tokens, lazy: async () => ({ Component: (await import('@/pages/dev/TokensShowcase')).TokensShowcase }) },
       { path: DEV_PATHS.ui, lazy: async () => ({ Component: (await import('@/pages/dev/ui/UiShowcase')).UiShowcase }) },
-      { path: DEV_PATHS.spike2d, lazy: async () => ({ Component: (await import('@/pages/dev/spike2d/Spike2dPage')).Spike2dPage }) },
     ],
   },
 ]

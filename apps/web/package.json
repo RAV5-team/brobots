@@ -16,7 +16,6 @@
     "gen:api": "node scripts/genApi.ts",
     "gen:fixtures": "node scripts/genSimulationFixtures.ts",
     "gen:traces": "sh scripts/gen-traces.sh",
-    "measure:spike-2d": "node scripts/measureSpike2d.mjs",
     "measure:player-07a": "node scripts/measurePlayer07a.mjs",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",

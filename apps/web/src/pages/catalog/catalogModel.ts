@@ -88,13 +88,13 @@ export function priceRangeOf(priceRub: number): PriceRange {
 }
 
 /** Цена в рублях; у позиции «10 % CAPEX в год» и у робота без цены — null. */
-export function priceRubOf(entry: CatalogEntry): number | null {
+function priceRubOf(entry: CatalogEntry): number | null {
   if (entry.kind === 'robot') return entry.robot.priceRub
   return entry.item.price.kind === 'rub' ? entry.item.price.amountRub : null
 }
 
 /** Робот — всегда разовая покупка (CAPEX); у позиции — её тип затрат. */
-export function costTypeOf(entry: CatalogEntry): CostTypeFilter {
+function costTypeOf(entry: CatalogEntry): CostTypeFilter {
   if (entry.kind === 'robot') return 'capex'
   return entry.item.costType === 'capex' ? 'capex' : 'opex'
 }

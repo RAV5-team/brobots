@@ -12,7 +12,6 @@ export const ru = {
   app: {
     name: 'RAV5',
     tagline: 'Оценка роботизации',
-    title: 'RAV5 — платформа оценки роботизации',
   },
 
   roles: {
@@ -194,7 +193,6 @@ export const ru = {
       kpi: 'Основной KPI',
       facilities: 'Отрасли',
       routePoints: 'Типовые точки',
-      routeSegment: (from: string, to: string) => `${from} → ${to}`,
     },
     requirements: {
       title: 'Что нужно знать для подбора',
@@ -369,7 +367,6 @@ export const ru = {
       otherFacilityType: 'другой тип объекта',
       onLocation: 'уже на локации',
       add: (name: string) => `Добавить «${name}» на локацию`,
-      adding: 'Добавляем…',
       cancel: 'Отмена',
       /** Новый шаблон в справочнике — форма 09а (PRD 10.4). */
       createProcess: 'Создать процесс',
@@ -971,7 +968,6 @@ export const ru = {
       openItem: (name: string) => `Открыть позицию: ${name}`,
       compatibleAll: 'Посмотреть все совместимые компоненты',
       compatibleTitle: 'Совместимо',
-      specsTitle: 'Характеристики',
       allTitle: 'Все технические характеристики',
       catalogSource: 'Каталог ФЦ БАС v4',
       vendorSite: 'Сайт производителя',
@@ -1006,7 +1002,7 @@ export const ru = {
       confirmednessValue: (confirmed: number, estimate: number, missing: number) =>
         `${String(confirmed)} подтверждено · ${String(estimate)} оценка · ${String(missing)} нет данных`,
       platformCalc: 'расчёт платформы',
-      itemRows: { supplier: 'Поставщик', id: 'Уникальный идентификатор', type: 'Тип позиции', price: 'Цена', costType: 'Тип затрат', quantityNorm: 'Норма на объект', source: 'Источник' },
+      itemRows: { supplier: 'Поставщик', id: 'Уникальный идентификатор', type: 'Тип позиции', price: 'Цена', costType: 'Тип затрат', quantityNorm: 'Норма на объект' },
       /** Подпись характеристики позиции по порядку: в данных у неё только значение (D-79). */
       specLabel: (index: number) => (index === 0 ? 'Категория' : index === 1 ? 'Вид' : 'Параметр'),
       itemTypes: { infrastructure: 'Инфраструктура', software: 'ПО и интеграции', service: 'Услуги внедрения', support: 'Поддержка' },
@@ -1358,19 +1354,6 @@ export const ru = {
     missing: 'нет данных',
   },
 
-  entities: {
-    operationClass: 'Класс операции',
-    operationClasses: 'Классы операций',
-    robot: 'Робот',
-    process: 'Процесс',
-    locationProcesses: 'Процессы локации',
-    location: 'Локация',
-    carrier: 'Носитель',
-    handlingMethod: 'Способ обработки груза',
-    project: 'Проект',
-    norms: 'Нормативы и допущения',
-  },
-
   /** Экран A1 «Проекты» (PRD 11.1; 16325:14). */
   projects: {
     title: 'Проекты',
@@ -1438,14 +1421,6 @@ export const ru = {
     },
   },
 
-  projectSteps: {
-    params: 'Параметры',
-    matching: 'Подбор',
-    simulation: 'Симуляция',
-    economics: 'Итог и экономика',
-  } satisfies Record<ProjectStep, string>,
-
-  /** Короткие названия стадий черновика (PRD 11.1: «Параметры · Подбор · Симуляция · Итог»). */
   /** Короткое название стадии черновика: «остановились на: Итог» (PRD 11.1). Ключи — ProjectStep. */
   projectStages: {
     params: 'Параметры',
@@ -1475,8 +1450,6 @@ export const ru = {
     /** Родительный падеж после «для»: «для 1 процесса», «для 6 процессов». */
     processesOf: ['процесса', 'процессов', 'процессов'],
     classes: ['класс', 'класса', 'классов'],
-    locations: ['локация', 'локации', 'локаций'],
-    projects: ['проект', 'проекта', 'проектов'],
     parameters: ['параметр', 'параметра', 'параметров'],
     people: ['человек', 'человека', 'человек'],
     positions: ['позиция', 'позиции', 'позиций'],
@@ -1558,23 +1531,6 @@ export const ru = {
     typeSample: 'Подбор роботов · 591 млн ₽',
     uiTitle: 'Примитивы UI',
     uiHint: 'Выберите примитив: варианты по строкам, состояния по столбцам.',
-    spike2d: {
-      title: '2D-плеер · спайк',
-      lead: 'Два записанных прогона с общим временем (07a, PRD 11.4). SVG + requestAnimationFrame; критерий — не меньше 30 кадров/с на ×1800 с двумя плеерами на 1366×768 (D-87)',
-      loading: 'Загружаем трассы прогонов…',
-      error: 'Не удалось загрузить трассы',
-      play: 'Пуск',
-      pause: 'Пауза',
-      toStart: 'В начало',
-      speed: 'Скорость воспроизведения',
-      speedOption: (x: number) => `×${String(x)}`,
-      timeline: 'Время дня',
-      measure: 'Замер: 10 с на ×1800',
-      measuring: 'Идёт замер…',
-      result: (fps: string, p95: string, long: number, frames: number) => `${fps} кадров/с · p95 кадра ${p95} мс · длинных кадров ${String(long)} из ${String(frames)}`,
-      passed: 'критерий выполнен',
-      failed: 'критерий не выполнен — нужен Canvas 2D',
-    },
     variant: 'Вариант',
     states: {
       default: 'Обычное',

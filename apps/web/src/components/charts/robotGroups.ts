@@ -14,7 +14,7 @@ const GROUP_OF: Readonly<Record<RobotState, RobotGroup>> = {
 export const GROUP_TONE: Readonly<Record<RobotGroup, ChartTone>> = {
   work: 'strong', waiting: 'danger', charging: 'accent', down: 'danger-soft', idle: 'secondary',
 }
-export const ROBOT_GROUPS = Object.keys(GROUP_TONE) as RobotGroup[]
+const ROBOT_GROUPS = Object.keys(GROUP_TONE) as RobotGroup[]
 
 /** Легенда плеера: серии групп с подписями вызывающего. */
 export const robotLegend = (labels: Readonly<Record<RobotGroup, string>>): readonly ChartSeries[] =>

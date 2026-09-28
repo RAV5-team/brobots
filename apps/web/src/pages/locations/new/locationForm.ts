@@ -65,7 +65,7 @@ export interface Range {
  * Годовая текучесть: в датасете склада её нет (PRD 10.2) — принимаем 0 и помечаем допущением.
  * Код — свой, в духе кодов датасета: сохраняется в профиль, чтобы допущение увидел список локаций (PRD 15 · №45).
  */
-export const TURNOVER_CODE = 'wh_annual_turnover'
+const TURNOVER_CODE = 'wh_annual_turnover'
 export const ASSUMED_TURNOVER = 0
 const PAYROLL_CODE = 'wh_payroll_tax_coef'
 
@@ -127,7 +127,7 @@ export const num = (form: LocationForm, key: NumericKey): number | null => parse
 /** Годовая текучесть осталась принятым нулём — значение считается допущением, а не данными площадки. */
 export const isTurnoverAssumed = (form: LocationForm): boolean => num(form, 'turnover') === ASSUMED_TURNOVER
 
-export function presetStaffRows(params: ParameterIndex): readonly StaffGroupRow[] {
+function presetStaffRows(params: ParameterIndex): readonly StaffGroupRow[] {
   return STAFF_PRESETS.map((p) => ({
     key: p.headcountCode,
     role: p.role,

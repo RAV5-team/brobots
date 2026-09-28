@@ -11,7 +11,7 @@ type Fetched = { readonly runId: string; readonly traces: readonly SimulationTra
 
 /**
  * 2D-трассы прогона (`GET /api/simulations/{id}/traces`): «из подбора» и, если состав изменился, итоговая.
- * Файлы тяжёлые — грузятся только на вкладке 07a, отдельным чанком (spike-2d.md).
+ * Файлы тяжёлые — грузятся только на вкладке 07a, отдельным чанком (docs/spike-2d.md).
  */
 export function useRunTraces(runId: string): { readonly load: RunTracesLoad; readonly retry: () => void } {
   const services = useServices()

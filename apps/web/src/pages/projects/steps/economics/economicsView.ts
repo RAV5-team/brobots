@@ -41,7 +41,7 @@ export function parseAcquisition(value: string | null): AcquisitionModel | null 
   return value === 'raas' || value === 'purchase' ? value : null
 }
 
-export function scenarioOf(economics: EconomicsResult, acquisition: AcquisitionModel): ScenarioEconomics | null {
+function scenarioOf(economics: EconomicsResult, acquisition: AcquisitionModel): ScenarioEconomics | null {
   return economics.scenarios.find((s) => s.acquisition === acquisition) ?? null
 }
 

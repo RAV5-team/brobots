@@ -1,4 +1,4 @@
-"""2D-трассы для моков и /dev/spike-2d: `npm run gen:traces` (Docker, Python 3.12).
+"""2D-трассы для моков (плеер 07a, кадр отчёта 09): `npm run gen:traces` (Docker, Python 3.12).
 
 Трассы пишет настоящий движок services/simulation (simcore) — формат ровно тот, что отдаёт
 GET /api/simulations/{id}/traces (simcore.viz.export_trace). Код сервиса только импортируется, не меняется.

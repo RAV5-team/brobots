@@ -69,7 +69,7 @@ const CLEAN: readonly ScreenRow[] = [
 ]
 
 const FIRST: readonly ScreenRow[] = [
-  ['first-А4', 'А4', 'Обновление каталога · предпросмотр изменений', '14593:1014', '6.6', 'page', R.adminCatalogUpdate],
+  ['first-А4', 'А4', 'Обновление каталога · предпросмотр изменений', '14593:1014', '6.6', 'page', null],
   ['first-journal', 'Журнал', 'Администрирование · журнал изменений', '14581:50271', '6.11', 'page', R.adminJournal],
   ['first-journal-filter', 'Журнал · фильтр', 'Журнал · фильтр по разделам', '14930:7', '6.11', 'state', R.adminJournal],
   ['first-catdrop', '—', 'Каталог · список «Задача» (подпись устарела, D-12) — удалён из Figma, ждёт скрытую секцию (15835:11139)', null, '7.4', 'state', R.catalog],

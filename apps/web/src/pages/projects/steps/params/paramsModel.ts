@@ -137,7 +137,7 @@ export function missingOf(entry: ParamsProcessEntry, snapshot: ProjectParamsSnap
 const siteValue = (snapshot: ProjectParamsSnapshot, code: string): ParameterValue | undefined =>
   snapshot.siteValues[code] ?? snapshot.location.parameters[code]
 
-export const missingLabel = (m: MissingValue, snapshot: ProjectParamsSnapshot): string =>
+const missingLabel = (m: MissingValue, snapshot: ProjectParamsSnapshot): string =>
   t.missingLabels[m.code] ?? snapshot.siteParameters.find((p) => p.code === m.code)?.name.toLowerCase() ?? m.code
 
 const labelled = (missing: readonly MissingValue[], snapshot: ProjectParamsSnapshot): readonly MissingItem[] =>
@@ -329,7 +329,7 @@ function workersGroup(entry: ParamsProcessEntry, snapshot: ProjectParamsSnapshot
 }
 
 /** Группы А–Г выбранного процесса (PRD 11.2); у процесса без маршрута группы «В» нет. */
-export function processGroups(entry: ParamsProcessEntry, snapshot: ProjectParamsSnapshot, assumptions: readonly AssumptionRow[]): readonly RowGroup[] {
+function processGroups(entry: ParamsProcessEntry, snapshot: ProjectParamsSnapshot, assumptions: readonly AssumptionRow[]): readonly RowGroup[] {
   return [
     objectGroup(entry, snapshot),
     loadGroup(entry, snapshot, assumptions),
@@ -351,7 +351,7 @@ function siteValueText(snapshot: ProjectParamsSnapshot, code: string, pairCode: 
 }
 
 /** 25 параметров площадки по группам PRD 10.5 (D-92); «нет данных» — ссылка в профиль локации. */
-export function siteGroups(snapshot: ProjectParamsSnapshot, entry: ParamsProcessEntry | null): readonly SiteRowGroup[] {
+function siteGroups(snapshot: ProjectParamsSnapshot, entry: ParamsProcessEntry | null): readonly SiteRowGroup[] {
   const route = entry === null || hasRoute(entry)
   const groups = [...new Set(snapshot.siteParameters.map((p) => p.group))]
   return groups.map((group) => ({

@@ -9,14 +9,14 @@ import { NUMERIC_SPECS, SECTION_IDS, type NumericKey, type ProcessForm, type Sec
 const t = ru.processNew
 
 /** Черновик из браузера годится, если у него форма той же версии: класс, список групп, способы. */
-export function isProcessForm(value: unknown): value is ProcessForm {
+function isProcessForm(value: unknown): value is ProcessForm {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<ProcessForm>
   return typeof v.operationClass === 'string' && Array.isArray(v.staff) && Array.isArray(v.handling) && typeof v.dailyVolume === 'string'
 }
 
 /** Секция первой ошибки — туда ведём после неудачной проверки. */
-export function firstErrorSection(errors: FormErrors): SectionId {
+function firstErrorSection(errors: FormErrors): SectionId {
   const keys = Object.keys(errors)
   if (keys.some((k) => ['name', 'carrier', 'category', 'handling', 'unitMassKg'].includes(k))) return 'process'
   const numeric = keys.find((k): k is NumericKey => k in NUMERIC_SPECS)

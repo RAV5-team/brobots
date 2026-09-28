@@ -9,7 +9,7 @@ export type CompareEntry =
   | { readonly kind: 'robot'; readonly id: RobotId }
   | { readonly kind: 'launch-item'; readonly id: LaunchItemId }
 
-export const isSameEntry = (a: CompareEntry, b: CompareEntry): boolean => a.kind === b.kind && a.id === b.id
+const isSameEntry = (a: CompareEntry, b: CompareEntry): boolean => a.kind === b.kind && a.id === b.id
 
 export const hasEntry = (entries: readonly CompareEntry[], entry: CompareEntry): boolean => entries.some((e) => isSameEntry(e, entry))
 

@@ -2,7 +2,7 @@
 // Значения из датасета «Склад» берутся из параметров типа объекта; остальные — значения по умолчанию макета 15935:903.
 // Коэффициенты без норматива (PRD 15 · №22) — здесь, пока их нет в справочнике нормативов А5.
 import type { FacilityParameter, HandlingMethodCode } from '@/domain'
-import { formatNumber, formatPercent } from '@/shared/format'
+import { formatNumber } from '@/shared/format'
 import { WAREHOUSE_STAFF } from '../staffParameters'
 import { categoryValue, type ProcessForm, type StaffRow } from './processForm'
 
@@ -128,6 +128,3 @@ export function buildDemoForm(params: readonly FacilityParameter[]): ProcessForm
     otherEffectsRub: text(MACRO_DEFAULTS.otherEffectsRub),
   }
 }
-
-export const formatRatio = (ratio: number): string => RATIO_FORMAT.format(ratio)
-export const formatShare = (share: number): string => formatPercent(share)

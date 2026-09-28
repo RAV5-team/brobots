@@ -21,7 +21,7 @@ import { PAYROLL_COEF_PARAMETER, PEAK_FACTOR_PARAMETER } from '../staffParameter
 const t = ru.processCard
 const MONTHS_PER_YEAR = 12
 /** Карточек решений в блоке — как на макете; остальные — в каталоге по кнопке «Открыть каталог по процессу». */
-export const ROBOT_CARDS_LIMIT = 6
+const ROBOT_CARDS_LIMIT = 6
 /** Порядок «по подтверждённости данных»: да → частично → нет (PRD 7). */
 export const CONFIDENCE_ORDER: readonly DataConfidence[] = ['confirmed', 'partial', 'unconfirmed']
 

@@ -143,7 +143,7 @@ function toTemplate(form: ProcessForm): ProcessTemplate {
 }
 
 /** «Приёмка → зона хранения → отгрузка» → точки маршрута для карточки процесса 11. */
-export function routePoints(route: string): readonly string[] {
+function routePoints(route: string): readonly string[] {
   return route.split('→').map((point) => point.trim()).filter((point) => point !== '')
 }
 

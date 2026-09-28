@@ -1,8 +1,8 @@
 import type { DashboardChecks, DashboardInputs, FacilityTypeCode, Location, LocationProcessId, Project } from '@/domain'
 
 /** Сколько строк помещается в блоки «Продолжить» и «Локации» на 1366×768 (экран 06, PRD 8.3). */
-export const RECENT_PROJECTS_LIMIT = 3
-export const DASHBOARD_LOCATIONS_LIMIT = 3
+const RECENT_PROJECTS_LIMIT = 3
+const DASHBOARD_LOCATIONS_LIMIT = 3
 
 export interface RecentProject {
   readonly project: Project

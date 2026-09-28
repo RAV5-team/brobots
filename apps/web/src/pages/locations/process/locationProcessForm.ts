@@ -34,7 +34,7 @@ export interface ProcessValues {
 }
 
 /** Параметры типа объекта со значениями этой локации вместо базы датасета. */
-export function siteParameters(location: Location, parameters: readonly FacilityParameter[]): readonly FacilityParameter[] {
+function siteParameters(location: Location, parameters: readonly FacilityParameter[]): readonly FacilityParameter[] {
   return parameters.map((p) => {
     const value = location.parameters[p.code]?.value
     return value === undefined ? p : { ...p, base: value }
@@ -47,7 +47,7 @@ export function siteBase(location: Location, parameters: readonly FacilityParame
 }
 
 /** Группы из профиля локации; нет своих — группы датасета типа объекта с численностью и окладом площадки. */
-export function profileGroups(location: Location, parameters: readonly FacilityParameter[]) {
+function profileGroups(location: Location, parameters: readonly FacilityParameter[]) {
   if (location.staffGroups.length > 0) return location.staffGroups.map((g) => ({ role: g.role, headcount: g.headcount, salaryRub: g.salaryGrossMonthRub }))
   return STAFF_PARAMETERS[location.facilityType].map((g) => ({
     role: g.role,

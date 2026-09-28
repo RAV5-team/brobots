@@ -13,7 +13,7 @@ import { useRole } from '@/shared/auth/useRole'
 import { clearDraft, readDraft, useDraftAutosave } from '@/shared/dom/useDraftAutosave'
 import { formatNumber, formatTime } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
-import { ADDED_PARAM } from '../catalogModel'
+import { adminCatalogAddedPath } from '../catalogModel'
 import { RobotPhotosSection } from './RobotPhotosSection'
 import { RobotReadinessRail } from './RobotReadinessRail'
 import { ClassesSection, ConditionsSection, MainSection, SpecsSection } from './RobotSections'
@@ -84,7 +84,7 @@ function RobotNewForm({ data }: { readonly data: RobotNewData }) {
       const created = await services.catalog.createRobot(toNewRobot(form, photos.photos.map((p) => p.name)))
       clearDraft(DRAFT_KEY)
       // А3 «Робот добавлен» — состояние каталога А1 (PRD 6.2).
-      void navigate({ pathname: ROUTE_PATHS.adminCatalog, search: `?${ADDED_PARAM}=${created.id}` })
+      void navigate(adminCatalogAddedPath(created.id))
     } catch (error) {
       console.error('Не удалось сохранить робота', error)
       setMessage(error instanceof ValidationError ? error.message : t.errors.saveFailed)

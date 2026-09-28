@@ -6,7 +6,7 @@ import { useServices } from '@/services/useServices'
  * Локация блока «Соответствие». Способа выбрать локацию на экране пока нет (D-58 — open);
  * до решения — демо-локация РЦ Химки (D-75).
  */
-export const DEMO_FIT_LOCATION_ID: LocationId = 'LOC-01'
+const DEMO_FIT_LOCATION_ID: LocationId = 'LOC-01'
 
 export interface CompareData {
   readonly robots: readonly Robot[]

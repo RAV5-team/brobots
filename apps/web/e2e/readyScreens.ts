@@ -50,8 +50,6 @@ export const READY_ROUTES: readonly ReadyRoute[] = [
   // Отчёт PDF (09): печатный лист без меню кабинета, 12 разделов PRD 11.6 (D-107).
   { path: '/projects/PJ-DEMO/report', roles: ALL },
   { path: '/projects/PJ-01/report', roles: SIGNED_IN },
-  // Спайк 2D-плеера (D-87): служебная страница, трассы грузятся отдельными чанками.
-  { path: '/dev/spike-2d', roles: ['user'] },
   { path: '/catalog', roles: ALL },
   { path: '/catalog/compare', roles: ALL },
   { path: '/catalog/RB-0008', roles: ALL },
