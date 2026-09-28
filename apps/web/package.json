@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite --port 5173 --strictPort",
     "build": "tsc -b && vite build",
+    "check:bundle": "vite build && node scripts/checkBundle.mjs",
     "preview": "vite preview --port 4173 --strictPort",
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint .",

@@ -18,7 +18,6 @@ import {
 import { CONDITIONS_LP01_RAAS, OPERATIONS_PER_DAY_LP01, SENSITIVITY_LP01_RAAS } from '@/mocks/fixtures/projectEconomics'
 import { EVALUATIONS_BY_PROCESS } from '@/mocks/fixtures/projectMatching'
 import { DEMO_PROJECT_DTO, PROJECT_DTOS, PROJECT_LOCAL_STATE } from '@/mocks/fixtures/projects'
-import { SIMULATION_RUNS } from '@/mocks/fixtures/simulationRuns.generated'
 import { ConflictError, NotFoundError } from '../errors'
 import type { ProjectService } from '../projects'
 import { respond, type MockOptions } from './respond'
@@ -68,10 +67,19 @@ function nextId(ids: readonly string[]): ProjectId {
 
 const now = (): string => new Date().toISOString()
 
+type RunDto = SimulationSchemas['SimulationRun']
+
+/** Прогоны симуляции грузятся при первом обращении: в основной бандл кабинета они не входят. */
+let runsLoading: Promise<readonly RunDto[]> | null = null
+const loadRuns = (): Promise<readonly RunDto[]> => {
+  runsLoading ??= import('@/mocks/fixtures/simulationRuns.generated').then((module) => module.SIMULATION_RUNS)
+  return runsLoading
+}
+
 /** Прогон, который мок «насчитает» для состава: у кого проверенный состав совпал, иначе — основной (confirmed). */
-function runForFleet(robots: number, stations: number): SimulationSchemas['SimulationRun'] {
-  const match = SIMULATION_RUNS.find((r) => r.fleet_change.from_.robots === robots && r.fleet_change.from_.chargers === stations)
-  const fallback = SIMULATION_RUNS.find((r) => r.simulation_id === DEFAULT_RUN_ID)
+function runForFleet(runs: readonly RunDto[], robots: number, stations: number): RunDto {
+  const match = runs.find((r) => r.fleet_change.from_.robots === robots && r.fleet_change.from_.chargers === stations)
+  const fallback = runs.find((r) => r.simulation_id === DEFAULT_RUN_ID)
   const run = match ?? fallback
   if (!run) throw new Error(`Фикстура прогона ${DEFAULT_RUN_ID} не найдена`)
   return run
@@ -155,14 +163,15 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
       return { ...toMatchingEvaluation(evaluationOf(stored)), stale: stored.local.inputs.stale.matching }
     }),
 
-    startSimulation: (id) => attempt(() => {
+    startSimulation: async (id) => {
       const stored = editable(id)
+      const runs = await loadRuns()
       const fleet = stored.local.inputs.simulation?.fleet
-      const run = fleet ? runForFleet(fleet.robots, fleet.stations) : runForFleet(-1, -1)
+      const run = fleet ? runForFleet(runs, fleet.robots, fleet.stations) : runForFleet(runs, -1, -1)
       const jobId = `JOB-${String(jobs.size + 1)}`
       jobs = new Map([...jobs, [jobId, { projectId: id, runId: run.simulation_id, polls: 0 }]])
-      return toSimulationJob({ job_id: jobId, status: 'queued', log: [], elapsed: 0 })
-    }),
+      return respond(toSimulationJob({ job_id: jobId, status: 'queued', log: [], elapsed: 0 }), options)
+    },
 
     getSimulationJob: (jobId) => attempt(() => {
       const job = jobs.get(jobId)
@@ -185,11 +194,11 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
       })
     }),
 
-    getSimulationRun: (runId) => attempt(() => {
-      const run = SIMULATION_RUNS.find((r) => r.simulation_id === runId)
+    getSimulationRun: async (runId) => {
+      const run = (await loadRuns()).find((r) => r.simulation_id === runId)
       if (!run) throw new NotFoundError(`Прогон ${runId} не найден`)
-      return toSimulationRun(run)
-    }),
+      return respond(toSimulationRun(run), options)
+    },
 
     getSimulationTraces: async (runId) => {
       const files = TRACES_BY_RUN[runId]

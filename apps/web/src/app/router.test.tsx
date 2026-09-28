@@ -89,15 +89,15 @@ describe('router', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Новый робот' })).toBeInTheDocument()
   })
 
-  it('shows the screen index on /dev/screens', () => {
+  it('shows the screen index on /dev/screens (loaded lazily)', async () => {
     renderAt('/dev/screens')
-    expect(screen.getByRole('heading', { level: 1, name: 'Экраны RAV5' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Экраны RAV5' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Вход · авторизация' })).toHaveAttribute('href', '/login')
   })
 
-  it('shows the token showcase on /dev/tokens', () => {
+  it('shows the token showcase on /dev/tokens (loaded lazily)', async () => {
     renderAt('/dev/tokens')
-    expect(screen.getByRole('heading', { level: 1, name: 'Токены RAV5' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Токены RAV5' })).toBeInTheDocument()
     for (const group of ['Цвета', 'Типографика', 'Радиусы', 'Отступы', 'Тени']) {
       expect(screen.getByRole('heading', { level: 2, name: group })).toBeInTheDocument()
     }

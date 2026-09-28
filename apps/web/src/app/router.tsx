@@ -24,10 +24,6 @@ import { ProcessNewPage } from '@/pages/processes/new/ProcessNewPage'
 import { ProjectsPage } from '@/pages/projects/ProjectsPage'
 import { ProjectStepPage } from '@/pages/projects/steps/ProjectStepPage'
 import { ScreenStub } from '@/pages/_stub/ScreenStub'
-import { ScreensIndex } from '@/pages/dev/ScreensIndex'
-import { TokensShowcase } from '@/pages/dev/TokensShowcase'
-import { UiShowcase } from '@/pages/dev/ui/UiShowcase'
-import { Spike2dPage } from '@/pages/dev/spike2d/Spike2dPage'
 import { ProjectResultRedirect } from './ProjectResultRedirect'
 import { RootLayout } from './RootLayout'
 import type { ProjectStep } from '@/domain'
@@ -87,10 +83,11 @@ export const routes: RouteObject[] = [
         ],
       },
       { path: ROUTE_PATHS.login, element: <LoginPage /> },
-      { path: DEV_PATHS.screens, element: <ScreensIndex /> },
-      { path: DEV_PATHS.tokens, element: <TokensShowcase /> },
-      { path: DEV_PATHS.ui, element: <UiShowcase /> },
-      { path: DEV_PATHS.spike2d, element: <Spike2dPage /> },
+      // Служебные страницы грузятся по требованию: в основной бандл кабинета они не входят (бюджет 300 КБ gzip).
+      { path: DEV_PATHS.screens, lazy: async () => ({ Component: (await import('@/pages/dev/ScreensIndex')).ScreensIndex }) },
+      { path: DEV_PATHS.tokens, lazy: async () => ({ Component: (await import('@/pages/dev/TokensShowcase')).TokensShowcase }) },
+      { path: DEV_PATHS.ui, lazy: async () => ({ Component: (await import('@/pages/dev/ui/UiShowcase')).UiShowcase }) },
+      { path: DEV_PATHS.spike2d, lazy: async () => ({ Component: (await import('@/pages/dev/spike2d/Spike2dPage')).Spike2dPage }) },
     ],
   },
 ]
