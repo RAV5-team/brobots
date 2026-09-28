@@ -7,7 +7,7 @@ import { Segmented, type SegmentedOption } from '@/components/ui/Segmented'
 import type { AssumptionOverride } from '@/domain'
 import { formatNumber, parseDecimal } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
-import { assumptionValueText, validateAssumption, type AssumptionRow } from './paramsModel'
+import { assumptionUnitLabel, assumptionValueText, validateAssumption, type AssumptionRow } from './paramsModel'
 
 const t = ru.project.params.panel
 
@@ -36,7 +36,7 @@ export function AssumptionPanel({ row, onClose, onApply }: AssumptionPanelProps)
   const [kind, setKind] = useState<Kind>(row.override?.kind ?? 'fact')
   const [text, setText] = useState(row.override ? formatNumber(row.override.value, row.digits) : '')
   const [error, setError] = useState<string | null>(null)
-  const unit = row.unit === 'коэф.' ? '' : row.unit
+  const unit = row.unit === 'factor' ? '' : assumptionUnitLabel(row.unit)
   const range = t.range(formatNumber(row.min, row.digits), formatNumber(row.max, row.digits), unit)
 
   const submit = (event: SyntheticEvent) => {

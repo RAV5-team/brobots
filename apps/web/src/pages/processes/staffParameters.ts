@@ -1,4 +1,5 @@
 import type { FacilityTypeCode } from '@/domain'
+import { ru } from '@/shared/i18n/ru'
 
 /** Группа исполнителей и параметры датасета с её численностью и окладом; у упаковщиков оклада в датасете нет. */
 export interface StaffParameterGroup {
@@ -9,9 +10,9 @@ export interface StaffParameterGroup {
 
 /** Группы склада из датасета (приложение А): форма процесса 09а и карточка процесса 11. */
 export const WAREHOUSE_STAFF: readonly StaffParameterGroup[] = [
-  { role: 'Операторы погрузчиков', headcount: 'wh_forklift_operators', salary: 'wh_forklift_salary' },
-  { role: 'Отборщики (комплектовщики)', headcount: 'wh_pickers', salary: 'wh_picker_salary' },
-  { role: 'Операторы упаковочных линий', headcount: 'wh_packing_operators', salary: null },
+  { role: ru.staffRoles.forkliftOperators, headcount: 'wh_forklift_operators', salary: 'wh_forklift_salary' },
+  { role: ru.staffRoles.pickers, headcount: 'wh_pickers', salary: 'wh_picker_salary' },
+  { role: ru.staffRoles.packingOperators, headcount: 'wh_packing_operators', salary: null },
 ]
 
 /** В датасетах аэропорта и медучреждения численность дана по службам, а не по группам процессов. */

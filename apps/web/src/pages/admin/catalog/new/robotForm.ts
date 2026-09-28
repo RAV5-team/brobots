@@ -180,22 +180,9 @@ export function filledRequired(form: RobotForm, photoCount: number): number {
 
 const lowerFirst = (text: string) => text.charAt(0).toLocaleLowerCase('ru') + text.slice(1)
 
-/** Короткие пояснения плашек из макета А2 (15966:6055, PRD 6.3); у новых классов — описание из справочника. */
-const CHIP_HINTS: Readonly<Record<string, string>> = {
-  'OP-01': 'паллеты, тележки, короба',
-  'OP-02': 'отбор по строкам',
-  'OP-03': 'по направлениям',
-  'OP-04': 'стеллажи, АСХ',
-  'OP-05': 'линии, паллетайзеры',
-  'OP-06': 'пересчёт и контроль',
-  'OP-07': 'сухая и влажная',
-  'OP-08': 'по точкам маршрута',
-  'OP-09': 'обходы, видео',
-  'OP-10': 'датчики, осмотр',
-}
-
+/** Пояснение плашки класса: из словаря (макет А2), у новых классов — описание из справочника. */
 export function classChipHint(cls: OperationClass): string {
-  return CHIP_HINTS[cls.code] ?? lowerFirst(cls.description)
+  return t.chipHints[cls.code] ?? lowerFirst(cls.description)
 }
 
 /**
@@ -211,11 +198,10 @@ export function classesHint(classes: readonly OperationClassCode[], processes: r
   return t.classesHint.matched(checked, formatCount(matched.length, ru.plural.processesOf), names)
 }
 
+const CODE_LIST = new Intl.ListFormat('ru', { type: 'conjunction' })
+
 /** «OP-01 и OP-08», «OP-01, OP-03 и OP-08». */
-function joinCodes(codes: readonly string[]): string {
-  if (codes.length <= 1) return codes.join('')
-  return `${codes.slice(0, -1).join(', ')} и ${codes.at(-1) ?? ''}`
-}
+const joinCodes = (codes: readonly string[]): string => CODE_LIST.format(codes)
 
 /** Подпись правой панели: что произойдёт после сохранения (PRD 6.3). */
 export function railNote(classes: readonly OperationClassCode[]): string {

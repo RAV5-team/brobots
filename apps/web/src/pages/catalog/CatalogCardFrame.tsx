@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import { Card, CardTitle } from '@/components/ui/Card'
 import { ChipList, type ChipListItem } from '@/components/ui/ChipList'
+import { COMPARE_LIMIT } from '@/domain'
 import { ru } from '@/shared/i18n/ru'
 import { catalogItemPath } from './catalogModel'
 
@@ -51,7 +52,7 @@ export function CatalogCardFrame({ id, name, photo, typeLabel, subtitle, childre
         <Button
           aria-pressed={inCompare}
           aria-label={t.compare.itemLabel(inCompare ? t.compare.added : t.compare.add, name)}
-          title={compareFull ? t.compare.full : undefined}
+          title={compareFull ? t.compare.full(COMPARE_LIMIT) : undefined}
           disabled={compareFull}
           onClick={onCompare}
           className="flex-1"

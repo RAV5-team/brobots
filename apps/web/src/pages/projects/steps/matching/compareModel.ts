@@ -53,7 +53,7 @@ function temperature(robot: Robot): string | null {
 function dimensions(robot: Robot): string | null {
   const { lengthMm, widthMm, heightMm } = robot.specs
   if (lengthMm === undefined || widthMm === undefined || heightMm === undefined) return null
-  return `${[lengthMm, widthMm, heightMm].map((n) => formatNumber(n)).join(' × ')} мм`
+  return `${[lengthMm, widthMm, heightMm].map((n) => formatNumber(n)).join(' × ')} ${ru.units.mm}`
 }
 
 const spec = (pick: (r: Robot) => string | null) => (e: CompareEntry): string | null => (e.robot ? pick(e.robot) : null)
@@ -78,10 +78,10 @@ function rows(ctx: Context): Readonly<Record<'economics' | 'technical' | 'data',
       ['tco', r.tco, calc((v) => money(v.tcoRub))],
     ],
     technical: [
-      ['payload', r.payload, spec((x) => (x.specs.payloadKg === undefined ? null : `${formatNumber(x.specs.payloadKg)} кг`)), violationTone('payload')],
+      ['payload', r.payload, spec((x) => (x.specs.payloadKg === undefined ? null : `${formatNumber(x.specs.payloadKg)} ${ru.units.kg}`)), violationTone('payload')],
       ['dimensions', r.dimensions, spec(dimensions), violationTone('aisle_width')],
-      ['speed', r.speed, spec((x) => (x.specs.maxSpeedMps === undefined ? null : `${formatNumber(x.specs.maxSpeedMps, 2)} м/с`))],
-      ['autonomy', r.autonomy, spec((x) => (x.specs.autonomyH === undefined ? null : `${formatNumber(x.specs.autonomyH)} ч`))],
+      ['speed', r.speed, spec((x) => (x.specs.maxSpeedMps === undefined ? null : `${formatNumber(x.specs.maxSpeedMps, 2)} ${ru.units.mps}`))],
+      ['autonomy', r.autonomy, spec((x) => (x.specs.autonomyH === undefined ? null : `${formatNumber(x.specs.autonomyH)} ${ru.units.hours}`))],
       ['handling', r.handling, spec((x) => ctx.handlingMethods.find((h) => h.code === x.specs.handlingMethod)?.name ?? null), violationTone('handling')],
       ['environment', r.environment, spec(environment), violationTone('environment')],
       ['temperature', r.temperature, spec(temperature), violationTone('min_temperature')],

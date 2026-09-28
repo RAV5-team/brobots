@@ -53,6 +53,12 @@ export function formatRubTotal(value: number): string {
 }
 const MILLIONS = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
+/** Разница сумм в миллионах со знаком, как суммы колонок: «−0,5 млн ₽»; меньше 0,05 млн — «0» (сравнение прогонов 07). */
+export function formatRubMillionsDelta(delta: number): string {
+  const text = formatNumber(delta / MILLION, 1, { signed: true })
+  return text === '0' ? text : `${text}\u00a0млн${RUB}`
+}
+
 /** Цена в каталоге — миллионы с двумя знаками: «3,75 млн ₽», «4,00 млн ₽» (А1). */
 export function formatRubMillions(value: number): string {
   return `${MILLIONS.format(roundHalfUp(value / MILLION, 2))}\u00a0млн${RUB}`

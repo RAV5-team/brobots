@@ -177,7 +177,7 @@ export function effectiveOverrides(overrides: Partial<CalcParams>, defaults: Cal
 /** «ООО «Морос» · AMR · до 800 кг» — подпись решения в рейтинге и рекомендации. */
 export function solutionLine(manufacturer: string, robot: Robot | undefined): string {
   const payload = robot?.specs.payloadKg
-  return [manufacturer, robot?.subtype, payload === undefined ? null : ru.catalog.comparePage.kg(`до ${formatNumber(payload)}`)]
+  return [manufacturer, robot?.subtype, payload === undefined ? null : ru.catalog.comparePage.payloadUpTo(formatNumber(payload))]
     .filter((part): part is string => Boolean(part))
     .join(' · ')
 }

@@ -1,5 +1,6 @@
 import type { FacilityParameter, FacilityTypeCode } from '@/domain'
 import { formatNumber, parseDecimal } from '@/shared/format'
+import { ru } from '@/shared/i18n/ru'
 
 /** Секции формы в порядке навигации (PRD 10.2). */
 export const SECTION_IDS = ['basics', 'area', 'schedule', 'staff'] as const
@@ -89,9 +90,9 @@ export const REQUIRED_TEXT: readonly TextKey[] = ['name', 'city']
 
 /** Стандартные группы склада и их параметры в датасете; у упаковщиков оклада в датасете нет (PRD 15 · №48). */
 export const STAFF_PRESETS: readonly { readonly role: string; readonly headcountCode: string; readonly salaryCode: string | null }[] = [
-  { role: 'Отборщики (комплектовщики)', headcountCode: 'wh_pickers', salaryCode: 'wh_picker_salary' },
-  { role: 'Операторы погрузчиков', headcountCode: 'wh_forklift_operators', salaryCode: 'wh_forklift_salary' },
-  { role: 'Операторы упаковочных линий', headcountCode: 'wh_packing_operators', salaryCode: null },
+  { role: ru.staffRoles.pickers, headcountCode: 'wh_pickers', salaryCode: 'wh_picker_salary' },
+  { role: ru.staffRoles.forkliftOperators, headcountCode: 'wh_forklift_operators', salaryCode: 'wh_forklift_salary' },
+  { role: ru.staffRoles.packingOperators, headcountCode: 'wh_packing_operators', salaryCode: null },
 ]
 
 /** Параметры склада по коду. */

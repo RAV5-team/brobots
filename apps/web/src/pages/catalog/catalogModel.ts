@@ -25,10 +25,7 @@ const TAB_ITEM_TYPES: Record<Exclude<CatalogTab, 'robots'>, readonly LaunchItemT
   services: ['service', 'support'],
 }
 
-export const INDUSTRIES = [
-  'Торговля и услуги', 'Промышленность', 'Сельское хозяйство', 'ЖКХ', 'Строительство',
-  'ТЭК', 'Безопасность', 'Транспорт и логистика', 'Лесное хозяйство',
-] as const
+export const INDUSTRIES = ru.catalog.industries
 
 export type ReadinessFilter = Exclude<RobotReadiness, 'unknown'>
 export const READINESS_VALUES: readonly ReadinessFilter[] = ['operation', 'pilot', 'rnd']
