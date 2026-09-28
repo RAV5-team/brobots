@@ -27,6 +27,8 @@ export const READY_ROUTES: readonly ReadyRoute[] = [
   { path: '/projects/PJ-DEMO/simulation', roles: ALL },
   { path: '/projects/PJ-DEMO/economics', roles: ALL },
   { path: '/projects/PJ-01/economics', roles: SIGNED_IN },
+  // Спайк 2D-плеера (D-87): служебная страница, трассы грузятся отдельными чанками.
+  { path: '/dev/spike-2d', roles: ['user'] },
   { path: '/catalog', roles: ALL },
   { path: '/catalog/compare', roles: ALL },
   { path: '/catalog/RB-0008', roles: ALL },

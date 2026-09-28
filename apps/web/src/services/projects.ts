@@ -10,6 +10,7 @@ import type {
   SavedProject,
   SimulationJob,
   SimulationRun,
+  SimulationTrace,
 } from '@/domain'
 
 /** Проекты оценки (PRD 11). Ответы API переводятся в модель экрана мапперами src/api/mappers. */
@@ -33,6 +34,8 @@ export interface ProjectService {
   /** Ход задания (`GET /api/simulations/jobs/{id}`); готовое задание записывает прогон в проект. */
   getSimulationJob(jobId: string): Promise<SimulationJob>
   getSimulationRun(runId: string): Promise<SimulationRun>
+  /** 2D-трассы прогона (`GET /api/simulations/{id}/traces`): «из подбора» и, если состав изменился, итоговая. */
+  getSimulationTraces(runId: string): Promise<readonly SimulationTrace[]>
   /** Итог и экономика выбранного решения (из расчёта подбора; отдельного эндпоинта нет). */
   getEconomics(id: ProjectId): Promise<EconomicsResult>
   /** Сохранить оценку (`POST /projects/{id}/save`): снимок выбранного сценария, дальше только просмотр. */

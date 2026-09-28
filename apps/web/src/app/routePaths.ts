@@ -74,4 +74,5 @@ export const DEV_PATHS = {
   screens: '/dev/screens',
   tokens: '/dev/tokens',
   ui: '/dev/ui/:primitive?',
+  spike2d: '/dev/spike-2d',
 } as const

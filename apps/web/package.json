@@ -14,6 +14,8 @@
     "lint": "eslint .",
     "gen:api": "node scripts/genApi.ts",
     "gen:fixtures": "node scripts/genSimulationFixtures.ts",
+    "gen:traces": "sh scripts/gen-traces.sh",
+    "measure:spike-2d": "node scripts/measureSpike2d.mjs",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test --project=e2e",

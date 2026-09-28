@@ -64,6 +64,26 @@ describe('мок проектов', () => {
     expect(project.inputs.stale.simulation).toBe(false)
   })
 
+  it('2D-трассы: прогон с изменённым составом — две (из подбора и итоговая), без изменений — одна', async () => {
+    // Маленькие трассы вместо файлов по 1,7 МБ: формат настоящих файлов проверяет traces.test.ts.
+    const tiny = (robots: number) => ({
+      name: `${String(robots)} роботов`, step_s: 15, n_robots: robots, n_chargers: 1, states: ['idle'],
+      layout: { nodes: [], edges: [], charger_slots: [], width: 1, depth: 1 },
+      frames: [{ t: 0, r: Array.from({ length: robots }, () => [0, 0, 0]) }],
+    })
+    const loaded: string[] = []
+    const projects = createMockProjects({ latencyMs: 0 }, (file) => {
+      loaded.push(file)
+      return Promise.resolve(tiny(file === 'demo-18-6' ? 18 : 16))
+    })
+    const [before, after] = await projects.getSimulationTraces('SIM-0926-02')
+    expect([before?.robots, after?.robots]).toEqual([18, 16])
+    expect(await projects.getSimulationTraces('SIM-0926-01')).toHaveLength(1)
+    expect(await projects.getSimulationTraces('SIM-0926-03')).toEqual([])
+    expect(loaded).toEqual(['demo-18-6', 'demo-16-5', 'demo-18-6'])
+    await expect(projects.getSimulationTraces('SIM-X')).rejects.toBeInstanceOf(NotFoundError)
+  })
+
   it('итог выбранного решения; без выбора — нет итога', async () => {
     const projects = service()
     const economics = await projects.getEconomics('PJ-DEMO')

@@ -3,6 +3,7 @@ import { toEconomics } from '@/api/mappers/economics'
 import { toMatchingEvaluation } from '@/api/mappers/matching'
 import { toProject, type ProjectLocalState } from '@/api/mappers/project'
 import { toSimulationJob, toSimulationRun } from '@/api/mappers/simulation'
+import { toSimulationTrace } from '@/api/mappers/trace'
 import {
   applyInputsPatch,
   canOpenStep,
@@ -31,6 +32,26 @@ interface StoredProject {
 const READ_ONLY = 'Сохранённая оценка открывается только для просмотра — измените её в новом проекте на её основе'
 const DEFAULT_RUN_ID = 'SIM-0926-01'
 
+/**
+ * Записанные 2D-трассы (scripts/gen2dTraces.py — настоящий движок simcore): грузятся по запросу, в основной бандл
+ * не попадают. Есть у прогонов 01 (состав не менялся — одна трасса) и 02 (18/6 → 16/5); у остальных — пусто.
+ */
+const TRACE_FILES = {
+  'demo-18-6': () => import('@/mocks/fixtures/traces/demo-18-6.json'),
+  'demo-16-5': () => import('@/mocks/fixtures/traces/demo-16-5.json'),
+} as const
+export type TraceFile = keyof typeof TRACE_FILES
+/** Ответ сервиса трасс по файлу; тесты подставляют маленькие трассы вместо файлов по 1,7 МБ. */
+export type TraceLoader = (file: TraceFile) => Promise<unknown>
+const loadTraceFile: TraceLoader = (file) => TRACE_FILES[file]().then((module) => module.default)
+const TRACES_BY_RUN: Readonly<Record<string, readonly TraceFile[]>> = {
+  'SIM-0926-01': ['demo-18-6'],
+  'SIM-0926-02': ['demo-18-6', 'demo-16-5'],
+  'SIM-0926-03': [],
+  'SIM-0926-04': [],
+  'SIM-0926-05': [],
+}
+
 /** Журнал прогона строками (этап 3): мок продвигает его на строку за опрос. */
 const RUN_LOG = [
   'Смоделированы сутки: 2 000 операций, пик 130 рейсов/ч',
@@ -56,7 +77,7 @@ function runForFleet(robots: number, stations: number): SimulationSchemas['Simul
   return run
 }
 
-export function createMockProjects(options: MockOptions): ProjectService {
+export function createMockProjects(options: MockOptions, loadTrace: TraceLoader = loadTraceFile): ProjectService {
   // Созданные и изменённые проекты живут до перезагрузки страницы: фикстуры не меняются.
   let store: ReadonlyMap<string, StoredProject> = new Map(
     [...PROJECT_DTOS, DEMO_PROJECT_DTO].map((dto) => {
@@ -169,6 +190,13 @@ export function createMockProjects(options: MockOptions): ProjectService {
       if (!run) throw new NotFoundError(`Прогон ${runId} не найден`)
       return toSimulationRun(run)
     }),
+
+    getSimulationTraces: async (runId) => {
+      const files = TRACES_BY_RUN[runId]
+      if (!files) throw new NotFoundError(`Прогон ${runId} не найден`)
+      const dtos = await Promise.all(files.map(loadTrace))
+      return respond(dtos.map(toSimulationTrace), options)
+    },
 
     getEconomics: (id) => attempt(() => {
       const stored = find(id)

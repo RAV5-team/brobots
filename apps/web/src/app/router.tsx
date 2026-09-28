@@ -27,6 +27,7 @@ import { ScreenStub } from '@/pages/_stub/ScreenStub'
 import { ScreensIndex } from '@/pages/dev/ScreensIndex'
 import { TokensShowcase } from '@/pages/dev/TokensShowcase'
 import { UiShowcase } from '@/pages/dev/ui/UiShowcase'
+import { Spike2dPage } from '@/pages/dev/spike2d/Spike2dPage'
 import { ProjectResultRedirect } from './ProjectResultRedirect'
 import { RootLayout } from './RootLayout'
 import type { ProjectStep } from '@/domain'
@@ -89,6 +90,7 @@ export const routes: RouteObject[] = [
       { path: DEV_PATHS.screens, element: <ScreensIndex /> },
       { path: DEV_PATHS.tokens, element: <TokensShowcase /> },
       { path: DEV_PATHS.ui, element: <UiShowcase /> },
+      { path: DEV_PATHS.spike2d, element: <Spike2dPage /> },
     ],
   },
 ]
