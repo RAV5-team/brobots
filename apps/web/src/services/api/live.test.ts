@@ -51,6 +51,23 @@ describe.skipIf(!API_URL)('services on the live API', () => {
     expect((await services.locations.listFacilityParameters('warehouse')).length).toBeGreaterThan(20)
   })
 
+  it('admin, dashboard and data version', async () => {
+    const norms = await services.admin.listNorms()
+    const reserve = norms.find((n) => n.code === 'fleet_reserve_share')
+    expect(reserve).toMatchObject({ unit: '%', value: 15 })
+    const saved = await services.admin.saveNorms([{ code: 'fleet_reserve_share', value: 20 }])
+    expect(saved.find((n) => n.code === 'fleet_reserve_share')?.value).toBeCloseTo(20)
+    await services.admin.saveNorms([{ code: 'fleet_reserve_share', value: 15 }])
+
+    const sources = await services.admin.listDataSources()
+    expect(sources.length).toBeGreaterThan(3)
+    const refreshed = await services.admin.refreshDataSource(sources[0]?.key ?? '')
+    expect(refreshed.actualizedOn.slice(0, 10)).toBe(new Date().toISOString().slice(0, 10))
+
+    expect((await services.dashboard.getInputs()).laborCosts.length).toBeGreaterThan(0)
+    expect((await services.session.getDataVersion()).catalog).toMatch(/^v\d+/)
+  })
+
   it('project: draft → matching → selection → economics → save', async () => {
     const location = (await services.locations.listLocations()).find((l) => l.facilityType === 'warehouse')
     const draft = await services.projects.createDraft({ name: 'Смоук · проект', locationId: location?.id ?? '' })

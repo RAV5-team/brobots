@@ -5,7 +5,9 @@ import { API_BASE_URL } from '@/shared/config/api'
 import type { CatalogService, LocationService, ProcessService, Services } from '../index'
 import { createMockServices } from '../mock'
 import { createSimulationRuns } from '../simulationRuns'
+import { apiAdmin } from './admin'
 import { apiCatalog } from './catalog'
+import { apiDashboard, apiSession } from './overview'
 import { apiLocations } from './locations'
 import { apiProcesses } from './processes'
 import { apiProjects } from './projects'
@@ -36,7 +38,7 @@ export function composeServices(fallback: Services, overrides: ApiOverrides): Se
 }
 
 /** Методы, уже переведённые на services/api. */
-export function apiOverrides(http: HttpClient): ApiOverrides {
+export function apiOverrides(http: HttpClient, fallback: Services): ApiOverrides {
   const reference = createReference(http)
   const catalog = apiCatalog(http, reference) as CatalogService
   const processes = apiProcesses(http, reference) as ProcessService
@@ -46,11 +48,14 @@ export function apiOverrides(http: HttpClient): ApiOverrides {
     processes,
     locations,
     projects: apiProjects(http, { catalog, locations, processes }),
+    admin: apiAdmin(http),
+    session: apiSession(http, fallback.session),
+    dashboard: apiDashboard(http),
   }
 }
 
 export function createApiServices(fallback: Services = createMockServices(), http: HttpClient = createDefaultHttpClient()): Services {
-  return composeServices(fallback, apiOverrides(http))
+  return composeServices(fallback, apiOverrides(http, fallback))
 }
 
 /** 401 с Keycloak — на страницу входа: токен не обновился или сессию завершили в другом окне. */
