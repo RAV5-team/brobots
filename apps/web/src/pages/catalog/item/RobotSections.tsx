@@ -155,14 +155,14 @@ const GROUP_ORDER = Object.keys(ROBOT_CHARACTERISTIC_GROUPS) as RobotCharacteris
  * заканчивается расчётными строками полноты и подтверждённости (D-77). «Каталог ФЦ БАС v4» ведёт к «Качеству данных»,
  * «Сайт производителя» — по ссылке из данных; ссылки нет — кнопки нет (D-79).
  */
-export function RobotAllCharacteristics({ map, summary }: { readonly map: RobotCharacteristicMap; readonly summary: RobotCharacteristicSummary }) {
+export function RobotAllCharacteristics({ map, summary, catalogVersion }: { readonly map: RobotCharacteristicMap; readonly summary: RobotCharacteristicSummary; readonly catalogVersion: string }) {
   const link = map.sourceLink.value
   const href = link === null ? null : /^https?:\/\//.test(link) ? link : `https://${link}`
   return (
     <Card as="section" padding={20} gap={8} aria-labelledby="all-title">
       <div className="flex items-center gap-12">
         <h2 id="all-title" className="flex-1 type-heading font-semibold text-text">{t.allTitle}</h2>
-        <a href="#data-quality" className={FILTER_PILL_CLASSES}>{t.catalogSource}</a>
+        <a href="#data-quality" className={FILTER_PILL_CLASSES}>{t.catalogSource(catalogVersion)}</a>
         {href && link && (
           <a href={href} target="_blank" rel="noopener noreferrer" aria-label={t.vendorSiteLabel(link)} className={FILTER_PILL_CLASSES}>{t.vendorSite}</a>
         )}

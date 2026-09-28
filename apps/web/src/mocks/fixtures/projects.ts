@@ -6,10 +6,11 @@ import { toProject, type ProjectLocalState } from '@/api/mappers/project'
 import type { Project, ProjectInputs } from '@/domain'
 import { emptyInputs } from '@/domain'
 
-const VERSIONS = { catalog: 4, model: '2.1', norms: 3, dictionaries: 1 }
+/** Версии данных снимка проекта — те же, что в данных сессии (`session.ts`: каталог v4, модель 2.1). */
+export const PROJECT_VERSIONS = { catalog: 4, model: '2.1', norms: 3, dictionaries: 1 }
 const SNAPSHOT = '2026-09-15T00:00:00Z'
 
-const project = (dto: ApiSchemas['Project']): ApiSchemas['Project'] => ({ versions: VERSIONS, snapshotTakenAt: SNAPSHOT, ...dto })
+const project = (dto: ApiSchemas['Project']): ApiSchemas['Project'] => ({ versions: PROJECT_VERSIONS, snapshotTakenAt: SNAPSHOT, ...dto })
 
 export const PROJECT_DTOS: readonly ApiSchemas['Project'][] = [
   project({ id: 'PJ-01', name: 'Роботизация паллетного потока · РЦ Химки', locationId: 'LOC-01', locationName: 'РЦ Химки', task: { id: 'LP-01', name: 'Перемещение паллет' }, status: 'saved', updatedAt: '2026-09-15T11:32:00Z', savedAt: '2026-09-15T11:32:00Z', selection: { solutionId: 'RB-0008', solutionName: 'AMR 800', acquisitionModel: 'raas', calcResultId: 'CR-AMR800-RAAS' } }),

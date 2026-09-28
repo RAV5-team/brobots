@@ -18,7 +18,7 @@ const entries = resolveEntries(
   [{ kind: 'robot', id: 'RB-0007' }, { kind: 'robot', id: 'RB-0008' }, { kind: 'launch-item', id: 'SI-SW-01' }],
   ROBOTS, LAUNCH_ITEMS,
 )
-const CTX = { items: LAUNCH_ITEMS, robots: ROBOTS, operationClasses: OPERATION_CLASSES, processes: PROCESSES, facilityTypes: FACILITY_TYPES }
+const CTX = { items: LAUNCH_ITEMS, robots: ROBOTS, operationClasses: OPERATION_CLASSES, processes: PROCESSES, facilityTypes: FACILITY_TYPES, catalogVersion: 'v4' }
 const withLocation = buildCompareGroups(entries, { ...CTX, location: HIMKI })
 
 describe('compareModel (К-3, PRD 7.6)', () => {

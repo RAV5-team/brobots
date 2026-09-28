@@ -4,6 +4,7 @@ import { FACILITY_PARAMETERS } from '@/mocks/fixtures/facilityParameters'
 import { LOCATION_PROCESSES } from '@/mocks/fixtures/locationProcesses'
 import { LOCATIONS } from '@/mocks/fixtures/locations'
 import { OPERATION_CLASSES } from '@/mocks/fixtures/operationClasses'
+import { PROCESS_TEMPLATE_DEFAULTS } from '@/mocks/fixtures/processTemplateDefaults'
 import { PROCESSES } from '@/mocks/fixtures/processes'
 import { countChanged, copyValues, formOf, siteBase, siteHints, siteValues, toLocationUpdate } from './locationProcessForm'
 
@@ -20,7 +21,7 @@ const parameters = FACILITY_PARAMETERS.filter((p) => p.facilityType === 'warehou
 const lp01 = find(LOCATION_PROCESSES, (lp) => lp.id === 'LP-01')
 
 function forms(process: Process, lp: LocationProcess, location: Location = khimki) {
-  const ctx = { process, location, parameters, operationClass: OPERATION_CLASSES.find((c) => c.code === process.operationClass) }
+  const ctx = { defaults: PROCESS_TEMPLATE_DEFAULTS, process, location, parameters, operationClass: OPERATION_CLASSES.find((c) => c.code === process.operationClass) }
   const site = siteValues(ctx)
   return { site: formOf(site, ctx), copy: formOf(copyValues(site, lp), ctx) }
 }

@@ -41,7 +41,7 @@ function RobotSolution({ robot, data }: { readonly robot: Robot; readonly data: 
       <RobotKeySection robot={robot} map={map} operationClasses={data.operationClasses} />
       <RobotRequirementsSection map={map} />
       <RobotLaunchSection robot={robot} items={data.launchItems} norms={data.norms} />
-      <RobotAllCharacteristics map={map} summary={summary} />
+      <RobotAllCharacteristics map={map} summary={summary} catalogVersion={data.catalogVersion} />
     </>
   )
 }

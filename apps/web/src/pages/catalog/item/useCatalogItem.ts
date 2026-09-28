@@ -10,6 +10,8 @@ export interface CatalogItemData {
   readonly facilityTypes: readonly FacilityType[]
   /** Нормативы модели для фразы «ПО 10 %, ПНР 5 %» в «Что потребуется для запуска»; не загрузились — фразы нет. */
   readonly norms: readonly Norm[]
+  /** Версия каталога сессии — в подписях источника характеристик. */
+  readonly catalogVersion: string
 }
 
 export type CatalogItemState =
@@ -35,9 +37,10 @@ export function useCatalogItem(): { readonly state: CatalogItemState; readonly r
         console.error('Не удалось загрузить нормативы для страницы решения', error)
         return [] as readonly Norm[]
       }),
+      services.session.getDataVersion(),
     ])
-      .then(([robots, launchItems, operationClasses, processes, facilityTypes, norms]) => {
-        if (!cancelled) setState({ status: 'ready', robots, launchItems, operationClasses, processes, facilityTypes, norms })
+      .then(([robots, launchItems, operationClasses, processes, facilityTypes, norms, dataVersion]) => {
+        if (!cancelled) setState({ status: 'ready', robots, launchItems, operationClasses, processes, facilityTypes, norms, catalogVersion: dataVersion.catalog })
       })
       .catch((error: unknown) => {
         if (cancelled) return

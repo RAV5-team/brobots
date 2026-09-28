@@ -12,7 +12,6 @@ import { formatNumber, parseDecimal, roundHalfUp } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { assumptionRows, defaultsOf, locationNumber, type AssumptionRow } from '../params/paramsModel'
 import { DEFAULT_PEAK_HOURS, maxPeakHours, peaksWithin, workingHours } from './hourlyDemand'
-import { DEFAULT_TOLERANCE } from './simulationModel'
 
 const t = ru.project.simulation.conditions
 
@@ -68,6 +67,8 @@ export interface ConditionsContext {
   readonly robot: Robot | null
   /** Часов в сутки расчёта подбора — если режима нет в профиле локации. */
   readonly calcHours: number
+  /** Допуск расхождения с расчётом по умолчанию — норматив А5 `simulation_tolerance_pct` (PRD 11.4, этап 2 «Проверка»). */
+  readonly tolerance: number
 }
 
 /** Коэффициент замещения по способу обработки робота; нет совпадения — первый способ процесса. */
@@ -116,7 +117,7 @@ export function conditionBases(ctx: ConditionsContext, overrides: readonly Assum
     routeLengthM: { value: route?.value ?? d.routeLengthM ?? 0, origin: assumptionOrigin(route) },
     operatorTimeShare: { value: (operators?.value ?? PERCENT) / PERCENT, origin: assumptionOrigin(operators) },
     laborReplacementRatio: { value: replacement.value, origin: 'assumption' },
-    tolerance: byDefault(DEFAULT_TOLERANCE),
+    tolerance: byDefault(ctx.tolerance),
     fleetPolicy: byDefault(CONDITION_DEFAULTS.fleetPolicy),
     designVolume: byDefault(CONDITION_DEFAULTS.designVolume),
   }

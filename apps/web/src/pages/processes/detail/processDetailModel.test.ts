@@ -5,6 +5,7 @@ import { LOCATION_PROCESSES } from '@/mocks/fixtures/locationProcesses'
 import { LOCATIONS } from '@/mocks/fixtures/locations'
 import { PROCESSES } from '@/mocks/fixtures/processes'
 import { ROBOTS } from '@/mocks/fixtures/robots'
+import { createMockServices } from '@/services/mock'
 import {
   capitalize,
   catalogHref,
@@ -15,8 +16,8 @@ import {
   robotSummary,
   routeSegments,
   shortManufacturer,
+  requirementRows,
 } from './processDetailModel'
-import { processRequirements } from './processRequirements.mock'
 
 const process = (code: string): Process => {
   const found = PROCESSES.find((p) => p.code === code)
@@ -109,13 +110,14 @@ describe('processDetailModel (экран 11)', () => {
     expect(catalogHref('OP-01')).toBe('/catalog?class=OP-01')
   })
 
-  it('takes requirements from the mockup for pallets and derives them for other processes', () => {
-    const pallets = processRequirements(process('PR-0001'), 'паллет / ч')
+  it('takes requirements from the mockup for pallets and derives them for other processes', async () => {
+    const { processes } = createMockServices({ latencyMs: 0 })
+    const pallets = requirementRows(await processes.getRequirements('PR-0001'), 'паллет / ч')
     expect(pallets.required.map((r) => r.label)).toEqual(['Объём потока', 'Максимальная масса', 'Тип паллеты', 'Ширина маршрута'])
     expect(pallets.desirable).toHaveLength(4)
     expect(pallets.environment).toHaveLength(5)
-    const patrol = processRequirements(process('PR-0007'), 'обходов / сут')
-    expect(patrol.required).toEqual([{ label: 'Объём потока', unit: 'обходов / сут' }, { label: 'Ширина маршрута', unit: 'м' }])
+    const patrol = requirementRows(await processes.getRequirements('PR-0007'), 'обходов / сут')
+    expect(patrol.required).toEqual([{ key: 'flow', label: 'Объём потока', unit: 'обходов / сут' }, { key: 'routeWidth', label: 'Ширина маршрута', unit: 'м' }])
     expect(patrol.desirable.map((r) => r.label)).toEqual(['Средняя дистанция', 'Коэффициент пиковой нагрузки'])
   })
 })

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { FacilityType, HandlingMethod, Location, OperationClass, OperationClassCode, Process } from '@/domain'
 import { useServices } from '@/services/useServices'
+import { DEMO_FILL } from '@/shared/auth/demoMode'
+import { buildInitialForm, warehouseBase, type WarehouseBase } from './processDemoForm'
 import type { ProcessForm } from './processForm'
-import { buildDemoForm, warehouseBase, type WarehouseBase } from './processNew.mock'
 
 export interface ProcessNewData {
   readonly operationClasses: readonly OperationClass[]
@@ -37,8 +38,10 @@ export function useProcessNew(): { readonly state: ProcessNewState; readonly ret
       services.locations.listLocations(),
       services.locations.listFacilityParameters('warehouse'),
       services.processes.listProcesses(),
+      services.processes.getTemplateDefaults(),
+      DEMO_FILL ? services.processes.getDemoText() : Promise.resolve(null),
     ])
-      .then(([operationClasses, handlingMethods, robotsByClass, facilityTypes, locations, params, processes]) => {
+      .then(([operationClasses, handlingMethods, robotsByClass, facilityTypes, locations, params, processes, defaults, demo]) => {
         if (cancelled) return
         setState({
           status: 'ready',
@@ -49,7 +52,7 @@ export function useProcessNew(): { readonly state: ProcessNewState; readonly ret
           locations,
           processes,
           base: warehouseBase(params),
-          initialForm: buildDemoForm(params),
+          initialForm: buildInitialForm(params, defaults, demo),
         })
       })
       .catch((error: unknown) => {

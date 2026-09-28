@@ -5,7 +5,7 @@ import { ROBOTS } from '@/mocks/fixtures/robots'
 import { HANDLING_METHODS } from '@/mocks/fixtures/operationClasses'
 import { compareGroups } from './compareModel'
 import {
-  CALC_FIELDS,
+  calcFields,
   conditionValue,
   contributionsText,
   effectiveOverrides,
@@ -17,11 +17,12 @@ import {
   toggleKey,
   topContributions,
   variantKey,
+  type CalcFieldSpec,
 } from './matchingModel'
 
 const evaluation = toMatchingEvaluation(EVALUATION_LP01, CALC_DEFAULTS_LP01)
-const spec = (key: (typeof CALC_FIELDS)[number]['key']) => {
-  const found = CALC_FIELDS.find((f) => f.key === key)
+const spec = (key: CalcFieldSpec['key']) => {
+  const found = calcFields(5).find((f) => f.key === key)
   if (!found) throw new Error(key)
   return found
 }

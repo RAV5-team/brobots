@@ -10,6 +10,7 @@ import { TabNav } from '@/components/ui/TabNav'
 import { SIMULATION_STAGES, isReadOnly, type Fleet, type SimulationRequest, type SimulationStage } from '@/domain'
 import { formatTime } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
+import { useModelNorms } from '@/shared/norms/useModelNorms'
 import { ProjectStepLayout } from '../ProjectStepLayout'
 import { demandOf } from '../matching/howCalculatedModel'
 import { findVariant } from '../matching/matchingModel'
@@ -19,7 +20,6 @@ import { ChartsStage } from './charts/ChartsStage'
 import { CONDITION_DEFAULTS, conditionBases } from './conditionsModel'
 import { ScopeStage } from './ScopeStage'
 import {
-  DEFAULT_TOLERANCE,
   calcRows,
   fleetToStore,
   isSimulationStage,
@@ -74,6 +74,7 @@ function StaleRunNotice({ runId }: { readonly runId: string }) {
 export function SimulationStep({ project: initial, locationName, isGuest }: ProjectStepProps) {
   const readOnly = isReadOnly(initial)
   const state = useSimulationStep(initial, !isGuest && !readOnly)
+  const norms = useModelNorms()
   const { project, inputs, load } = state
   const [params, setParams] = useSearchParams()
   const navigate = useNavigate()
@@ -222,7 +223,7 @@ export function SimulationStep({ project: initial, locationName, isGuest }: Proj
   }
   if (stage === 'conditions') {
     const calcHours = evaluation.calcDefaults?.workHoursPerDay ?? demand?.hours ?? 24
-    const base = conditionBases({ snapshot, project, robot, calcHours }, project.inputs.params.assumptions)
+    const base = conditionBases({ snapshot, project, robot, calcHours, tolerance: norms.simulationTolerance }, project.inputs.params.assumptions)
     if (!base) return layout(heading.title, <ErrorState title={t.loadError.title} message={t.loadError.message} onRetry={state.retry} />, heading.lead)
     return layout(heading.title, (
       <ConditionsStage
@@ -242,7 +243,7 @@ export function SimulationStep({ project: initial, locationName, isGuest }: Proj
     <ScopeStage
       variant={variant}
       calc={calcRows(variant, demand, evaluation.calcDefaults)}
-      tolerance={inputs?.conditions.tolerance ?? DEFAULT_TOLERANCE}
+      tolerance={inputs?.conditions.tolerance ?? norms.simulationTolerance}
       fleet={fleet}
       fromMatching={fromMatching}
       canEdit={!readOnly}

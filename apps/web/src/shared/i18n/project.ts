@@ -430,8 +430,9 @@ export const project = {
         robotPriceRub: { label: 'Стоимость оборудования', unit: '₽/ед.', hint: 'Другая цена предложения — только для этого проекта' },
         serviceCostRubPerYear: { label: 'Стоимость обслуживания', unit: 'млн ₽/год', hint: 'ТО и ремонт парка при покупке' },
         utilization: { label: 'Коэффициент загрузки', unit: 'доля 0–1', hint: 'Ниже — больше роботов в запасе' },
-        horizonYears: { label: 'Горизонт расчёта', unit: 'лет', hint: 'Период для ROI и TCO, не меньше 5 лет; не равен сроку службы' },
-      } satisfies Record<keyof CalcParams, { readonly label: string; readonly unit: string; readonly hint: string }>,
+        /** `min` — норматив А5 `horizon_years`: «5 лет». */
+        horizonYears: { label: 'Горизонт расчёта', unit: 'лет', hint: (min: string) => `Период для ROI и TCO, не меньше ${min}; не равен сроку службы` },
+      } satisfies Record<keyof CalcParams, { readonly label: string; readonly unit: string; readonly hint: string | ((min: string) => string) }>,
       solutionField: (label: string, solution: string) => `${label} · ${solution}`,
     },
     rail: {
@@ -620,13 +621,20 @@ export const project = {
       never: 'За горизонт расчёта вложения не окупаются',
     },
     sensitivity: {
-      title: 'Устойчивость: окупаемость при ±20 %',
+      /** `step` — шаг чувствительности А5 без знака процента: «20». */
+      title: (step: string) => `Устойчивость: окупаемость при ±${step} %`,
       valueLabel: 'Окупаемость, лет',
       caption: 'сильнее всего результат зависит от верхней строки',
-      note: '±20 % — допущение команды для одиночных проверок, не комбинированный стресс-сценарий. Изменение объёма пересчитывает парк с округлением — это расчётная оценка до нового запуска симуляции',
+      note: (step: string) => `±${step} % — допущение команды для одиночных проверок, не комбинированный стресс-сценарий. Изменение объёма пересчитывает парк с округлением — это расчётная оценка до нового запуска симуляции`,
       params: { raas: 'Тариф RaaS', purchase: 'Цена робота', labor: 'Стоимость труда', volume: 'Объём операций' },
       tableCaption: (scenario: string) => `Устойчивость результата · ${scenario}`,
-      columns: { parameter: 'Параметр', base: 'База', payback: 'Окупаемость −20 % / +20 %', tco: 'TCO −20 % / +20 %', conclusion: 'Вывод' },
+      columns: {
+        parameter: 'Параметр',
+        base: 'База',
+        payback: (step: string) => `Окупаемость −${step} % / +${step} %`,
+        tco: (step: string) => `TCO −${step} % / +${step} %`,
+        conclusion: 'Вывод',
+      },
       pair: (minus: string, plus: string) => `${minus} / ${plus}`,
       range: (from: string, to: string) => `${from} — ${to}`,
       fleet: (minus: number, plus: number) => `парк ${String(minus)} / ${String(plus)}`,

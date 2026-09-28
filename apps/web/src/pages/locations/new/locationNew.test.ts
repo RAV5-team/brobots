@@ -10,7 +10,8 @@ import {
   updateStaffRow,
   type LocationForm,
 } from './locationForm'
-import { LOCATION_DEMO_PROFILE, mockupForm } from './locationNew.mock'
+import { LOCATION_DEMO_PROFILE } from '@/mocks/fixtures/locationDemo'
+import { mockupForm } from '@/pages/dev/locationMockup'
 
 const params = indexParameters(FACILITY_PARAMETERS.filter((p) => p.facilityType === 'warehouse'))
 const initial = buildInitialForm(params, LOCATION_DEMO_PROFILE)

@@ -139,14 +139,15 @@ export interface CalcFieldSpec {
 
 const MILLION = 1_000_000
 
-export const CALC_FIELDS: readonly CalcFieldSpec[] = [
+/** Поля панели; горизонт не короче норматива А5 `horizon_years` — он же горизонт по умолчанию. */
+export const calcFields = (minHorizonYears: number): readonly CalcFieldSpec[] => [
   { key: 'staffCostRubPerMonth', scale: 1, digits: 0, min: 20_000, max: 1_000_000, perSolution: false },
   { key: 'workHoursPerDay', scale: 1, digits: 1, min: 1, max: 24, perSolution: false },
   { key: 'robotTripsPerHour', scale: 1, digits: 2, min: 0.5, max: 100, perSolution: true },
   { key: 'robotPriceRub', scale: 1, digits: 0, min: 10_000, max: 200_000_000, perSolution: true },
   { key: 'serviceCostRubPerYear', scale: MILLION, digits: 2, min: 0, max: 100, perSolution: false },
   { key: 'utilization', scale: 1, digits: 2, min: 0.05, max: 1, perSolution: false },
-  { key: 'horizonYears', scale: 1, digits: 0, min: 5, max: 15, perSolution: false },
+  { key: 'horizonYears', scale: 1, digits: 0, min: minHorizonYears, max: 15, perSolution: false },
 ]
 
 /** Значение в единицах поля: «1,8» для 1 800 000 ₽ обслуживания. */

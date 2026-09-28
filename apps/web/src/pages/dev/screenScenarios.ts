@@ -6,7 +6,8 @@ import type { SimulationVerdict } from '@/domain'
 import { projectStepPath } from '@/app/routePaths'
 import { createdLocationState } from '@/pages/locations/createdLocation'
 import { buildInitialForm, indexParameters, locationNewState } from '@/pages/locations/new/locationForm'
-import { LOCATION_DEMO_PROFILE, mockupForm } from '@/pages/locations/new/locationNew.mock'
+import { LOCATION_DEMO_PROFILE } from '@/mocks/fixtures/locationDemo'
+import { mockupForm } from './locationMockup'
 
 /** Куда перейти и с каким состоянием навигации, чтобы открыть экран-состояние. */
 export interface ScenarioTarget {

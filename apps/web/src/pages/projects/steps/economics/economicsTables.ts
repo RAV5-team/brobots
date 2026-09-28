@@ -9,6 +9,7 @@ import {
   type ConditionRow,
   type CostItem,
   type EconomicsResult,
+  type ModelNorms,
   type ScenarioEconomics,
   type SensitivityResult,
   type ShiftedResult,
@@ -35,6 +36,7 @@ export interface ScenarioRow {
 }
 
 interface ScenarioContext {
+  readonly norms: ModelNorms
   readonly economics: EconomicsResult
   readonly scenarios: readonly ScenarioEconomics[]
   readonly facts: ProcessFacts | null
@@ -45,18 +47,18 @@ interface ScenarioContext {
 const lowerFirst = (text: string): string => text.charAt(0).toLowerCase() + text.slice(1)
 
 /** Ставки экономии ФОТ: «≈ 9 ставок» (PRD 11.5); нет оклада — только сумма. */
-function laborText(value: number | null, facts: ProcessFacts | null): string {
+function laborText(value: number | null, facts: ProcessFacts | null, norms: ModelNorms): string {
   if (value === null) return '—'
   const salary = facts?.staff?.salaryRub
   if (!salary) return money(value)
-  return t.scenarios.values.labor(money(value), formatCount(Math.round(staffEquivalent(value, salary)), plural.rates))
+  return t.scenarios.values.labor(money(value), formatCount(Math.round(staffEquivalent(value, salary, norms.payrollTaxRatio)), plural.rates))
 }
 
 /**
  * «Сравнение сценариев» (PRD 11.5): текущий процесс, покупка и RaaS по единым показателям (ТЗ 3.5.5).
  * Числа — из сценариев; производные (снижение, ставки, накопленный результат, стоимость операции) вычисляются.
  */
-export function scenarioRows({ economics, scenarios, facts, run, conditions }: ScenarioContext): readonly ScenarioRow[] {
+export function scenarioRows({ norms, economics, scenarios, facts, run, conditions }: ScenarioContext): readonly ScenarioRow[] {
   const v = t.scenarios.values
   const horizon = formatCount(economics.horizonYears, YEARS)
   const current = economics.current
@@ -87,7 +89,7 @@ export function scenarioRows({ economics, scenarios, facts, run, conditions }: S
       const delta = current.opexRubPerYear - s.opexRubPerYear
       return v.reduction(money(delta), formatPercent(delta / current.opexRubPerYear))
     }),
-    row('labor', t.scenarios.rows.labor, '—', (s) => laborText(s.laborSavingsRubPerYear, facts)),
+    row('labor', t.scenarios.rows.labor, '—', (s) => laborText(s.laborSavingsRubPerYear, facts, norms)),
     row('effect', t.scenarios.rows.effect, '—', (s) => money(s.annualEffectRub)),
     row('payback', t.scenarios.rows.payback, '—', (s) => years(s.paybackYears)),
     row('roi', t.scenarios.rows.roi(horizon), '—', (s) => (s.roi === null ? '—' : formatPercent(s.roi))),
@@ -112,11 +114,11 @@ export interface ChainRow {
   readonly total: boolean
 }
 
-export function chainRows(scenario: ScenarioEconomics, economics: EconomicsResult, facts: ProcessFacts | null, newItems: readonly CostItem[]): readonly ChainRow[] {
+export function chainRows(scenario: ScenarioEconomics, economics: EconomicsResult, facts: ProcessFacts | null, newItems: readonly CostItem[], norms: ModelNorms): readonly ChainRow[] {
   const c = effectChain(scenario, economics.current)
   const staffNote = (() => {
     const salary = facts?.staff?.salaryRub
-    return salary ? t.costs.notes.labor(formatCount(Math.round(staffEquivalent(c.laborSavingsRub, salary)), plural.rates)) : ''
+    return salary ? t.costs.notes.labor(formatCount(Math.round(staffEquivalent(c.laborSavingsRub, salary, norms.payrollTaxRatio)), plural.rates)) : ''
   })()
   const signed = (sign: '−' | '+', value: number) => `${sign} ${money(value)}`
   return [
@@ -160,12 +162,12 @@ function baseValue(parameter: SensitivityResult['parameter'], scenario: Scenario
 }
 
 /**
- * «Устойчивость результата» сценария (PRD 11.5; ТЗ 3.5.6): три параметра ±20 %, сверху — самый влиятельный
- * (наибольший разброс окупаемости). Не окупается — отрезок до конца горизонта.
+ * «Устойчивость результата» сценария (PRD 11.5; ТЗ 3.5.6): три параметра со сдвигом на шаг чувствительности А5,
+ * сверху — самый влиятельный (наибольший разброс окупаемости). Не окупается — отрезок до конца горизонта.
  */
-export function sensitivityView(scenario: ScenarioEconomics, others: readonly ScenarioEconomics[], economics: EconomicsResult, facts: ProcessFacts | null): readonly SensitivityView[] {
+export function sensitivityView(scenario: ScenarioEconomics, others: readonly ScenarioEconomics[], economics: EconomicsResult, facts: ProcessFacts | null, norms: ModelNorms): readonly SensitivityView[] {
   const s = t.sensitivity
-  const rows = sensitivity(scenario, others, economics.current, economics.horizonYears)
+  const rows = sensitivity(scenario, others, economics.current, economics.horizonYears, norms.sensitivityShift)
   const cap = economics.horizonYears
   return [...rows]
     .sort((a, b) => Math.abs(paybackNumber(b.minus, cap) - paybackNumber(b.plus, cap)) - Math.abs(paybackNumber(a.minus, cap) - paybackNumber(a.plus, cap)))

@@ -29,7 +29,7 @@ import { ROBOTS } from '@/mocks/fixtures/robots'
 import { SITE_PARAMETERS, SITE_VALUES } from '@/mocks/fixtures/siteParameters'
 import { CONDITIONS_LP01, OPERATIONS_PER_DAY_LP01 } from '@/mocks/fixtures/projectEconomics'
 import { CALC_DEFAULTS_BY_PROCESS, EVALUATIONS_BY_PROCESS } from '@/mocks/fixtures/projectMatching'
-import { DEMO_PROJECT_DTO, PROJECT_DTOS, PROJECT_LOCAL_STATE } from '@/mocks/fixtures/projects'
+import { DEMO_PROJECT_DTO, PROJECT_DTOS, PROJECT_LOCAL_STATE, PROJECT_VERSIONS } from '@/mocks/fixtures/projects'
 import demo165Url from '@/mocks/fixtures/traces/demo-16-5.json?url'
 import demo186Url from '@/mocks/fixtures/traces/demo-18-6.json?url'
 import { formatNumber } from '@/shared/format'
@@ -199,7 +199,7 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
       const at = now()
       const dto: ProjectDto = {
         id, name, locationId, status: 'draft', updatedAt: at, snapshotTakenAt: at,
-        versions: { catalog: 4, model: '2.1', norms: 3, dictionaries: 1 },
+        versions: PROJECT_VERSIONS,
         ...(locationProcessId ? { task: { id: locationProcessId } } : {}),
         ...(solutionId ? { pinnedSolutionId: solutionId } : {}),
       }

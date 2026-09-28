@@ -3,6 +3,7 @@ import type {
 } from '@/domain'
 import { DASHBOARD_INPUTS } from '@/mocks/fixtures/dashboard'
 import { FACILITY_PARAMETERS, FACILITY_TYPES } from '@/mocks/fixtures/facilityParameters'
+import { LOCATION_DEMO_PROFILE } from '@/mocks/fixtures/locationDemo'
 import { LOCATION_DOCUMENTS } from '@/mocks/fixtures/locationDocuments'
 import { LOCATION_PROCESSES } from '@/mocks/fixtures/locationProcesses'
 import { LOCATION_SUMMARY_INPUTS } from '@/mocks/fixtures/locationSummaries'
@@ -61,6 +62,7 @@ export function createMockLocations(options: MockOptions): LocationService {
   let documents: readonly LocationDocument[] = LOCATION_DOCUMENTS
   return {
     listLocations: () => respond(locations, options),
+    getDemoProfile: () => respond(LOCATION_DEMO_PROFILE, options),
     getLocation: (id) => findOrReject(locations, (l) => l.id === id, `Локация ${id} не найдена`, options),
     createLocation: (input) => {
       const created: Location = { ...input, id: nextId(locations), updatedAt: new Date().toISOString() }

@@ -20,8 +20,6 @@ const sources = import.meta.glob<string>([
   '!/src/shared/format/**',
   '!/src/pages/dev/**',
   '!/src/app/screens.ts',
-  // Демо-заполнение форм и требования процесса — до переноса в mocks/fixtures (аудит, PR-8).
-  '!/src/pages/**/*.mock.ts',
 ], { query: '?raw', import: 'default', eager: true })
 
 const CYRILLIC = /[А-Яа-яЁё]/
