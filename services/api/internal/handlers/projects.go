@@ -136,6 +136,10 @@ func (a *API) reopenProject(w http.ResponseWriter, r *http.Request) {
 	a.withID(w, r, func(id uuid.UUID) (any, error) { return a.svc.ReopenProject(r.Context(), id) }, http.StatusOK)
 }
 
+func (a *API) requestQuote(w http.ResponseWriter, r *http.Request) {
+	a.withID(w, r, func(id uuid.UUID) (any, error) { return a.svc.RequestQuote(r.Context(), id) }, http.StatusOK)
+}
+
 func (a *API) evaluationContext(w http.ResponseWriter, r *http.Request) {
 	a.withID(w, r, func(id uuid.UUID) (any, error) { return a.svc.EvaluationContext(r.Context(), id) }, http.StatusOK)
 }

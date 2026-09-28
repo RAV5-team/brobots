@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,6 +12,18 @@ const (
 	ProjectDraft = "draft"
 	ProjectSaved = "saved"
 )
+
+// ProjectSteps are the steps of the assessment (PRD 11): params → matching → simulation → economics.
+var ProjectSteps = []string{"params", "matching", "simulation", "economics"}
+
+// ResultSummary is the figures of the selected scenario frozen at save (PRD 11.1, 11.6).
+type ResultSummary struct {
+	AcquisitionModel string   `json:"acquisitionModel" enum:"purchase,raas" required:"true"`
+	CapexRub         float64  `json:"capexRub" required:"true"`
+	OpexYearRub      float64  `json:"opexYearRub" required:"true"`
+	PaybackYears     *float64 `json:"paybackYears" required:"true" description:"null — не окупается"`
+	NetEffectYearRub *float64 `json:"netEffectYearRub" required:"true" description:"Годовой денежный эффект к текущему процессу"`
+}
 
 // Versions are the data versions pinned by a project (ТЗ 3.1.5).
 type Versions struct {
@@ -149,6 +162,10 @@ type Project struct {
 	Selection        *Selection      `json:"selection"`
 	CopiedFromID     *uuid.UUID      `json:"copiedFromId"`
 	IsDemo           bool            `json:"isDemo"`
+	Step             string          `json:"step" enum:"params,matching,simulation,economics" description:"Самый дальний открытый шаг черновика"`
+	Inputs           json.RawMessage `json:"inputs" description:"Решения пользователя по шагам в модели фронтенда; null — шаги ещё не проходили"`
+	ResultSummary    *ResultSummary  `json:"resultSummary" description:"Цифры выбранного сценария на момент сохранения; null — у черновика"`
+	QuoteRequestedAt *time.Time      `json:"quoteRequestedAt" description:"Когда запрошено коммерческое предложение"`
 	// OwnerID is the Keycloak sub of the author; nil for demo projects. Not exposed.
 	OwnerID   *uuid.UUID `json:"-"`
 	LatestRun *RunInfo   `json:"latestRun"`

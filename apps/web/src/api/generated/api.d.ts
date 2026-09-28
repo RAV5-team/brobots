@@ -13,7 +13,7 @@ export interface paths {
         };
         /**
          * Сводка дашборда
-         * @description foundSavingsRubYear пока null — его посчитает оркестратор оценки.
+         * @description foundSavingsRubYear — сумма годового эффекта сохранённых оценок (resultSummary); null — сохранённых оценок с эффектом нет.
          */
         get: {
             parameters: {
@@ -2349,7 +2349,7 @@ export interface paths {
         head?: never;
         /**
          * Изменить проект
-         * @description JSON merge patch: название и горизонт. Статус меняют save и reopen; горизонт сохранённого проекта не меняется (409).
+         * @description JSON merge patch: название, горизонт, задача, шаг и решения по шагам (inputs заменяются целиком). Статус меняют save и reopen; у сохранённого проекта меняется только название (409).
          */
         patch: {
             parameters: {
@@ -3262,6 +3262,83 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/quote-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Запросить коммерческое предложение
+         * @description По выбранной конфигурации (08b): отметка quoteRequestedAt. Оценку не меняет — доступно и сохранённому проекту. 409 — вариант не выбран.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Project"];
+                    };
+                };
+                /** @description Токен не прислан (где он обязателен), невалиден или просрочен */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthError"];
+                    };
+                };
+                /** @description Нет нужной роли или прислан сервисный токен */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthError"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -5793,6 +5870,8 @@ export interface components {
             facilityTypeCode?: string;
             horizonYears?: number | null;
             id?: components["schemas"]["UUID"];
+            /** @description Решения пользователя по шагам в модели фронтенда; null — шаги ещё не проходили */
+            inputs?: unknown;
             isDemo?: boolean;
             latestEvaluation?: components["schemas"]["EvaluationInfo"];
             latestRun?: components["schemas"]["RunInfo"];
@@ -5803,6 +5882,12 @@ export interface components {
             /** @description Есть версия нормативов новее закреплённой; применяется через refresh-snapshot */
             normsUpdated?: boolean;
             pinnedSolutionId?: components["schemas"]["UUID"];
+            /**
+             * Format: date-time
+             * @description Когда запрошено коммерческое предложение
+             */
+            quoteRequestedAt?: string | null;
+            resultSummary?: components["schemas"]["ResultSummary"];
             /** Format: date-time */
             savedAt?: string | null;
             selection?: components["schemas"]["Selection"];
@@ -5813,6 +5898,11 @@ export interface components {
              * @enum {string}
              */
             status?: "draft" | "saved";
+            /**
+             * @description Самый дальний открытый шаг черновика
+             * @enum {string}
+             */
+            step?: "params" | "matching" | "simulation" | "economics";
             task?: components["schemas"]["ProjectTaskRef"];
             /** Format: date-time */
             updatedAt?: string;
@@ -5832,7 +5922,15 @@ export interface components {
         ProjectPatchInput: {
             /** @description Вход расчёта: у сохранённого проекта не меняется */
             horizonYears?: number | null;
+            /** @description Решения по шагам целиком, заменяют прежние (автосохранение черновика). Только у черновика */
+            inputs?: unknown;
             name?: string;
+            /**
+             * @description Самый дальний открытый шаг. Только у черновика
+             * @enum {string|null}
+             */
+            step?: "params" | "matching" | "simulation" | "economics" | null;
+            taskId?: components["schemas"]["UUID"];
         };
         ProjectSnapshot: {
             location?: components["schemas"]["Location"];
@@ -5861,6 +5959,18 @@ export interface components {
             /** Format: date-time */
             updatedAt?: string;
             version?: number;
+        };
+        ResultSummary: {
+            /** @enum {string} */
+            acquisitionModel: "purchase" | "raas";
+            /** Format: double */
+            capexRub: number;
+            /** @description Годовой денежный эффект к текущему процессу */
+            netEffectYearRub: number | null;
+            /** Format: double */
+            opexYearRub: number;
+            /** @description null — не окупается */
+            paybackYears: number | null;
         };
         RobotCard: {
             acquisitionModels?: string[] | null;

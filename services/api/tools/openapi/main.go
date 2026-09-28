@@ -228,7 +228,7 @@ func Operations() []op {
 		{http.MethodGet, "/readyz", "service", "Готовность: доступность базы", "", nil, nil, new(Health), 200, []int{503}},
 		{http.MethodGet, "/api/v1/dictionaries", "dictionaries", "Все справочники для выпадающих списков", "", nil, nil, new(Dictionaries), 200, nil},
 		{http.MethodGet, "/api/v1/versions", "dictionaries", "Текущие версии каталога и справочников", "Для строки «Версия данных» и закрепления в проекте (ТЗ 3.1.5).", nil, nil, new(VersionList), 200, nil},
-		{http.MethodGet, "/api/v1/dashboard/summary", "dashboard", "Сводка дашборда", "foundSavingsRubYear пока null — его посчитает оркестратор оценки.", nil, nil, new(domain.Dashboard), 200, nil},
+		{http.MethodGet, "/api/v1/dashboard/summary", "dashboard", "Сводка дашборда", "foundSavingsRubYear — сумма годового эффекта сохранённых оценок (resultSummary); null — сохранённых оценок с эффектом нет.", nil, nil, new(domain.Dashboard), 200, nil},
 
 		{http.MethodGet, "/api/v1/norms", "norms", "Текущие нормативы расчёта", "Экран А5 (PRD 6.8): значение, единица, тип (норматив или допущение) и источник каждого норматива. Новые проекты закрепляют эту версию. Доли — от 0 до 1, веса рейтинга — в процентах, в сумме 100.", nil, nil, new(domain.NormSet), 200, notFound},
 		{http.MethodGet, "/api/v1/norm-sets", "norms", "Версии нормативов", "Новые сверху.", nil, nil, new(NormSetList), 200, nil},
@@ -289,7 +289,7 @@ func Operations() []op {
 		{http.MethodGet, "/api/v1/projects", "projects", "Проекты", "", new(projectsQuery), nil, new(ProjectPage), 200, []int{400}},
 		{http.MethodPost, "/api/v1/projects", "projects", "Создать проект", "Ровно одна задача. Фиксируется снимок локации и задачи и версии каталога и справочников. pinnedSolutionId — вход «Проверить на своём объекте».", nil, new(service.ProjectCreateInput), new(domain.Project), 201, withBodyNF},
 		{http.MethodGet, "/api/v1/projects/{id}", "projects", "Проект", "dataChanged — локация или задача изменились после снимка; catalogUpdated — доступна новая версия каталога.", new(idPath), nil, new(domain.Project), 200, notFound},
-		{http.MethodPatch, "/api/v1/projects/{id}", "projects", "Изменить проект", "JSON merge patch: название и горизонт. Статус меняют save и reopen; горизонт сохранённого проекта не меняется (409).", new(idPath), new(service.ProjectPatchInput), new(domain.Project), 200, withBodyNF},
+		{http.MethodPatch, "/api/v1/projects/{id}", "projects", "Изменить проект", "JSON merge patch: название, горизонт, задача, шаг и решения по шагам (inputs заменяются целиком). Статус меняют save и reopen; у сохранённого проекта меняется только название (409).", new(idPath), new(service.ProjectPatchInput), new(domain.Project), 200, withBodyNF},
 		{http.MethodDelete, "/api/v1/projects/{id}", "projects", "Удалить проект", "", new(idPath), nil, nil, 204, notFound},
 		{http.MethodPost, "/api/v1/projects/{id}/copy", "projects", "Копировать проект", "Со снимком, условиями и ручными кандидатами.", new(idPath), nil, new(domain.Project), 201, notFound},
 		{http.MethodPost, "/api/v1/projects/{id}/refresh-snapshot", "projects", "Обновить снимок", "«Данные изменились — пересчитать»: перечитывает локацию и задачу, снимает выбор робота (его цифры посчитаны на старых данных). Только для черновика.", new(idPath), nil, new(domain.Project), 200, draftOnly},
@@ -308,6 +308,7 @@ func Operations() []op {
 		{http.MethodPut, "/api/v1/projects/{id}/selection", "orchestrator", "Выбрать робота", "Только из результатов последнего актуального расчёта. Поля робота копируются в snapshot.robot из входа расчёта. solutionId: null снимает выбор.", new(idPath), new(service.SelectionInput), new(domain.Project), 200, withBodyNF},
 		{http.MethodPost, "/api/v1/projects/{id}/save", "orchestrator", "Сохранить проект", "draft → saved: закрепляет снимок с выбранным роботом, расчёт и версию ядра. Нужен выбор по актуальному расчёту.", new(idPath), nil, new(domain.Project), 200, []int{404, 409}},
 		{http.MethodPost, "/api/v1/projects/{id}/reopen", "orchestrator", "Открыть проект для изменений", "saved → draft. Сохранённые расчёты остаются в истории.", new(idPath), nil, new(domain.Project), 200, notFound},
+		{http.MethodPost, "/api/v1/projects/{id}/quote-request", "orchestrator", "Запросить коммерческое предложение", "По выбранной конфигурации (08b): отметка quoteRequestedAt. Оценку не меняет — доступно и сохранённому проекту. 409 — вариант не выбран.", new(idPath), nil, new(domain.Project), 200, []int{404, 409}},
 		{http.MethodGet, "/api/v1/projects/{id}/evaluation-context", "matching", "Контекст для оркестратора оценки", "Снимок, условия и подходящие кандидаты последнего прогона с полными данными каталога.", new(idPath), nil, new(service.EvaluationContext), 200, notFound},
 	}
 }

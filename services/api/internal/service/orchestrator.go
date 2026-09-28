@@ -419,8 +419,13 @@ func (s *Service) SaveProject(ctx context.Context, id uuid.UUID) (domain.Project
 		if cr.ID != rec.Snapshot.Robot.CalcRunID {
 			return domain.Conflict("evaluation_stale", "Робот выбран по прежнему расчёту — выберите его заново")
 		}
+		summary, err := resultSummary(ctx, q, cr.ID, *rec.SelectedCalcResultID)
+		if err != nil {
+			return err
+		}
 		now := time.Now()
 		rec.Status, rec.SavedAt, rec.Versions.Model = domain.ProjectSaved, &now, &cr.ModelVersion
+		rec.ResultSummary = summary
 		return q.SaveProject(ctx, rec)
 	})
 	if err != nil {
@@ -436,7 +441,44 @@ func (s *Service) ReopenProject(ctx context.Context, id uuid.UUID) (domain.Proje
 		if err != nil || rec.Status == domain.ProjectDraft {
 			return err
 		}
-		rec.Status, rec.SavedAt = domain.ProjectDraft, nil
+		rec.Status, rec.SavedAt, rec.ResultSummary = domain.ProjectDraft, nil, nil
+		return q.SaveProject(ctx, rec)
+	})
+	if err != nil {
+		return domain.Project{}, err
+	}
+	return s.GetProject(ctx, id)
+}
+
+// resultSummary freezes the figures of the selected result for the projects list and the dashboard.
+func resultSummary(ctx context.Context, q store.Q, runID, resultID uuid.UUID) (*domain.ResultSummary, error) {
+	results, err := q.CalcResults(ctx, runID)
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range results {
+		if r.ID != resultID {
+			continue
+		}
+		return &domain.ResultSummary{AcquisitionModel: r.AcquisitionModel, CapexRub: domain.Deref(r.CapexRub),
+			OpexYearRub: domain.Deref(r.OpexYearRub), PaybackYears: r.PaybackYears, NetEffectYearRub: r.NetEffectYearRub}, nil
+	}
+	return nil, fmt.Errorf("calc result %s is not in run %s", resultID, runID)
+}
+
+// RequestQuote records a request for a commercial offer on the selected configuration (08b, D-106).
+// The assessment does not change, so a saved project accepts it too.
+func (s *Service) RequestQuote(ctx context.Context, id uuid.UUID) (domain.Project, error) {
+	err := s.st.Tx(ctx, func(q store.Q) error {
+		rec, err := s.visibleProject(ctx, q, id, true)
+		if err != nil {
+			return err
+		}
+		if rec.Snapshot.Robot == nil {
+			return domain.Conflict("selection_required", "Запросить КП можно, когда на подборе выбран вариант")
+		}
+		now := time.Now()
+		rec.QuoteRequestedAt = &now
 		return q.SaveProject(ctx, rec)
 	})
 	if err != nil {

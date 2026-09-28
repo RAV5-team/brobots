@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -191,11 +192,17 @@ func (s *Service) CreateProject(ctx context.Context, body []byte) (domain.Projec
 
 // ProjectPatchInput is the editable part of a project. The status changes by save and reopen.
 type ProjectPatchInput struct {
-	Name         string `json:"name"`
-	HorizonYears *int   `json:"horizonYears" description:"Вход расчёта: у сохранённого проекта не меняется"`
+	Name         string          `json:"name"`
+	HorizonYears *int            `json:"horizonYears" description:"Вход расчёта: у сохранённого проекта не меняется"`
+	TaskID       *uuid.UUID      `json:"taskId" description:"Другая задача той же локации (шаг 1, PRD 11.1): снимок собирается заново, выбор робота, условия подбора и решения по шагам сбрасываются. Только у черновика"`
+	Step         *string         `json:"step" enum:"params,matching,simulation,economics" description:"Самый дальний открытый шаг. Только у черновика"`
+	Inputs       json.RawMessage `json:"inputs" description:"Решения по шагам целиком, заменяют прежние (автосохранение черновика). Только у черновика"`
 }
 
-// PatchProject updates the name and the horizon.
+// maxInputsBytes bounds the decisions of one project: they are form values, not files.
+const maxInputsBytes = 256 << 10
+
+// PatchProject updates the name, the horizon, the task and the decisions by steps.
 func (s *Service) PatchProject(ctx context.Context, id uuid.UUID, body []byte) (domain.Project, error) {
 	err := s.st.Tx(ctx, func(q store.Q) error {
 		rec, err := s.visibleProject(ctx, q, id, true)
@@ -211,18 +218,40 @@ func (s *Service) PatchProject(ctx context.Context, id uuid.UUID, body []byte) (
 		if in.HorizonYears != nil {
 			v.Range("horizonYears", "Горизонт расчёта", domain.Ptr(float64(*in.HorizonYears)), domain.Ptr(1.0), domain.Ptr(30.0), "лет")
 		}
+		if in.Step != nil {
+			v.OneOf("step", "Шаг проекта", *in.Step, domain.ProjectSteps)
+		}
+		if in.Inputs != nil {
+			validateInputs(&v, in.Inputs)
+		}
 		if err := v.Err(); err != nil {
 			return err
 		}
 		horizonChanged := domain.Deref(in.HorizonYears) != domain.Deref(rec.HorizonYears)
-		if horizonChanged {
+		taskChanged := in.TaskID != nil && *in.TaskID != rec.TaskID
+		if horizonChanged || taskChanged || in.Step != nil || in.Inputs != nil {
 			if err := editable(rec); err != nil {
 				return err
 			}
 		}
 		rec.Name, rec.HorizonYears = strings.TrimSpace(in.Name), in.HorizonYears
+		if taskChanged {
+			if err := s.switchTask(ctx, q, &rec, *in.TaskID); err != nil {
+				return err
+			}
+		}
+		if in.Step != nil {
+			rec.Step = *in.Step
+		}
+		if in.Inputs != nil {
+			rec.Inputs = in.Inputs
+		}
 		if err := q.SaveProject(ctx, rec); err != nil {
 			return err
+		}
+		if taskChanged {
+			// Conditions were overrides of the previous task; ReplaceOverrides bumps the inputs version.
+			return q.ReplaceOverrides(ctx, id, nil)
 		}
 		if horizonChanged {
 			return q.BumpProjectInputs(ctx, id)
@@ -233,6 +262,36 @@ func (s *Service) PatchProject(ctx context.Context, id uuid.UUID, body []byte) (
 		return domain.Project{}, err
 	}
 	return s.GetProject(ctx, id)
+}
+
+// validateInputs accepts a JSON object or null of a bounded size; its fields are the web model.
+func validateInputs(v *domain.Validator, raw json.RawMessage) {
+	if len(raw) > maxInputsBytes {
+		v.Add("inputs", "too_large", "Решения по шагам слишком большие", fmt.Sprintf("Не больше %d КБ", maxInputsBytes>>10))
+		return
+	}
+	var probe any
+	if err := json.Unmarshal(raw, &probe); err != nil {
+		v.Add("inputs", "invalid_json", "Решения по шагам не читаются как JSON", "Передайте объект")
+		return
+	}
+	if _, ok := probe.(map[string]any); !ok && probe != nil {
+		v.Add("inputs", "invalid_type", "Решения по шагам должны быть объектом", "Передайте объект или null")
+	}
+}
+
+// switchTask moves a draft to another task of its location: the snapshot is rebuilt, and whatever was
+// decided for the previous task (robot, steps) is dropped (D-94).
+func (s *Service) switchTask(ctx context.Context, q store.Q, rec *store.ProjectRecord, taskID uuid.UUID) error {
+	snap, ver, err := s.buildSnapshot(ctx, q, rec.LocationID, taskID)
+	if err != nil {
+		return err
+	}
+	ver.Model = rec.Versions.Model
+	rec.TaskID, rec.Snapshot, rec.Versions, rec.SnapshotTakenAt = taskID, snap, ver, time.Now()
+	clearSelection(rec)
+	rec.Step, rec.Inputs = domain.ProjectSteps[0], nil
+	return pinNorms(ctx, q, rec)
 }
 
 // DeleteProject hides a project.
@@ -268,6 +327,7 @@ func (s *Service) CopyProject(ctx context.Context, id uuid.UUID) (domain.Project
 		// The copy keeps the inputs, not the decision: calculations stay with the source project.
 		clearSelection(&rec)
 		rec.SavedAt, rec.Versions.Model = nil, nil
+		rec.Step, rec.Inputs, rec.ResultSummary, rec.QuoteRequestedAt = domain.ProjectSteps[0], nil, nil, nil
 		newID = rec.ID
 		if err := q.SaveProject(ctx, rec); err != nil {
 			return err
@@ -583,8 +643,12 @@ func (s *Service) Dashboard(ctx context.Context) (domain.Dashboard, error) {
 	projects := page.Items
 	d.Projects.Total = page.Total
 	for _, p := range projects {
-		if p.Status == domain.ProjectSaved {
-			d.Projects.Calculated++
+		if p.Status != domain.ProjectSaved {
+			continue
+		}
+		d.Projects.Calculated++
+		if p.ResultSummary != nil && p.ResultSummary.NetEffectYearRub != nil {
+			d.FoundSavingsRubYear = domain.Ptr(domain.Deref(d.FoundSavingsRubYear) + *p.ResultSummary.NetEffectYearRub)
 		}
 	}
 	d.RecentProjects = projects[:min(5, len(projects))]

@@ -161,6 +161,7 @@ func NewRouter(svc *service.Service, log *slog.Logger, opts Options) http.Handle
 			r.With(user).Put("/{id}/selection", a.putSelection)
 			r.With(user).Post("/{id}/save", a.saveProject)
 			r.With(user).Post("/{id}/reopen", a.reopenProject)
+			r.With(user).Post("/{id}/quote-request", a.requestQuote)
 			r.Get("/{id}/evaluation-context", a.evaluationContext)
 		})
 		r.Get("/matching-runs/{id}", a.getRun)

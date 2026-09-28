@@ -12,7 +12,8 @@ info:
 paths:
   /api/v1/dashboard/summary:
     get:
-      description: foundSavingsRubYear пока null — его посчитает оркестратор оценки.
+      description: foundSavingsRubYear — сумма годового эффекта сохранённых оценок
+        (resultSummary); null — сохранённых оценок с эффектом нет.
       responses:
         "200":
           content:
@@ -1598,8 +1599,9 @@ paths:
       tags:
       - projects
     patch:
-      description: 'JSON merge patch: название и горизонт. Статус меняют save и reopen;
-        горизонт сохранённого проекта не меняется (409).'
+      description: 'JSON merge patch: название, горизонт, задача, шаг и решения по
+        шагам (inputs заменяются целиком). Статус меняют save и reopen; у сохранённого
+        проекта меняется только название (409).'
       parameters:
       - in: path
         name: id
@@ -2205,6 +2207,53 @@ paths:
       summary: Последний прогон подбора
       tags:
       - matching
+  /api/v1/projects/{id}/quote-request:
+    post:
+      description: 'По выбранной конфигурации (08b): отметка quoteRequestedAt. Оценку
+        не меняет — доступно и сохранённому проекту. 409 — вариант не выбран.'
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Токен не прислан (где он обязателен), невалиден или просрочен
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+          description: Нет нужной роли или прислан сервисный токен
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+      security:
+      - bearerAuth: []
+      summary: Запросить коммерческое предложение
+      tags:
+      - orchestrator
   /api/v1/projects/{id}/refresh-snapshot:
     post:
       description: '«Данные изменились — пересчитать»: перечитывает локацию и задачу,
@@ -5001,6 +5050,9 @@ components:
           type: integer
         id:
           $ref: '#/components/schemas/UUID'
+        inputs:
+          description: Решения пользователя по шагам в модели фронтенда; null — шаги
+            ещё не проходили
         isDemo:
           type: boolean
         latestEvaluation:
@@ -5021,6 +5073,13 @@ components:
           type: boolean
         pinnedSolutionId:
           $ref: '#/components/schemas/UUID'
+        quoteRequestedAt:
+          description: Когда запрошено коммерческое предложение
+          format: date-time
+          nullable: true
+          type: string
+        resultSummary:
+          $ref: '#/components/schemas/ResultSummary'
         savedAt:
           format: date-time
           nullable: true
@@ -5035,6 +5094,14 @@ components:
           enum:
           - draft
           - saved
+          type: string
+        step:
+          description: Самый дальний открытый шаг черновика
+          enum:
+          - params
+          - matching
+          - simulation
+          - economics
           type: string
         task:
           $ref: '#/components/schemas/ProjectTaskRef'
@@ -5075,8 +5142,22 @@ components:
           description: 'Вход расчёта: у сохранённого проекта не меняется'
           nullable: true
           type: integer
+        inputs:
+          description: Решения по шагам целиком, заменяют прежние (автосохранение
+            черновика). Только у черновика
         name:
           type: string
+        step:
+          description: Самый дальний открытый шаг. Только у черновика
+          enum:
+          - params
+          - matching
+          - simulation
+          - economics
+          nullable: true
+          type: string
+        taskId:
+          $ref: '#/components/schemas/UUID'
       type: object
     ProjectSnapshot:
       properties:
@@ -5132,6 +5213,34 @@ components:
           type: string
         version:
           type: integer
+      type: object
+    ResultSummary:
+      properties:
+        acquisitionModel:
+          enum:
+          - purchase
+          - raas
+          type: string
+        capexRub:
+          format: double
+          type: number
+        netEffectYearRub:
+          description: Годовой денежный эффект к текущему процессу
+          nullable: true
+          type: number
+        opexYearRub:
+          format: double
+          type: number
+        paybackYears:
+          description: null — не окупается
+          nullable: true
+          type: number
+      required:
+      - acquisitionModel
+      - capexRub
+      - opexYearRub
+      - paybackYears
+      - netEffectYearRub
       type: object
     RobotCard:
       properties:
