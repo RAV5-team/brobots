@@ -21,6 +21,12 @@ export interface ProcessDefaults {
   /** Носитель — в чём лежит единица потока (D-10). */
   readonly carrier?: string
   readonly unitMassKg?: number
+  /** Максимальная масса грузовой единицы, кг (PRD 10.4, «Поля процесса на локации»; шаг 1 проекта). */
+  readonly maxUnitMassKg?: number
+  /** Габариты грузовой единицы, мм: длина × ширина × высота. */
+  readonly unitDimensionsMm?: readonly [number, number, number]
+  /** Частота пересчёта, раз в месяц — у инвентаризации без неё парк не посчитать (PRD 11.2, 10.4). */
+  readonly recountsPerMonth?: number
   /** Делится ли единица груза; нет груза (уборка, инвентаризация, обходы) — значения нет. */
   readonly cargoDivisible?: boolean
   /** Объём операций за период `Process.volumePeriod` (обычно — сутки). */

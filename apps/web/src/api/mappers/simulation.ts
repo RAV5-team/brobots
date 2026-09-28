@@ -60,6 +60,13 @@ export function toSimulationRun(dto: RunDto): SimulationRun {
     peak: { requiredPerHour: dto.kpis.throughput.required_h, servedPerHour: dto.kpis.throughput.served_h },
     onTimeWorstDay: dto.kpis.on_time_min,
     utilizationPeak: dto.kpis.util_peak,
+    fleetShares: dto.kpis.fleet_shares,
+    before: {
+      peak: { requiredPerHour: dto.kpis_before.throughput.required_h, servedPerHour: dto.kpis_before.throughput.served_h },
+      onTimeWorstDay: dto.kpis_before.on_time_min,
+      utilizationPeak: dto.kpis_before.util_peak,
+      fleetShares: dto.kpis_before.fleet_shares,
+    },
     hourlyBefore: dto.hourly_before.map(toHourly),
     hourlyAfter: dto.hourly_after.map(toHourly),
     warnings: dto.warnings,

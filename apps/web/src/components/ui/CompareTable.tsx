@@ -38,7 +38,11 @@ interface CompareTableProps {
   readonly caption: string
   readonly columns: readonly CompareColumn[]
   readonly groups: readonly CompareGroup[]
+  /** Ширина колонки подписей: 300 (К-3) или 180 в основной колонке шага (03, D-96). */
+  readonly labelWidth?: 'default' | 'compact'
 }
+
+const LABEL_WIDTHS = { default: 'w-(--rav-compare-label-width)', compact: 'w-(--rav-compare-label-width-compact)' } as const
 
 const TONES: Record<CompareCellTone, string> = {
   default: 'text-text',
@@ -67,13 +71,13 @@ function CellContent({ tone, content }: { readonly tone: CompareCellTone; readon
  * Таблица сравнения с группами строк (components.md: CompareTable, FitCell; К-3, 16642:2500).
  * Колонка подписей — `--rav-compare-label-width`, колонки позиций делят остаток поровну; зазоры 12 × 4 — border-spacing.
  */
-export function CompareTable({ caption, columns, groups }: CompareTableProps) {
+export function CompareTable({ caption, columns, groups, labelWidth = 'default' }: CompareTableProps) {
   return (
     <div className="-mx-12 -my-4">
       <table className="w-full table-fixed border-separate border-spacing-x-12 border-spacing-y-4">
         <caption className="sr-only">{caption}</caption>
         <colgroup>
-          <col className="w-(--rav-compare-label-width)" />
+          <col className={LABEL_WIDTHS[labelWidth]} />
           {columns.map((c) => <col key={c.key} />)}
         </colgroup>
         <thead>

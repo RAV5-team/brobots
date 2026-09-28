@@ -8,25 +8,30 @@ interface ChartTableProps {
   readonly rows: readonly { readonly key: string; readonly label: ReactNode; readonly cells: readonly ReactNode[] }[]
 }
 
-/** Текстовая альтернатива графика (D-87): те же числа таблицей, видна только чтению с экрана. */
+/**
+ * Текстовая альтернатива графика (D-87): те же числа таблицей, видна только чтению с экрана. Скрывает обёртка:
+ * у самой таблицы `sr-only` не ограничивает ширину, и длинные подписи давали горизонтальную прокрутку страницы.
+ */
 export function ChartTable({ caption, categoryLabel, columns, rows }: ChartTableProps) {
   return (
-    <table className="sr-only">
-      <caption>{caption}</caption>
-      <thead>
-        <tr>
-          <th scope="col">{categoryLabel}</th>
-          {columns.map((c) => <th key={c} scope="col">{c}</th>)}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => (
-          <tr key={row.key}>
-            <th scope="row">{row.label}</th>
-            {row.cells.map((cell, i) => <td key={i}>{cell}</td>)}
+    <div className="sr-only">
+      <table>
+        <caption>{caption}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{categoryLabel}</th>
+            {columns.map((c) => <th key={c} scope="col">{c}</th>)}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.key}>
+              <th scope="row">{row.label}</th>
+              {row.cells.map((cell, i) => <td key={i}>{cell}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }

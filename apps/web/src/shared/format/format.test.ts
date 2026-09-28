@@ -15,6 +15,12 @@ describe('roundHalfUp (одно правило округления, D-19)', () 
     expect(roundHalfUp(1.005, 2)).toBe(1.01)
     expect(roundHalfUp(9.25, 1)).toBe(9.3)
   })
+
+  it('handles numbers JS prints in exponent form (floating-point residue)', () => {
+    expect(roundHalfUp(1.2e-15)).toBe(0)
+    expect(roundHalfUp(-2.2e-16, 2)).toBe(-0)
+    expect(formatPercent(1.2e-15)).toBe(formatPercent(0))
+  })
 })
 
 describe('formatNumber', () => {

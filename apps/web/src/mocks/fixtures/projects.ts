@@ -28,6 +28,8 @@ export const PROJECT_DTOS: readonly ApiSchemas['Project'][] = [
 export const DEMO_PROJECT_DTO: ApiSchemas['Project'] = project({
   id: 'PJ-DEMO', name: 'Демо-проект · РЦ Химки', locationId: 'LOC-01', locationName: 'РЦ Химки', isDemo: true,
   task: { id: 'LP-01', name: 'Перемещение паллет' }, status: 'draft', updatedAt: '2026-09-26T09:00:00Z',
+  // Открыт из каталога «Проверить на объекте» (D-57): шаг 1 показывает предвыбранное решение.
+  pinnedSolutionId: 'RB-0008',
   selection: { solutionId: 'RB-0008', solutionName: 'AMR 800', acquisitionModel: 'raas', calcResultId: 'CR-AMR800-RAAS' },
 })
 

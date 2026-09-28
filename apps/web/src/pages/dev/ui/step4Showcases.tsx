@@ -22,7 +22,7 @@ const pm = ru.project.matching
 const ph = ru.project.simulation.hourly
 
 // Стоимость операции RaaS к текущему процессу — считается из итога LP-01 (D-13), как в правой колонке подбора 03.
-const ECONOMICS = toEconomics(EVALUATION_LP01, 'RB-0008', { sensitivity: [], conditions: [], operationsPerDay: 2000 })
+const ECONOMICS = toEconomics(EVALUATION_LP01, 'RB-0008', { conditions: [], operationsPerDay: 2000 })
 const RAAS = ECONOMICS.scenarios.find((sc) => sc.acquisition === 'raas')
 const costNow = operationCostRub(ECONOMICS.current.opexRubPerYear, ECONOMICS.operationsPerDay)
 const costRaas = RAAS ? operationCostRub(RAAS.opexRubPerYear, ECONOMICS.operationsPerDay) : costNow
@@ -79,6 +79,12 @@ export function CardShowcase() {
             <p className="type-caption text-text-secondary">{s.insetCaption}</p>
           </Card>
         </div>
+      </ShowcaseSection>
+      <ShowcaseSection title="Card · inverse">
+        <Card variant="inverse" padding={24} gap={16}>
+          <p className="type-display-md text-bg">{ru.project.simulation.verdict.title}</p>
+          <p className="rounded-lg bg-inverse-well px-16 py-16 type-body-sm text-bg">{ru.project.simulation.verdict.thinnest}</p>
+        </Card>
       </ShowcaseSection>
       <ShowcaseSection title="Card · well">
         <div className="w-[491px]">

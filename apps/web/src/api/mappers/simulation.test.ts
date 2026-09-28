@@ -25,6 +25,15 @@ describe('toSimulationRun', () => {
     expect(run.hourlyAfter[0]).toHaveProperty('working')
   })
 
+  it('итоги проверенного состава — из kpis_before, итогового — из kpis', () => {
+    const needMore = SIMULATION_RUNS.find((r) => r.status === 'needs_additions') as SimulationSchemas['SimulationRun']
+    const run = toSimulationRun(needMore)
+    expect(run.before).toEqual({ peak: { requiredPerHour: 130, servedPerHour: 122 }, onTimeWorstDay: 0.775, utilizationPeak: 0.99, fleetShares: needMore.kpis_before.fleet_shares })
+    expect(run.peak.servedPerHour).toBe(130)
+    expect(run.fleetShares).toEqual(needMore.kpis.fleet_shares)
+    expect(Object.values(run.fleetShares).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 2)
+  })
+
   it('вердикт без заголовка — ошибка контракта', () => {
     const broken = { ...confirmed, verdict: { lines: [] } as unknown as SimulationSchemas['SimulationRun']['verdict'] }
     expect(() => toSimulationRun(broken)).toThrow('SimulationRun.verdict: в ответе нет строки «title»')

@@ -5,14 +5,17 @@ import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
 import type { ProjectId, ProjectStep } from '@/domain'
 import { useRole } from '@/shared/auth/useRole'
 import { ru } from '@/shared/i18n/ru'
-import { ProjectStepLayout } from './ProjectStepLayout'
+import { EconomicsStep } from './economics/EconomicsStep'
+import { MatchingStep } from './matching/MatchingStep'
+import { ParamsStep } from './params/ParamsStep'
+import { SimulationStep } from './simulation/SimulationStep'
 import { useProjectStep } from './useProjectStep'
 
 const t = ru.project.page
 
 /**
  * Шаг проекта `/projects/:projectId/<step>` (D-22): каркас шага на данных проекта.
- * Содержание шагов 02–08 — экраны пункта 6 плана; до них — плашка «собирается».
+ * Шаги 02–08: параметры, подбор, симуляция, итог и экономика.
  */
 export function ProjectStepPage({ step }: { readonly step: ProjectStep }) {
   const { projectId = '' } = useParams()
@@ -33,12 +36,14 @@ export function ProjectStepPage({ step }: { readonly step: ProjectStep }) {
       />
     )
   }
+  const isGuest = role === 'guest'
   return (
     <>
       <title>{t.documentTitle(title, state.project.name)}</title>
-      <ProjectStepLayout project={state.project} locationName={state.location.name} step={step} isGuest={role === 'guest'} title={title}>
-        <EmptyState title={t.pending.title} description={t.pending.description} />
-      </ProjectStepLayout>
+      {step === 'params' && <ParamsStep project={state.project} locationName={state.location.name} isGuest={isGuest} />}
+      {step === 'matching' && <MatchingStep project={state.project} locationName={state.location.name} isGuest={isGuest} />}
+      {step === 'simulation' && <SimulationStep project={state.project} locationName={state.location.name} isGuest={isGuest} />}
+      {step === 'economics' && <EconomicsStep project={state.project} locationName={state.location.name} isGuest={isGuest} />}
     </>
   )
 }

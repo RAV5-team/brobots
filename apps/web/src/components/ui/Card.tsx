@@ -1,7 +1,7 @@
 import { clsx } from 'clsx'
 import type { HTMLAttributes, ReactNode } from 'react'
 
-export type CardVariant = 'panel' | 'tile' | 'accent' | 'sunken' | 'inset' | 'well'
+export type CardVariant = 'panel' | 'tile' | 'accent' | 'sunken' | 'inset' | 'well' | 'inverse'
 
 interface CardProps extends HTMLAttributes<HTMLElement> {
   /**
@@ -9,7 +9,8 @@ interface CardProps extends HTMLAttributes<HTMLElement> {
    * accent — лаймовая вдавленная панель (радиус 28, accent-inset; 15935:37, 15935:78);
    * sunken — утопленная плашка без тени (радиус 24, surface-sunken; «Уточнения и проверки» 06, 15935:138);
    * inset — вдавленная плитка показателя (радиус 12, surface-muted, inset-md; «24 · ТТХ подтверждены» 11, 15935:1469);
-   * well — вдавленная панель внутри карточки (радиус 16, surface-muted, inset-md; «231 млн ₽ / год» 12, 15950:1686).
+   * well — вдавленная панель внутри карточки (радиус 16, surface-muted, inset-md; «231 млн ₽ / год» 12, 15950:1686);
+   * inverse — тёмная карточка (радиус 28, inverse, тень popover; «карточка · вердикт» 07, 16197:1870): кольцо фокуса внутри — лаймовое.
    */
   readonly variant?: CardVariant
   /** Внутренний отступ; по умолчанию 20. Карточки экрана входа — 28, лаймовые панели — 16 и 8, карточки каталога К-1 — 12, шапка страницы решения К-4 — 24. */
@@ -30,10 +31,11 @@ const VARIANTS: Record<CardVariant, string> = {
   sunken: 'rounded-xl bg-surface-sunken',
   inset: 'rounded-md bg-surface-muted shadow-inset-md',
   well: 'rounded-lg bg-surface-muted shadow-inset-md',
+  inverse: 'surface-inverse rounded-2xl bg-inverse text-bg shadow-popover',
 }
 
 const ELEVATIONS: Record<CardElevation, string> = { md: 'shadow-raised-md', lg: 'shadow-raised-lg' }
-const DEFAULT_ELEVATION: Record<CardVariant, CardElevation | null> = { panel: 'lg', tile: 'md', accent: null, sunken: null, inset: null, well: null }
+const DEFAULT_ELEVATION: Record<CardVariant, CardElevation | null> = { panel: 'lg', tile: 'md', accent: null, sunken: null, inset: null, well: null, inverse: null }
 
 // Классы целиком: Tailwind находит утилиты только по полным строкам.
 const PADDINGS = { 8: 'p-8', 12: 'p-12', 16: 'p-16', 20: 'p-20', 24: 'p-24', 28: 'p-28' } as const

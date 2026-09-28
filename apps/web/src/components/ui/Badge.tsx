@@ -23,6 +23,13 @@ const TONE_OF: Record<BadgeKind, BadgeTone> = {
   task: 'filled',
   norm: 'outline',
   default: 'outline',
+  // Статусы шага 1 проекта (PRD 11.2): предварительное значение содержит допущения — тоже пунктиром.
+  file: 'filled',
+  specified: 'filled',
+  computed: 'filled',
+  location: 'outline',
+  preliminary: 'dashed',
+  missing: 'outline',
 }
 
 const TONES: Record<BadgeTone, string> = {
@@ -42,7 +49,8 @@ interface BadgeProps {
 }
 
 /**
- * Происхождение значения в поле: допущение, формула, норматив, точное значение, «из задачи», «по умолчанию»
+ * Происхождение значения в поле: допущение, формула, норматив, точное значение, «из задачи», «по умолчанию»;
+ * статусы шага 1 проекта — из файла, указано, из локации, рассчитано, предварительно, нет данных
  * (components.md: Badge и Pill · тип — один примитив; 15935:967, 15935:1025, 15950:2084, 15966:6095).
  */
 export function Badge({ kind, variant = 'field', className }: BadgeProps) {

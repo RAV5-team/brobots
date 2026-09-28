@@ -11,13 +11,25 @@ import {
   furthestStep,
   markFresh,
   type DraftProject,
+  type Fleet,
+  type MatchingEvaluation,
   type Project,
+  type ParamsProcessEntry,
   type ProjectId,
+  type ProjectParamsSnapshot,
   type SavedProject,
 } from '@/domain'
-import { CONDITIONS_LP01_RAAS, OPERATIONS_PER_DAY_LP01, SENSITIVITY_LP01_RAAS } from '@/mocks/fixtures/projectEconomics'
-import { EVALUATIONS_BY_PROCESS } from '@/mocks/fixtures/projectMatching'
+import { FACILITY_PARAMETERS } from '@/mocks/fixtures/facilityParameters'
+import { LOCATION_PROCESSES } from '@/mocks/fixtures/locationProcesses'
+import { LOCATIONS } from '@/mocks/fixtures/locations'
+import { HANDLING_METHODS, OPERATION_CLASSES } from '@/mocks/fixtures/operationClasses'
+import { PROCESSES } from '@/mocks/fixtures/processes'
+import { ROBOTS } from '@/mocks/fixtures/robots'
+import { SITE_PARAMETERS, SITE_VALUES } from '@/mocks/fixtures/siteParameters'
+import { CONDITIONS_LP01, OPERATIONS_PER_DAY_LP01 } from '@/mocks/fixtures/projectEconomics'
+import { CALC_DEFAULTS_BY_PROCESS, EVALUATIONS_BY_PROCESS } from '@/mocks/fixtures/projectMatching'
 import { DEMO_PROJECT_DTO, PROJECT_DTOS, PROJECT_LOCAL_STATE } from '@/mocks/fixtures/projects'
+import { formatNumber } from '@/shared/format'
 import { ConflictError, NotFoundError } from '../errors'
 import type { ProjectService } from '../projects'
 import { respond, type MockOptions } from './respond'
@@ -51,13 +63,19 @@ const TRACES_BY_RUN: Readonly<Record<string, readonly TraceFile[]>> = {
   'SIM-0926-05': [],
 }
 
-/** Журнал прогона строками (этап 3): мок продвигает его на строку за опрос. */
-const RUN_LOG = [
-  'Смоделированы сутки: 2 000 операций, пик 130 рейсов/ч',
-  'Маршруты и зарядка: роботы, станции, доступность 0,92',
-  'Проверяем запас в пиковые часы',
-  'Сводный вердикт по худшему дню',
-]
+/**
+ * Журнал прогона строками (этап 3) в духе сообщений simcore/verify: мок продвигает его на строку за опрос
+ * и считает секунду за опрос — экран опрашивает раз в секунду, число секунд не зависит от машины.
+ */
+function runLog(run: RunDto, fleet: Fleet): readonly string[] {
+  const peak = run.checks_before.throughput.required_h
+  return [
+    `Смоделированы сутки: пик ${formatNumber(peak)} рейсов/ч`,
+    `Маршруты и зарядка: роботов ${formatNumber(fleet.robots)}, станций ${formatNumber(fleet.stations)}`,
+    ...run.verdict.justification.slice(0, 1).map((line) => `Проверяем запас: ${line.charAt(0).toLowerCase()}${line.slice(1)}`),
+    `Сводный вердикт по худшему дню: ${run.verdict.title}`,
+  ]
+}
 
 /** Id проекта — следующий за наибольшим: PJ-08 после семи демо-проектов. */
 function nextId(ids: readonly string[]): ProjectId {
@@ -85,6 +103,34 @@ function runForFleet(runs: readonly RunDto[], robots: number, stations: number):
   return run
 }
 
+/** Процессы локации с шаблонами и классами операций — в порядке фикстуры (как вкладка «Процессы» локации). */
+function processesOf(locationId: string): readonly ParamsProcessEntry[] {
+  return LOCATION_PROCESSES.filter((lp) => lp.locationId === locationId).map((locationProcess) => {
+    const process = PROCESSES.find((p) => p.code === locationProcess.processCode)
+    if (!process) throw new Error(`Фикстура процесса ${locationProcess.processCode} не найдена`)
+    return { locationProcess, process, operationClass: OPERATION_CLASSES.find((c) => c.code === process.operationClass) ?? null }
+  })
+}
+
+/**
+ * Снимок шага 1: профиль локации на дату снимка. Мок снимки не хранит — отдаёт профиль из фикстур
+ * (изменения профиля в сессии сюда не попадают, как и в настоящий снимок).
+ */
+function paramsSnapshot(dto: ProjectDto): ProjectParamsSnapshot {
+  const location = LOCATIONS.find((l) => l.id === dto.locationId)
+  if (!location) throw new NotFoundError(`Локация ${String(dto.locationId)} не найдена`)
+  const pinned = dto.status === 'draft' && dto.pinnedSolutionId ? ROBOTS.find((r) => r.id === dto.pinnedSolutionId) : undefined
+  return {
+    location,
+    facilityParameters: FACILITY_PARAMETERS.filter((p) => p.facilityType === location.facilityType),
+    siteParameters: SITE_PARAMETERS,
+    siteValues: SITE_VALUES[location.id] ?? {},
+    processes: processesOf(location.id),
+    handlingMethods: HANDLING_METHODS,
+    pinnedSolution: pinned ? { id: pinned.id, name: pinned.name } : null,
+  }
+}
+
 export function createMockProjects(options: MockOptions, loadTrace: TraceLoader = loadTraceFile): ProjectService {
   // Созданные и изменённые проекты живут до перезагрузки страницы: фикстуры не меняются.
   let store: ReadonlyMap<string, StoredProject> = new Map(
@@ -94,7 +140,7 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
       return [dto.id ?? '', { dto, local }] as const
     }),
   )
-  let jobs: ReadonlyMap<string, { readonly projectId: ProjectId; readonly runId: string; readonly polls: number }> = new Map()
+  let jobs: ReadonlyMap<string, { readonly runId: string; readonly log: readonly string[]; readonly polls: number }> = new Map()
 
   const put = (id: string, next: StoredProject) => { store = new Map([...store, [id, next]]) }
   const find = (id: string): StoredProject => {
@@ -113,6 +159,10 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
     if (!evaluation) throw new NotFoundError('Подбор для этого проекта ещё не рассчитан')
     return evaluation
   }
+  const matchingOf = (stored: StoredProject): MatchingEvaluation => ({
+    ...toMatchingEvaluation(evaluationOf(stored), CALC_DEFAULTS_BY_PROCESS[stored.dto.task?.id ?? ''] ?? null),
+    stale: stored.local.inputs.stale.matching,
+  })
   /** Ошибки — отказом промиса, как у настоящего запроса. */
   const attempt = <T>(action: () => T): Promise<T> => {
     try {
@@ -150,6 +200,20 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
       return toDomain(find(id))
     }),
 
+    getParamsSnapshot: (id) => attempt(() => paramsSnapshot(find(id).dto)),
+
+    selectProcess: (id, locationProcessId) => attempt(() => {
+      const stored = editable(id)
+      if (stored.dto.task?.id === locationProcessId) return toDomain(stored)
+      const entry = processesOf(stored.dto.locationId ?? '').find((p) => p.locationProcess.id === locationProcessId)
+      if (!entry) throw new NotFoundError(`Процесс ${locationProcessId} не относится к локации проекта`)
+      const at = now()
+      const name = entry.locationProcess.name ?? entry.process.name
+      // Подбор, прогон и итог считались для прежнего процесса — черновик начинается заново с «Параметров» (D-94).
+      put(id, { dto: { ...stored.dto, task: { id: locationProcessId, name }, updatedAt: at }, local: { ...stored.local, step: 'params', inputs: emptyInputs(at) } })
+      return toDomain(find(id))
+    }),
+
     openStep: (id, step) => attempt(() => {
       const stored = find(id)
       const project = toDomain(stored)
@@ -158,18 +222,23 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
       return toDomain(find(id))
     }),
 
-    getMatching: (id) => attempt(() => {
-      const stored = find(id)
-      return { ...toMatchingEvaluation(evaluationOf(stored)), stale: stored.local.inputs.stale.matching }
+    getMatching: (id) => attempt(() => matchingOf(find(id))),
+
+    evaluateMatching: (id) => attempt(() => {
+      const stored = editable(id)
+      evaluationOf(stored)
+      // Мок не пересчитывает: числа рейтинга из фикстуры, снимается только пометка «устарело» (api-contract.md, №11).
+      const at = now()
+      put(id, { dto: { ...stored.dto, updatedAt: at }, local: { ...stored.local, inputs: markFresh(stored.local.inputs, 'matching', at) } })
+      return matchingOf(find(id))
     }),
 
-    startSimulation: async (id) => {
-      const stored = editable(id)
+    startSimulation: async (id, request) => {
+      editable(id)
       const runs = await loadRuns()
-      const fleet = stored.local.inputs.simulation?.fleet
-      const run = fleet ? runForFleet(runs, fleet.robots, fleet.stations) : runForFleet(runs, -1, -1)
+      const run = runForFleet(runs, request.fleet.robots, request.fleet.stations)
       const jobId = `JOB-${String(jobs.size + 1)}`
-      jobs = new Map([...jobs, [jobId, { projectId: id, runId: run.simulation_id, polls: 0 }]])
+      jobs = new Map([...jobs, [jobId, { runId: run.simulation_id, log: runLog(run, request.fleet), polls: 0 }]])
       return respond(toSimulationJob({ job_id: jobId, status: 'queued', log: [], elapsed: 0 }), options)
     },
 
@@ -178,18 +247,12 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
       if (!job) throw new NotFoundError(`Задание ${jobId} не найдено`)
       const polls = job.polls + 1
       jobs = new Map([...jobs, [jobId, { ...job, polls }]])
-      const done = polls > RUN_LOG.length
-      if (done) {
-        const stored = find(job.projectId)
-        const at = now()
-        const inputs = applyInputsPatch(stored.local.inputs, { simulation: { runId: job.runId } }, at)
-        put(job.projectId, { ...stored, local: { ...stored.local, inputs: markFresh(inputs, 'simulation', at) } })
-      }
+      const done = polls > job.log.length
       return toSimulationJob({
         job_id: jobId,
         status: done ? 'done' : 'running',
-        log: RUN_LOG.slice(0, Math.min(polls, RUN_LOG.length)),
-        elapsed: polls * 3,
+        log: job.log.slice(0, Math.min(polls, job.log.length)),
+        elapsed: polls,
         ...(done ? { simulation_ids: [job.runId] } : {}),
       })
     }),
@@ -211,11 +274,19 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
       const stored = find(id)
       const selection = stored.local.inputs.matching?.selection
       if (!selection) throw new NotFoundError('Итог появится, когда на подборе выбран вариант')
-      return toEconomics(evaluationOf(stored), selection.solutionId, {
-        sensitivity: SENSITIVITY_LP01_RAAS,
-        conditions: CONDITIONS_LP01_RAAS,
-        operationsPerDay: OPERATIONS_PER_DAY_LP01,
-      })
+      return toEconomics(evaluationOf(stored), selection.solutionId, { conditions: CONDITIONS_LP01, operationsPerDay: OPERATIONS_PER_DAY_LP01 })
+    }),
+
+    requestQuote: (id) => attempt(() => {
+      // Запрос КП не меняет оценку — доступен и черновику, и сохранённой (D-106).
+      const stored = find(id)
+      const { inputs } = stored.local
+      const selection = inputs.matching?.selection
+      if (!selection) throw new ConflictError('Запросить КП можно, когда на подборе выбран вариант')
+      const at = now()
+      const economics = { scenario: inputs.economics?.scenario ?? selection.acquisition, quoteRequestedAt: at }
+      put(id, { ...stored, local: { ...stored.local, inputs: { ...inputs, economics } } })
+      return toDomain(find(id))
     }),
 
     save: (id) => attempt(() => {
@@ -224,12 +295,18 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
       const selection = inputs.matching?.selection
       if (!selection) throw new ConflictError('Сохранить можно, когда на подборе выбран вариант')
       const scenarioModel = inputs.economics?.scenario ?? selection.acquisition
-      const economics = toEconomics(evaluationOf(stored), selection.solutionId, { sensitivity: [], conditions: [], operationsPerDay: OPERATIONS_PER_DAY_LP01 })
+      const economics = toEconomics(evaluationOf(stored), selection.solutionId, { conditions: [], operationsPerDay: OPERATIONS_PER_DAY_LP01 })
       const scenario = economics.scenarios.find((s) => s.acquisition === scenarioModel)
       if (!scenario || scenario.paybackYears === null) throw new ConflictError('У выбранного сценария нет окупаемости — сохранить нельзя')
       const at = now()
+      // Сохранённая оценка — проект пользователя: демо-проект уходит в «Готовые оценки» A1 (D-81, D-106).
+      const resultId = evaluationOf(stored).candidates?.flatMap((c) => c.results ?? [])
+        .find((r) => r.solutionId === selection.solutionId && r.acquisitionModel === scenarioModel)?.id
+      const dtoSelection = stored.dto.selection
+        ? { ...stored.dto.selection, acquisitionModel: scenarioModel, ...(resultId ? { calcResultId: resultId } : {}) }
+        : stored.dto.selection
       put(id, {
-        dto: { ...stored.dto, status: 'saved', savedAt: at, updatedAt: at, task: stored.dto.task ?? {} },
+        dto: { ...stored.dto, status: 'saved', savedAt: at, updatedAt: at, task: stored.dto.task ?? {}, isDemo: false, ...(dtoSelection ? { selection: dtoSelection } : {}) },
         local: {
           ...stored.local,
           step: 'economics',

@@ -117,6 +117,35 @@ function checks(rows: readonly HourlyRow[], b: Behaviour): SimulationSchemas['Ch
   return { ok: list.every((c) => c.ok), checks: list, throughput, layout_flag: b.blockedShare > 0.1, blocked_share: b.blockedShare }
 }
 
+/** Доли состояний внутри «работы», «зарядки», «ремонта» и «ожидания» — синтетические, как у движка (engine.STATES). */
+const WORK_SPLIT = { to_pickup: 0.34, loading: 0.12, to_drop: 0.4, unloading: 0.14 } as const
+const BLOCKED_SPLIT = { blocked: 0.8, queue: 0.2 } as const
+const CHARGE_SPLIT = { to_charger: 0.15, charging: 0.85 } as const
+const DOWN_SPLIT = { down: 0.9, towed: 0.1 } as const
+
+/**
+ * Время парка по состояниям движка (kpis.fleet_shares, simcore.metrics._fleet_kpis): робото-часы почасовых рядов,
+ * работа делится на рейс и погрузку, из неё же — ожидание проезда (blocked_share). Сумма долей — 1.
+ */
+function fleetShares(rows: readonly HourlyRow[], b: Behaviour): Record<string, number> {
+  const sum = (pick: (r: HourlyRow) => number) => rows.reduce((total, r) => total + pick(r), 0)
+  const work = sum((r) => r.work)
+  const charge = sum((r) => r.charge)
+  const down = sum((r) => r.down)
+  const total = work + charge + sum((r) => r.wait_charger) + down + sum((r) => r.idle)
+  const blocked = Math.min(work, b.blockedShare * total)
+  const part = (split: Readonly<Record<string, number>>, hours: number) =>
+    Object.fromEntries(Object.entries(split).map(([state, k]) => [state, round((k * hours) / total, 4)]))
+  return {
+    idle: round(sum((r) => r.idle) / total, 4),
+    ...part(WORK_SPLIT, work - blocked),
+    ...part(BLOCKED_SPLIT, blocked),
+    ...part(CHARGE_SPLIT, charge),
+    wait_charger: round(sum((r) => r.wait_charger) / total, 4),
+    ...part(DOWN_SPLIT, down),
+  }
+}
+
 function kpis(rows: readonly HourlyRow[], b: Behaviour, onTimeWorst: number): SimulationSchemas['Kpis'] {
   const chk = checks(rows, b)
   const peak = peakRows(rows)
@@ -129,7 +158,7 @@ function kpis(rows: readonly HourlyRow[], b: Behaviour, onTimeWorst: number): Si
     queue_peak: b.chargerQueueAtPeak,
     depleted: 0,
     throughput: chk.throughput,
-    fleet_shares: {},
+    fleet_shares: fleetShares(rows, b),
     completion: chk.checks[2]?.value ?? 1,
     blocked_share: b.blockedShare,
     breakdowns: 1,
@@ -237,7 +266,7 @@ function buildRun(s: Scenario, demand: readonly number[], seed: number): Run {
     kpis_before: {
       on_time: kBefore.on_time, on_time_min: kBefore.on_time_min, util_peak: kBefore.util_peak, util_day: kBefore.util_day,
       charge_peak: kBefore.charge_peak, queue_peak: kBefore.queue_peak, depleted: kBefore.depleted,
-      throughput: kBefore.throughput, fleet_shares: {},
+      throughput: kBefore.throughput, fleet_shares: kBefore.fleet_shares,
     },
     hourly_before: before,
     hourly_after: after,

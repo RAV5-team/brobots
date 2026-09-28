@@ -36,7 +36,7 @@ afterEach(() => { sessionStorage.clear() })
 describe('ProjectStepPage — каркас шага проекта', () => {
   it('открывает шаг демо-проекта: заголовок шага, крошки с локацией, степпер', async () => {
     renderAt('/projects/PJ-DEMO/matching?as=user')
-    expect(await screen.findByRole('heading', { level: 1, name: 'Подбор решения' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Подбор решения под процесс' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'РЦ Химки' })).toHaveAttribute('href', '/locations/LOC-01')
     expect(screen.getByRole('navigation', { name: 'Шаги проекта' })).toBeInTheDocument()
     expect(document.title).toBe('Подбор решения · Демо-проект · РЦ Химки · RAV5')

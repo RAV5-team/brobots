@@ -30,3 +30,17 @@ test('замороженные часы не идут сами: кадр опр�
   await expect(firstFrame).toBeVisible()
   expect(consoleErrors).toEqual([])
 })
+
+test('отчёт 09 печатается в PDF: A4, колонтитул и разрыв перед каждым разделом (D-107)', async ({ page, consoleErrors }) => {
+  await openAs(page, '/projects/PJ-DEMO/report', 'user')
+  await page.getByRole('heading', { name: '12. Приложения' }).waitFor()
+  await page.emulateMedia({ media: 'print' })
+  await expect(page.getByRole('navigation', { name: 'Действия с отчётом' })).toBeHidden()
+  const breaks = await page.locator('article section[aria-labelledby^="report-"]').evaluateAll((sections) =>
+    sections.map((s) => getComputedStyle(s).breakBefore))
+  expect(breaks).toEqual(['auto', ...Array.from({ length: 11 }, () => 'page')])
+  const pdf = await page.pdf({ format: 'A4', printBackground: true, preferCSSPageSize: true })
+  const pages = (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) ?? []).length
+  expect(pages).toBeGreaterThanOrEqual(12)
+  expect(consoleErrors).toEqual([])
+})

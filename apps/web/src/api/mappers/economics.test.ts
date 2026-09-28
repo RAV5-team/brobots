@@ -4,7 +4,7 @@ import { EVALUATION_LP01 } from '@/mocks/fixtures/projectMatching'
 import { toEconomics } from './economics'
 
 const M = 1_000_000
-const EXTRAS = { sensitivity: [], conditions: [], operationsPerDay: 2000 }
+const EXTRAS = { conditions: [], operationsPerDay: 2000 }
 
 describe('toEconomics — итог из расчёта подбора (PRD 11.5)', () => {
   const economics = toEconomics(EVALUATION_LP01, 'RB-0008', EXTRAS)
@@ -13,6 +13,13 @@ describe('toEconomics — итог из расчёта подбора (PRD 11.5)
   it('сценарии выбранного решения: покупка и RaaS с числами PRD', () => {
     expect(scenario('raas')).toMatchObject({ robots: 18, stations: 6, capexRub: 6.1 * M, raasMonthlyRub: 825_000, opexRubPerYear: 42 * M, annualEffectRub: 9.2 * M, paybackYears: 0.7, roi: 6.54 })
     expect(scenario('purchase')).toMatchObject({ capexRub: 47.4 * M, raasMonthlyRub: null, opexRubPerYear: 34.5 * M, annualEffectRub: 16.7 * M, paybackYears: 2.8, tcoRub: 219.9 * M })
+  })
+
+  it('решение, место в рейтинге и рекомендация: RaaS — место 1 из 8, покупка — 4', () => {
+    expect(economics).toMatchObject({ solutionName: 'AMR 800', manufacturer: 'ООО «Морос»', rankedTotal: 8, recommended: 'raas' })
+    expect(scenario('raas')?.rank).toBe(1)
+    expect(scenario('purchase')?.rank).toBe(4)
+    expect(scenario('purchase')?.capexItems.map((i) => i.code)).toContain('capex.equipment')
   })
 
   it('база — текущий процесс из details: OPEX 51,2, TCO 256,0 млн ₽', () => {

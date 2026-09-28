@@ -1,4 +1,4 @@
-import type { AcquisitionModel } from './projectInputs'
+import type { AcquisitionModel, CalcParams } from './projectInputs'
 
 /** Откуда условие отбора: задача (процесс локации), формула, правка в проекте, правило подбора. */
 export type MatchConditionSource = 'task' | 'formula' | 'project' | 'rule'
@@ -61,9 +61,23 @@ export interface RankedVariant {
   readonly roi: number | null
   readonly tcoRub: number | null
   readonly criteria: readonly ScoreContribution[]
+  /** Цикл рейса, с; null — расчёт не отдал (панель «Как рассчитано», 03a). */
+  readonly cycleTimeS: number | null
+  /** Загрузка парка, доля 0–1. */
+  readonly fleetUtilization: number | null
+  /** Статьи CAPEX и OPEX в год — из чего сложились итоги; пусто — расчёт не отдал разложение. */
+  readonly capexItems: readonly CostItem[]
+  readonly opexItems: readonly CostItem[]
   /** Подписи-флаги строки: «Чистый эффект отрицательный», «Статус поставки не подтверждён». */
   readonly warnings: readonly string[]
   readonly checks: readonly SolutionCheck[]
+}
+
+/** Статья затрат расчёта: «Зарядная инфраструктура · 3,1 млн ₽». */
+export interface CostItem {
+  readonly code: string
+  readonly label: string
+  readonly amountRub: number
 }
 
 /** Решение, не прошедшее жёсткие фильтры, с причинами (PRD 11.3). */
@@ -97,4 +111,14 @@ export interface MatchingEvaluation {
   readonly recommended: { readonly solutionId: string; readonly acquisition: AcquisitionModel } | null
   readonly horizonYears: number
   readonly modelVersion: string
+  /** Текущий процесс без роботов — база «Сравнить с текущим процессом» (PRD 11.3); null — не посчитан. */
+  readonly baseline: MatchBaseline | null
+  /** Исходные значения «Параметров расчёта» (PRD 11.3): пустое поле панели — это значение; null — сервис не прислал. */
+  readonly calcDefaults: CalcParams | null
+}
+
+/** Текущий процесс: расходы в год и TCO за горизонт расчёта. */
+export interface MatchBaseline {
+  readonly opexRubPerYear: number
+  readonly tcoRub: number | null
 }

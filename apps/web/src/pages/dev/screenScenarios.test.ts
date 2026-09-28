@@ -21,4 +21,11 @@ describe('сценарии /dev/screens: вердикты симуляции', (
     expect(project.inputs.stale.simulation).toBe(false)
     expect((await services.projects.getSimulationRun('SIM-0926-03')).verdict).toBe('need_more')
   })
+
+  it('07a — «можно уменьшить» на вкладке графиков', async () => {
+    const scenario = SCREEN_SCENARIOS['proto-07a']
+    if (!scenario) throw new Error('нет сценария')
+    expect(SCREENS.some((s) => s.id === 'proto-07a')).toBe(true)
+    expect((await scenario(createMockServices({ latencyMs: 0 }))).to).toBe('/projects/PJ-DEMO/simulation?stage=verdict&tab=charts')
+  })
 })

@@ -1,6 +1,7 @@
 import type { DataVersion, ProjectStep } from '@/domain'
 import type { PluralForms } from '@/shared/format'
 import { project } from './project'
+import { report } from './report'
 import { robotNew } from './robotNew'
 
 /**
@@ -868,6 +869,7 @@ export const ru = {
   /** Экран А1а «Каталог · загрузка»: опрос источников по запросу (PRD 6.2). */
   robotNew,
   project,
+  report,
 
   /** Статус значения характеристики (D-76): плашка в строке характеристики К-4, серые ячейки К-3. */
   characteristicStatus: { confirmed: 'подтверждено', estimate: 'оценка', missing: 'нет данных' },
@@ -1347,6 +1349,13 @@ export const ru = {
     exact: 'точное значение',
     task: 'из задачи',
     default: 'по умолчанию',
+    /** Статусы значений шага 1 проекта (PRD 11.2). */
+    file: 'из файла',
+    specified: 'указано',
+    location: 'из локации',
+    computed: 'рассчитано',
+    preliminary: 'предварительно',
+    missing: 'нет данных',
   },
 
   entities: {
@@ -1455,6 +1464,11 @@ export const ru = {
 
   plural: {
     robots: ['робот', 'робота', 'роботов'],
+    /** Родительный падеж: «экономия 1 робота», «докупка 3 роботов». */
+    robotsOf: ['робота', 'роботов', 'роботов'],
+    stations: ['станция', 'станции', 'станций'],
+    /** Родительный падеж: «и 1 станции», «и 5 станций». */
+    stationsOf: ['станции', 'станций', 'станций'],
     /** Родительный падеж после «из»: «из 1 решения», «из 20 решений». */
     solutionsOf: ['решения', 'решений', 'решений'],
     processes: ['процесс', 'процесса', 'процессов'],
@@ -1472,6 +1486,11 @@ export const ru = {
     employees: ['сотрудник', 'сотрудника', 'сотрудников'],
     shifts: ['смена', 'смены', 'смен'],
     assumptions: ['допущение', 'допущения', 'допущений'],
+    criteria: ['критерий', 'критерия', 'критериев'],
+    /** Родительный падеж после «по»: «по 8 критериям». */
+    criteriaBy: ['критерию', 'критериям', 'критериям'],
+    rates: ['ставка', 'ставки', 'ставок'],
+    items: ['пункт', 'пункта', 'пунктов'],
   } satisfies Record<string, PluralForms>,
 
   ui: {
@@ -1555,13 +1574,6 @@ export const ru = {
       result: (fps: string, p95: string, long: number, frames: number) => `${fps} кадров/с · p95 кадра ${p95} мс · длинных кадров ${String(long)} из ${String(frames)}`,
       passed: 'критерий выполнен',
       failed: 'критерий не выполнен — нужен Canvas 2D',
-      groups: {
-        work: 'в работе: везёт или едет за паллетой',
-        waiting: 'ждёт проезд или станцию',
-        charging: 'зарядка',
-        down: 'отказ',
-        idle: 'свободен',
-      },
     },
     variant: 'Вариант',
     states: {

@@ -18,10 +18,10 @@ export interface PlaybackClock {
 
 /**
  * Общие часы плееров: время двигает requestAnimationFrame — секунда реального времени × скорость.
- * На конце записи часы останавливаются.
+ * На конце записи часы останавливаются. `initial` — стартовая точка на паузе (07a — начало первого пикового часа).
  */
-export function usePlaybackClock(duration: number): PlaybackClock {
-  const [t, setT] = useState(0)
+export function usePlaybackClock(duration: number, initial = 0): PlaybackClock {
+  const [t, setT] = useState(() => Math.min(duration, Math.max(0, initial)))
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState<PlaybackSpeed>(PLAYBACK_SPEEDS[0])
 

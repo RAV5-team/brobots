@@ -5,7 +5,10 @@ const LOCALE = 'ru-RU'
  * Расчёты идут на неокруглённых значениях. Сдвиг через экспоненту убирает двоичную погрешность (1.005 → 1.01).
  */
 export function roundHalfUp(value: number, digits = 0): number {
-  const shifted = Math.round(Number(`${String(Math.abs(value))}e${String(digits)}`))
+  const text = String(Math.abs(value))
+  // Очень малые и очень большие числа JS пишет с экспонентой («1e-15»): сдвиг строкой их ломает, а погрешности у них нет.
+  if (text.includes('e')) return Math.sign(value) * Math.round(Math.abs(value) * 10 ** digits) / 10 ** digits
+  const shifted = Math.round(Number(`${text}e${String(digits)}`))
   return Math.sign(value) * Number(`${String(shifted)}e-${String(digits)}`)
 }
 

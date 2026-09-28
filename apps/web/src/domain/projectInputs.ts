@@ -51,14 +51,19 @@ export const SIMULATION_STAGES: readonly SimulationStage[] = ['scope', 'conditio
 /** Люди и погрузчики в проездах (этап 2). */
 export type TrafficLevel = 'rare' | 'sometimes' | 'often' | 'very_often'
 
+/** Пиковые часы 0–23 приёмки и отгрузки: по умолчанию совпадают, как в расчёте (PRD 11.4, D-102). */
+export interface PeakHours {
+  readonly inbound: readonly number[]
+  readonly outbound: readonly number[]
+}
+
 /** Условия симуляции, изменённые на этапе 2; пустое поле — из задачи или по умолчанию (PRD 11.4). */
 export interface SimulationConditions {
   readonly firstShiftStartHour: number
   readonly shiftsPerDay: number
   readonly shiftHours: number
   readonly peakFactor: number
-  /** Часы 0–23, отмеченные пиковыми. */
-  readonly peakHours: readonly number[]
+  readonly peakHours: PeakHours
   readonly inboundPalletsPerDay: number
   readonly outboundPalletsPerDay: number
   /** Доля 0–1, которую робот не возьмёт (негабарит). */
@@ -71,6 +76,12 @@ export interface SimulationConditions {
   readonly traffic: TrafficLevel
   readonly fastMoversAtGates: boolean
   readonly repairHours: number
+  /** Допущения расчёта — только для прогона, процесс в профиле не меняется. */
+  readonly routeLengthM: number
+  /** Доля 0–1 времени операторов на задачу. */
+  readonly operatorTimeShare: number
+  /** Коэффициент замещения труда, 0–1. */
+  readonly laborReplacementRatio: number
   /** Доля 0–1 допуска расхождения с расчётом. */
   readonly tolerance: number
   readonly fleetPolicy: 'add_only' | 'add_and_reduce'
@@ -103,6 +114,8 @@ export interface SimulationInputs {
 export interface EconomicsInputs {
   /** Меняется только кнопкой «Выбрать этот сценарий» (PRD 11.5). */
   readonly scenario: AcquisitionModel
+  /** Когда запрошено коммерческое предложение (08b, D-106); нет — не запрашивали. */
+  readonly quoteRequestedAt?: IsoDateTime
 }
 
 /** Что устарело после правок (D-89): подбор — пересчитать, прогон — повторить. */

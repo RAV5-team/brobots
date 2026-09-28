@@ -1,10 +1,9 @@
-import type { ConditionRow, EconomicsResult, ScenarioEconomics, SensitivityRow } from '@/domain'
+import type { ConditionRow, EconomicsResult, ScenarioEconomics } from '@/domain'
 import { ContractError, optional, required, type ApiSchemas } from '../contract'
 import { toMatchingEvaluation } from './matching'
 
-/** Блоки итога, которых нет в Evaluation: устойчивость, реестр условий, объём операций процесса. */
+/** Блоки итога, которых нет в Evaluation: реестр условий и объём операций процесса. */
 export interface EconomicsExtras {
-  readonly sensitivity: readonly SensitivityRow[]
   readonly conditions: readonly ConditionRow[]
   readonly operationsPerDay: number
 }
@@ -15,10 +14,11 @@ export interface EconomicsExtras {
  */
 export function toEconomics(dto: ApiSchemas['Evaluation'], solutionId: string, extras: EconomicsExtras): EconomicsResult {
   const evaluation = toMatchingEvaluation(dto)
-  const scenarios: ScenarioEconomics[] = evaluation.variants
-    .filter((v) => v.solutionId === solutionId)
+  const variants = evaluation.variants.filter((v) => v.solutionId === solutionId)
+  const scenarios: ScenarioEconomics[] = variants
     .map((v) => ({
       acquisition: v.acquisition,
+      rank: v.rank,
       robots: v.robots,
       stations: v.stations,
       capexRub: v.capexRub,
@@ -29,19 +29,27 @@ export function toEconomics(dto: ApiSchemas['Evaluation'], solutionId: string, e
       paybackYears: v.paybackYears,
       roi: v.roi,
       tcoRub: v.tcoRub,
+      capexItems: v.capexItems,
+      opexItems: v.opexItems,
     }))
-  if (scenarios.length === 0) throw new ContractError(`Evaluation: в расчёте нет решения ${solutionId}`)
+  const first = variants[0]
+  if (!first) throw new ContractError(`Evaluation: в расчёте нет решения ${solutionId}`)
 
   const details = dto.candidates
     ?.flatMap((c) => c.results ?? [])
     .find((r) => r.solutionId === solutionId)?.details
   const baseline = required(details ?? {}, 'baselineOpexYearRub', 'CalcResult.details')
+  const recommended = evaluation.recommended
   return {
+    solutionId,
+    solutionName: first.solutionName,
+    manufacturer: first.manufacturer,
     horizonYears: evaluation.horizonYears,
+    rankedTotal: evaluation.variants.filter((v) => v.rank !== null).length,
+    recommended: recommended?.solutionId === solutionId ? recommended.acquisition : null,
     operationsPerDay: extras.operationsPerDay,
     current: { opexRubPerYear: baseline, tcoRub: optional(details?.baselineTcoRub) },
     scenarios,
-    sensitivity: extras.sensitivity,
     conditions: extras.conditions,
   }
 }

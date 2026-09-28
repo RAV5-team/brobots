@@ -4,9 +4,11 @@ import { useId, type ReactNode } from 'react'
 
 /**
  * outline — светлая плашка с границей, галочка у заголовка («status · локация создана», 12а, 15950:2251);
- * inverse — тёмная плашка с лаймовым кругом ✓ («status · каталог обновлён», А3, 15966:6274).
+ * inverse — тёмная плашка с лаймовым кругом ✓ («status · каталог обновлён», А3, 15966:6274);
+ * danger — предупреждение без иконки на `danger-bg` («warning» отчёта 09, 16197:2325): дисклеймер ТЗ 3.7.5.
+ * Не статус операции, а постоянная пометка — объявляется как `note`, а не `status`.
  */
-export type StatusBannerVariant = 'outline' | 'inverse'
+export type StatusBannerVariant = 'outline' | 'inverse' | 'danger'
 
 interface StatusBannerProps {
   /** «Локация „РЦ Химки“ создана», «Каталог обновлён» — без «✓»: галочка рисуется иконкой (D-03). */
@@ -36,6 +38,16 @@ function InverseBanner({ title, action, className }: Omit<StatusBannerProps, 'va
   )
 }
 
+function DangerBanner({ title, description, className }: Omit<StatusBannerProps, 'variant' | 'action'>) {
+  const titleId = useId()
+  return (
+    <section role="note" aria-labelledby={titleId} className={clsx('flex flex-col gap-4 rounded-md bg-danger-bg px-20 py-16', className)}>
+      <p id={titleId} className="type-body-sm font-semibold text-danger">{title}</p>
+      {description && <p className="type-caption text-danger">{description}</p>}
+    </section>
+  )
+}
+
 /**
  * Плашка успеха над списком после сохранения (components.md: StatusBanner; 15950:2251, 15966:6274).
  * Объявляется скринридером как статус.
@@ -43,6 +55,7 @@ function InverseBanner({ title, action, className }: Omit<StatusBannerProps, 'va
 export function StatusBanner({ title, description, action, variant = 'outline', className }: StatusBannerProps) {
   const titleId = useId()
   if (variant === 'inverse') return <InverseBanner title={title} action={action} {...(className ? { className } : {})} />
+  if (variant === 'danger') return <DangerBanner title={title} {...(description ? { description } : {})} {...(className ? { className } : {})} />
   return (
     <section
       role="status"

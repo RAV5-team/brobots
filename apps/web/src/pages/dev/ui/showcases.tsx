@@ -7,7 +7,7 @@ import { CardShowcase, ProgressShowcase, SectionHeaderShowcase, TableShowcase } 
 import { DropzoneShowcase, FileInputShowcase, ModalShowcase, StatesShowcase } from './step5Showcases'
 import { CharacteristicRowShowcase, ChipListShowcase, CompareTableShowcase, MultiSelectShowcase, RadioTableShowcase } from './step7Showcases'
 import { FormulaStatsShowcase, SectionNavShowcase, StatusBannerShowcase, TabNavShowcase, TextLinkShowcase } from './step6Showcases'
-import { FieldGridShowcase, NumberStepperShowcase, StepperShowcase } from './step8Showcases'
+import { FieldGridShowcase, HourGridShowcase, NumberStepperShowcase, StepperShowcase } from './step8Showcases'
 import { ChartsShowcase } from './chartShowcases'
 
 export interface Showcase {
@@ -51,5 +51,6 @@ export const SHOWCASES: readonly Showcase[] = [
   { slug: 'stepper', title: 'Stepper', Component: StepperShowcase },
   { slug: 'number-stepper', title: 'NumberStepper', Component: NumberStepperShowcase },
   { slug: 'field-grid', title: 'FieldGrid', Component: FieldGridShowcase },
+  { slug: 'hour-grid', title: 'HourGrid', Component: HourGridShowcase },
   { slug: 'charts', title: 'Charts', Component: ChartsShowcase },
 ]

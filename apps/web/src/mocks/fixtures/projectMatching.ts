@@ -2,6 +2,7 @@
 // Форма — ответ GET /api/v1/projects/{id}/evaluation (api.yaml, схема Evaluation). Правится вручную.
 // ROI, TCO и станций у вариантов 2–8 в PRD нет — поля не заданы (экран покажет «—»). Отступления — README.md.
 import type { ApiSchemas } from '@/api/contract'
+import type { CalcParams } from '@/domain'
 
 type CalcResult = ApiSchemas['CalcResult']
 type Candidate = ApiSchemas['EvaluatedCandidate']
@@ -118,7 +119,7 @@ export const EVALUATION_LP01: ApiSchemas['Evaluation'] = {
   conditions: [
     { code: 'work_type', label: 'Класс операции', text: 'OP-01 · Перемещение грузов', source: 'task', applicable: true },
     { code: 'handling', label: 'Способ обработки груза', list: ['вилы', 'платформа'], source: 'task', applicable: true },
-    { code: 'payload', label: 'Грузоподъёмность', number: 800, unit: 'кг', source: 'task', note: 'не меньше', applicable: true },
+    { code: 'payload', label: 'Грузоподъёмность', number: 800, unit: 'кг', source: 'task', note: 'средняя масса паллеты', applicable: true },
     { code: 'aisle_width', label: 'Ширина робота', number: 2.5, unit: 'м', source: 'formula', note: 'проход 3,0 м − запас 0,5 м', applicable: true },
     { code: 'environment', label: 'Среда', text: 'в помещении, +5…+25 °C', source: 'task', applicable: true },
     { code: 'price', label: 'Цена', text: 'есть в каталоге или файле цен', source: 'rule', applicable: true },
@@ -158,3 +159,19 @@ export const EVALUATION_LP01: ApiSchemas['Evaluation'] = {
 
 /** Расчёты подбора по процессам локаций. Есть только у РЦ Химки · перемещение паллет — сквозной пример PRD 11. */
 export const EVALUATIONS_BY_PROCESS: Readonly<Record<string, ApiSchemas['Evaluation']>> = { 'LP-01': EVALUATION_LP01 }
+
+/**
+ * Исходные «Параметры расчёта» подбора LP-01 (PRD 11.3, таблица панели). В API их нет (api-contract.md, №11).
+ * Цена единицы 2 244 тыс. ₽ — из расчёта подбора, в каталоге 1 800 тыс. (PRD 15 · №107).
+ */
+export const CALC_DEFAULTS_LP01: CalcParams = {
+  staffCostRubPerMonth: 120_000,
+  workHoursPerDay: 22,
+  robotTripsPerHour: 8.6,
+  robotPriceRub: 2_244_000,
+  serviceCostRubPerYear: 1.8 * M,
+  utilization: 0.75,
+  horizonYears: HORIZON,
+}
+
+export const CALC_DEFAULTS_BY_PROCESS: Readonly<Record<string, CalcParams>> = { 'LP-01': CALC_DEFAULTS_LP01 }

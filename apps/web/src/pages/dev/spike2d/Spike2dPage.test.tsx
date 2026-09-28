@@ -30,7 +30,7 @@ describe('Spike2dPage — /dev/spike-2d', () => {
   it('перемотка меняет время обоих плееров; «Пуск» переключается на «Пауза»', async () => {
     renderPage()
     const slider = await screen.findByRole('slider', { name: 'Время дня' }, LOAD)
-    fireEvent.change(slider, { target: { value: '3600' } })
+    fireEvent.keyDown(slider, { key: 'End' })
     expect(screen.getByText('08:00')).toBeInTheDocument()
     expect(slider).toHaveAttribute('aria-valuetext', '08:00')
     fireEvent.click(screen.getByRole('button', { name: 'Пуск' }))

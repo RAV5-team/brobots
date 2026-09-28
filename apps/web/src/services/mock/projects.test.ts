@@ -50,18 +50,37 @@ describe('мок проектов', () => {
     await expect(projects.getMatching('PJ-04')).rejects.toBeInstanceOf(NotFoundError)
   })
 
-  it('прогон: состав 15/6 даёт «нужно докупить», готовое задание записывает прогон в проект', async () => {
+  it('пересчёт подбора снимает «устарело», выбор сохраняется; исходные параметры и база — в ответе', async () => {
     const projects = service()
-    await projects.updateInputs('PJ-DEMO', { simulation: { fleet: { robots: 15, stations: 6 } } })
-    const job = await projects.startSimulation('PJ-DEMO')
-    expect(job.status).toBe('queued')
+    await projects.updateInputs('PJ-DEMO', { matching: { calcParams: { utilization: 0.7 } } })
+    const fresh = await projects.evaluateMatching('PJ-DEMO')
+    expect(fresh.stale).toBe(false)
+    expect(fresh.calcDefaults).toMatchObject({ workHoursPerDay: 22, utilization: 0.75, horizonYears: 5 })
+    expect(fresh.baseline).toEqual({ opexRubPerYear: 51_200_000, tcoRub: 256_000_000 })
+    const project = await projects.getProject('PJ-DEMO')
+    expect(project.inputs.stale.matching).toBe(false)
+    expect(project.inputs.matching?.selection).toEqual({ solutionId: 'RB-0008', acquisition: 'raas' })
+    await expect(projects.evaluateMatching('PJ-01')).rejects.toBeInstanceOf(ConflictError)
+  })
+
+  it('прогон: состав 15/6 из запроса даёт «нужно докупить»; журнал растёт на строку за опрос, проект задание не меняет', async () => {
+    const projects = service()
+    const job = await projects.startSimulation('PJ-DEMO', { fleet: { robots: 15, stations: 6 }, conditions: {} })
+    expect(job).toMatchObject({ status: 'queued', log: [], elapsedS: 0 })
+    const first = await projects.getSimulationJob(job.id)
+    expect(first).toMatchObject({ status: 'running', elapsedS: 1, runId: null })
+    expect(first.log).toHaveLength(1)
     const done = await finish(projects, job.id)
     expect(done.log.length).toBeGreaterThan(2)
+    expect(done.log[1]).toContain('роботов 15, станций 6')
     const run = await projects.getSimulationRun(done.runId ?? '')
     expect(run).toMatchObject({ verdict: 'need_more', from: { robots: 15, stations: 6 }, to: { robots: 18, stations: 6 } })
-    const project = await projects.getProject('PJ-DEMO')
-    expect(project.inputs.simulation?.runId).toBe(run.id)
-    expect(project.inputs.stale.simulation).toBe(false)
+    // Прогон в черновик записывает SimulationRunService — у гостя он не сохраняется (D-14).
+    expect((await projects.getProject('PJ-DEMO')).inputs.simulation?.runId).toBe('SIM-0926-01')
+  })
+
+  it('прогон сохранённой оценки не запускается (D-17)', async () => {
+    await expect(service().startSimulation('PJ-01', { fleet: { robots: 18, stations: 6 }, conditions: {} })).rejects.toBeInstanceOf(ConflictError)
   })
 
   it('2D-трассы: прогон с изменённым составом — две (из подбора и итоговая), без изменений — одна', async () => {
@@ -98,5 +117,51 @@ describe('мок проектов', () => {
     expect(saved).toMatchObject({ status: 'saved', result: { capexRub: 47_400_000, opexRubPerYear: 34_500_000, paybackYears: 2.8, annualEffectRub: 16_700_000 } })
     await expect(projects.save('PJ-DEMO')).rejects.toBeInstanceOf(ConflictError)
     await expect(projects.save('PJ-02')).rejects.toBeInstanceOf(ConflictError)
+  })
+
+  it('сохранённый демо-проект уходит в список A1 с теми же числами, что на итоге (D-81)', async () => {
+    const projects = service()
+    const economics = await projects.getEconomics('PJ-DEMO')
+    const raas = economics.scenarios.find((s) => s.acquisition === 'raas')
+    await projects.save('PJ-DEMO')
+    const listed = (await projects.listProjects()).find((p) => p.id === 'PJ-DEMO')
+    expect(listed).toMatchObject({ status: 'saved', result: { capexRub: raas?.capexRub, opexRubPerYear: raas?.opexRubPerYear, paybackYears: raas?.paybackYears, annualEffectRub: raas?.annualEffectRub } })
+  })
+
+  it('снимки сохранённых оценок PJ-01 и PJ-06 совпадают с числами итога выбранного сценария', async () => {
+    const projects = service()
+    for (const id of ['PJ-01', 'PJ-06'] as const) {
+      const project = await projects.getProject(id)
+      const economics = await projects.getEconomics(id)
+      const chosen = economics.scenarios.find((s) => s.acquisition === project.inputs.economics?.scenario)
+      if (project.status !== 'saved' || !chosen) throw new Error(`${id}: нет снимка или сценария`)
+      expect(project.result).toEqual({ capexRub: chosen.capexRub, opexRubPerYear: chosen.opexRubPerYear, paybackYears: chosen.paybackYears, annualEffectRub: chosen.annualEffectRub })
+    }
+  })
+
+  it('запрос КП: отметка времени и у черновика, и у сохранённой оценки; без выбора — отказ (D-106)', async () => {
+    const projects = service()
+    const draft = (await projects.requestQuote('PJ-DEMO')).inputs.economics
+    expect(draft?.scenario).toBe('raas')
+    expect(typeof draft?.quoteRequestedAt).toBe('string')
+    expect(typeof (await projects.requestQuote('PJ-01')).inputs.economics?.quoteRequestedAt).toBe('string')
+    await expect(projects.requestQuote('PJ-02')).rejects.toBeInstanceOf(ConflictError)
+  })
+  it('снимок шага 1: профиль локации, пять процессов РЦ Химки, 25 параметров площадки, решение из каталога (PRD 11.2)', async () => {
+    const snapshot = await service().getParamsSnapshot('PJ-DEMO')
+    expect(snapshot.location.id).toBe('LOC-01')
+    expect(snapshot.processes.map((p) => p.locationProcess.id)).toEqual(['LP-01', 'LP-02', 'LP-03', 'LP-04', 'LP-05'])
+    expect(snapshot.siteParameters).toHaveLength(25)
+    expect(snapshot.pinnedSolution).toEqual({ id: 'RB-0008', name: 'AMR 800' })
+    expect((await service().getParamsSnapshot('PJ-07')).pinnedSolution).toBeNull()
+  })
+
+  it('смена процесса: решения следующих шагов сбрасываются, черновик — на «Параметрах» (D-94); сохранённая оценка — отказ', async () => {
+    const projects = service()
+    const project = await projects.selectProcess('PJ-DEMO', 'LP-03')
+    expect(project).toMatchObject({ status: 'draft', step: 'params', locationProcessId: 'LP-03' })
+    expect(project.inputs).toMatchObject({ matching: null, simulation: null, economics: null, params: { assumptions: [] } })
+    await expect(projects.selectProcess('PJ-DEMO', 'LP-09')).rejects.toBeInstanceOf(NotFoundError)
+    await expect(projects.selectProcess('PJ-01', 'LP-02')).rejects.toBeInstanceOf(ConflictError)
   })
 })

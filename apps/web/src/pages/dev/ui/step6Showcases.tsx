@@ -74,6 +74,8 @@ export function StatusBannerShowcase() {
         {/* inverse — А3 «каталог обновлён» (15966:6274). */}
         <StatusBanner variant="inverse" title={a.title} action={<Button variant="accent" className="h-40 px-20">{a.open}</Button>} />
         <StatusBanner variant="inverse" title={a.title} />
+        {/* danger — дисклеймер отчёта 09 (16197:2325, ТЗ 3.7.5). */}
+        <StatusBanner variant="danger" title={ru.project.economics.footer.disclaimer} />
       </div>
     </ShowcaseSection>
   )

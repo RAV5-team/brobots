@@ -7,10 +7,30 @@ import { useServices } from '@/services/useServices'
 import { formatNumber } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { frameStats, recordFrames, type FrameStats } from './frameStats'
-import { TracePlayer } from './TracePlayer'
-import { PLAYBACK_SPEEDS, usePlaybackClock, type PlaybackSpeed } from './usePlaybackClock'
+import { ROBOT_GROUPS, groupOf } from '@/components/charts/robotGroups'
+import { SimPlayer2D } from '@/components/charts/SimPlayer2D'
+import { PLAYBACK_SPEEDS, usePlaybackClock, type PlaybackSpeed } from '@/components/charts/usePlaybackClock'
+import { Slider } from '@/components/ui/Slider'
 
 const t = ru.dev.spike2d
+const zones = ru.project.simulation.player.zones
+const groups = ru.project.simulation.player.groups
+
+/** Сводка спайка: роботы кадра по группам состояний. */
+function StateCounts({ byState }: { readonly byState: Readonly<Record<string, number>> }) {
+  return (
+    <dl className="flex flex-col">
+      {ROBOT_GROUPS.map((g) => (
+        <div key={g} className="flex items-center justify-between gap-8 py-2 type-caption">
+          <dt className="text-text-secondary">{groups[g]}</dt>
+          <dd className="font-semibold text-text tabular-nums">
+            {Object.entries(byState).filter(([state]) => groupOf(state) === g).reduce((sum, [, n]) => sum + n, 0)}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
 /** Прогон «можно уменьшить»: две трассы — из подбора 18/6 и рекомендация 16/5. */
 const RUN_ID = 'SIM-0926-02'
 const MEASURE_MS = 10_000
@@ -101,19 +121,26 @@ function Players({ traces }: { readonly traces: readonly SimulationTrace[] }) {
         />
         <Button variant="primary" disabled={measuring} onClick={() => { void measure() }}>{measuring ? t.measuring : t.measure}</Button>
       </div>
-      <input
-        type="range"
-        aria-label={t.timeline}
-        aria-valuetext={clockLabel(traces[0], clock.t)}
+      <Slider
+        label={t.timeline}
+        valueText={clockLabel(traces[0], clock.t)}
         min={0}
         max={duration}
         step={traces[0]?.stepS ?? 1}
         value={clock.t}
-        onChange={(e) => { clock.seek(Number(e.target.value)) }}
-        className="w-full accent-inverse"
+        onValueChange={clock.seek}
       />
       <div className="flex gap-24">
-        {traces.map((trace) => <TracePlayer key={trace.name} trace={trace} t={clock.t} />)}
+        {traces.map((trace) => (
+          <SimPlayer2D
+            key={trace.name}
+            trace={trace}
+            t={clock.t}
+            title={trace.name}
+            zones={{ inbound: zones.inbound, outbound: zones.outbound, chargers: zones.chargers(trace.chargers) }}
+            renderStats={(byState) => <StateCounts byState={byState} />}
+          />
+        ))}
       </div>
       <output data-testid="spike-result" className="type-body text-text">
         {stats && `${t.result(formatNumber(stats.fps, 1), formatNumber(stats.p95FrameMs, 1), stats.longFrames, stats.frames)} — ${stats.fps >= MIN_FPS ? t.passed : t.failed}`}

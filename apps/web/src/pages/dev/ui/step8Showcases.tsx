@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { toSimulationRun } from '@/api/mappers/simulation'
 import { Badge } from '@/components/ui/Badge'
 import { Field } from '@/components/ui/Field'
+import { HourGrid } from '@/components/ui/HourGrid'
+import { hourText } from '@/components/ui/hourText'
 import { FieldGrid } from '@/components/ui/FormSection'
 import { Input } from '@/components/ui/Input'
 import { NumberStepper } from '@/components/ui/NumberStepper'
@@ -64,7 +66,7 @@ function DemoFleet({ state, withPlan }: { readonly state: DemoState; readonly wi
         min={1}
         max={60}
         onChange={setRobots}
-        {...(withPlan ? { previous: p.simulation.fleet.previous(18) } : { description: p.simulation.fleet.perStation(3) })}
+        {...(withPlan ? { previous: p.simulation.fleet.previous(18) } : { description: p.simulation.fleet.perStation('3') })}
         {...(withPlan && delta !== 0 ? { delta: formatNumber(delta, 0, { signed: true }) } : {})}
         {...stateProps(state)}
       />
@@ -105,6 +107,40 @@ export function FieldGridShowcase() {
           ))}
         </FieldGrid>
       ))}
+    </ShowcaseSection>
+  )
+}
+
+const HOURS_FROM_SHIFT = Array.from({ length: 24 }, (_, i) => (7 + i) % 24)
+const OFF_SHIFT = [5, 6]
+
+function DemoHourGrid({ label, disabled, showHourLabels }: { readonly label: string; readonly disabled: boolean; readonly showHourLabels: boolean }) {
+  const [selected, setSelected] = useState<readonly number[]>([7, 8, 9, 10, 17, 18, 19])
+  const peaks = p.simulation.conditions.peaks
+  return (
+    <HourGrid
+      label={label}
+      hours={HOURS_FROM_SHIFT}
+      selected={selected}
+      disabledHours={OFF_SHIFT}
+      hourLabel={(h) => peaks.hour(hourText(h), hourText((h + 1) % 24), label)}
+      showHourLabels={showHourLabels}
+      disabled={disabled}
+      onChange={setSelected}
+    />
+  )
+}
+
+/** Сетка часов «Пиковые часы» 05 (16197:1541): несколько отметок, часы вне смен пунктиром, стрелки двигают фокус. */
+export function HourGridShowcase() {
+  const peaks = p.simulation.conditions.peaks
+  return (
+    <ShowcaseSection title="HourGrid">
+      <div className="flex flex-col gap-8">
+        <DemoHourGrid label={peaks.inbound} disabled={false} showHourLabels={false} />
+        <DemoHourGrid label={peaks.outbound} disabled={false} showHourLabels />
+      </div>
+      <DemoHourGrid label={peaks.inbound} disabled showHourLabels />
     </ShowcaseSection>
   )
 }

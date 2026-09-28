@@ -1,6 +1,9 @@
 import type {
   AcquisitionModel,
+  CalcParams,
+  CostItem,
   ExcludedSolution,
+  MatchBaseline,
   MatchCondition,
   MatchingEvaluation,
   RankedVariant,
@@ -52,6 +55,14 @@ function toCriterion(dto: ApiSchemas['ScoreCriterion']): ScoreContribution {
   }
 }
 
+function toCostItem(dto: ApiSchemas['CostItem']): CostItem {
+  return {
+    code: required(dto, 'code', 'CostItem'),
+    label: required(dto, 'label', 'CostItem'),
+    amountRub: required(dto, 'amountRub', 'CostItem'),
+  }
+}
+
 function raasMonthly(dto: CalcResult, acquisition: AcquisitionModel): number | null {
   if (acquisition !== 'raas') return null
   const fee = dto.details?.opexItems?.find((item) => item.code === RAAS_FEE_ITEM)?.amountRub
@@ -81,6 +92,10 @@ function toVariant(candidate: EvaluatedCandidate, dto: CalcResult, status: Varia
     roi: optional(dto.roi),
     tcoRub: optional(dto.tcoRub),
     criteria: (dto.details?.scoreCriteria ?? []).map(toCriterion),
+    cycleTimeS: optional(dto.details?.cycleTimeS),
+    fleetUtilization: optional(dto.details?.fleetUtilization),
+    capexItems: (dto.details?.capexItems ?? []).map(toCostItem),
+    opexItems: (dto.details?.opexItems ?? []).map(toCostItem),
     warnings: dto.warnings ?? [],
     checks: (candidate.match?.checks ?? []).map(toCheck),
   }
@@ -96,10 +111,20 @@ function toExcluded(candidate: EvaluatedCandidate): ExcludedSolution {
   }
 }
 
+/** База сравнения — у всех результатов одна (текущий процесс); берём первую, где она есть. */
+function toBaseline(results: readonly CalcResult[]): MatchBaseline | null {
+  const details = results.map((r) => r.details).find((d) => d?.baselineOpexYearRub != null)
+  if (details?.baselineOpexYearRub == null) return null
+  return { opexRubPerYear: details.baselineOpexYearRub, tcoRub: optional(details.baselineTcoRub) }
+}
+
 const byRank = (a: RankedVariant, b: RankedVariant): number => (a.rank ?? Infinity) - (b.rank ?? Infinity)
 
-/** Расчёт подбора API (Evaluation) → подбор экрана: рейтинг вариантов, исключённые, условия. */
-export function toMatchingEvaluation(dto: ApiSchemas['Evaluation']): MatchingEvaluation {
+/**
+ * Расчёт подбора API (Evaluation) → подбор экрана: рейтинг вариантов, исключённые, условия.
+ * Исходных «Параметров расчёта» в Evaluation нет (api-contract.md, №11) — их передаёт вызывающий.
+ */
+export function toMatchingEvaluation(dto: ApiSchemas['Evaluation'], calcDefaults: CalcParams | null = null): MatchingEvaluation {
   const entity = 'Evaluation'
   const candidates = required(dto, 'candidates', entity)
   const state = (c: EvaluatedCandidate) =>
@@ -130,5 +155,7 @@ export function toMatchingEvaluation(dto: ApiSchemas['Evaluation']): MatchingEva
       : null,
     horizonYears: required(dto, 'horizonYears', entity),
     modelVersion: required(dto, 'modelVersion', entity),
+    baseline: toBaseline(candidates.flatMap((c) => c.results ?? [])),
+    calcDefaults,
   }
 }

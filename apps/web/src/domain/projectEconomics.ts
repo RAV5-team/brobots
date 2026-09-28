@@ -1,8 +1,11 @@
 import type { AcquisitionModel } from './projectInputs'
+import type { CostItem } from './projectMatching'
 
 /** Экономика сценария (покупка или RaaS) выбранного решения — из результата расчёта подбора. */
 export interface ScenarioEconomics {
   readonly acquisition: AcquisitionModel
+  /** Место варианта в рейтинге подбора; null — вне рейтинга. */
+  readonly rank: number | null
   readonly robots: number
   /** null — расчёт станций не прислал. */
   readonly stations: number | null
@@ -18,21 +21,15 @@ export interface ScenarioEconomics {
   /** Доля: накопленный эффект за горизонт ÷ CAPEX; null — нет в расчёте. */
   readonly roi: number | null
   readonly tcoRub: number | null
+  /** Статьи CAPEX и OPEX в год; пусто — расчёт не отдал разложение. */
+  readonly capexItems: readonly CostItem[]
+  readonly opexItems: readonly CostItem[]
 }
 
 /** Текущий процесс без роботов — база сравнения сценариев. */
 export interface CurrentProcessEconomics {
   readonly opexRubPerYear: number
   readonly tcoRub: number | null
-}
-
-/** Строка «Устойчивость результата»: окупаемость при отклонении параметра на ±20 % (PRD 11.5). */
-export interface SensitivityRow {
-  readonly parameter: string
-  readonly base: string
-  readonly paybackYears: { readonly minus20: number; readonly plus20: number }
-  readonly tcoRub: { readonly minus20: number; readonly plus20: number } | null
-  readonly note: string | null
 }
 
 /** Статус условия в реестре итога (PRD 11.5). */
@@ -44,19 +41,28 @@ export interface ConditionRow {
   readonly value: string
   readonly status: ConditionStatus
   readonly source: string
-  readonly scenario: string
+  /** К какому сценарию относится: тариф — только RaaS; null — к обоим. */
+  readonly acquisition: AcquisitionModel | null
+  /** Без подтверждения вывод остаётся условным (PRD 11.5: пол, Wi-Fi, WMS). */
+  readonly blocksConclusion: boolean
   readonly impact: string
   readonly howToConfirm: string
 }
 
-/** Итог и экономика проекта: сценарии, база, устойчивость и реестр условий. */
+/** Итог и экономика проекта: сценарии выбранного решения, база и реестр условий. Устойчивость считается в домене. */
 export interface EconomicsResult {
+  readonly solutionId: string
+  readonly solutionName: string
+  readonly manufacturer: string
   readonly horizonYears: number
+  /** Вариантов в рейтинге подбора: «Место 1 из 8». */
+  readonly rankedTotal: number
+  /** Способ приобретения рекомендации системы, если она — это решение; иначе null. */
+  readonly recommended: AcquisitionModel | null
   /** Операций в сутки — для стоимости операции. */
   readonly operationsPerDay: number
   readonly current: CurrentProcessEconomics
   readonly scenarios: readonly ScenarioEconomics[]
-  readonly sensitivity: readonly SensitivityRow[]
   readonly conditions: readonly ConditionRow[]
 }
 

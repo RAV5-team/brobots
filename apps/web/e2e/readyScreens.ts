@@ -23,10 +23,33 @@ export const READY_ROUTES: readonly ReadyRoute[] = [
   { path: '/projects', roles: SIGNED_IN },
   // Шаги проекта (каркас, пункт 3): гостю открыты (D-14, D-82); сохранённая оценка — только просмотр (D-17).
   { path: '/projects/PJ-DEMO/params', roles: ALL },
+  // Шаг 1 с блокировкой подбора: инвентаризация без частоты пересчёта (PRD 11.2).
+  { path: '/projects/PJ-07/params', roles: ALL },
   { path: '/projects/PJ-DEMO/matching', roles: ALL },
+  // Шаг 2 у сохранённой оценки — только просмотр (D-17); у PJ-04 подбор не рассчитан.
+  { path: '/projects/PJ-01/matching', roles: SIGNED_IN },
   { path: '/projects/PJ-DEMO/simulation', roles: ALL },
+  // Этап 1 симуляции (04); у сохранённой оценки состав только для просмотра (D-17, D-101).
+  { path: '/projects/PJ-DEMO/simulation?stage=scope', roles: ALL },
+  { path: '/projects/PJ-01/simulation?stage=scope', roles: SIGNED_IN },
+  // Этап 2 симуляции (05): условия; у сохранённой оценки — только просмотр (D-17, D-102).
+  { path: '/projects/PJ-DEMO/simulation?stage=conditions', roles: ALL },
+  { path: '/projects/PJ-01/simulation?stage=conditions', roles: SIGNED_IN },
+  // Этап 3 симуляции (06): без прогона в сессии — последний прогон; у сохранённой оценки — только вердикт (D-103).
+  { path: '/projects/PJ-DEMO/simulation?stage=run', roles: ALL },
+  { path: '/projects/PJ-01/simulation?stage=run', roles: SIGNED_IN },
+  // Этап 4 симуляции (07): вердикт прогона; у сохранённой оценки план только для просмотра (D-104). Вкладка графиков — 07a.
+  { path: '/projects/PJ-01/simulation?stage=verdict', roles: SIGNED_IN },
+  { path: '/projects/PJ-01/simulation?stage=verdict&tab=charts', roles: SIGNED_IN },
+  // 07a: графики и 2D-плееры; трассы грузятся отдельными чанками, плеер стоит на паузе в первом пиковом часе (D-105).
+  { path: '/projects/PJ-DEMO/simulation?stage=verdict&tab=charts', roles: ALL },
+  // Итог и экономика (08): переключатель сценария — в адресе (08a); сохранённая оценка — только просмотр (D-17, D-106).
   { path: '/projects/PJ-DEMO/economics', roles: ALL },
+  { path: '/projects/PJ-DEMO/economics?scenario=purchase', roles: ALL },
   { path: '/projects/PJ-01/economics', roles: SIGNED_IN },
+  // Отчёт PDF (09): печатный лист без меню кабинета, 12 разделов PRD 11.6 (D-107).
+  { path: '/projects/PJ-DEMO/report', roles: ALL },
+  { path: '/projects/PJ-01/report', roles: SIGNED_IN },
   // Спайк 2D-плеера (D-87): служебная страница, трассы грузятся отдельными чанками.
   { path: '/dev/spike-2d', roles: ['user'] },
   { path: '/catalog', roles: ALL },
@@ -66,6 +89,20 @@ export interface VisualScreen {
 const openScenario = (title: string) => async (page: Page): Promise<void> => {
   await page.getByRole('button', { name: title, exact: true }).click()
   await page.waitForURL((url) => !url.pathname.startsWith('/dev/'))
+}
+
+const runSimulation = async (page: Page): Promise<void> => {
+  await page.getByRole('button', { name: 'Запустить симуляцию' }).click()
+  await page.getByRole('heading', { name: 'Прогон завершён' }).waitFor({ timeout: 15_000 })
+  // Строка сохранения появляется после перечитывания проекта — без неё кадр снимается раньше и прыгает.
+  await page.getByRole('status').filter({ hasText: /^(Черновик сохранён · \d{2}:\d{2}|Демо-режим: изменения не сохраняются)$/ }).waitFor()
+}
+
+/** 07a: 2D-трассы по 1,7 МБ грузятся отдельными чанками — в dev-сервере дольше стандартных 5 с. */
+const TRACES_TIMEOUT_MS = 30_000
+const withTraces = (prepare: (page: Page) => Promise<void>) => async (page: Page): Promise<void> => {
+  await prepare(page)
+  await page.locator('[data-robot]').first().waitFor({ timeout: TRACES_TIMEOUT_MS })
 }
 
 const click = (name: string | RegExp) => async (page: Page): Promise<void> => {
@@ -126,4 +163,35 @@ export const VISUAL_SCREENS: readonly VisualScreen[] = [
   { id: 'К-4', path: '/catalog/RB-0008', role: 'user' },
   { id: 'A1', path: '/projects', role: 'user' },
   { id: 'A2', path: '/projects?new=1', role: 'user' },
+  { id: '02', path: '/projects/PJ-DEMO/params', role: 'user' },
+  { id: '02-guest', path: '/projects/PJ-DEMO/params', role: 'guest' },
+  { id: '02-blocked', path: '/projects/PJ-07/params', role: 'user' },
+  { id: '03', path: '/projects/PJ-DEMO/matching', role: 'user' },
+  { id: '03-guest', path: '/projects/PJ-DEMO/matching', role: 'guest' },
+  { id: '04', path: '/projects/PJ-DEMO/simulation?stage=scope', role: 'user' },
+  { id: '04-guest', path: '/projects/PJ-DEMO/simulation?stage=scope', role: 'guest' },
+  // Номер 05 занят экраном входа чистовой серии — у экрана проекта суффикс «-sim».
+  { id: '05-sim', path: '/projects/PJ-DEMO/simulation?stage=conditions', role: 'user' },
+  { id: '05-sim-guest', path: '/projects/PJ-DEMO/simulation?stage=conditions', role: 'guest' },
+  // Эталон — конечное состояние прогона (D-103): мок завершает задание за пять опросов раз в секунду.
+  { id: '06-sim', path: '/projects/PJ-DEMO/simulation?stage=conditions', role: 'user', prepare: runSimulation },
+  { id: '06-sim-guest', path: '/projects/PJ-DEMO/simulation?stage=conditions', role: 'guest', prepare: runSimulation },
+  // Вердикты — сценарии /dev/screens (D-104): на макете «можно уменьшить», остальные — состояния по PRD 11.4.
+  { id: '07-can-reduce', path: '/dev/screens', role: 'user', prepare: openScenario('Симуляция · вердикт · можно уменьшить (демо-проект)') },
+  { id: '07-confirmed-guest', path: '/dev/screens', role: 'guest', prepare: openScenario('Симуляция · вердикт · подтверждено (демо-проект)') },
+  { id: '07b-need-more', path: '/dev/screens', role: 'user', prepare: openScenario('Симуляция · вердикт · нужно докупить (демо-проект)') },
+  { id: '07-layout', path: '/dev/screens', role: 'user', prepare: openScenario('Симуляция · вердикт · узкое место планировки (демо-проект)') },
+  { id: '07-unreachable', path: '/dev/screens', role: 'user', prepare: openScenario('Симуляция · вердикт · поток недостижим (демо-проект)') },
+  // Плеер на паузе в фиксированной точке — начале первого пикового часа (D-105): кадр не зависит от времени снимка.
+  { id: '07a', path: '/dev/screens', role: 'user', prepare: withTraces(openScenario('Симуляция · графики и 2D-сравнение · можно уменьшить (демо-проект)')) },
+  // Через /dev/screens: прямой адрес ждёт загрузку только 5 с, трассе нужно дольше.
+  // Итог и экономика: RaaS черновика, гость, сохранённая PJ-01; 08a и 08b — сценарии /dev/screens (D-106).
+  { id: '08', path: '/projects/PJ-DEMO/economics', role: 'user' },
+  { id: '08-guest', path: '/projects/PJ-DEMO/economics', role: 'guest' },
+  { id: '08-saved', path: '/projects/PJ-01/economics', role: 'user' },
+  { id: '08a', path: '/dev/screens', role: 'user', prepare: openScenario('Итог · выбран сценарий «покупка» (демо-проект)') },
+  { id: '08b', path: '/dev/screens', role: 'user', prepare: openScenario('Итог · КП запрошено (демо-проект)') },
+  // Отчёт 09: кадр 2D-схемы в разделе 9 ждёт трассы; «сформировано» — по замороженным часам (FIXED_NOW).
+  { id: '09', path: '/dev/screens', role: 'user', prepare: withTraces(async (page) => { await page.goto('/projects/PJ-DEMO/report?as=user') }) },
+  { id: '07a-confirmed-guest', path: '/dev/screens', role: 'guest', prepare: withTraces(async (page) => { await page.goto('/projects/PJ-DEMO/simulation?stage=verdict&tab=charts&as=guest') }) },
 ]

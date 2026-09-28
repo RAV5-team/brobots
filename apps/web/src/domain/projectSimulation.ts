@@ -1,4 +1,4 @@
-import type { Fleet } from './projectInputs'
+import type { Fleet, SimulationConditions } from './projectInputs'
 
 /**
  * Вердикт симуляции (PRD 11.4). В API симуляции — `confirmed | can_reduce | needs_additions | layout_bottleneck | not_achievable`.
@@ -37,6 +37,17 @@ export interface PeakThroughput {
   readonly servedPerHour: number
 }
 
+/** Итоги прогона одного состава: пик, срок в худший день, загрузка в пик. */
+export interface RunKpis {
+  readonly peak: PeakThroughput
+  /** Доля паллет в срок в худший смоделированный день 0–1. */
+  readonly onTimeWorstDay: number
+  /** Средняя загрузка парка в пиковые часы 0–1. */
+  readonly utilizationPeak: number
+  /** Доли времени парка по состояниям робота (в API — fleet_shares): «to_drop» → 0,19. Сумма — 1; пусто — нет данных. */
+  readonly fleetShares: Readonly<Record<string, number>>
+}
+
 /** Прогон симуляции (в API — SimulationRun). */
 export interface SimulationRun {
   readonly id: string
@@ -56,9 +67,22 @@ export interface SimulationRun {
   readonly onTimeWorstDay: number
   /** Средняя загрузка парка в пиковые часы 0–1. */
   readonly utilizationPeak: number
+  /** Доли времени итогового состава по состояниям робота (kpis.fleet_shares). */
+  readonly fleetShares: Readonly<Record<string, number>>
+  /** Итоги проверенного состава `from` (в API — kpis_before); выше — итогового `to`. */
+  readonly before: RunKpis
   readonly hourlyBefore: readonly HourlyStat[]
   readonly hourlyAfter: readonly HourlyStat[]
   readonly warnings: readonly string[]
+}
+
+/**
+ * Что уходит в прогон (`POST /api/simulations`): состав этапа 1 и условия этапа 2. Передаётся явно, а не берётся
+ * из сохранённого проекта: у гостя решения живут только на странице (D-14). Условий в API пока нет — api-contract.md, №13.
+ */
+export interface SimulationRequest {
+  readonly fleet: Fleet
+  readonly conditions: Partial<SimulationConditions>
 }
 
 /** Ход задания на прогон (этап 3). */

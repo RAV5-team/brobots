@@ -22,15 +22,14 @@ import { ProcessesPage } from '@/pages/processes/ProcessesPage'
 import { ProcessDetailPage } from '@/pages/processes/detail/ProcessDetailPage'
 import { ProcessNewPage } from '@/pages/processes/new/ProcessNewPage'
 import { ProjectsPage } from '@/pages/projects/ProjectsPage'
-import { ProjectStepPage } from '@/pages/projects/steps/ProjectStepPage'
 import { ScreenStub } from '@/pages/_stub/ScreenStub'
 import { ProjectResultRedirect } from './ProjectResultRedirect'
 import { RootLayout } from './RootLayout'
 import type { ProjectStep } from '@/domain'
 import { DEV_PATHS, LEGACY_PATHS, PROJECT_STEP_PATHS, ROUTE_PATHS, type RoutePath } from './routePaths'
 
-// Экран входа 05 живёт без меню; остальные разделы — внутри каркаса кабинета.
-const OUTSIDE_SHELL: readonly RoutePath[] = [ROUTE_PATHS.login]
+// Экран входа 05 и печатный отчёт 09 (D-15) живут без меню; остальные разделы — внутри каркаса кабинета.
+const OUTSIDE_SHELL: readonly RoutePath[] = [ROUTE_PATHS.login, ROUTE_PATHS.projectReport]
 // Готовые экраны; остальные маршруты пока отдают заглушку.
 const IMPLEMENTED: readonly RoutePath[] = [
   ROUTE_PATHS.dashboard, ROUTE_PATHS.projects, ROUTE_PATHS.catalog, ROUTE_PATHS.catalogCompare, ROUTE_PATHS.catalogItem, ROUTE_PATHS.processes, ROUTE_PATHS.processNew, ROUTE_PATHS.process,
@@ -39,9 +38,16 @@ const IMPLEMENTED: readonly RoutePath[] = [
   ...Object.values(PROJECT_STEP_PATHS),
 ]
 
-// Шаги проекта — один каркас (ProjectStepPage), шаг — по ProjectStep (D-22).
+// Шаги проекта — один каркас (ProjectStepPage), шаг — по ProjectStep (D-22). Грузятся по требованию:
+// шаги 02–08 тяжёлые и в JS первой загрузки не входят (бюджет 300 КБ).
 const projectStepRoutes: RouteObject[] = (Object.entries(PROJECT_STEP_PATHS) as [ProjectStep, RoutePath][])
-  .map(([step, path]) => ({ path, element: <ProjectStepPage key={step} step={step} /> }))
+  .map(([step, path]) => ({
+    path,
+    lazy: async () => {
+      const { ProjectStepPage } = await import('@/pages/projects/steps/ProjectStepPage')
+      return { element: <ProjectStepPage key={step} step={step} /> }
+    },
+  }))
 
 const stubRoute = (path: RoutePath): RouteObject => ({ path, element: <ScreenStub route={path} /> })
 
@@ -83,6 +89,8 @@ export const routes: RouteObject[] = [
         ],
       },
       { path: ROUTE_PATHS.login, element: <LoginPage /> },
+      // Отчёт 09 — лист для печати без меню кабинета (D-107); грузится по требованию, как шаги проекта.
+      { path: ROUTE_PATHS.projectReport, lazy: async () => ({ Component: (await import('@/pages/projects/report/ReportPage')).ReportPage }) },
       // Служебные страницы грузятся по требованию: в основной бандл кабинета они не входят (бюджет 300 КБ gzip).
       { path: DEV_PATHS.screens, lazy: async () => ({ Component: (await import('@/pages/dev/ScreensIndex')).ScreensIndex }) },
       { path: DEV_PATHS.tokens, lazy: async () => ({ Component: (await import('@/pages/dev/TokensShowcase')).TokensShowcase }) },

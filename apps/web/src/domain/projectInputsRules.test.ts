@@ -62,6 +62,23 @@ describe('applyInputsPatch (D-89)', () => {
     expect(next.stale.simulation).toBe(false)
   })
 
+  it('повторный прогон с тем же id тоже новый: запись прогона снимает пометку (D-103)', () => {
+    const stale = { ...walked, stale: { matching: false, simulation: true } }
+    const next = applyInputsPatch(stale, { simulation: { runId: 'SIM-1' } }, LATER)
+    expect(next.stale.simulation).toBe(false)
+  })
+
+  it('новый прогон сбрасывает план и принятый риск прежнего вердикта (D-104)', () => {
+    const decided = applyInputsPatch(walked, { simulation: { plan: { robots: 15, stations: 6 }, acceptRisk: true } }, LATER)
+    const next = applyInputsPatch(decided, { simulation: { runId: 'SIM-2', stage: 'verdict' } }, LATER)
+    expect(next.simulation).toMatchObject({ plan: null, acceptRisk: false, runId: 'SIM-2' })
+  })
+
+  it('прогон вместе с планом (сценарий /dev/screens) план не сбрасывает', () => {
+    const next = applyInputsPatch(walked, { simulation: { runId: 'SIM-2', plan: { robots: 16, stations: 5 } } }, LATER)
+    expect(next.simulation?.plan).toEqual({ robots: 16, stations: 5 })
+  })
+
   it('без прогона симуляция не помечается устаревшей', () => {
     const fresh = emptyInputs(AT)
     const next = applyInputsPatch(fresh, { params: { assumptions: [{ code: 'x', value: 1, kind: 'estimate' }] } }, LATER)

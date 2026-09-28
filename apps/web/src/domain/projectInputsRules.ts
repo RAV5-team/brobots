@@ -40,7 +40,7 @@ function changed<T extends object>(current: T | null, patch: Partial<T> | undefi
 /**
  * Применить правку решений и отметить, что устарело (D-89, proposed — в PRD правила нет):
  * допущения шага 1 и «Параметры расчёта» → подбор и прогон; другой вариант подбора → прогон, состав и план сбрасываются;
- * состав и условия симуляции → прогон; новый прогон снимает пометку. План вердикта, этап и сценарий итога ничего не делают устаревшим.
+ * состав и условия симуляции → прогон; новый прогон снимает пометку и сбрасывает план и риск прежнего вердикта. План вердикта, этап и сценарий итога ничего не делают устаревшим.
  */
 export function applyInputsPatch(inputs: ProjectInputs, patch: ProjectInputsPatch, at: IsoDateTime): ProjectInputs {
   const matchingInputsChanged = changed(inputs.params, patch.params, 'assumptions')
@@ -52,12 +52,16 @@ export function applyInputsPatch(inputs: ProjectInputs, patch: ProjectInputsPatc
   const matching = patch.matching ? { ...(inputs.matching ?? EMPTY_MATCHING), ...patch.matching } : inputs.matching
   const simulationBase = patch.simulation ? { ...(inputs.simulation ?? EMPTY_SIMULATION), ...patch.simulation } : inputs.simulation
   // Состав и план считались для прежнего варианта — после смены варианта их берут из нового подбора.
-  const simulation = selectionChanged && simulationBase ? { ...simulationBase, fleet: null, plan: null } : simulationBase
+  const selected = selectionChanged && simulationBase ? { ...simulationBase, fleet: null, plan: null } : simulationBase
+  // План и принятый риск — решения по прежнему вердикту: новый прогон подставляет свою рекомендацию (D-104).
+  const rerun = patch.simulation?.runId != null && !('plan' in patch.simulation)
+  const simulation = rerun && selected ? { ...selected, plan: null, acceptRisk: false } : selected
   const economics = patch.economics ? { ...(inputs.economics ?? DEFAULT_ECONOMICS), ...patch.economics } : inputs.economics
 
-  // Прогона не было — устаревать нечему; новый прогон сам снимает пометку.
+  // Прогона не было — устаревать нечему. Записать прогон — значит прогнать заново: пометку снимает и тот же id
+  // (прогон по тем же составу и условиям, мок отдаёт одну фикстуру; D-103).
   const hasRun = simulation?.runId != null
-  const newRun = changed(inputs.simulation, patch.simulation, 'runId') && hasRun
+  const newRun = patch.simulation?.runId != null
   return {
     params: patch.params ? { ...inputs.params, ...patch.params } : inputs.params,
     matching,
