@@ -43,6 +43,8 @@ export const ru = {
 
   shell: {
     mainNavigation: 'Основная навигация',
+    /** Имя боковой панели: на формах рядом есть вторая aside (правая панель), безымянные совпадают (landmark-unique). */
+    sidebar: 'Боковое меню',
     openCabinetMenu: 'Меню кабинета',
   },
 
@@ -1472,6 +1474,7 @@ export const ru = {
       /** Номер шага для чтения с экрана: «Шаг 1. Параметры, пройден». */
       stepPrefix: (n: number) => `Шаг ${String(n)}.`,
       done: ', пройден',
+      locked: ', недоступен',
     },
     numberStepper: {
       decrease: (label: string) => `Уменьшить: ${label}`,

@@ -41,6 +41,7 @@
     "react-router": "^7.18.4"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "1.63.0",
     "@tailwindcss/vite": "^4.3.3",

@@ -5,6 +5,7 @@ import { KpiCard } from './Card'
 import { FieldGrid } from './FormSection'
 import { FormulaStats } from './FormulaStats'
 import { RadioGroup } from './RadioGroup'
+import { RadioTable } from './RadioTable'
 import { Table, TableBody, TableCell, TableRow } from './Table'
 
 describe('Badge — одно перечисление происхождения значения', () => {
@@ -99,5 +100,57 @@ describe('TableCell — тон «нарушение»', () => {
     )
     expect(screen.getByText('97')).toHaveClass('bg-danger-bg', 'text-danger')
     expect(screen.getByText('84')).not.toHaveClass('bg-danger-bg')
+  })
+})
+
+describe('TableRow — подсветка при наведении', () => {
+  it('только у строки с действием: строка без onClick не выглядит кликабельной', () => {
+    render(
+      <Table caption="Проекты"><TableBody>
+        <TableRow><TableCell>Без действия</TableCell></TableRow>
+        <TableRow onClick={() => undefined}><TableCell>С действием</TableCell></TableRow>
+      </TableBody></Table>,
+    )
+    expect(screen.getByText('Без действия').closest('tr')?.className).not.toMatch(/hover:/)
+    expect(screen.getByText('С действием').closest('tr')).toHaveClass('cursor-pointer', 'hover:bg-surface-muted')
+  })
+})
+
+describe('RadioGroup — недоступный вариант списка', () => {
+  const OPTIONS = [{ value: 'file', label: 'Файл' }, { value: 'url', label: 'Ссылка', disabled: true }] as const
+
+  it('полупрозрачен и не выбирается', () => {
+    const onChange = vi.fn()
+    render(<RadioGroup label="Источник" options={OPTIONS} onChange={onChange} />)
+    const url = screen.getByRole('radio', { name: 'Ссылка' })
+    expect(url).toBeDisabled()
+    expect(url.parentElement).toHaveClass('opacity-(--rav-disabled-opacity)')
+    fireEvent.click(url)
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('в выключенной группе прозрачность не удваивается', () => {
+    render(<RadioGroup label="Источник" options={OPTIONS} disabled />)
+    expect(screen.getByRole('radio', { name: 'Ссылка' }).parentElement).not.toHaveClass('opacity-(--rav-disabled-opacity)')
+  })
+})
+
+describe('RadioTable — недоступная строка', () => {
+  it('выключена, полупрозрачна и не выбирается щелчком', () => {
+    const onChange = vi.fn()
+    render(
+      <RadioTable
+        label="Локация"
+        columns={[{ key: 'name', label: 'Название' }]}
+        rows={[{ value: 'LOC-01', label: 'Химки', cells: ['Химки'] }, { value: 'LOC-02', label: 'Подольск', cells: ['Подольск'], disabled: true }]}
+        value={null}
+        onChange={onChange}
+      />,
+    )
+    const row = screen.getByRole('radio', { name: 'Подольск' })
+    expect(row).toBeDisabled()
+    expect(row).toHaveClass('data-disabled:opacity-(--rav-disabled-opacity)')
+    fireEvent.click(row)
+    expect(onChange).not.toHaveBeenCalled()
   })
 })
