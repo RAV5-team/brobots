@@ -36,17 +36,24 @@ function field<T>(obj: Record<string, unknown>, key: string, check: (v: unknown)
 
 const isArray = (value: unknown): value is readonly unknown[] => Array.isArray(value)
 const isString = (value: unknown): value is string => typeof value === 'string'
+type Position = readonly [number, number, number]
+type Slot = readonly [number, number]
+const isPosition = (value: unknown): value is Position => Array.isArray(value) && value.length === 3 && value.every(isNumber)
+const isSlot = (value: unknown): value is Slot => Array.isArray(value) && value.length === 2 && value.every(isNumber)
+const isPositions = (value: unknown): value is readonly Position[] => Array.isArray(value) && value.every(isPosition)
+const isSlots = (value: unknown): value is readonly Slot[] => Array.isArray(value) && value.every(isSlot)
 
-/** Трасса сервиса → модель плеера. Проверяет формат: число роботов в каждом кадре, узлы и рёбра схемы. */
+/** Трасса сервиса → модель плеера. Проверяет формат: позиции и число роботов в каждом кадре, узлы и рёбра схемы. */
 export function toSimulationTrace(dto: unknown): SimulationTrace {
   if (!isObject(dto)) throw new ContractError(`${ENTITY}: ответ не объект`)
   const robots = field(dto, 'n_robots', isNumber)
   const layout = field(dto, 'layout', isObject)
   const nodes = field(layout, 'nodes', isArray, `${ENTITY}.layout`).map((node) => {
     if (!isObject(node)) throw new ContractError(`${ENTITY}.layout: узел не объект`)
-    const type = field(node, 'type', isString, `${ENTITY}.layout.node`)
-    if (!(NODE_TYPES as readonly string[]).includes(type)) throw new ContractError(`${ENTITY}.layout: тип узла «${type}» неизвестен`)
-    return { id: field(node, 'id', isString), x: field(node, 'x', isNumber), y: field(node, 'y', isNumber), type: type as TraceNode['type'] }
+    const raw = field(node, 'type', isString, `${ENTITY}.layout.node`)
+    const type = NODE_TYPES.find((known) => known === raw)
+    if (type === undefined) throw new ContractError(`${ENTITY}.layout: тип узла «${raw}» неизвестен`)
+    return { id: field(node, 'id', isString), x: field(node, 'x', isNumber), y: field(node, 'y', isNumber), type }
   })
   const edges = field(layout, 'edges', isArray, `${ENTITY}.layout`).map((edge) => {
     if (!isObject(edge)) throw new ContractError(`${ENTITY}.layout: ребро не объект`)
@@ -54,11 +61,11 @@ export function toSimulationTrace(dto: unknown): SimulationTrace {
   })
   const frames = field(dto, 'frames', isArray).map((frame, i) => {
     if (!isObject(frame)) throw new ContractError(`${ENTITY}: кадр ${String(i)} не объект`)
-    const positions = field(frame, 'r', isArray)
+    const positions = field(frame, 'r', isPositions, `${ENTITY}.frames[${String(i)}]`)
     if (positions.length !== robots) {
       throw new ContractError(`${ENTITY}: в кадре ${String(i)} роботов ${String(positions.length)}, ожидалось ${String(robots)}`)
     }
-    return { t: field(frame, 't', isNumber), robots: positions as readonly (readonly [number, number, number])[] }
+    return { t: field(frame, 't', isNumber), robots: positions }
   })
   return {
     name: field(dto, 'name', isString),
@@ -70,7 +77,7 @@ export function toSimulationTrace(dto: unknown): SimulationTrace {
     layout: {
       nodes,
       edges,
-      chargerSlots: field(layout, 'charger_slots', isArray, `${ENTITY}.layout`) as readonly (readonly [number, number])[],
+      chargerSlots: field(layout, 'charger_slots', isSlots, `${ENTITY}.layout`),
       width: field(layout, 'width', isNumber, `${ENTITY}.layout`),
       depth: field(layout, 'depth', isNumber, `${ENTITY}.layout`),
     },

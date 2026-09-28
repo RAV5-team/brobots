@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { LocationId } from '@/domain'
-import { NotFoundError } from '@/services/errors'
+import { NotFoundError, requireId } from '@/services/errors'
 import type { Services } from '@/services'
 import { useServices } from '@/services/useServices'
 import type { LocationDetailData } from './locationDetailModel'
@@ -12,7 +12,8 @@ export type LocationDetailState =
   | ({ readonly status: 'ready' } & LocationDetailData)
 
 /** Локация, затем справочники, процессы площадки и проекты параллельно. */
-async function loadLocationDetail(services: Services, id: LocationId): Promise<LocationDetailData> {
+async function loadLocationDetail(services: Services, locationId: LocationId | null): Promise<LocationDetailData> {
+  const id = requireId(locationId, 'location')
   const location = await services.locations.getLocation(id)
   const [summaries, facilityTypes, processes, locationProcesses, operationClasses, robotsByClass, projects, parameters] =
     await Promise.all([
@@ -40,7 +41,7 @@ async function loadLocationDetail(services: Services, id: LocationId): Promise<L
 }
 
 /** Данные экрана 15: ошибка любого запроса — экран ошибки с «Повторить», неизвестный id — «не найдена» (D-07). */
-export function useLocationDetail(id: LocationId): {
+export function useLocationDetail(id: LocationId | null): {
   readonly state: LocationDetailState
   readonly retry: () => void
   /** Перечитать данные без скелетона — после изменения процессов площадки (окно 15а). */

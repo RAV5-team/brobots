@@ -7,7 +7,7 @@ import type { ProcessFilter } from './processesModel'
 
 const t = ru.processes
 /** Radix Select не принимает пустое значение опции: «все» — отдельная опция, после выбора снова видна подпись фильтра. */
-const ALL = 'all'
+const ALL = 'all' as const
 
 interface ProcessFiltersProps {
   readonly filter: ProcessFilter
@@ -22,11 +22,11 @@ interface ProcessFiltersProps {
 
 /** Поиск, главное действие и два фильтра (PRD 9.1, 10.4). */
 export function ProcessFilters({ filter, onChange, operationClasses, facilityTypes, action, layout = 'stacked' }: ProcessFiltersProps) {
-  const classOptions: readonly SelectOption<string>[] = [
+  const classOptions: readonly SelectOption<OperationClassCode | typeof ALL>[] = [
     { value: ALL, label: t.allClasses },
     ...operationClasses.map((c) => ({ value: c.code, label: t.classOption(c.code, c.name) })),
   ]
-  const facilityOptions: readonly SelectOption<string>[] = [
+  const facilityOptions: readonly SelectOption<FacilityTypeCode | typeof ALL>[] = [
     { value: ALL, label: t.allFacilities },
     ...facilityTypes.map((f) => ({ value: f.code, label: f.name })),
   ]
@@ -44,7 +44,7 @@ export function ProcessFilters({ filter, onChange, operationClasses, facilityTyp
         placeholder={t.filterClass}
         options={classOptions}
         value={filter.operationClass ?? ''}
-        onChange={(v) => { onChange({ ...filter, operationClass: v === ALL ? null : (v as OperationClassCode) }) }}
+        onChange={(v) => { onChange({ ...filter, operationClass: v === ALL ? null : v }) }}
       />
       <Select
         variant="filter"
@@ -52,7 +52,7 @@ export function ProcessFilters({ filter, onChange, operationClasses, facilityTyp
         placeholder={t.filterFacility}
         options={facilityOptions}
         value={filter.facilityType ?? ''}
-        onChange={(v) => { onChange({ ...filter, facilityType: v === ALL ? null : (v as FacilityTypeCode) }) }}
+        onChange={(v) => { onChange({ ...filter, facilityType: v === ALL ? null : v }) }}
       />
     </div>
   )

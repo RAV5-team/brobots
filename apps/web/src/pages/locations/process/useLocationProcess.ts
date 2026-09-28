@@ -4,7 +4,7 @@ import type {
   OperationClassCode, Process, ProcessTemplateDefaults,
 } from '@/domain'
 import type { Services } from '@/services'
-import { NotFoundError } from '@/services/errors'
+import { NotFoundError, requireId } from '@/services/errors'
 import { useServices } from '@/services/useServices'
 
 export interface LocationProcessData {
@@ -30,7 +30,13 @@ export type LocationProcessState =
   | ({ readonly status: 'ready' } & LocationProcessData)
 
 /** Локация, затем процессы площадки и справочники параллельно; чужой или неизвестный процесс — «не найден». */
-async function loadLocationProcess(services: Services, locationId: LocationId, id: LocationProcessId): Promise<LocationProcessData> {
+async function loadLocationProcess(
+  services: Services,
+  rawLocationId: LocationId | null,
+  rawId: LocationProcessId | null,
+): Promise<LocationProcessData> {
+  const locationId = requireId(rawLocationId, 'location')
+  const id = requireId(rawId, 'locationProcess')
   const location = await services.locations.getLocation(locationId)
   const [locationProcesses, processes, operationClasses, handlingMethods, facilityTypes, robotsByClass, parameters, templateDefaults] = await Promise.all([
     services.locations.listLocationProcesses(locationId),
@@ -49,7 +55,7 @@ async function loadLocationProcess(services: Services, locationId: LocationId, i
 }
 
 /** Данные экрана 16: ошибка любого запроса — экран ошибки с «Повторить» (D-07). */
-export function useLocationProcess(locationId: LocationId, id: LocationProcessId): {
+export function useLocationProcess(locationId: LocationId | null, id: LocationProcessId | null): {
   readonly state: LocationProcessState
   readonly retry: () => void
 } {

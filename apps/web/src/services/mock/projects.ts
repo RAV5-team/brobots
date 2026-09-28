@@ -101,6 +101,17 @@ function nextId(ids: readonly string[]): ProjectId {
 
 const now = (): string => new Date().toISOString()
 
+/** Статус после создания черновика и сохранения оценки известен заранее — проверяем его, а не приводим тип. */
+function asDraft(project: Project): DraftProject {
+  if (project.status !== 'draft') throw new Error(`Проект ${project.id}: ожидался черновик, статус «${project.status}»`)
+  return project
+}
+
+function asSaved(project: Project): SavedProject {
+  if (project.status !== 'saved') throw new Error(`Проект ${project.id}: ожидалась сохранённая оценка, статус «${project.status}»`)
+  return project
+}
+
 type RunDto = SimulationSchemas['SimulationRun']
 
 /** Прогоны симуляции грузятся при первом обращении: в основной бандл кабинета они не входят. */
@@ -207,7 +218,7 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
         ...(solutionId ? { pinnedSolutionId: solutionId } : {}),
       }
       put(id, { dto, local: { step: 'params', inputs: emptyInputs(at), result: null } })
-      return toDomain(find(id)) as DraftProject
+      return asDraft(toDomain(find(id)))
     }),
 
     updateInputs: (id, patch) => attempt(() => {
@@ -330,7 +341,7 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
           result: { capexRub: scenario.capexRub, opexRubPerYear: scenario.opexRubPerYear, paybackYears: scenario.paybackYears, annualEffectRub: scenario.annualEffectRub },
         },
       })
-      return toDomain(find(id)) as SavedProject
+      return asSaved(toDomain(find(id)))
     }),
   }
 }

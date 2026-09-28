@@ -2,7 +2,7 @@ import { Pause, Play, RotateCcw } from 'lucide-react'
 import { ChartLegend } from '@/components/charts/ChartLegend'
 import { groupOf, robotLegend } from '@/components/charts/robotGroups'
 import { SimPlayer2D } from '@/components/charts/SimPlayer2D'
-import { PLAYBACK_SPEEDS, usePlaybackClock, type PlaybackSpeed } from '@/components/charts/usePlaybackClock'
+import { PLAYBACK_SPEEDS, usePlaybackClock } from '@/components/charts/usePlaybackClock'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Chip } from '@/components/ui/Chip'
@@ -76,7 +76,10 @@ function Players({ run, pairs }: { readonly run: SimulationRun; readonly pairs: 
           label={t.speed}
           fit="content"
           value={String(clock.speed)}
-          onChange={(v) => { clock.setSpeed(Number(v) as PlaybackSpeed) }}
+          onChange={(v) => {
+            const speed = PLAYBACK_SPEEDS.find((x) => String(x) === v)
+            if (speed !== undefined) clock.setSpeed(speed)
+          }}
           options={PLAYBACK_SPEEDS.map((x) => ({ value: String(x), label: t.speedOption(x) }))}
         />
       </div>

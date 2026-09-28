@@ -12,6 +12,10 @@ export type * from './dataSource'
 export { canAutoRefresh, DATA_SOURCE_REFRESH_PERIODS } from './dataSource'
 export type * from './facility'
 export type * from './handling'
+export { HANDLING_METHOD_CODES } from './handling'
+export {
+  isOperationClassCode, parseLocationId, parseLocationProcessId, parseProcessCode, parseProjectId, parseRobotId,
+} from './ids'
 export type * from './location'
 export type * from './locationDocument'
 export type * from './locationProcess'

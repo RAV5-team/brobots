@@ -1,5 +1,6 @@
 import type { FacilityParameter, FacilityTypeCode } from '@/domain'
 import { formatNumber, parseDecimal } from '@/shared/format'
+import { isArrayOf, isBoolean, isObject, isOneOf, isString } from '@/shared/guards'
 import { ru } from '@/shared/i18n/ru'
 
 /** Секции формы в порядке навигации (PRD 10.2). */
@@ -144,11 +145,24 @@ export interface ProfileText {
   readonly address: string
 }
 
+/** Числовые поля формы по ключам, а не через Object.fromEntries: новое поле без значения не соберётся. */
+export const numericValues = (text: (key: NumericKey) => string): NumericValues => ({
+  totalArea: text('totalArea'),
+  activeArea: text('activeArea'),
+  floors: text('floors'),
+  shifts: text('shifts'),
+  workingDays: text('workingDays'),
+  shiftHours: text('shiftHours'),
+  peakFactor: text('peakFactor'),
+  staffTotal: text('staffTotal'),
+  pickerProductivity: text('pickerProductivity'),
+  workTimeLoss: text('workTimeLoss'),
+  turnover: text('turnover'),
+})
+
 /** Форма на значениях датасета склада — демо-профиль, как на 09а (D-31); тексты — из макета. */
 export function buildInitialForm(params: ParameterIndex, profile: ProfileText): LocationForm {
-  const numeric = Object.fromEntries(
-    NUMERIC_KEYS.map((key) => [key, key === 'turnover' ? String(ASSUMED_TURNOVER) : baseText(params, NUMERIC_SPECS[key].code)]),
-  ) as unknown as NumericValues
+  const numeric = numericValues((key) => (key === 'turnover' ? String(ASSUMED_TURNOVER) : baseText(params, NUMERIC_SPECS[key].code)))
   return { facilityType: 'warehouse', ...profile, ...numeric, staff: presetStaffRows(params) }
 }
 
@@ -165,16 +179,17 @@ export function updateStaffRow(staff: readonly StaffGroupRow[], key: string, pat
 
 export const removeStaffRow = (staff: readonly StaffGroupRow[], key: string): readonly StaffGroupRow[] => staff.filter((r) => r.key !== key)
 
-/** Черновик из браузера годится, если у него форма той же версии. */
+const isStaffGroupRow = (value: unknown): value is StaffGroupRow =>
+  isObject(value) && [value.key, value.role, value.headcount, value.salary].every(isString) && isBoolean(value.preset)
+
+/** Черновик из браузера годится, если у него форма той же версии: все поля и строки групп нужного вида. */
 export function isLocationForm(value: unknown): value is LocationForm {
-  if (typeof value !== 'object' || value === null) return false
-  const v = value as Partial<LocationForm>
   return (
-    typeof v.facilityType === 'string' &&
-    FACILITY_CHOICES.includes(v.facilityType) &&
-    typeof v.name === 'string' &&
-    Array.isArray(v.staff) &&
-    NUMERIC_KEYS.every((key) => typeof v[key] === 'string')
+    isObject(value) &&
+    isOneOf(FACILITY_CHOICES, value.facilityType) &&
+    [value.name, value.city, value.address].every(isString) &&
+    isArrayOf(value.staff, isStaffGroupRow) &&
+    NUMERIC_KEYS.every((key) => isString(value[key]))
   )
 }
 

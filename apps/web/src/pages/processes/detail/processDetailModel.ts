@@ -17,7 +17,7 @@ import type {
 import { ROUTE_PATHS } from '@/app/routePaths'
 import { formatCount, formatNumber, formatPercent, formatRubCompact } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
-import type { NewProjectContext } from '@/pages/projects/new/newProjectModel'
+import type { NewProjectContext } from '@/components/newProject/newProjectModel'
 import { rateUnit } from '../processesModel'
 import { numberParameter, staffing } from '../locationStaffing'
 import { PAYROLL_COEF_PARAMETER, PEAK_FACTOR_PARAMETER } from '../staffParameters'

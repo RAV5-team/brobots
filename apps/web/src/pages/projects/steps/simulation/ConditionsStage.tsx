@@ -2,6 +2,7 @@ import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { FieldGrid, FormSection } from '@/components/ui/FormSection'
+import type { SelectOption } from '@/components/ui/Select'
 import type { SimulationConditions } from '@/domain'
 import { ru } from '@/shared/i18n/ru'
 import { ChoiceCondition, NumberCondition } from './ConditionField'
@@ -37,11 +38,15 @@ const GROUPS: readonly { readonly key: GroupKey; readonly columns: 2 | 3 | 4 | 1
   { key: 'check', columns: 3, fields: ['tolerance', 'fleetPolicy', 'designVolume'] },
 ]
 
+/** Варианты из словаря: ключи подписей — значения условия, выбор приходит уже своего типа. */
+const choices = <K extends string>(labels: Readonly<Record<K, string>>): readonly SelectOption<K>[] =>
+  (Object.keys(labels) as K[]).map((value) => ({ value, label: labels[value] }))
+
 const CHOICES = {
-  traffic: Object.entries(t.traffic).map(([value, label]) => ({ value, label })),
-  fastMoversAtGates: Object.entries(t.fastMovers).map(([value, label]) => ({ value, label })),
-  fleetPolicy: Object.entries(t.fleetPolicy).map(([value, label]) => ({ value, label })),
-  designVolume: Object.entries(t.designVolume).map(([value, label]) => ({ value, label })),
+  traffic: choices(t.traffic),
+  fastMoversAtGates: choices(t.fastMovers),
+  fleetPolicy: choices(t.fleetPolicy),
+  designVolume: choices(t.designVolume),
 } as const
 
 const isNumeric = (key: ConditionKey): key is NumericConditionKey => key in NUMERIC_FIELDS
@@ -113,11 +118,11 @@ export function ConditionsStage({ bases, handlingName, overrides, calcPeak, canE
       case 'fastMoversAtGates':
         return <ChoiceCondition key={key} {...common} options={CHOICES.fastMoversAtGates} value={conditions.fastMoversAtGates ? 'abc' : 'no'} onChange={(v) => { set(key, v === 'abc') }} />
       case 'traffic':
-        return <ChoiceCondition key={key} {...common} options={CHOICES.traffic} value={conditions.traffic} onChange={(v) => { set(key, v as SimulationConditions['traffic']) }} />
+        return <ChoiceCondition key={key} {...common} options={CHOICES.traffic} value={conditions.traffic} onChange={(v) => { set(key, v) }} />
       case 'fleetPolicy':
-        return <ChoiceCondition key={key} {...common} options={CHOICES.fleetPolicy} value={conditions.fleetPolicy} onChange={(v) => { set(key, v as SimulationConditions['fleetPolicy']) }} />
+        return <ChoiceCondition key={key} {...common} options={CHOICES.fleetPolicy} value={conditions.fleetPolicy} onChange={(v) => { set(key, v) }} />
       case 'designVolume':
-        return <ChoiceCondition key={key} {...common} options={CHOICES.designVolume} value={conditions.designVolume} onChange={(v) => { set(key, v as SimulationConditions['designVolume']) }} />
+        return <ChoiceCondition key={key} {...common} options={CHOICES.designVolume} value={conditions.designVolume} onChange={(v) => { set(key, v) }} />
     }
   }
 

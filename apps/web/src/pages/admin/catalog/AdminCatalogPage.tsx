@@ -1,7 +1,7 @@
 import { ArrowRight, Plus } from 'lucide-react'
 import { generatePath, useSearchParams } from 'react-router'
 import { ROUTE_PATHS } from '@/app/routePaths'
-import type { RobotId } from '@/domain'
+import { parseRobotId } from '@/domain'
 import { ButtonLink } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Chip } from '@/components/ui/Chip'
@@ -93,11 +93,6 @@ function CatalogResults({ rows, query }: { readonly rows: readonly CatalogRow[];
       <p role="status" className="pt-4 type-caption text-text-muted">{shownLabel(shown.length, rows.length)}</p>
     </>
   )
-}
-
-/** Параметр ?added= из адреса: берём только идентификатор вида RB-…, остальное — обычный А1. */
-function parseRobotId(value: string | null): RobotId | null {
-  return value !== null && value.startsWith('RB-') ? (value as RobotId) : null
 }
 
 /** А3: «Каталог обновлён» и переход к решению в пользовательском каталоге (PRD 6.2, раздел 7). */

@@ -1,5 +1,6 @@
 import { useRef, useState, type ChangeEvent, type InputHTMLAttributes, type RefObject } from 'react'
 import type { LocationId } from '@/domain'
+import { requireId } from '@/services/errors'
 import { useServices } from '@/services/useServices'
 import { UPLOAD_RULES, validateFiles } from '@/shared/config/upload'
 import { formatCount } from '@/shared/format'
@@ -29,7 +30,7 @@ export interface DocumentUpload {
  * «Добавить документ +»: выбор файлов → проверка по правилу `locationDocument` (D-18) → загрузка документами
  * (фото одной загрузки — группой, D-42) → `onUploaded` перечитывает список без скелетона.
  */
-export function useDocumentUpload(locationId: LocationId, onUploaded: () => Promise<void>): DocumentUpload {
+export function useDocumentUpload(locationId: LocationId | null, onUploaded: () => Promise<void>): DocumentUpload {
   const services = useServices()
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
@@ -46,7 +47,7 @@ export function useDocumentUpload(locationId: LocationId, onUploaded: () => Prom
     let addedCount = 0
     try {
       for (const group of groupUploads(files)) {
-        await services.locations.addLocationDocument(locationId, group)
+        await services.locations.addLocationDocument(requireId(locationId, 'location'), group)
         addedCount += 1
       }
       setMessage({ tone: 'status', text: formatCount(addedCount, td.added) })

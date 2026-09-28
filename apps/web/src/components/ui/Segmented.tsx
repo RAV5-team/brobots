@@ -1,5 +1,6 @@
 import * as ToggleGroup from '@radix-ui/react-toggle-group'
 import { clsx } from 'clsx'
+import { optionValue } from './optionValue'
 
 export interface SegmentedOption<T extends string> {
   readonly value: T
@@ -35,7 +36,10 @@ export function Segmented<T extends string>({ label, options, value, onChange, s
       value={value}
       disabled={disabled}
       // Radix снимает выбор при повторном нажатии — сегменты всегда держат значение.
-      onValueChange={(next) => { if (next) onChange(next as T) }}
+      onValueChange={(next) => {
+        const option = optionValue(options, next)
+        if (option !== undefined) onChange(option)
+      }}
       className={clsx(
         'flex gap-4 rounded-full bg-surface-muted p-4 shadow-inset-sm',
         fit === 'fill' ? 'w-full' : 'w-fit',

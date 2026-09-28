@@ -5,7 +5,7 @@ import { IconButton } from '@/components/ui/IconButton'
 import { formatRubMillions } from '@/shared/format/money'
 import { ru } from '@/shared/i18n/ru'
 import { entryName, type CatalogEntry } from '../catalogModel'
-import { useNewProjectLink } from '@/pages/projects/new/useNewProjectLink'
+import { useNewProjectLink } from '@/components/newProject/useNewProjectLink'
 import { checkOnSiteContext, typeLabelOf } from './comparePaths'
 
 const t = ru.catalog.comparePage

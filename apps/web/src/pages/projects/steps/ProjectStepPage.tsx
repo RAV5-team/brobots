@@ -2,7 +2,7 @@ import { Navigate, useParams } from 'react-router'
 import { ROUTE_PATHS } from '@/app/routePaths'
 import { ButtonLink } from '@/components/ui/Button'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
-import type { ProjectId, ProjectStep } from '@/domain'
+import { parseProjectId, type ProjectStep } from '@/domain'
 import { useRole } from '@/shared/auth/useRole'
 import { ru } from '@/shared/i18n/ru'
 import type { ProjectStepComponent } from './stepProps'
@@ -16,9 +16,9 @@ const t = ru.project.page
  * каждый шаг в своём чанке (router.tsx), каркас их не импортирует.
  */
 export function ProjectStepPage({ step, Step }: { readonly step: ProjectStep; readonly Step: ProjectStepComponent }) {
-  const { projectId = '' } = useParams()
+  const projectId = parseProjectId(useParams().projectId)
   const role = useRole()
-  const { state, retry } = useProjectStep(projectId as ProjectId, step)
+  const { state, retry } = useProjectStep(projectId, step)
   const title = ru.projectStepTitles[step]
 
   if (state.status === 'redirect') return <Navigate to={state.to} replace />

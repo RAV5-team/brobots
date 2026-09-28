@@ -7,8 +7,8 @@ import {
   NUMERIC_SPECS,
   STAFF_PRESETS,
   buildInitialForm,
+  numericValues,
   type LocationForm,
-  type NumericValues,
   type ParameterIndex,
   type StaffGroupRow,
 } from '../new/locationForm'
@@ -53,12 +53,10 @@ function staffFromParameters(location: Location, params: ParameterIndex): readon
  */
 export function formFromLocation(location: Location, params: ParameterIndex): LocationForm {
   const base = buildInitialForm(params, { name: location.name, city: location.city, address: location.address })
-  const numeric = Object.fromEntries(
-    NUMERIC_KEYS.map((key) => {
-      const text = valueText(location, params, NUMERIC_SPECS[key].code)
-      return [key, key === 'turnover' && text === '' ? String(ASSUMED_TURNOVER) : text]
-    }),
-  ) as unknown as NumericValues
+  const numeric = numericValues((key) => {
+    const text = valueText(location, params, NUMERIC_SPECS[key].code)
+    return key === 'turnover' && text === '' ? String(ASSUMED_TURNOVER) : text
+  })
   const staff = location.staffGroups.length > 0 ? staffFromGroups(location) : staffFromParameters(location, params)
   return { ...base, ...numeric, facilityType: location.facilityType, staff }
 }

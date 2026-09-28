@@ -6,7 +6,7 @@ import { ButtonLink } from '@/components/ui/Button'
 import { MergedButton } from '@/components/ui/MergedButton'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
 import { TextLink } from '@/components/ui/TextLink'
-import type { ProcessCode } from '@/domain'
+import { parseProcessCode } from '@/domain'
 import { useRole } from '@/shared/auth/useRole'
 import { ru } from '@/shared/i18n/ru'
 import { LocationsSection } from './LocationsSection'
@@ -70,9 +70,9 @@ function ProcessDetail({ data, isGuest }: { readonly data: ProcessDetailData; re
  * сколько роботов подходит по классу и на каких локациях процесс уже используется.
  */
 export function ProcessDetailPage() {
-  const { processId = '' } = useParams()
+  const processCode = parseProcessCode(useParams().processId)
   const role = useRole()
-  const { state, retry } = useProcessDetail(processId as ProcessCode)
+  const { state, retry } = useProcessDetail(processCode)
 
   if (state.status === 'loading') return <ProcessDetailSkeleton />
   if (state.status === 'error') return <ErrorState title={t.error.title} message={t.error.message} onRetry={retry} />

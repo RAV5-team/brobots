@@ -113,8 +113,8 @@ export function CatalogFilters({ filter, onChange, operationClasses, facilityTyp
           value={costValue}
           onChange={(v) => {
             set({
-              costTypes: v.filter((x) => x.startsWith('cost:')).map((x) => x.slice('cost:'.length) as CostTypeFilter),
-              priceRanges: v.filter((x) => x.startsWith('price:')).map((x) => x.slice('price:'.length) as PriceRange),
+              costTypes: v.flatMap((x) => COST_TYPES.find((c) => x === `cost:${c}`) ?? []),
+              priceRanges: v.flatMap((x) => PRICE_RANGES.find((p) => x === `price:${p}`) ?? []),
             })
           }}
         />

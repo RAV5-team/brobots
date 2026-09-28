@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { SectionNav } from '@/components/ui/SectionNav'
 import type { SelectOption } from '@/components/ui/Select'
 import { TextLink } from '@/components/ui/TextLink'
-import type { HandlingMethod } from '@/domain'
+import type { HandlingMethod, OperationClassCode } from '@/domain'
 import { formatTime } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { ProcessCheckRail, type CheckRailCopy, type CheckRow } from './ProcessCheckRail'
@@ -27,7 +27,7 @@ interface ProcessFormLayoutProps {
   readonly state: ProcessFormState
   readonly canSave: boolean
   readonly hints: Readonly<Partial<Record<NumericKey, string>>>
-  readonly classOptions: readonly SelectOption<string>[]
+  readonly classOptions: readonly SelectOption<OperationClassCode>[]
   readonly categoryOptions: readonly SelectOption<string>[]
   readonly carrierOptions: readonly SelectOption<string>[]
   readonly handlingMethods: readonly HandlingMethod[]

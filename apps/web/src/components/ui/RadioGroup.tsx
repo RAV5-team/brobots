@@ -1,6 +1,7 @@
 import * as RadixRadio from '@radix-ui/react-radio-group'
 import { clsx } from 'clsx'
 import { useId, type ReactNode } from 'react'
+import { optionValue } from './optionValue'
 
 export interface RadioOption<T extends string> {
   readonly value: T
@@ -79,7 +80,7 @@ export function RadioGroup<T extends string>({ label, options, value, defaultVal
       aria-label={label}
       {...(value !== undefined ? { value } : {})}
       {...(defaultValue !== undefined ? { defaultValue } : {})}
-      {...(onChange ? { onValueChange: (v: string) => { onChange(v as T) } } : {})}
+      {...(onChange ? { onValueChange: (v: string) => { const next = optionValue(options, v); if (next !== undefined) onChange(next) } } : {})}
       disabled={disabled}
       orientation={orientation}
       className={clsx(
