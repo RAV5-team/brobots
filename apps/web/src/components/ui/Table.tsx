@@ -62,7 +62,8 @@ export function TableRow({ children, selected = false, onClick }: TableRowProps)
     <tr
       aria-selected={selected || undefined}
       onClick={handleClick}
-      className={clsx('border-b border-border transition-colors hover:bg-surface-muted', selected && 'bg-surface-sunken', onClick && 'cursor-pointer')}
+      // Подсветка при наведении — только у строки с действием, иначе строка выглядит кликабельной.
+      className={clsx('border-b border-border transition-colors', selected && 'bg-surface-sunken', onClick && 'cursor-pointer hover:bg-surface-muted')}
     >
       {children}
     </tr>

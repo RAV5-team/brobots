@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { hasEntry, type CompareEntry } from '@/domain'
+import { ValidationError } from '@/services/errors'
 import { useServices } from '@/services/useServices'
 import { useRole } from '@/shared/auth/useRole'
 import { ru } from '@/shared/i18n/ru'
 import { CompareContext, type CompareState } from './compareContext'
 
-const errorText = (error: unknown) => (error instanceof Error ? error.message : ru.catalog.compare.failed)
+/** Текст ошибки — из словаря по причине: `message` сервиса («Failed to fetch», тексты мока) на экран не попадает. */
+const errorText = (error: unknown) =>
+  error instanceof ValidationError && error.reason.kind === 'compareLimit'
+    ? ru.catalog.compare.full(error.reason.limit)
+    : ru.catalog.compare.failed
 
 /**
  * Набор сравнения на уровне приложения (D-58): счётчик «Сравнить (N)» и кнопки карточек видят одно состояние.

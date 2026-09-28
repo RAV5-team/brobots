@@ -120,7 +120,7 @@ export const EVALUATION_LP01: ApiSchemas['Evaluation'] = {
     { code: 'work_type', label: 'Класс операции', text: 'OP-01 · Перемещение грузов', source: 'task', applicable: true },
     { code: 'handling', label: 'Способ обработки груза', list: ['вилы', 'платформа'], source: 'task', applicable: true },
     { code: 'payload', label: 'Грузоподъёмность', number: 800, unit: 'кг', source: 'task', note: 'средняя масса паллеты', applicable: true },
-    { code: 'aisle_width', label: 'Ширина робота', number: 2.5, unit: 'м', source: 'formula', note: 'проход 3,0 м − запас 0,5 м', applicable: true },
+    { code: 'aisle_width', label: 'Ширина робота', number: 2.2, unit: 'м', source: 'formula', note: 'проход 2,8 м − запас 0,6 м', applicable: true },
     { code: 'environment', label: 'Среда', text: 'в помещении, +5…+25 °C', source: 'task', applicable: true },
     { code: 'price', label: 'Цена', text: 'есть в каталоге или файле цен', source: 'rule', applicable: true },
   ],

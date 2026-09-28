@@ -14,13 +14,12 @@ import { useServices } from '@/services/useServices'
 import { useRole } from '@/shared/auth/useRole'
 import { formatNumber } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
+import { useModelNorms } from '@/shared/norms/useModelNorms'
 import { copyValues, countChanged, formOf, siteBase, siteHints, siteValues, toLocationUpdate } from './locationProcessForm'
 import { useLocationProcess, type LocationProcessData } from './useLocationProcess'
 
 const t = ru.locationProcess
 const rail = ru.processNew.rail
-/** Начисления на ФОТ, если в профиле их нет: коэффициент демо-склада (ТЗ, приложение А). */
-const DEFAULT_PAYROLL_COEF = 1.302
 
 function LocationProcessSkeleton() {
   return (
@@ -34,14 +33,16 @@ function LocationProcessSkeleton() {
 /** Форма копии: значения шаблона с профилем, поверх — переопределения площадки; сохраняются только отличия. */
 function LocationProcessForm({ data, canSave }: { readonly data: LocationProcessData; readonly canSave: boolean }) {
   const services = useServices()
+  // Начисления на ФОТ, если в профиле их нет, — норматив А5 `payroll_tax_ratio`.
+  const { payrollTaxRatio } = useModelNorms()
   const navigate = useNavigate()
-  const { location, locationProcess: lp, process, parameters } = data
+  const { location, locationProcess: lp, process, parameters, templateDefaults } = data
   const { siteForm, initialForm, hints } = useMemo(() => {
-    const ctx = { process, location, parameters, operationClass: data.operationClasses.find((c) => c.code === process.operationClass) }
+    const ctx = { defaults: templateDefaults, process, location, parameters, operationClass: data.operationClasses.find((c) => c.code === process.operationClass) }
     const site = siteValues(ctx)
     const baseline = formOf(site, ctx)
     return { siteForm: baseline, initialForm: formOf(copyValues(site, lp), ctx), hints: siteHints(siteBase(location, parameters), baseline) }
-  }, [process, location, parameters, lp, data.operationClasses])
+  }, [templateDefaults, process, location, parameters, lp, data.operationClasses])
   const locationPath = generatePath(ROUTE_PATHS.location, { locationId: location.id })
 
   const state = useProcessFormState({
@@ -73,7 +74,7 @@ function LocationProcessForm({ data, canSave }: { readonly data: LocationProcess
         categoryOptions={categoryOptions(data.facilityTypes)}
         carrierOptions={carrierOptions(data.processes, data.operationClasses, form)}
         handlingMethods={data.handlingMethods}
-        payrollCoef={numberParameter(location, parameters, PAYROLL_COEF_PARAMETER[location.facilityType]) ?? DEFAULT_PAYROLL_COEF}
+        payrollCoef={numberParameter(location, parameters, PAYROLL_COEF_PARAMETER[location.facilityType]) ?? payrollTaxRatio}
         rail={{
           copy: { title: t.rail.title, note: t.rail.note(location.name), save: t.rail.save },
           rows: [

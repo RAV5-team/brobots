@@ -10,6 +10,7 @@ import {
   emptyInputs,
   furthestStep,
   markFresh,
+  modelNormsFrom,
   type DraftProject,
   type Fleet,
   type MatchingEvaluation,
@@ -23,13 +24,14 @@ import {
 import { FACILITY_PARAMETERS } from '@/mocks/fixtures/facilityParameters'
 import { LOCATION_PROCESSES } from '@/mocks/fixtures/locationProcesses'
 import { LOCATIONS } from '@/mocks/fixtures/locations'
+import { NORMS } from '@/mocks/fixtures/norms'
 import { HANDLING_METHODS, OPERATION_CLASSES } from '@/mocks/fixtures/operationClasses'
 import { PROCESSES } from '@/mocks/fixtures/processes'
 import { ROBOTS } from '@/mocks/fixtures/robots'
 import { SITE_PARAMETERS, SITE_VALUES } from '@/mocks/fixtures/siteParameters'
 import { CONDITIONS_LP01, OPERATIONS_PER_DAY_LP01 } from '@/mocks/fixtures/projectEconomics'
 import { CALC_DEFAULTS_BY_PROCESS, EVALUATIONS_BY_PROCESS } from '@/mocks/fixtures/projectMatching'
-import { DEMO_PROJECT_DTO, PROJECT_DTOS, PROJECT_LOCAL_STATE } from '@/mocks/fixtures/projects'
+import { DEMO_PROJECT_DTO, PROJECT_DTOS, PROJECT_LOCAL_STATE, PROJECT_VERSIONS } from '@/mocks/fixtures/projects'
 import demo165Url from '@/mocks/fixtures/traces/demo-16-5.json?url'
 import demo186Url from '@/mocks/fixtures/traces/demo-18-6.json?url'
 import { formatNumber } from '@/shared/format'
@@ -142,6 +144,7 @@ function paramsSnapshot(dto: ProjectDto): ProjectParamsSnapshot {
     processes: processesOf(location.id),
     handlingMethods: HANDLING_METHODS,
     pinnedSolution: pinned ? { id: pinned.id, name: pinned.name } : null,
+    widthMarginM: modelNormsFrom(NORMS).widthMarginM,
   }
 }
 
@@ -199,7 +202,7 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
       const at = now()
       const dto: ProjectDto = {
         id, name, locationId, status: 'draft', updatedAt: at, snapshotTakenAt: at,
-        versions: { catalog: 4, model: '2.1', norms: 3, dictionaries: 1 },
+        versions: PROJECT_VERSIONS,
         ...(locationProcessId ? { task: { id: locationProcessId } } : {}),
         ...(solutionId ? { pinnedSolutionId: solutionId } : {}),
       }

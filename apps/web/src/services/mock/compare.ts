@@ -60,7 +60,7 @@ export function createMockCompare(options: MockOptions): CompareService {
     list: (role) => respond(read(role), options),
     add: (role, entry) => {
       const next = addEntry(read(role), entry)
-      if (!next) return Promise.reject(new ValidationError(`В сравнении уже ${String(COMPARE_LIMIT)} позиции`))
+      if (!next) return Promise.reject(new ValidationError({ kind: 'compareLimit', limit: COMPARE_LIMIT }, `В сравнении уже ${String(COMPARE_LIMIT)} позиции`))
       write(role, next)
       return respond(next, options)
     },

@@ -34,7 +34,7 @@ describe('paramsView — шаг 1 «Параметры проекта» (PRD 11.
     expect(v.missing.map((m) => m.label)).toEqual(['нагрузка на пол', 'Wi-Fi'])
     expect(v.readiness).toMatchObject({ canMatch: true, assumptionsCount: 4, missingCount: 2 })
     expect(v.assumptions.map((a) => [a.code, a.value])).toEqual([
-      ['route_length_m', 100], ['operator_time_share_pct', 100], ['peak_factor', 1.5], ['width_margin_m', 0.5],
+      ['route_length_m', 100], ['operator_time_share_pct', 100], ['peak_factor', 1.5], ['width_margin_m', 0.6],
     ])
   })
 
@@ -90,7 +90,7 @@ describe('paramsView — шаг 1 «Параметры проекта» (PRD 11.
 })
 
 describe('панель «Уточнить допущение»', () => {
-  const row = { min: 5, max: 5000, unit: 'м', digits: 0 }
+  const row = { min: 5, max: 5000, unit: 'm', digits: 0 } as const
 
   it('пусто или вне диапазона — понятный текст исправления', () => {
     expect(validateAssumption(row, null)).toBe('Введите число')

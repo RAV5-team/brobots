@@ -65,6 +65,8 @@ export interface ProjectParamsSnapshot {
   readonly handlingMethods: readonly HandlingMethod[]
   /** Решение из каталога («Проверить на объекте», D-57): подбор начнёт с него. */
   readonly pinnedSolution: { readonly id: string; readonly name: string } | null
+  /** Норматив А5 `width_margin_m` на дату снимка: запас по ширине прохода, если у шаблона процесса своего нет. */
+  readonly widthMarginM: number
 }
 
 /** Готовность процесса к подбору (PRD 11.2). */

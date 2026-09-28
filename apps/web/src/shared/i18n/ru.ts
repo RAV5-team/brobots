@@ -1,8 +1,15 @@
 import type { DataVersion, ProjectStep } from '@/domain'
-import type { PluralForms } from '@/shared/format'
+import { pluralize, type PluralForms } from '@/shared/format/plural'
 import { project } from './project'
 import { report } from './report'
 import { robotNew } from './robotNew'
+
+/** Лимиты правила загрузки, от которых строится подсказка. */
+interface UploadHintLimits {
+  readonly maxSizeMb: number
+  readonly minFiles: number
+  readonly maxFiles: number
+}
 
 /**
  * Словарь интерфейса. Все подписи — отсюда, не строками в JSX (глоссарий).
@@ -43,6 +50,8 @@ export const ru = {
 
   shell: {
     mainNavigation: 'Основная навигация',
+    /** Имя боковой панели: на формах рядом есть вторая aside (правая панель), безымянные совпадают (landmark-unique). */
+    sidebar: 'Боковое меню',
     openCabinetMenu: 'Меню кабинета',
   },
 
@@ -198,6 +207,22 @@ export const ru = {
       title: 'Что нужно знать для подбора',
       lead: 'Процесс определяет, какие данные RAV5 запрашивает у локации. Без обязательных параметров подбор идёт с допущениями',
       groups: { required: 'Обязательно', desirable: 'Желательно', environment: 'Среда' },
+      /** Параметры, которые процесс запрашивает у локации, по коду (сервис процессов отдаёт коды). */
+      items: {
+        flow: 'Объём потока',
+        maxMass: 'Максимальная масса',
+        palletType: 'Тип паллеты',
+        routeWidth: 'Ширина маршрута',
+        avgDistance: 'Средняя дистанция',
+        peakFactor: 'Коэффициент пиковой нагрузки',
+        liftHeight: 'Высота подъёма',
+        pickupPoints: 'Точек pickup/dropoff',
+        floor: 'Покрытие и плоскость пола',
+        slopes: 'Уклоны и пороги',
+        temperature: 'Температурный режим',
+        wifi: 'Wi\u2011Fi на маршруте',
+        peopleOnRoute: 'Люди на маршруте',
+      },
       /** Единицы нет: тип или качественное условие (PRD 15 · №46 — значения среды задаёт локация). */
       noUnit: '—',
     },
@@ -774,7 +799,7 @@ export const ru = {
         'Три демонстрационных объекта: склад, аэропорт, стационар',
         'Подбор решений и три варианта роботизации',
         'Экономика, сценарии и проверка производительности',
-        'Каталог из 223 решений и сравнение',
+        'Каталог из 187 решений и сравнение',
         'Выгрузка PDF, Excel и данных симуляции',
       ],
       unavailable: 'Свои локации и сохранение результатов',
@@ -877,6 +902,11 @@ export const ru = {
     tabsLabel: 'Что показываем',
     tabs: { robots: 'Роботы', infrastructure: 'Инфраструктура', software: 'ПО и интеграции', services: 'Сервисы' },
     listLabel: 'Позиции каталога',
+    /** Отрасли фильтра каталога: значение фильтра и адреса — само название, как в данных каталога (`Robot.industries`). */
+    industries: [
+      'Торговля и услуги', 'Промышленность', 'Сельское хозяйство', 'ЖКХ', 'Строительство',
+      'ТЭК', 'Безопасность', 'Транспорт и логистика', 'Лесное хозяйство',
+    ],
     filters: {
       operationClass: 'Класс операции',
       industry: 'Отрасль',
@@ -931,7 +961,7 @@ export const ru = {
       added: 'В сравнении',
       /** Имя кнопки содержит видимую подпись (WCAG 2.5.3): «Сравнить: AMR 100», «В сравнении: AMR 100». */
       itemLabel: (action: string, name: string) => `${action}: ${name}`,
-      full: 'В сравнении уже 4 позиции — уберите одну, чтобы добавить другую',
+      full: (limit: number) => `В сравнении уже ${String(limit)} ${pluralize(limit, ['позиция', 'позиции', 'позиций'])} — уберите одну, чтобы добавить другую`,
       open: (count: number) => `Сравнить (${String(count)})`,
       failed: 'Не удалось изменить набор сравнения. Попробуйте ещё раз',
     },
@@ -969,7 +999,8 @@ export const ru = {
       compatibleAll: 'Посмотреть все совместимые компоненты',
       compatibleTitle: 'Совместимо',
       allTitle: 'Все технические характеристики',
-      catalogSource: 'Каталог ФЦ БАС v4',
+      /** `version` — версия каталога из данных сессии (`DataVersion.catalog`): «v4». */
+      catalogSource: (version: string) => `Каталог ФЦ БАС ${version}`,
       vendorSite: 'Сайт производителя',
       vendorSiteLabel: (host: string) => `Сайт производителя: ${host} (откроется в новой вкладке)`,
       groups: {
@@ -1008,20 +1039,20 @@ export const ru = {
       itemTypes: { infrastructure: 'Инфраструктура', software: 'ПО и интеграции', service: 'Услуги внедрения', support: 'Поддержка' },
       /** Выведенные из полей значения (D-76). */
       derived: {
-        catalog: 'каталог v4',
-        catalogFile: 'catalog_export_v4',
+        catalog: (version: string) => `каталог ${version}`,
+        catalogFile: (version: string) => `catalog_export_${version}`,
         registry: 'реестр источников',
         region: 'регион производителя в каталоге',
         facilities: 'по процессам классов операций (D-72)',
         notInData: 'нет в данных организатора',
         noClass: 'класс не назначен',
-        catalogWithTrl: (trl: number) => `каталог v4 · УГТ ${String(trl)}`,
+        catalogWithTrl: (version: string, trl: number) => `каталог ${version} · УГТ ${String(trl)}`,
         kg: (value: string) => `${value} кг`,
         mm: (l: string, w: string, h: string) => `${l} × ${w} × ${h} мм`,
         speed: (value: string) => `до ${value} м/с`,
         hours: (value: string) => `${value} ч`,
         priceWithVat: (price: string) => `${price} · с НДС`,
-        dataSource: 'каталог ФЦ БАС v4',
+        dataSource: (version: string) => `каталог ФЦ БАС ${version}`,
       },
     },
     comparePage: {
@@ -1082,6 +1113,8 @@ export const ru = {
       status: { operation: 'в эксплуатации', pilot: 'пилот', rnd: 'НИОКР' },
       noClass: 'без класса операции',
       kg: (value: string) => `${value} кг`,
+      /** Грузоподъёмность в подписи решения: «до 800 кг». */
+      payloadUpTo: (value: string) => `до ${value} кг`,
       hours: (value: string) => `${value} ч`,
       temperatureRange: (min: string, max: string) => `${min}…${max} °C`,
       temperatureFrom: (min: string) => `от ${min} °C`,
@@ -1437,6 +1470,52 @@ export const ru = {
     economics: 'Итог и экономика',
   },
 
+  /** Группы исполнителей склада из датасета (приложение А): форма процесса 09а, карточка процесса 11, профиль локации. */
+  staffRoles: {
+    forkliftOperators: 'Операторы погрузчиков',
+    pickers: 'Отборщики (комплектовщики)',
+    packingOperators: 'Операторы упаковочных линий',
+  },
+
+  /** Единицы в значениях моделей: «940 × 640 × 230 мм», «1,5 м/с». Суммы и сроки — форматтеры `shared/format`. */
+  units: {
+    mm: 'мм',
+    m: 'м',
+    kg: 'кг',
+    mps: 'м/с',
+    hours: 'ч',
+    pcs: 'шт',
+    percent: '%',
+    factor: 'коэф.',
+  },
+
+  /** Загрузка файлов (D-18): подсказки строятся от лимитов правила, лимиты — в `shared/config/upload.ts`. */
+  upload: {
+    document: {
+      hint: ({ maxSizeMb }: UploadHintLimits) => `PDF, Excel, CSV или изображение до ${String(maxSizeMb)} МБ`,
+      formatFix: 'Загрузите PDF, Excel, CSV или изображение',
+      empty: 'Добавьте файл',
+      countNoun: 'файлов',
+    },
+    locationDocument: {
+      hint: ({ maxSizeMb }: UploadHintLimits) => `PDF, Excel, CSV, DWG или изображения, каждый файл до ${String(maxSizeMb)} МБ`,
+      formatFix: 'Загрузите PDF, Excel, CSV, DWG или изображение',
+      empty: 'Добавьте файл',
+      countNoun: 'файлов',
+    },
+    robotPhoto: {
+      hint: ({ minFiles, maxFiles, maxSizeMb }: UploadHintLimits) => `От ${String(minFiles)} до ${String(maxFiles)} изображений, каждое до ${String(maxSizeMb)} МБ`,
+      formatFix: 'Загрузите изображение',
+      empty: 'Добавьте хотя бы одно фото',
+      countNoun: 'фото',
+    },
+    errors: {
+      tooMany: (max: number, noun: string, extra: number) => `Не больше ${String(max)} ${noun}. Уберите лишние: ${String(extra)}`,
+      format: (extension: string, fix: string) => `Формат .${extension} не поддерживается. ${fix}`,
+      size: (maxSizeMb: number) => `Файл больше ${String(maxSizeMb)} МБ. Уменьшите размер или разделите файл`,
+    },
+  },
+
   plural: {
     robots: ['робот', 'робота', 'роботов'],
     /** Родительный падеж: «экономия 1 робота», «докупка 3 роботов». */
@@ -1472,6 +1551,7 @@ export const ru = {
       /** Номер шага для чтения с экрана: «Шаг 1. Параметры, пройден». */
       stepPrefix: (n: number) => `Шаг ${String(n)}.`,
       done: ', пройден',
+      locked: ', недоступен',
     },
     numberStepper: {
       decrease: (label: string) => `Уменьшить: ${label}`,

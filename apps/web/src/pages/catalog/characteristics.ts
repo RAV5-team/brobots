@@ -27,6 +27,8 @@ export interface CharacteristicContext {
   readonly operationClasses: readonly OperationClass[]
   readonly processes: readonly Process[]
   readonly facilityTypes: readonly FacilityType[]
+  /** Версия каталога из данных сессии (`DataVersion.catalog`) — в подписях источника: «каталог v4». */
+  readonly catalogVersion: string
 }
 
 const missing = (source: string = d.notInData): Characteristic => ({ value: null, status: 'missing', source })
@@ -34,8 +36,8 @@ const missing = (source: string = d.notInData): Characteristic => ({ value: null
 /** ТТХ робота: подтверждено, если ТТХ подтверждены целиком (`specs.confidence`), иначе оценка (D-76). */
 const specStatus = (specs: RobotSpecs): CharacteristicStatus => (specs.confidence === 'confirmed' ? 'confirmed' : 'estimate')
 
-function spec(robot: Robot, value: string | null): Characteristic {
-  return value === null ? missing() : { value, status: specStatus(robot.specs), source: robot.specs.sourceText ?? d.catalog }
+function spec(robot: Robot, catalogVersion: string, value: string | null): Characteristic {
+  return value === null ? missing() : { value, status: specStatus(robot.specs), source: robot.specs.sourceText ?? d.catalog(catalogVersion) }
 }
 
 const signed = (value: number) => (value > 0 ? `+${formatNumber(value)}` : formatNumber(value))
@@ -57,13 +59,15 @@ function classes(robot: Robot, ctx: CharacteristicContext): Characteristic {
     .join(' · ')
   // Привязка по подсказке сценария или демо-привязка администратора — оценка (D-61).
   const source = robot.operationClasses.find((c) => c.source)?.source
-  return source ? { value, status: 'estimate', source } : { value, status: 'confirmed', source: d.catalog }
+  return source ? { value, status: 'estimate', source } : { value, status: 'confirmed', source: d.catalog(ctx.catalogVersion) }
 }
 
 /** Строки, выведенные из полей робота (D-76); чего нет в полях — «нет данных». */
 function derived(robot: Robot, ctx: CharacteristicContext): RobotCharacteristicMap {
   const s = robot.specs
-  const catalog = (value: string): Characteristic => ({ value, status: 'confirmed', source: d.catalog })
+  const version = ctx.catalogVersion
+  const catalog = (value: string): Characteristic => ({ value, status: 'confirmed', source: d.catalog(version) })
+  const fromSpecs = (value: string | null): Characteristic => spec(robot, version, value)
   const dims = s.lengthMm !== undefined && s.widthMm !== undefined && s.heightMm !== undefined
     ? d.mm(formatNumber(s.lengthMm), formatNumber(s.widthMm), formatNumber(s.heightMm))
     : null
@@ -81,16 +85,16 @@ function derived(robot: Robot, ctx: CharacteristicContext): RobotCharacteristicM
     origin: origin ? { value: origin, status: 'estimate', source: d.region } : missing(),
     availability: robot.readiness === 'unknown'
       ? missing()
-      : { value: ru.catalog.comparePage.status[robot.readiness], status: 'confirmed', source: robot.trl === null ? d.catalog : d.catalogWithTrl(robot.trl) },
-    payload: spec(robot, s.payloadKg === undefined ? null : d.kg(formatNumber(s.payloadKg))),
-    dimensions: spec(robot, dims),
-    speed: spec(robot, s.maxSpeedMps === undefined ? null : d.speed(formatNumber(s.maxSpeedMps, 2))),
-    productivity: spec(robot, productivity.length === 0 ? null : productivity.join(' · ')),
-    autonomy: spec(robot, s.autonomyH === undefined ? null : d.hours(formatNumber(s.autonomyH))),
+      : { value: ru.catalog.comparePage.status[robot.readiness], status: 'confirmed', source: robot.trl === null ? d.catalog(version) : d.catalogWithTrl(version, robot.trl) },
+    payload: fromSpecs(s.payloadKg === undefined ? null : d.kg(formatNumber(s.payloadKg))),
+    dimensions: fromSpecs(dims),
+    speed: fromSpecs(s.maxSpeedMps === undefined ? null : d.speed(formatNumber(s.maxSpeedMps, 2))),
+    productivity: fromSpecs(productivity.length === 0 ? null : productivity.join(' · ')),
+    autonomy: fromSpecs(s.autonomyH === undefined ? null : d.hours(formatNumber(s.autonomyH))),
     positioningAccuracy: missing(),
     navigation: missing(),
-    operatingConditions: spec(robot, temperatureText(s)),
-    temperature: spec(robot, temperatureText(s)),
+    operatingConditions: fromSpecs(temperatureText(s)),
+    temperature: fromSpecs(temperatureText(s)),
     aisleRequirements: missing(),
     floorRequirements: missing(),
     charging: missing(),
@@ -99,7 +103,7 @@ function derived(robot: Robot, ctx: CharacteristicContext): RobotCharacteristicM
     service: missing(),
     equipmentPrice: robot.priceRub === null
       ? missing()
-      : { value: d.priceWithVat(formatRubMillions(robot.priceRub)), status: 'confirmed', source: d.catalogFile },
+      : { value: d.priceWithVat(formatRubMillions(robot.priceRub)), status: 'confirmed', source: d.catalogFile(version) },
     software: missing(),
     implementation: missing(),
     maintenance: missing(),
@@ -109,7 +113,7 @@ function derived(robot: Robot, ctx: CharacteristicContext): RobotCharacteristicM
     facilityTypes: facilities.length === 0 ? missing() : { value: facilities.join(' · '), status: 'estimate', source: d.facilities },
     limitations: missing(),
     cases: robot.cases ? catalog(robot.cases) : missing(),
-    dataSource: { value: d.dataSource, status: 'confirmed', source: d.registry },
+    dataSource: { value: d.dataSource(version), status: 'confirmed', source: d.registry },
     sourceLink: missing(),
     actualizedAt: catalog(formatDayOf(robot.updatedAt)),
   }

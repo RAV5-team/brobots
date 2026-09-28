@@ -93,8 +93,10 @@ export function RadioGroup<T extends string>({ label, options, value, defaultVal
       ))}
       {variant === 'list' && options.map((option, index) => {
         const id = `${groupId}-${option.value}`
+        // Выключенная группа уже полупрозрачна целиком — у варианта прозрачность не удваиваем.
+        const optionDisabled = !disabled && option.disabled === true
         return (
-          <span key={option.value} className="inline-flex items-center gap-12">
+          <span key={option.value} className={clsx('inline-flex items-center gap-12', optionDisabled && 'opacity-(--rav-disabled-opacity)')}>
             <RadixRadio.Item
               id={id}
               value={option.value}
@@ -104,7 +106,7 @@ export function RadioGroup<T extends string>({ label, options, value, defaultVal
             >
               <RadixRadio.Indicator className="size-8 rounded-full bg-on-inverse" />
             </RadixRadio.Item>
-            <label htmlFor={id} className={clsx('type-body text-text', !disabled && 'cursor-pointer')}>
+            <label htmlFor={id} className={clsx('type-body text-text', disabled || optionDisabled ? 'cursor-not-allowed' : 'cursor-pointer')}>
               {option.label}
             </label>
           </span>

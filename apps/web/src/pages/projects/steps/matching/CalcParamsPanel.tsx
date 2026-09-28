@@ -4,9 +4,10 @@ import { Field } from '@/components/ui/Field'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import type { CalcParams } from '@/domain'
-import { formatNumber } from '@/shared/format'
+import { formatCount, formatNumber } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
-import { CALC_FIELDS, parseCalcField, toFieldText, type CalcFieldSpec } from './matchingModel'
+import { useModelNorms } from '@/shared/norms/useModelNorms'
+import { calcFields, parseCalcField, toFieldText, type CalcFieldSpec } from './matchingModel'
 
 const p = ru.project.matching.params
 const FORM_ID = 'calc-params-form'
@@ -23,8 +24,8 @@ interface CalcParamsPanelProps {
   readonly onApply: (next: Partial<CalcParams>) => void
 }
 
-const initialTexts = (overrides: Partial<CalcParams>): Texts =>
-  Object.fromEntries(CALC_FIELDS.flatMap((spec) => {
+const initialTexts = (fields: readonly CalcFieldSpec[], overrides: Partial<CalcParams>): Texts =>
+  Object.fromEntries(fields.flatMap((spec) => {
     const value = overrides[spec.key]
     return value === undefined ? [] : [[spec.key, toFieldText(spec, value)]]
   }))
@@ -40,12 +41,14 @@ function fieldLabel(spec: CalcFieldSpec, solutionName: string | null): string {
  * у «Уточнить допущение» шага 1 (D-86). `onApply` получает только изменённые поля; пустой объект — все исходные.
  */
 export function CalcParamsPanel({ defaults, overrides, solutionName, onClose, onApply }: CalcParamsPanelProps) {
-  const [texts, setTexts] = useState<Texts>(() => initialTexts(overrides))
+  const horizonYears = useModelNorms().horizonYears
+  const fields = calcFields(horizonYears)
+  const [texts, setTexts] = useState<Texts>(() => initialTexts(fields, overrides))
   const [errors, setErrors] = useState<Errors>({})
 
   const submit = (event: SyntheticEvent) => {
     event.preventDefault()
-    const parsed = CALC_FIELDS.map((spec) => [spec, parseCalcField(spec, texts[spec.key] ?? '')] as const)
+    const parsed = fields.map((spec) => [spec, parseCalcField(spec, texts[spec.key] ?? '')] as const)
     const nextErrors = Object.fromEntries(parsed.flatMap(([spec, r]) => (r.ok ? [] : [[spec.key, r.error]])))
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
@@ -68,11 +71,12 @@ export function CalcParamsPanel({ defaults, overrides, solutionName, onClose, on
     >
       <p className="type-caption text-text-secondary">{p.lead}</p>
       <form id={FORM_ID} noValidate onSubmit={submit} className="flex flex-col gap-16">
-        {CALC_FIELDS.map((spec) => {
+        {fields.map((spec) => {
           const field = p.fields[spec.key]
+          const fieldHint = typeof field.hint === 'string' ? field.hint : field.hint(formatCount(horizonYears, ru.project.matching.plural.years))
           const initial = toFieldText(spec, defaults[spec.key])
           const error = errors[spec.key]
-          const hint = `${field.hint}. ${p.range(formatNumber(spec.min, spec.digits), formatNumber(spec.max, spec.digits))}`
+          const hint = `${fieldHint}. ${p.range(formatNumber(spec.min, spec.digits), formatNumber(spec.max, spec.digits))}`
           return (
             <Field key={spec.key} label={fieldLabel(spec, solutionName)} hint={hint} error={error}>
               <Input

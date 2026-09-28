@@ -87,7 +87,7 @@ function RobotNewForm({ data }: { readonly data: RobotNewData }) {
       void navigate(adminCatalogAddedPath(created.id))
     } catch (error) {
       console.error('Не удалось сохранить робота', error)
-      setMessage(error instanceof ValidationError ? error.message : t.errors.saveFailed)
+      setMessage(error instanceof ValidationError && error.reason.kind === 'robotDuplicate' ? t.errors.duplicate(error.reason.robotId) : t.errors.saveFailed)
       setSaving(false)
     }
   }

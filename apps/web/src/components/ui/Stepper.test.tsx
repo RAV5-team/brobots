@@ -32,7 +32,10 @@ describe('Stepper · pills (шаги проекта)', () => {
   it('закрытый шаг не ссылка и объявлен недоступным', () => {
     renderStepper()
     expect(screen.queryByRole('link', { name: /Итог/ })).not.toBeInTheDocument()
-    expect(screen.getByText('Итог и экономика').closest('[aria-disabled]')).toHaveAttribute('aria-disabled', 'true')
+    // aria-disabled у нефокусируемого span скринридер не озвучивает — состояние в тексте шага.
+    expect(screen.getByText(', недоступен')).toHaveClass('sr-only')
+    expect(screen.getByText(', недоступен').parentElement).toHaveTextContent('Шаг 4. Итог и экономика, недоступен')
+    expect(screen.getByText('Итог и экономика').closest('[aria-disabled]')).toBeNull()
   })
 
   it('доступный, но не пройденный шаг — ссылка без пометки «пройден»', () => {

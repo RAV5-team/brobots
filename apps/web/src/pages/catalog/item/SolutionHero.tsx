@@ -64,7 +64,7 @@ export function SolutionHero({ kicker, name, subtitle, photo, typeLabel, descrip
             <Button
               aria-pressed={inCompare}
               disabled={full}
-              title={full ? ru.catalog.compare.full : undefined}
+              title={full ? ru.catalog.compare.full(COMPARE_LIMIT) : undefined}
               onClick={() => { toggle(compareRef) }}
             >
               {inCompare && <Check aria-hidden size={16} />}

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type {
   FacilityParameter, FacilityType, HandlingMethod, Location, LocationId, LocationProcess, LocationProcessId, OperationClass,
-  OperationClassCode, Process,
+  OperationClassCode, Process, ProcessTemplateDefaults,
 } from '@/domain'
 import type { Services } from '@/services'
 import { NotFoundError } from '@/services/errors'
@@ -19,6 +19,8 @@ export interface LocationProcessData {
   readonly robotsByClass: Readonly<Partial<Record<OperationClassCode, number>>>
   /** Параметры типа объекта локации — база датасета для значений, которых нет в профиле. */
   readonly parameters: readonly FacilityParameter[]
+  /** Значения по умолчанию формы 09а для полей, которых у шаблона нет (PRD 15 · №22). */
+  readonly templateDefaults: ProcessTemplateDefaults
 }
 
 export type LocationProcessState =
@@ -30,7 +32,7 @@ export type LocationProcessState =
 /** Локация, затем процессы площадки и справочники параллельно; чужой или неизвестный процесс — «не найден». */
 async function loadLocationProcess(services: Services, locationId: LocationId, id: LocationProcessId): Promise<LocationProcessData> {
   const location = await services.locations.getLocation(locationId)
-  const [locationProcesses, processes, operationClasses, handlingMethods, facilityTypes, robotsByClass, parameters] = await Promise.all([
+  const [locationProcesses, processes, operationClasses, handlingMethods, facilityTypes, robotsByClass, parameters, templateDefaults] = await Promise.all([
     services.locations.listLocationProcesses(locationId),
     services.processes.listProcesses(),
     services.catalog.listOperationClasses(),
@@ -38,11 +40,12 @@ async function loadLocationProcess(services: Services, locationId: LocationId, i
     services.locations.listFacilityTypes(),
     services.catalog.countRobotsByClass(),
     services.locations.listFacilityParameters(location.facilityType),
+    services.processes.getTemplateDefaults(),
   ])
   const locationProcess = locationProcesses.find((lp) => lp.id === id)
   const process = processes.find((p) => p.code === locationProcess?.processCode)
   if (!locationProcess || !process) throw new NotFoundError(`Процесс ${id} на локации ${locationId} не найден`)
-  return { location, locationProcess, process, processes, operationClasses, handlingMethods, facilityTypes, robotsByClass, parameters }
+  return { location, locationProcess, process, processes, operationClasses, handlingMethods, facilityTypes, robotsByClass, parameters, templateDefaults }
 }
 
 /** Данные экрана 16: ошибка любого запроса — экран ошибки с «Повторить» (D-07). */

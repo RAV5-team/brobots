@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright'
 import { expect, test as base, type Page } from '@playwright/test'
 import type { Role } from './readyScreens'
 
@@ -44,6 +45,44 @@ export async function openAs(page: Page, path: string, role: Role, options: Scre
     await page.clock.runFor(options.frozenAfterMs)
   }
   await waitForScreen(page, options)
+}
+
+/** Правила axe: WCAG 2.2 A/AA и best-practice — как в аудите 2026-09-28 (§7b). */
+const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice']
+
+/** Нарушение axe в читаемом виде: правило, важность и первые узлы. */
+export interface AxeFinding {
+  readonly rule: string
+  readonly impact: string
+  readonly targets: readonly string[]
+}
+
+/**
+ * Узел — единица или иконка в капсуле выключенного поля (`Input`): полупрозрачна вместе с полем.
+ * WCAG 1.4.3 на неактивные элементы не распространяется, а axe считает подпись рядом с полем обычным текстом.
+ */
+function isInDisabledField(page: Page, selector: string): Promise<boolean> {
+  return page.locator(selector).first().evaluate((node) => node.parentElement?.querySelector(':scope > input:disabled') != null)
+}
+
+/**
+ * Прогнать axe по текущему состоянию страницы (или только по слою — `include`) и вернуть нарушения,
+ * кроме контраста у выключенных полей.
+ */
+export async function axeFindings(page: Page, include?: string): Promise<AxeFinding[]> {
+  const builder = new AxeBuilder({ page }).withTags(AXE_TAGS)
+  const { violations } = await (include === undefined ? builder : builder.include(include)).analyze()
+  const findings: AxeFinding[] = []
+  for (const violation of violations) {
+    const targets: string[] = []
+    for (const node of violation.nodes) {
+      const selector = node.target.join(' ')
+      if (violation.id === 'color-contrast' && await isInDisabledField(page, selector)) continue
+      targets.push(selector)
+    }
+    if (targets.length > 0) findings.push({ rule: violation.id, impact: violation.impact ?? 'unknown', targets })
+  }
+  return findings
 }
 
 /** Тест с проверкой консоли: ошибки браузера и необработанные исключения валят тест. */

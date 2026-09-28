@@ -12,6 +12,7 @@ export const NORMS: readonly Norm[] = [
   { code: 'fleet_peak_reserve_pct', name: 'Резерв парка на пиковую нагрузку', group: 'fleet', kind: 'norm', value: 15, unit: '%', source: 'Датасет, лист «Легенда»: 15–20%' },
   { code: 'operating_speed_ratio', name: 'Эксплуатационная скорость к максимальной', group: 'fleet', kind: 'assumption', value: 0.6, unit: 'коэф.', source: 'Допущение команды · проверяется симуляцией' },
   { code: 'robots_per_charger', name: 'Роботов на одну зарядную станцию', group: 'fleet', kind: 'assumption', value: 4, unit: 'шт.', source: 'Допущение команды' },
+  { code: 'width_margin_m', name: 'Запас по ширине прохода (с двух сторон робота)', group: 'fleet', kind: 'norm', value: 0.6, unit: 'м', source: 'Правило карточки робота А2: ширина робота + 0,6 м ≤ проход, по 0,3 м с каждой стороны' },
 
   { code: 'charger_cost_rub', name: 'Зарядная станция с монтажом', group: 'capex', kind: 'assumption', value: 250_000, unit: '₽', source: 'Допущение команды · оценка рынка' },
   { code: 'charger_power_kw', name: 'Мощность зарядной станции', group: 'capex', kind: 'assumption', value: 5, unit: 'кВт', source: 'Допущение команды · типовые 3–10 кВт' },

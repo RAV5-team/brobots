@@ -24,6 +24,10 @@ const YEARS = ru.project.matching.plural.years
 
 /** Суммы итога — миллионы с одним знаком: «6,1 млн ₽», «42,0 млн ₽» в колонках таблиц; меньше миллиона — «400 тыс. ₽». */
 export const money = (value: number | null): string => (value === null ? '—' : formatRubTotal(value))
+
+const PERCENT = 100
+/** Шаг чувствительности для подписей: 0,2 → «20» (к нему словарь добавляет «±» и «%»). */
+export const sensitivityStep = (shift: number): string => formatNumber(shift * PERCENT)
 export const years = (value: number | null): string => (value === null ? t.tiles.notPaying : formatYears(value))
 export const acquisitionName = (acquisition: AcquisitionModel): string => ru.project.matching.acquisition[acquisition]
 

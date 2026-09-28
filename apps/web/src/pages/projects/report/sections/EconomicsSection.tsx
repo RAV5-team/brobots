@@ -2,6 +2,7 @@ import { clsx } from 'clsx'
 import { Table, TableBody, TableCell, TableHeaderCell, TableRow } from '@/components/ui/Table'
 import { newCostItems } from '@/domain'
 import { ru } from '@/shared/i18n/ru'
+import { useModelNorms } from '@/shared/norms/useModelNorms'
 import { chainRows, scenarioRows, type ColumnKey } from '../../steps/economics/economicsTables'
 import { acquisitionName, money } from '../../steps/economics/economicsView'
 import { scenarioName, type ReportContext } from '../reportModel'
@@ -16,7 +17,8 @@ const e = ru.project.economics
  */
 export function EconomicsSection({ ctx }: { readonly ctx: ReportContext }) {
   const { economics, scenarios, facts, run, scenario } = ctx
-  const rows = scenarioRows({ economics, scenarios, facts, run, conditions: economics.conditions })
+  const norms = useModelNorms()
+  const rows = scenarioRows({ norms, economics, scenarios, facts, run, conditions: economics.conditions })
   const columns: readonly { readonly key: ColumnKey; readonly label: string }[] = [
     { key: 'current', label: e.scenarios.current },
     ...scenarios.map((s) => ({
@@ -24,7 +26,7 @@ export function EconomicsSection({ ctx }: { readonly ctx: ReportContext }) {
       label: s.acquisition === ctx.selected ? `${acquisitionName(s.acquisition)} · ${e.scenarios.selected}` : acquisitionName(s.acquisition),
     })),
   ]
-  const chain = chainRows(scenario, economics, facts, newCostItems(scenario))
+  const chain = chainRows(scenario, economics, facts, newCostItems(scenario), norms)
   const name = scenarioName(ctx, scenario.acquisition)
   return (
     <ReportSection n={7} sectionKey="economics" lead={t.lead(facts?.volume ?? '—', String(facts?.hoursPerDay ?? '—'), ctx.horizon)}>

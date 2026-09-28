@@ -23,6 +23,7 @@ interface ProcessCardBodyProps {
  * Общая часть карточек библиотеки 07 (15935:302) и вкладки «Процессы локации» 15 (15950:2587).
  */
 export function ProcessCardBody({ headingId, name, unit, description, classLabel, rows, chips }: ProcessCardBodyProps) {
+  const defaultsId = `${headingId}-defaults`
   return (
     <>
       <div className="flex flex-col items-end gap-8">
@@ -40,8 +41,9 @@ export function ProcessCardBody({ headingId, name, unit, description, classLabel
         <Chip size="md">{classLabel}</Chip>
       </div>
 
-      <section className="flex flex-col gap-12 rounded-lg bg-surface-muted p-16" aria-label={t.card.defaultsTitle}>
-        <p aria-hidden className="type-overline text-text-muted">{t.card.defaultsTitle}</p>
+      {/* Имя области — подпись блока и название процесса: в списке карточек области не должны называться одинаково. */}
+      <section className="flex flex-col gap-12 rounded-lg bg-surface-muted p-16" aria-labelledby={`${defaultsId} ${headingId}`}>
+        <p id={defaultsId} className="type-overline text-text-muted">{t.card.defaultsTitle}</p>
         <dl className="flex flex-col gap-12">
           {rows.map((row) => (
             <div key={row.key} className="flex flex-col gap-4">

@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { FacilityParameter, FacilityType, FacilityTypeCode, Location, LocationProcess, OperationClass, Process, ProcessCode, Robot } from '@/domain'
+import type {
+  FacilityParameter, FacilityType, FacilityTypeCode, Location, LocationProcess, OperationClass, Process, ProcessCode, ProcessRequirements, Robot,
+} from '@/domain'
 import { NotFoundError } from '@/services/errors'
 import { useServices } from '@/services/useServices'
 
 export interface ProcessDetailData {
   readonly process: Process
+  /** Что процесс запрашивает у локации (PRD 9.3), без объёма потока. */
+  readonly requirements: ProcessRequirements
   readonly operationClass: OperationClass | undefined
   readonly facilityTypes: readonly FacilityType[]
   /** Роботы каталога с классом процесса — совпадение по классу, не результат подбора (PRD 3.4). */
@@ -30,7 +34,8 @@ export function useProcessDetail(code: ProcessCode): { readonly state: ProcessDe
     let cancelled = false
     const load = async (): Promise<ProcessDetailData> => {
       const process = await services.processes.getProcess(code)
-      const [operationClasses, facilityTypes, robots, locations] = await Promise.all([
+      const [requirements, operationClasses, facilityTypes, robots, locations] = await Promise.all([
+        services.processes.getRequirements(process.code),
         services.catalog.listOperationClasses(),
         services.locations.listFacilityTypes(),
         services.catalog.listRobots({ operationClass: process.operationClass }),
@@ -43,6 +48,7 @@ export function useProcessDetail(code: ProcessCode): { readonly state: ProcessDe
       ])
       return {
         process,
+        requirements,
         operationClass: operationClasses.find((c) => c.code === process.operationClass),
         facilityTypes,
         robots,

@@ -81,7 +81,7 @@ describe('DataSourcesPage (экран А6)', () => {
 
   it('counts norms from the А5 reference, not «33 норматива» (PRD 15 · №10)', async () => {
     renderPage()
-    expect((await rowOf('Нормативы модели 2.1')).getByText('34 норматива')).toBeInTheDocument()
+    expect((await rowOf('Нормативы модели 2.1')).getByText('35 нормативов')).toBeInTheDocument()
   })
 
   it('lets only a linked source switch auto-refresh and saves the choice (PRD 6.10)', async () => {

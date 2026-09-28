@@ -20,9 +20,6 @@ export const FLEET_LIMITS = {
   stations: { min: 1, max: 50 },
 } as const
 
-/** Допуск расхождения с расчётом по умолчанию — ±10 % (PRD 11.4, этап 2 «Проверка»). */
-export const DEFAULT_TOLERANCE = 0.1
-
 const robotsCount = (n: number): string => formatCount(n, ru.plural.robots)
 
 const indexOf = (stage: SimulationStage): number => SIMULATION_STAGES.indexOf(stage)
