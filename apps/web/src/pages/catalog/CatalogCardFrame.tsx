@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button, ButtonLink } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
+import { Card, CardTitle } from '@/components/ui/Card'
 import { ChipList, type ChipListItem } from '@/components/ui/ChipList'
 import { ru } from '@/shared/i18n/ru'
 import { catalogItemPath } from './catalogModel'
@@ -74,7 +74,7 @@ interface CardSectionProps {
 export function CardSection({ title, items, max }: CardSectionProps) {
   return (
     <section className="flex flex-col gap-6">
-      <h3 className="type-overline text-text-muted">{title}</h3>
+      <CardTitle>{title}</CardTitle>
       <ChipList items={items} label={title} {...(max !== undefined ? { max } : {})} />
     </section>
   )

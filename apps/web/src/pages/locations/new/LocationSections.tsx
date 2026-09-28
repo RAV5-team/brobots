@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/Card'
 import { Field } from '@/components/ui/Field'
 import { FieldGrid, FormSection } from '@/components/ui/FormSection'
 import { Input } from '@/components/ui/Input'
+import { NumberField } from '@/components/ui/NumberField'
 import { Segmented } from '@/components/ui/Segmented'
 import { formatNumber } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
@@ -36,30 +37,25 @@ const rangeText = (key: NumericKey, params: ParameterIndex): string => {
   return range ? `${formatNumber(range.min, 3)}–${formatNumber(range.max, 3)}` : ''
 }
 
-/** Числовое поле: звёздочка, единица справа, подсказка с диапазоном датасета или ошибка. */
-export function NumberField({ name, form, errors, update, params }: LocationSectionProps & { readonly name: NumericKey }) {
+/** Числовое поле профиля: звёздочка, единица справа, подсказка с диапазоном датасета или ошибка. */
+export function LocationNumberField({ name, form, errors, update, params }: LocationSectionProps & { readonly name: NumericKey }) {
   const copy = t.fields[name]
   const assumed = name === 'turnover' && isTurnoverAssumed(form)
   return (
-    <Field
+    <NumberField
       id={fieldDomId(name)}
       label={copy.label}
       required={NUMERIC_SPECS[name].required}
       hint={'hint' in copy ? copy.hint(rangeText(name, params)) : undefined}
       error={errors[name]}
       badge={assumed && <Badge kind="assumption" />}
-    >
-      <Input
-        inputMode="decimal"
-        autoComplete="off"
-        suffix={copy.unit}
-        value={form[name]}
-        onChange={(e) => {
-          const patch: Partial<NumericValues> = { [name]: e.target.value }
-          update(patch)
-        }}
-      />
-    </Field>
+      unit={copy.unit}
+      value={form[name]}
+      onChange={(text) => {
+        const patch: Partial<NumericValues> = { [name]: text }
+        update(patch)
+      }}
+    />
   )
 }
 
@@ -112,9 +108,9 @@ export function AreaSection({ description = t.sections.area.description, ...prop
   return (
     <FormSection id="area" title={t.sections.area.title} description={description}>
       <FieldGrid>
-        <NumberField name="totalArea" {...props} />
-        <NumberField name="activeArea" {...props} />
-        <NumberField name="floors" {...props} />
+        <LocationNumberField name="totalArea" {...props} />
+        <LocationNumberField name="activeArea" {...props} />
+        <LocationNumberField name="floors" {...props} />
       </FieldGrid>
     </FormSection>
   )
@@ -125,10 +121,10 @@ export function ScheduleSection(props: LocationSectionProps) {
   return (
     <FormSection id="schedule" title={t.sections.schedule.title}>
       <FieldGrid>
-        <NumberField name="shifts" {...props} />
-        <NumberField name="workingDays" {...props} />
-        <NumberField name="shiftHours" {...props} />
-        <NumberField name="peakFactor" {...props} />
+        <LocationNumberField name="shifts" {...props} />
+        <LocationNumberField name="workingDays" {...props} />
+        <LocationNumberField name="shiftHours" {...props} />
+        <LocationNumberField name="peakFactor" {...props} />
       </FieldGrid>
     </FormSection>
   )

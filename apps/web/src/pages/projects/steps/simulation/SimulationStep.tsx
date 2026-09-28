@@ -3,7 +3,7 @@ import { useEffect, type ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { projectStepPath } from '@/app/routePaths'
 import { ButtonLink } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
+import { StatusBanner } from '@/components/ui/StatusBanner'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
 import { Stepper } from '@/components/ui/Stepper'
 import { TabNav } from '@/components/ui/TabNav'
@@ -68,10 +68,7 @@ function saveNoteOf(state: SimulationStepState, isGuest: boolean, readOnly: bool
 function StaleRunNotice({ runId }: { readonly runId: string }) {
   const n = t.conditions.stale
   return (
-    <Card as="section" variant="accent" padding={20} gap={4} role="status" aria-labelledby="simulation-stale-title">
-      <h2 id="simulation-stale-title" className="type-body font-semibold text-on-accent">{n.title}</h2>
-      <p className="type-caption text-on-accent">{n.description(runId)}</p>
-    </Card>
+    <StatusBanner variant="accent" title={n.title} description={n.description(runId)} />
   )
 }
 

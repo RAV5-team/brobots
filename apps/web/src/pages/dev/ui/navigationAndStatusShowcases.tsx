@@ -76,6 +76,16 @@ export function StatusBannerShowcase() {
         <StatusBanner variant="inverse" title={a.title} />
         {/* danger — дисклеймер отчёта 09 (16197:2325, ТЗ 3.7.5). */}
         <StatusBanner variant="danger" title={ru.project.economics.footer.disclaimer} />
+        {/* accent — «данные устарели» подбора и симуляции (D-89). */}
+        <StatusBanner
+          variant="accent"
+          title={ru.project.matching.stale.title}
+          description={ru.project.matching.stale.description}
+          action={<Button variant="primary" className="shrink-0">{ru.project.matching.stale.action}</Button>}
+        >
+          <p className="type-caption text-on-accent">{ru.project.matching.stale.mock}</p>
+        </StatusBanner>
+        <StatusBanner variant="accent" title={ru.project.simulation.conditions.stale.title} description={ru.project.simulation.conditions.stale.description('SIM-0926-01')} />
       </div>
     </ShowcaseSection>
   )

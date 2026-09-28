@@ -2,7 +2,7 @@ import { ArrowRight, SlidersHorizontal } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { projectStepPath } from '@/app/routePaths'
 import { Button } from '@/components/ui/Button'
-import { Card, CardStat } from '@/components/ui/Card'
+import { Card, CardStat, CardTitle } from '@/components/ui/Card'
 import { MergedButton } from '@/components/ui/MergedButton'
 import type { Project, RankedVariant } from '@/domain'
 import { formatCount, formatDate, formatRubCompact, formatYears } from '@/shared/format'
@@ -30,7 +30,7 @@ export function MatchingRail({ project, selected, stale, siteChecks, changedPara
   return (
     <>
       <Card padding={20} gap={8} as="section" aria-labelledby="matching-selected">
-        <h2 id="matching-selected" className="type-overline text-text-muted">{r.overline}</h2>
+        <CardTitle as="h2" id="matching-selected">{r.overline}</CardTitle>
         {selected
           ? (
               <>
@@ -52,7 +52,7 @@ export function MatchingRail({ project, selected, stale, siteChecks, changedPara
       </Card>
       {siteChecks.length > 0 && (
         <Card padding={20} gap={12} as="section" aria-labelledby="matching-checks">
-          <h2 id="matching-checks" className="type-overline text-text-muted">{r.checksTitle}</h2>
+          <CardTitle as="h2" id="matching-checks">{r.checksTitle}</CardTitle>
           <ol className="flex list-inside list-decimal flex-col gap-8 type-body font-semibold text-text">
             {siteChecks.map((label) => (
               <li key={label}>

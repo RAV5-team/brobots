@@ -1,6 +1,6 @@
 import { ArrowLeft } from 'lucide-react'
 import { useMemo, useState, type SyntheticEvent } from 'react'
-import { useLocation, useNavigate } from 'react-router'
+import { useNavigate } from 'react-router'
 import { ROUTE_PATHS } from '@/app/routePaths'
 import { Chip } from '@/components/ui/Chip'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -9,8 +9,6 @@ import { TextLink } from '@/components/ui/TextLink'
 import { nextRobotId } from '@/domain'
 import { useServices } from '@/services/useServices'
 import { ValidationError } from '@/services/errors'
-import { canAccess } from '@/shared/auth/resolveRole'
-import { useRole } from '@/shared/auth/useRole'
 import { clearDraft, readDraft, useDraftAutosave } from '@/shared/dom/useDraftAutosave'
 import { formatNumber, formatTime } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
@@ -31,6 +29,7 @@ import {
 } from './robotForm'
 import { usePhotoList } from './usePhotoList'
 import { useRobotNew, type RobotNewData } from './useRobotNew'
+import { AdminGuard } from '../../AdminGuard'
 
 const t = ru.robotNew
 /** Черновик карточки в браузере (D-21); фото в него не пишутся (D-53). */
@@ -129,13 +128,7 @@ function RobotNewForm({ data }: { readonly data: RobotNewData }) {
  * Только администратор (PRD 5.3, 6); после сохранения — А3 «Каталог обновлён».
  */
 export function RobotNewPage() {
-  const role = useRole()
-  const { pathname } = useLocation()
-
-  if (!canAccess(role, pathname)) {
-    return <ErrorState title={ru.errors.accessDenied(ru.roles[role])} message={ru.admin.accessHint} />
-  }
-  return <RobotNewContent />
+  return <AdminGuard><RobotNewContent /></AdminGuard>
 }
 
 function RobotNewContent() {

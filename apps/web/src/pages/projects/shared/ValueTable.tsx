@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from '@/components/ui/Table'
 import { ru } from '@/shared/i18n/ru'
-import type { ValueRow } from './paramsModel'
+import type { ValueRow } from '../steps/params/paramsModel'
 
 const t = ru.project.params
 

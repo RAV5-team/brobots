@@ -1,4 +1,4 @@
-import { Card } from '@/components/ui/Card'
+import { Card, CardTitle } from '@/components/ui/Card'
 import { formatCount, formatNumber } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { CONFIDENCE_ORDER, robotCard, type RobotSummary } from './processDetailModel'
@@ -19,7 +19,7 @@ export function RobotsSection({ classCode, summary }: RobotsSectionProps) {
     <Card aria-labelledby="robots-title">
       <div className="flex items-start justify-between gap-16">
         <div className="flex flex-col gap-4">
-          <h2 id="robots-title" className="type-overline text-text-muted">{t.title(classCode)}</h2>
+          <CardTitle as="h2" id="robots-title">{t.title(classCode)}</CardTitle>
           <p className="type-caption text-text-secondary">{t.lead}</p>
         </div>
         <p className="type-heading whitespace-nowrap text-text">{formatCount(summary.total, ru.plural.robots)}</p>

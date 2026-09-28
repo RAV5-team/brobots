@@ -6,7 +6,7 @@ import { Button, ButtonLink } from '@/components/ui/Button'
 import { MergedButton } from '@/components/ui/MergedButton'
 import { Modal } from '@/components/ui/Modal'
 import { RadioTable, type RadioTableColumn } from '@/components/ui/RadioTable'
-import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
+import { EmptyState, ErrorState, SkeletonList } from '@/components/ui/States'
 import type { LocationId } from '@/domain'
 import { ru } from '@/shared/i18n/ru'
 import { useServices } from '@/services/useServices'
@@ -112,9 +112,7 @@ function NewProjectModal({ context, onClose }: NewProjectModalProps) {
       footer={footer}
     >
       {state.status === 'loading' && (
-        <div aria-busy className="flex flex-col gap-8">
-          {Array.from({ length: SKELETON_ROWS }, (_, i) => <Skeleton key={i} className="h-44 rounded-md" />)}
-        </div>
+        <SkeletonList rows={SKELETON_ROWS} rowClassName="h-44" />
       )}
       {state.status === 'error' && <ErrorState title={t.loadError.title} message={t.loadError.message} onRetry={retry} />}
       {isEmpty && (

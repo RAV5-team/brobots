@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatCount, formatFileSize, formatNumber, formatPercent, formatRub, formatRubCompact, formatRubMillions, formatYears, pluralize, roundHalfUp } from './index'
+import { formatCount, formatFileSize, formatNumber, formatPercent, formatRub, formatRubCompact, formatRubMillions, formatRubTenth, formatRubTenthFixed, formatRubTotal, formatYears, pluralize, roundHalfUp } from './index'
 
 // Intl вставляет неразрывные пробелы: U+00A0 перед ₽ и U+202F в разрядах.
 const plain = (s: string) => s.replace(/[\u00a0\u202f]/g, ' ')
@@ -141,5 +141,23 @@ describe('signed — изменение со знаком (дельта сост
   it('без signed — как раньше', () => {
     expect(formatNumber(-2)).toBe('-2')
     expect(formatPercent(0.95)).toBe('95 %')
+  })
+})
+
+describe('именованные форматы сумм', () => {
+  it('formatRubTenth — один знак без хвостового нуля (подбор 03)', () => {
+    expect(plain(formatRubTenth(6_100_000))).toBe('6,1 млн ₽')
+    expect(plain(formatRubTenth(42_000_000))).toBe('42 млн ₽')
+  })
+
+  it('formatRubTenthFixed — один знак с нулём (список проектов A1)', () => {
+    expect(plain(formatRubTenthFixed(84_000_000))).toBe('84,0 млн ₽')
+    expect(plain(formatRubTenthFixed(400_000))).toBe('400,0 тыс. ₽')
+  })
+
+  it('formatRubTotal — миллионы с нулём, меньше миллиона как обычно (итог 08)', () => {
+    expect(plain(formatRubTotal(42_000_000))).toBe('42,0 млн ₽')
+    expect(plain(formatRubTotal(-700_000))).toBe('-700 тыс. ₽')
+    expect(plain(formatRubTotal(400_000))).toBe('400 тыс. ₽')
   })
 })

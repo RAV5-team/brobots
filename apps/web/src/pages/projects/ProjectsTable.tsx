@@ -5,13 +5,13 @@ import { Chip } from '@/components/ui/Chip'
 import { IconButtonLink } from '@/components/ui/IconButton'
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from '@/components/ui/Table'
 import type { Project } from '@/domain'
-import { formatRubCompact, formatYears } from '@/shared/format'
+import { formatRubTenthFixed, formatYears } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { stageLabel, type ProjectRow } from './projectsModel'
 
 const t = ru.projects
 // Один знак во всей колонке: «84,0 млн ₽» рядом с «6,1 млн ₽» (PRD 11.1, макет A1).
-const money = (rub: number): string => formatRubCompact(rub, { fractionDigits: 1, fixed: true })
+const money = formatRubTenthFixed
 
 function StatusCell({ project }: { readonly project: Project }) {
   if (project.status === 'saved') return <Chip tone="ready">{t.status.saved}</Chip>

@@ -9,6 +9,7 @@ import { CharacteristicRowShowcase, ChipListShowcase, CompareTableShowcase, Mult
 import { FormulaStatsShowcase, SectionNavShowcase, StatusBannerShowcase, TabNavShowcase, TextLinkShowcase } from './navigationAndStatusShowcases'
 import { FieldGridShowcase, HourGridShowcase, NumberStepperShowcase, StepperShowcase } from './projectFormShowcases'
 import { ChartsShowcase } from './chartShowcases'
+import { FormRailShowcase, NumberFieldShowcase } from './formShowcases'
 import { PageHeaderShowcase, StatTileShowcase, WellShowcase } from './tileShowcases'
 
 export interface Showcase {
@@ -23,6 +24,7 @@ export const SHOWCASES: readonly Showcase[] = [
   { slug: 'button', title: 'Button', Component: ButtonShowcase },
   { slug: 'field', title: 'Field', Component: FieldShowcase },
   { slug: 'input', title: 'Input', Component: InputShowcase },
+  { slug: 'number-field', title: 'NumberField', Component: NumberFieldShowcase },
   { slug: 'search', title: 'Search', Component: SearchShowcase },
   { slug: 'segmented', title: 'Segmented control', Component: SegmentedShowcase },
   { slug: 'select', title: 'Select / Option', Component: SelectShowcase },
@@ -38,6 +40,7 @@ export const SHOWCASES: readonly Showcase[] = [
   { slug: 'stat-tile', title: 'StatTile', Component: StatTileShowcase },
   { slug: 'well', title: 'Well', Component: WellShowcase },
   { slug: 'page-header', title: 'PageHeader', Component: PageHeaderShowcase },
+  { slug: 'form-rail', title: 'FormRail', Component: FormRailShowcase },
   { slug: 'section-header', title: 'Section header', Component: SectionHeaderShowcase },
   { slug: 'table', title: 'Table', Component: TableShowcase },
   { slug: 'compare-table', title: 'CompareTable · FitCell', Component: CompareTableShowcase },

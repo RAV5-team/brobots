@@ -14,7 +14,7 @@ import {
   type SimulationRun,
 } from '@/domain'
 import { staffing, type Staffing } from '@/pages/processes/locationStaffing'
-import { formatCount, formatNumber, formatPercent, formatRubCompact, formatYears } from '@/shared/format'
+import { formatCount, formatNumber, formatPercent, formatRubCompact, formatRubTotal, formatYears } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { defaultsOf, locationNumber } from '../params/paramsModel'
 
@@ -22,13 +22,8 @@ const t = ru.project.economics
 const plural = ru.plural
 const YEARS = ru.project.matching.plural.years
 
-const MILLION = 1_000_000
-
 /** Суммы итога — миллионы с одним знаком: «6,1 млн ₽», «42,0 млн ₽» в колонках таблиц; меньше миллиона — «400 тыс. ₽». */
-export const money = (value: number | null): string => {
-  if (value === null) return '—'
-  return Math.abs(value) >= MILLION ? formatRubCompact(value, { fractionDigits: 1, fixed: true }) : formatRubCompact(value)
-}
+export const money = (value: number | null): string => (value === null ? '—' : formatRubTotal(value))
 export const years = (value: number | null): string => (value === null ? t.tiles.notPaying : formatYears(value))
 export const acquisitionName = (acquisition: AcquisitionModel): string => ru.project.matching.acquisition[acquisition]
 

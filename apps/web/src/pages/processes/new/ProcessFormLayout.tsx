@@ -10,7 +10,7 @@ import { formatTime } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { ProcessCheckRail, type CheckRailCopy, type CheckRow } from './ProcessCheckRail'
 import { ProcessSection } from './ProcessSection'
-import { StaffSection } from './StaffSection'
+import { ProcessStaffSection } from './ProcessStaffSection'
 import { CostsSection, RouteSection, VolumeSection } from './VolumeRouteSections'
 import { SECTION_IDS, type NumericKey } from './processForm'
 import type { ProcessFormState } from './useProcessFormState'
@@ -66,7 +66,7 @@ export function ProcessFormLayout({ back, title, lead, state, canSave, hints, ra
           />
           <VolumeSection {...sectionProps} />
           <RouteSection {...sectionProps} />
-          <StaffSection {...sectionProps} handlingMethods={options.handlingMethods} payrollCoef={options.payrollCoef} />
+          <ProcessStaffSection {...sectionProps} handlingMethods={options.handlingMethods} payrollCoef={options.payrollCoef} />
           <CostsSection {...sectionProps} />
         </div>
         <ProcessCheckRail copy={rail.copy} rows={rail.rows} canSave={canSave} saving={saving} message={message} />
