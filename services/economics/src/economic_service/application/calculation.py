@@ -19,6 +19,7 @@ from economic_service.domain.models import (
     EvaluationStatus,
     InputOrigin,
     MetricValue,
+    ReasonCode,
     RobotCandidate,
     ScalarValue,
     Scenario,
@@ -80,10 +81,19 @@ class EconomicCalculationEngine:
         """Calculates each pre-screened candidate against every scenario."""
 
         validate_evaluation_request(request)
-        results = tuple(
-            self._calculate_candidate(request, candidate, scenario)
+        pairs = tuple(
+            (candidate, scenario)
             for candidate in request.candidates
             for scenario in request.scenarios
+            if scenario.acquisition_model in candidate.acquisition_models
+        )
+        if not pairs:
+            raise InvalidInputError(
+                "No candidate acquisition offer matches a requested scenario."
+            )
+        results = tuple(
+            self._calculate_candidate(request, candidate, scenario)
+            for candidate, scenario in pairs
         )
         status = (
             EvaluationStatus.PARTIAL
@@ -128,7 +138,10 @@ class EconomicCalculationEngine:
         )
         labor = self._calculate_labor(request, candidate, scenario, calc_tracer)
         productivity = self._calculate_productivity(
-            request, candidate, calc_tracer
+            request,
+            candidate,
+            demand.trips_per_operation,
+            calc_tracer,
         )
         fleet = self._calculate_fleet(
             request, demand, productivity, calc_tracer
@@ -159,34 +172,31 @@ class EconomicCalculationEngine:
         self,
         request: EvaluationRequest,
         candidate: RobotCandidate,
-    ) -> tuple[str, ...]:
-        missing: list[str] = []
+    ) -> tuple[ReasonCode, ...]:
+        missing: list[ReasonCode] = []
         if candidate.price is None:
-            missing.append(
-                "Catalog price is missing; economics are unresolved."
-            )
-        if candidate.max_speed_mps is None:
-            missing.append(
-                "Maximum speed is missing; productivity is unresolved."
-            )
-        if candidate.loading_seconds is None:
-            missing.append(
-                "Loading time is missing; productivity is unresolved."
-            )
-        if candidate.unloading_seconds is None:
-            missing.append(
-                "Unloading time is missing; productivity is unresolved."
-            )
+            missing.append(ReasonCode.CATALOG_PRICE_MISSING)
+        if (
+            candidate.throughput_per_hour is None
+            and candidate.max_speed_mps is None
+        ):
+            missing.append(ReasonCode.PRODUCTIVITY_INPUTS_MISSING)
+        if (
+            candidate.throughput_per_hour is None
+            and candidate.loading_seconds is None
+        ):
+            missing.append(ReasonCode.LOADING_TIME_MISSING)
+        if (
+            candidate.throughput_per_hour is None
+            and candidate.unloading_seconds is None
+        ):
+            missing.append(ReasonCode.UNLOADING_TIME_MISSING)
         if candidate.average_power_kw is None:
-            missing.append("Average power is missing; OPEX is unresolved.")
+            missing.append(ReasonCode.AVERAGE_POWER_MISSING)
         if candidate.handling_method is None:
-            missing.append(
-                "Handling method is missing; labor replacement is unresolved."
-            )
+            missing.append(ReasonCode.HANDLING_METHOD_MISSING)
         if request.task.load_is_divisible and candidate.payload_kg is None:
-            missing.append(
-                "Payload is missing for a divisible-load calculation."
-            )
+            missing.append(ReasonCode.PAYLOAD_MISSING)
         return tuple(missing)
 
     def _calculate_labor(
@@ -365,12 +375,10 @@ class EconomicCalculationEngine:
         self,
         request: EvaluationRequest,
         candidate: RobotCandidate,
+        trips_per_operation: Decimal,
         recorder: CalculationTracer,
     ) -> formulas.ProductivityResult:
         task = request.task
-        assert candidate.max_speed_mps is not None
-        assert candidate.loading_seconds is not None
-        assert candidate.unloading_seconds is not None
         result = formulas.calculate_productivity(
             formulas.ProductivityInputs(
                 max_speed_mps=candidate.max_speed_mps,
@@ -383,8 +391,60 @@ class EconomicCalculationEngine:
                 unloading_seconds=candidate.unloading_seconds,
                 productive_time_share=request.norms.productive_time_share,
                 technical_availability=request.norms.technical_availability,
+                trips_per_operation=trips_per_operation,
+                catalog_throughput_per_hour=(
+                    None
+                    if candidate.throughput_per_hour is None
+                    else candidate.throughput_per_hour.value
+                ),
             )
         )
+        if candidate.throughput_per_hour is not None:
+            throughput = candidate.throughput_per_hour
+            recorder.add(
+                "candidate.productivity.catalog_throughput_per_hour",
+                throughput.value,
+                throughput.unit,
+                (
+                    ("source", throughput.source.source),
+                    ("source_unit", throughput.unit),
+                ),
+            )
+            recorder.add(
+                "candidate.productivity.trips_per_process_unit",
+                trips_per_operation,
+                "trips/task_unit",
+                (("trips_per_operation", trips_per_operation),),
+            )
+            recorder.add(
+                "candidate.productivity.nominal_trips_per_robot_hour",
+                result.nominal_capacity_per_hour,
+                "trips/hour",
+                (
+                    ("catalog_throughput_per_hour", throughput.value),
+                    ("trips_per_process_unit", trips_per_operation),
+                ),
+            )
+            recorder.add(
+                "candidate.productivity.effective_trips_per_robot_hour",
+                result.effective_trips_per_robot_hour,
+                "trips/hour",
+                (
+                    (
+                        "nominal_trips_per_robot_hour",
+                        result.nominal_capacity_per_hour,
+                    ),
+                    (
+                        "productive_time_share",
+                        request.norms.productive_time_share,
+                    ),
+                    (
+                        "technical_availability",
+                        request.norms.technical_availability,
+                    ),
+                ),
+            )
+            return result
         recorder.add(
             "candidate.productivity.one_way_route_m",
             task.one_way_route_m,
@@ -476,7 +536,14 @@ class EconomicCalculationEngine:
                     demand.average_operations_per_hour
                 ),
                 trips_per_operation=demand.trips_per_operation,
-                nominal_cycles_per_hour=productivity.nominal_cycles_per_hour,
+                nominal_cycles_per_hour=(
+                    productivity.nominal_capacity_per_hour
+                    if productivity.nominal_cycles_per_hour is None
+                    else productivity.nominal_cycles_per_hour
+                ),
+                nominal_capacity_per_hour=(
+                    productivity.nominal_capacity_per_hour
+                ),
                 charger_power_kw=request.norms.charger_power_kw,
             )
         )
@@ -526,8 +593,15 @@ class EconomicCalculationEngine:
                 ("trips_per_operation", demand.trips_per_operation),
                 ("robot_count", result.robot_count),
                 (
-                    "nominal_cycles_per_hour",
-                    productivity.nominal_cycles_per_hour,
+                    (
+                        "nominal_cycles_per_hour",
+                        productivity.nominal_cycles_per_hour,
+                    )
+                    if productivity.nominal_cycles_per_hour is not None
+                    else (
+                        "nominal_capacity_per_hour",
+                        productivity.nominal_capacity_per_hour,
+                    )
                 ),
             ),
         )
@@ -1231,40 +1305,33 @@ class EconomicCalculationEngine:
         request: EvaluationRequest,
         candidate: RobotCandidate,
         recorder: CalculationTracer,
-    ) -> list[str]:
-        risks: list[str] = []
+    ) -> list[ReasonCode]:
+        risks: list[ReasonCode] = []
         if candidate.catalog_status != "operation":
-            risks.append(
-                f"Catalog maturity status is {candidate.catalog_status}."
-            )
+            risks.append(ReasonCode.CATALOG_STATUS_NOT_OPERATIONAL)
         if candidate.confirmation.value != "confirmed":
-            risks.append(
-                "Catalog technical specifications require confirmation."
-            )
+            risks.append(ReasonCode.CATALOG_SPECS_UNCONFIRMED)
         budget = request.task.budget
         within_budget = self._scalar_value(
             recorder, "candidate.budget.within_budget"
         )
         if budget is not None and within_budget is False:
-            risks.append("CAPEX exceeds the planning budget.")
+            risks.append(ReasonCode.CAPEX_EXCEEDS_BUDGET)
         required_power = self._value(
             recorder, "candidate.fleet.required_charging_power_kw"
         )
         if required_power > request.task.available_charging_power_kw:
-            risks.append("Available charging power is insufficient.")
+            risks.append(ReasonCode.CHARGING_POWER_INSUFFICIENT)
         utilization = self._value(
             recorder, "candidate.fleet.average_utilization"
         )
         if utilization < assumptions.LOW_UTILIZATION_THRESHOLD:
-            risks.append(
-                "Average fleet utilization is below "
-                f"{assumptions.LOW_UTILIZATION_THRESHOLD:.0%}."
-            )
+            risks.append(ReasonCode.FLEET_UTILIZATION_BELOW_THRESHOLD)
         if (
             self._value(recorder, "candidate.effects.net_annual_benefit")
             <= assumptions.ZERO
         ):
-            risks.append("The modeled net annual benefit is not positive.")
+            risks.append(ReasonCode.NON_POSITIVE_ANNUAL_BENEFIT)
         return risks
 
     @staticmethod

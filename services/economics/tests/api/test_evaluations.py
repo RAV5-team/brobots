@@ -1,8 +1,11 @@
 """HTTP contract tests for evaluation submission and retrieval."""
 
 from dataclasses import replace
+from decimal import Decimal
 
+import pytest
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
 from economic_service.adapters.http.schemas import (
     CandidateDto,
@@ -20,6 +23,7 @@ from economic_service.application.evaluation import (
 )
 from economic_service.config import AppSettings
 from economic_service.domain.models import (
+    AcquisitionModel,
     ConfirmationStatus,
     InputOrigin,
     RankingCriterion,
@@ -80,6 +84,7 @@ def _catalog_candidate() -> CandidateDto:
                 "price currency."
             ),
         ),
+        acquisition_models=(AcquisitionModel.PURCHASE,),
     )
 
 
@@ -122,7 +127,7 @@ def test_post_and_get_evaluation_return_snapshot_and_ranking_gate() -> None:
     fetched = client.get(f"/api/v1/evaluations/{request.evaluation_id}")
     assert fetched.status_code == 200
     assert fetched.json()["evaluation_id"] == request.evaluation_id
-    assert fetched.json()["request"]["model_version"] == "economic-v1.1"
+    assert fetched.json()["request"]["model_version"] == "economic-v1.2"
 
 
 def test_post_and_get_round_trip_applicable_ranking_trace() -> None:
@@ -141,6 +146,65 @@ def test_post_and_get_round_trip_applicable_ranking_trace() -> None:
     assert ranking["items"][0]["candidate_status"] == "applicable"
     assert ranking["items"][0]["criteria"]
     assert fetched.json()["result"]["ranking"] == ranking
+
+
+def test_response_serializes_each_reason_with_code_and_russian_text() -> None:
+    client = _client()
+    request = _request()
+    candidate = replace(
+        request.candidates[0],
+        catalog_status="testing",
+        confirmation=ConfirmationStatus.PARTIAL,
+        maturity_trl=None,
+        catalog_completeness_percent=None,
+    )
+    request = replace(
+        request,
+        candidates=(candidate,),
+        ranking_weights=tuple(
+            (
+                criterion.value,
+                Decimal("100")
+                if criterion is RankingCriterion.MATURITY
+                else Decimal("0"),
+            )
+            for criterion in RankingCriterion
+        ),
+    )
+    payload = EvaluationRequestDto.from_domain(request).model_dump(mode="json")
+
+    response = client.post("/api/v1/evaluations", json=payload)
+
+    assert response.status_code == 201
+    body = response.json()
+    candidate_risks = body["result"]["candidates"][0]["risks"]
+    ranking_item = body["result"]["ranking"]["items"][0]
+    reason_objects = [
+        *candidate_risks,
+        *ranking_item["risks"],
+        ranking_item["unranked_reason"],
+        *(
+            trace["missing_reason"]
+            for trace in ranking_item["criteria"]
+            if trace["missing_reason"] is not None
+        ),
+    ]
+
+    assert reason_objects
+    assert all(set(reason) == {"code", "text_ru"} for reason in reason_objects)
+    assert {reason["code"] for reason in candidate_risks} >= {
+        "catalog_status_not_operational",
+        "catalog_specs_unconfirmed",
+    }
+    assert ranking_item["unranked_reason"]["code"] == (
+        "no_positive_weight_criteria"
+    )
+    maturity = next(
+        trace
+        for trace in ranking_item["criteria"]
+        if trace["code"] == RankingCriterion.MATURITY.value
+    )
+    assert maturity["missing_reason"]["code"] == "sourced_value_unavailable"
 
 
 def test_http_money_requires_explicit_currency() -> None:
@@ -194,6 +258,60 @@ def test_http_rejects_invalid_ranking_weight_overrides() -> None:
     assert response.status_code == 422
 
 
+def test_model_version_reports_the_served_versions() -> None:
+    response = _client().get("/api/v1/model-version")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "model_version": "economic-v1.2",
+        "ranking_version": "ranking-v1",
+    }
+
+
+def test_http_rejects_unknown_calculation_model_version() -> None:
+    client = _client()
+    request = replace(_request(), model_version="economic-v9")
+    payload = EvaluationRequestDto.from_domain(request).model_dump(mode="json")
+
+    response = client.post("/api/v1/evaluations", json=payload)
+
+    assert response.status_code == 409
+    assert "economic-v9" in response.json()["detail"]
+
+
+def test_http_rejects_economic_v11_for_new_evaluations() -> None:
+    client = _client()
+    request = replace(_request(), model_version="economic-v1.1")
+    payload = EvaluationRequestDto.from_domain(request).model_dump(mode="json")
+
+    response = client.post("/api/v1/evaluations", json=payload)
+
+    assert response.status_code == 409
+    assert "economic-v1.1" in response.json()["detail"]
+
+
+def test_candidate_schema_requires_unique_acquisition_models() -> None:
+    payload = CandidateDto.model_validate(_catalog_candidate().model_dump())
+
+    assert payload.acquisition_models == (AcquisitionModel.PURCHASE,)
+    candidate_payload = _catalog_candidate().model_dump()
+    candidate_payload.pop("acquisition_models")
+    with pytest.raises(ValidationError):
+        CandidateDto.model_validate(candidate_payload)
+    with pytest.raises(ValidationError):
+        CandidateDto.model_validate(
+            _catalog_candidate().model_dump()
+            | {"acquisition_models": []}
+        )
+    with pytest.raises(ValidationError):
+        CandidateDto.model_validate(
+            _catalog_candidate().model_dump()
+            | {
+                "acquisition_models": ["purchase", "purchase"],
+            }
+        )
+
+
 def test_get_unknown_evaluation_returns_not_found() -> None:
     response = _client().get("/api/v1/evaluations/missing")
 
@@ -207,3 +325,4 @@ def test_openapi_documents_versioned_evaluation_routes() -> None:
     paths = response.json()["paths"]
     assert "/api/v1/evaluations" in paths
     assert "/api/v1/evaluations/{evaluation_id}" in paths
+    assert "/api/v1/model-version" in paths

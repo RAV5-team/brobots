@@ -161,7 +161,7 @@
             This editable example runs purchase and RaaS scenarios for one candidate.
             Change any input in the JSON. Each run gets a new evaluation ID.
           </p>
-          <label class="input-label" for="request-json">Request JSON · RUB · economic-v1.1</label>
+          <label class="input-label" for="request-json">Request JSON · RUB · economic-v1.2</label>
           <textarea id="request-json" spellcheck="false" aria-describedby="request-help"></textarea>
           <p id="request-help" class="hint">
             The page sends <code>POST /api/v1/evaluations</code>, then retrieves the saved
@@ -195,14 +195,14 @@
         source: "manual-workbench-example",
         origin: "user",
         confirmation: "confirmed",
-        version: "economic-v1.1",
+        version: "economic-v1.2",
         note: "Demonstration inputs; edit before using for an assessment."
       };
       const money = (amount) => ({ amount: String(amount), currency: "RUB", scale: 0 });
       const examplePayload = {
         evaluation_id: "manual-example",
         project_id: "manual-project",
-        model_version: "economic-v1.1",
+        model_version: "economic-v1.2",
         task: {
           project_id: "manual-project",
           task_id: "warehouse-pallet-movement",
@@ -288,14 +288,14 @@
             price_factor: "1",
             volume_factor: "1",
             labor_factor: "1",
-            model_version: "economic-v1.1"
+            model_version: "economic-v1.2"
           },
           {
             acquisition_model: "raas",
             price_factor: "1",
             volume_factor: "1",
             labor_factor: "1",
-            model_version: "economic-v1.1"
+            model_version: "economic-v1.2"
           }
         ]
       };

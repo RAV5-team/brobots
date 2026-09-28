@@ -27,6 +27,7 @@ from economic_service.domain.models import (
     RankingCriterion,
     RankingItemStatus,
     RankingStatus,
+    ReasonCode,
     RobotCandidate,
     SourcedValue,
     SourceRef,
@@ -63,6 +64,7 @@ def _robot(
         catalog_status="operation",
         confirmation=ConfirmationStatus.CONFIRMED,
         source=SOURCE,
+        acquisition_models=(AcquisitionModel.PURCHASE, AcquisitionModel.RAAS),
         maturity_trl=(
             SourcedValue(Decimal(maturity), "TRL", SOURCE)
             if maturity is not None
@@ -126,6 +128,10 @@ def _request(
     return SimpleNamespace(
         candidates=robots,
         task=task,
+        scenarios=tuple(
+            SimpleNamespace(acquisition_model=model)
+            for model in AcquisitionModel
+        ),
         ranking_weights=weights,
         requested_ranking_version=None,
     )
@@ -157,6 +163,44 @@ def test_scoring_normalizes_direction_and_uses_competition_ranks() -> None:
         ("c", 3, Decimal("0.00")),
     ]
     assert result.items[0].criteria[0].normalized_value == Decimal("1")
+
+
+def test_scoring_excludes_unoffered_pairs_from_normalization() -> None:
+    purchase_offer = (AcquisitionModel.PURCHASE,)
+    request = _request(
+        (
+            replace(_robot("a"), acquisition_models=purchase_offer),
+            replace(_robot("b"), acquisition_models=purchase_offer),
+        ),
+        weights=tuple(
+            (
+                criterion.value,
+                Decimal("100")
+                if criterion is RankingCriterion.PAYBACK
+                else Decimal("0"),
+            )
+            for criterion in RankingCriterion
+        ),
+    )
+    candidates = (
+        _candidate("a", payback="1"),
+        _candidate(
+            "a",
+            payback="100",
+            acquisition_model=AcquisitionModel.RAAS,
+        ),
+        _candidate("b", payback="3"),
+    )
+
+    result = ScoringUseCase.ranking_v1().score(request, candidates)
+
+    assert [
+        (item.candidate_id, item.acquisition_model, item.score)
+        for item in result.items
+    ] == [
+        ("a", AcquisitionModel.PURCHASE, Decimal("100.00")),
+        ("b", AcquisitionModel.PURCHASE, Decimal("0.00")),
+    ]
 
 
 def test_scoring_rounds_contributions_and_ranks_ties_stably() -> None:
@@ -255,7 +299,7 @@ def test_budget_fit_handles_missing_zero_and_raas_setup_capex() -> None:
         if trace.code is RankingCriterion.BUDGET_FIT
     )
     assert budget_trace.is_missing
-    assert budget_trace.missing_reason == "Location budget is unavailable."
+    assert budget_trace.missing_reason is ReasonCode.LOCATION_BUDGET_UNAVAILABLE
 
 
 def test_tco_savings_provenance_and_non_applicable_statuses() -> None:
@@ -627,9 +671,7 @@ def test_no_positive_weight_values_have_explicit_unranked_reason() -> None:
     assert item.status is RankingItemStatus.UNRANKED
     assert item.score is None
     assert item.rank is None
-    assert item.unranked_reason == (
-        "No positive-weight criteria have available values."
-    )
+    assert item.unranked_reason is ReasonCode.NO_POSITIVE_WEIGHT_CRITERIA
 
 
 def test_maturity_and_completeness_trace_source_values_and_provenance() -> None:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import fields, is_dataclass
+from dataclasses import fields, is_dataclass, replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum
@@ -29,12 +29,105 @@ from economic_service.domain.models import (
     RankingItemStatus,
     RankingResult,
     RankingStatus,
+    ReasonCode,
     RobotCandidate,
     Scenario,
     SourcedValue,
     SourceRef,
     TaskEconomicsInput,
 )
+
+_LEGACY_REASON_CODES = {
+    "Catalog price is missing; economics are unresolved.": (
+        ReasonCode.CATALOG_PRICE_MISSING
+    ),
+    "Maximum speed is missing; productivity is unresolved.": (
+        ReasonCode.PRODUCTIVITY_INPUTS_MISSING
+    ),
+    "Loading time is missing; productivity is unresolved.": (
+        ReasonCode.LOADING_TIME_MISSING
+    ),
+    "Unloading time is missing; productivity is unresolved.": (
+        ReasonCode.UNLOADING_TIME_MISSING
+    ),
+    "Average power is missing; OPEX is unresolved.": (
+        ReasonCode.AVERAGE_POWER_MISSING
+    ),
+    "Handling method is missing; labor replacement is unresolved.": (
+        ReasonCode.HANDLING_METHOD_MISSING
+    ),
+    "Payload is missing for a divisible-load calculation.": (
+        ReasonCode.PAYLOAD_MISSING
+    ),
+    "Catalog technical specifications require confirmation.": (
+        ReasonCode.CATALOG_SPECS_UNCONFIRMED
+    ),
+    "CAPEX exceeds the planning budget.": ReasonCode.CAPEX_EXCEEDS_BUDGET,
+    "Available charging power is insufficient.": (
+        ReasonCode.CHARGING_POWER_INSUFFICIENT
+    ),
+    "Average fleet utilization is below 30%.": (
+        ReasonCode.FLEET_UTILIZATION_BELOW_THRESHOLD
+    ),
+    "The modeled net annual benefit is not positive.": (
+        ReasonCode.NON_POSITIVE_ANNUAL_BENEFIT
+    ),
+    "No positive-weight criteria have available values.": (
+        ReasonCode.NO_POSITIVE_WEIGHT_CRITERIA
+    ),
+    "Baseline or robotized process TCO is unavailable.": (
+        ReasonCode.CALCULATED_METRIC_UNAVAILABLE
+    ),
+    "Baseline or robotized process TCO is not numeric.": (
+        ReasonCode.CALCULATED_METRIC_NOT_NUMERIC
+    ),
+    "Calculated metric is unavailable.": (
+        ReasonCode.CALCULATED_METRIC_UNAVAILABLE
+    ),
+    "Calculated metric is not numeric.": (
+        ReasonCode.CALCULATED_METRIC_NOT_NUMERIC
+    ),
+    "Location budget is unavailable.": (
+        ReasonCode.LOCATION_BUDGET_UNAVAILABLE
+    ),
+    "Location budget must not be negative.": (
+        ReasonCode.LOCATION_BUDGET_NEGATIVE
+    ),
+    "Total upfront CAPEX is unavailable.": (
+        ReasonCode.UPFRONT_CAPEX_UNAVAILABLE
+    ),
+    "Total upfront CAPEX is not numeric.": (
+        ReasonCode.UPFRONT_CAPEX_NOT_NUMERIC
+    ),
+    "Total upfront CAPEX must not be negative.": (
+        ReasonCode.UPFRONT_CAPEX_NEGATIVE
+    ),
+    "Sourced value is unavailable.": ReasonCode.SOURCED_VALUE_UNAVAILABLE,
+    "Sourced value is not a finite decimal.": (
+        ReasonCode.SOURCED_VALUE_NOT_FINITE
+    ),
+}
+
+
+def _reason_code(value: Any, *, legacy_reason_texts: bool) -> ReasonCode | None:
+    if value is None:
+        return None
+    try:
+        return ReasonCode(str(value))
+    except ValueError:
+        if not legacy_reason_texts:
+            raise
+
+    text = str(value)
+    known_code = _LEGACY_REASON_CODES.get(text)
+    if known_code is not None:
+        return known_code
+    status_prefix = "Catalog maturity status is "
+    if text.startswith(status_prefix) and text.endswith("."):
+        status = text.removeprefix(status_prefix).removesuffix(".").strip()
+        if status:
+            return ReasonCode.CATALOG_STATUS_NOT_OPERATIONAL
+    return ReasonCode.LEGACY_UNMAPPED
 
 
 def encode(value: Any) -> Any:
@@ -176,6 +269,11 @@ def _candidate(payload: dict[str, Any]) -> RobotCandidate:
         catalog_status=str(payload["catalog_status"]),
         confirmation=ConfirmationStatus(str(payload["confirmation"])),
         source=_source(payload["source"]),
+        acquisition_models=tuple(
+            AcquisitionModel(str(model))
+            for model in payload.get("acquisition_models", ())
+        ),
+        throughput_per_hour=sourced_decimal("throughput_per_hour"),
         maturity_trl=sourced_decimal("maturity_trl"),
         catalog_completeness_percent=sourced_decimal(
             "catalog_completeness_percent"
@@ -237,14 +335,26 @@ def _scenario(payload: dict[str, Any]) -> Scenario:
 def request_from_json(payload: dict[str, Any]) -> EvaluationRequest:
     """Reconstructs a domain request from an encoded JSON snapshot."""
 
+    scenarios = tuple(_scenario(item) for item in payload["scenarios"])
+    legacy_offers = tuple(
+        dict.fromkeys(scenario.acquisition_model for scenario in scenarios)
+    )
+    candidates = tuple(_candidate(item) for item in payload["candidates"])
+    candidates = tuple(
+        replace(candidate, acquisition_models=legacy_offers)
+        if not candidate.acquisition_models
+        else candidate
+        for candidate in candidates
+    )
+
     return EvaluationRequest(
         evaluation_id=str(payload["evaluation_id"]),
         project_id=str(payload["project_id"]),
         model_version=str(payload["model_version"]),
         task=_task(payload["task"]),
-        candidates=tuple(_candidate(item) for item in payload["candidates"]),
+        candidates=candidates,
         norms=_norms(payload["norms"]),
-        scenarios=tuple(_scenario(item) for item in payload["scenarios"]),
+        scenarios=scenarios,
         requested_ranking_version=payload.get("requested_ranking_version"),
         calculation_currency=payload.get(
             "calculation_currency", CALCULATION_CURRENCY
@@ -287,7 +397,9 @@ def _metric(payload: dict[str, Any]) -> MetricValue:
     )
 
 
-def _candidate_economics(payload: dict[str, Any]) -> CandidateEconomics:
+def _candidate_economics(
+    payload: dict[str, Any], *, legacy_reason_texts: bool
+) -> CandidateEconomics:
     # Legacy snapshots may still contain the removed applicability checks.
     return CandidateEconomics(
         candidate_id=str(payload["candidate_id"]),
@@ -295,11 +407,16 @@ def _candidate_economics(payload: dict[str, Any]) -> CandidateEconomics:
         status=CandidateStatus(str(payload["status"])),
         metrics=tuple(_metric(item) for item in payload["metrics"]),
         traces=tuple(_trace(item) for item in payload["traces"]),
-        risks=tuple(str(item) for item in payload["risks"]),
+        risks=tuple(
+            _reason_code(item, legacy_reason_texts=legacy_reason_texts)
+            for item in payload["risks"]
+        ),
     )
 
 
-def _ranking(payload: dict[str, Any]) -> RankingResult:
+def _ranking(
+    payload: dict[str, Any], *, legacy_reason_texts: bool
+) -> RankingResult:
     def criterion_trace(item: dict[str, Any]) -> RankingCriterionTrace:
         raw_value = (
             None
@@ -330,7 +447,10 @@ def _ranking(payload: dict[str, Any]) -> RankingResult:
                 _source(source) for source in item.get("provenance", ())
             ),
             is_missing=bool(item.get("is_missing", raw_value is None)),
-            missing_reason=item.get("missing_reason"),
+            missing_reason=_reason_code(
+                item.get("missing_reason"),
+                legacy_reason_texts=legacy_reason_texts,
+            ),
         )
 
     items = tuple(
@@ -338,7 +458,10 @@ def _ranking(payload: dict[str, Any]) -> RankingResult:
             candidate_id=str(item["candidate_id"]),
             acquisition_model=AcquisitionModel(str(item["acquisition_model"])),
             candidate_status=CandidateStatus(str(item["candidate_status"])),
-            risks=tuple(str(risk) for risk in item["risks"]),
+            risks=tuple(
+                _reason_code(risk, legacy_reason_texts=legacy_reason_texts)
+                for risk in item["risks"]
+            ),
             rank=item["rank"],
             score=(None if item["score"] is None else _decimal(item["score"])),
             contributions=tuple(
@@ -353,7 +476,10 @@ def _ranking(payload: dict[str, Any]) -> RankingResult:
                     else RankingItemStatus.RANKED.value,
                 )
             ),
-            unranked_reason=item.get("unranked_reason"),
+            unranked_reason=_reason_code(
+                item.get("unranked_reason"),
+                legacy_reason_texts=legacy_reason_texts,
+            ),
             criteria=tuple(
                 criterion_trace(trace)
                 for trace in item.get("criteria", ())
@@ -368,7 +494,9 @@ def _ranking(payload: dict[str, Any]) -> RankingResult:
     )
 
 
-def result_from_json(payload: dict[str, Any]) -> EvaluationResult:
+def result_from_json(
+    payload: dict[str, Any], *, legacy_reason_texts: bool = False
+) -> EvaluationResult:
     """Reconstructs a domain result from an encoded JSON snapshot."""
 
     return EvaluationResult(
@@ -377,9 +505,14 @@ def result_from_json(payload: dict[str, Any]) -> EvaluationResult:
         model_version=str(payload["model_version"]),
         status=EvaluationStatus(str(payload["status"])),
         candidates=tuple(
-            _candidate_economics(item) for item in payload["candidates"]
+            _candidate_economics(
+                item, legacy_reason_texts=legacy_reason_texts
+            )
+            for item in payload["candidates"]
         ),
-        ranking=_ranking(payload["ranking"]),
+        ranking=_ranking(
+            payload["ranking"], legacy_reason_texts=legacy_reason_texts
+        ),
     )
 
 
@@ -406,7 +539,10 @@ def snapshot_from_json(
         evaluation_id=request.evaluation_id,
         project_id=request.project_id,
         request=request,
-        result=result_from_json(result_payload),
+        result=result_from_json(
+            result_payload,
+            legacy_reason_texts=request.model_version == "economic-v1.1",
+        ),
         created_at=created_at,
         revision_of=revision_of,
     )

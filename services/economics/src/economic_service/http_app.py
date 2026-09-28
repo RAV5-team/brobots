@@ -12,6 +12,7 @@ from economic_service.adapters.http.schemas import (
     ErrorResponseDto,
     EvaluationRequestDto,
     EvaluationSnapshotDto,
+    ModelVersionDto,
 )
 from economic_service.adapters.persistence.sqlalchemy_repository import (
     SqlAlchemyEvaluationSnapshotRepository,
@@ -25,6 +26,11 @@ from economic_service.application.evaluation import (
 from economic_service.config import AppSettings
 from economic_service.domain.errors import DomainError, ModelVersionError
 from economic_service.logging_setup import configure_logging
+from economic_service.model_versions import (
+    CALCULATION_MODEL_VERSION,
+    RANKING_MODEL_VERSION,
+    is_supported_calculation_version,
+)
 
 LOGGER = logging.getLogger(__name__)
 REQUEST_ID_HEADER = "X-Request-ID"
@@ -111,6 +117,19 @@ def create_app(
         LOGGER.debug("Readiness check passed", extra={"request_id": "system"})
         return {"status": "ready", "service": resolved_settings.app_name}
 
+    @application.get(
+        "/api/v1/model-version",
+        response_model=ModelVersionDto,
+        tags=["evaluations"],
+    )
+    async def model_version() -> ModelVersionDto:
+        """Returns the calculation and ranking versions served now."""
+
+        return ModelVersionDto(
+            model_version=CALCULATION_MODEL_VERSION,
+            ranking_version=RANKING_MODEL_VERSION,
+        )
+
     @application.post(
         "/api/v1/evaluations",
         response_model=EvaluationSnapshotDto,
@@ -134,6 +153,11 @@ def create_app(
     ) -> EvaluationSnapshotDto:
         """Calculates, persists, and returns one evaluation snapshot."""
 
+        if not is_supported_calculation_version(payload.model_version):
+            raise ModelVersionError(
+                "Requested calculation model version is unavailable: "
+                f"{payload.model_version}."
+            )
         snapshot = service.evaluate(payload.to_domain())
         return EvaluationSnapshotDto.from_domain(snapshot)
 

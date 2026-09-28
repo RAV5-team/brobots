@@ -24,6 +24,7 @@ from economic_service.domain.models import (
     RankingItemStatus,
     RankingResult,
     RankingStatus,
+    ReasonCode,
     RobotCandidate,
     SourceRef,
 )
@@ -55,7 +56,7 @@ class _CriterionValue:
     value: Decimal | None
     unit: str
     provenance: tuple[SourceRef, ...]
-    missing_reason: str | None = None
+    missing_reason: ReasonCode | None = None
 
 
 class MinMaxRankingStrategy:
@@ -97,10 +98,17 @@ class MinMaxRankingStrategy:
         candidate_inputs = {
             item.candidate_id: item for item in request.candidates
         }
+        requested_models = {
+            scenario.acquisition_model for scenario in request.scenarios
+        }
         applicable = tuple(
             item
             for item in candidates
             if item.status is CandidateStatus.APPLICABLE
+            and item.candidate_id in candidate_inputs
+            and item.acquisition_model in requested_models
+            and item.acquisition_model
+            in candidate_inputs[item.candidate_id].acquisition_models
         )
         extracted = {
             _scenario_key(item): _extract_values(
@@ -143,7 +151,7 @@ class MinMaxRankingStrategy:
             if score is None:
                 rank = None
                 item_status = RankingItemStatus.UNRANKED
-                reason = "No positive-weight criteria have available values."
+                reason = ReasonCode.NO_POSITIVE_WEIGHT_CRITERIA
             else:
                 if score != previous_score:
                     current_rank = index
@@ -257,7 +265,7 @@ def _extract_values(
                 for metric in (baseline, robotized)
                 if metric is not None
             ),
-            "Baseline or robotized process TCO is unavailable.",
+            ReasonCode.CALCULATED_METRIC_UNAVAILABLE,
         )
     else:
         baseline_value = _decimal_value(baseline.value)
@@ -267,7 +275,7 @@ def _extract_values(
                 None,
                 baseline.unit,
                 (baseline.source, robotized.source),
-                "Baseline or robotized process TCO is not numeric.",
+                ReasonCode.CALCULATED_METRIC_NOT_NUMERIC,
             )
         else:
             values[RankingCriterion.TCO_SAVINGS] = _CriterionValue(
@@ -287,7 +295,7 @@ def _extract_values(
                 if capex_metric is not None
                 else (request.task.source,)
             ),
-            "Location budget is unavailable.",
+            ReasonCode.LOCATION_BUDGET_UNAVAILABLE,
         )
     elif budget.base_amount < 0:
         values[RankingCriterion.BUDGET_FIT] = _CriterionValue(
@@ -298,14 +306,14 @@ def _extract_values(
                 if capex_metric is not None
                 else (request.task.source,)
             ),
-            "Location budget must not be negative.",
+            ReasonCode.LOCATION_BUDGET_NEGATIVE,
         )
     elif capex_metric is None:
         values[RankingCriterion.BUDGET_FIT] = _CriterionValue(
             None,
             "fraction",
             (request.task.source,),
-            "Total upfront CAPEX is unavailable.",
+            ReasonCode.UPFRONT_CAPEX_UNAVAILABLE,
         )
     else:
         capex_value = _decimal_value(capex_metric.value)
@@ -315,14 +323,14 @@ def _extract_values(
                 None,
                 "fraction",
                 provenance,
-                "Total upfront CAPEX is not numeric.",
+                ReasonCode.UPFRONT_CAPEX_NOT_NUMERIC,
             )
         elif capex_value < 0:
             values[RankingCriterion.BUDGET_FIT] = _CriterionValue(
                 None,
                 "fraction",
                 provenance,
-                "Total upfront CAPEX must not be negative.",
+                ReasonCode.UPFRONT_CAPEX_NEGATIVE,
             )
         elif capex_value == 0:
             values[RankingCriterion.BUDGET_FIT] = _CriterionValue(
@@ -348,7 +356,7 @@ def _extract_values(
                 None,
                 _criterion_unit(criterion),
                 (),
-                "Sourced value is unavailable.",
+                ReasonCode.SOURCED_VALUE_UNAVAILABLE,
             )
             continue
         value = _decimal_value(sourced.value)
@@ -357,7 +365,7 @@ def _extract_values(
                 None,
                 sourced.unit,
                 (sourced.source,),
-                "Sourced value is not a finite decimal.",
+                ReasonCode.SOURCED_VALUE_NOT_FINITE,
             )
         else:
             values[criterion] = _CriterionValue(
@@ -376,7 +384,7 @@ def _from_metric(
             None,
             _CRITERION_UNITS[criterion],
             (),
-            "Calculated metric is unavailable.",
+            ReasonCode.CALCULATED_METRIC_UNAVAILABLE,
         )
     value = _decimal_value(metric.value)
     if value is None:
@@ -384,7 +392,7 @@ def _from_metric(
             None,
             metric.unit,
             (metric.source,),
-            "Calculated metric is not numeric.",
+            ReasonCode.CALCULATED_METRIC_NOT_NUMERIC,
         )
     return _CriterionValue(value, metric.unit, (metric.source,))
 

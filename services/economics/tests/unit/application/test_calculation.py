@@ -89,6 +89,7 @@ def _candidate(
         catalog_status="operation",
         confirmation=ConfirmationStatus.CONFIRMED,
         source=SOURCE,
+        acquisition_models=(AcquisitionModel.PURCHASE,),
     )
 
 
@@ -133,12 +134,22 @@ def _request(
     candidate: RobotCandidate | None = None,
     acquisition_model: AcquisitionModel = AcquisitionModel.PURCHASE,
 ) -> EvaluationRequest:
+    selected_candidate = (
+        _candidate()
+        if candidate is None
+        else candidate
+    )
+    if candidate is None:
+        selected_candidate = replace(
+            selected_candidate,
+            acquisition_models=(acquisition_model,),
+        )
     return EvaluationRequest(
         evaluation_id="evaluation-1",
         project_id="project-1",
-        model_version="economic-v1.1",
+        model_version="economic-v1.2",
         task=_task(),
-        candidates=(candidate or _candidate(),),
+        candidates=(selected_candidate,),
         norms=_norms(),
         scenarios=(
             Scenario(
@@ -146,7 +157,7 @@ def _request(
                 price_factor=Decimal("1"),
                 volume_factor=Decimal("1"),
                 labor_factor=Decimal("1"),
-                model_version="economic-v1.1",
+                model_version="economic-v1.2",
             ),
         ),
     )
@@ -442,3 +453,179 @@ def test_calculation_rejects_non_rub_calculation_currency() -> None:
 
     with pytest.raises(UnsupportedCurrencyError):
         EconomicCalculationEngine().calculate(request)
+
+
+@pytest.mark.parametrize(
+    "acquisition_models",
+    [
+        (),
+        (AcquisitionModel.PURCHASE, AcquisitionModel.PURCHASE),
+    ],
+)
+def test_evaluation_rejects_invalid_candidate_acquisition_offers(
+    acquisition_models: tuple[AcquisitionModel, ...],
+) -> None:
+    candidate = replace(
+        _candidate(), acquisition_models=acquisition_models
+    )
+
+    with pytest.raises(InvalidInputError):
+        EconomicCalculationEngine().calculate(_request(candidate))
+
+
+def test_calculation_only_expands_offered_purchase_and_raas_scenarios() -> None:
+    purchase_candidate = replace(
+        _candidate(),
+        candidate_id="purchase-only",
+        acquisition_models=(AcquisitionModel.PURCHASE,),
+    )
+    raas_candidate = replace(
+        _candidate(),
+        candidate_id="raas-only",
+        acquisition_models=(AcquisitionModel.RAAS,),
+    )
+    request = replace(
+        _request(purchase_candidate),
+        candidates=(purchase_candidate, raas_candidate),
+        scenarios=(
+            _request(acquisition_model=AcquisitionModel.PURCHASE).scenarios[0],
+            _request(acquisition_model=AcquisitionModel.RAAS).scenarios[0],
+        ),
+    )
+
+    results = EconomicCalculationEngine().calculate(request).candidates
+
+    assert [
+        (item.candidate_id, item.acquisition_model) for item in results
+    ] == [
+        ("purchase-only", AcquisitionModel.PURCHASE),
+        ("raas-only", AcquisitionModel.RAAS),
+    ]
+
+
+def test_calculation_omits_candidates_without_a_selected_scenario() -> None:
+    purchase_candidate = replace(
+        _candidate(),
+        candidate_id="purchase-only",
+        acquisition_models=(AcquisitionModel.PURCHASE,),
+    )
+    unmatched_candidate = replace(
+        _candidate(),
+        candidate_id="raas-only",
+        acquisition_models=(AcquisitionModel.RAAS,),
+    )
+    request = replace(
+        _request(purchase_candidate),
+        candidates=(purchase_candidate, unmatched_candidate),
+    )
+
+    results = EconomicCalculationEngine().calculate(request).candidates
+
+    assert [
+        (item.candidate_id, item.acquisition_model) for item in results
+    ] == [("purchase-only", AcquisitionModel.PURCHASE)]
+
+
+def test_calculation_rejects_no_matching_candidate_scenario() -> None:
+    candidate = replace(
+        _candidate(), acquisition_models=(AcquisitionModel.RAAS,)
+    )
+
+    with pytest.raises(InvalidInputError, match="No candidate acquisition"):
+        EconomicCalculationEngine().calculate(_request(candidate))
+
+
+def test_evaluation_accepts_positive_finite_sourced_throughput() -> None:
+    candidate = replace(
+        _candidate(),
+        throughput_per_hour=SourcedValue(
+            Decimal("12.5"), "task_units/hour", SOURCE
+        ),
+    )
+
+    result = EconomicCalculationEngine().calculate(_request(candidate))
+
+    assert result.candidates
+
+
+def test_catalog_throughput_converts_capacity_and_applies_norms() -> None:
+    candidate = replace(
+        _candidate(),
+        payload_kg=Decimal("100"),
+        throughput_per_hour=SourcedValue(
+            Decimal("12.5"), "task_units/hour", SOURCE
+        ),
+    )
+    task = replace(
+        _task(),
+        load_unit_mass_kg=Decimal("250"),
+        load_is_divisible=True,
+    )
+    request = replace(_request(candidate), task=task)
+
+    result = EconomicCalculationEngine().calculate(request).candidates[0]
+
+    assert _metric(
+        result, "candidate.productivity.catalog_throughput_per_hour"
+    ).value == Decimal("12.5")
+    assert _metric(
+        result, "candidate.productivity.trips_per_process_unit"
+    ).value == Decimal("3")
+    assert _metric(
+        result, "candidate.productivity.nominal_trips_per_robot_hour"
+    ).value == Decimal("37.5")
+    assert _metric(
+        result, "candidate.productivity.effective_trips_per_robot_hour"
+    ).value == Decimal("27.00")
+    assert _metric(
+        result, "candidate.fleet.average_utilization"
+    ).value == Decimal("30") / (Decimal("3") * Decimal("37.5"))
+
+
+def test_catalog_throughput_precedence_allows_missing_cycle_inputs() -> None:
+    candidate = replace(
+        _candidate(),
+        max_speed_mps=None,
+        loading_seconds=None,
+        unloading_seconds=None,
+        throughput_per_hour=SourcedValue(
+            Decimal("12.5"), "task_units/hour", SOURCE
+        ),
+    )
+
+    result = EconomicCalculationEngine().calculate(
+        _request(candidate)
+    ).candidates[0]
+
+    assert _metric(
+        result, "candidate.productivity.catalog_throughput_per_hour"
+    ).value == Decimal("12.5")
+    assert _metric(
+        result, "candidate.productivity.effective_trips_per_robot_hour"
+    ).value == Decimal("9.000")
+    assert "candidate.productivity.cycle_seconds" not in {
+        metric.code for metric in result.metrics
+    }
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        Decimal("0"),
+        Decimal("-1"),
+        Decimal("NaN"),
+        Decimal("Infinity"),
+    ],
+)
+def test_evaluation_rejects_invalid_sourced_throughput(
+    value: Decimal,
+) -> None:
+    candidate = replace(
+        _candidate(),
+        throughput_per_hour=SourcedValue(
+            value, "task_units/hour", SOURCE
+        ),
+    )
+
+    with pytest.raises(InvalidInputError):
+        EconomicCalculationEngine().calculate(_request(candidate))
