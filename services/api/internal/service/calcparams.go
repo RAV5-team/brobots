@@ -152,11 +152,11 @@ func calcDefaults(cr store.CalcRunRecord, results []store.CalcResult, robot *uui
 	out := domain.CalcParams{StaffCostRubPerMonth: d.StaffCostRubPerMonth, WorkHoursPerDay: d.WorkHoursPerDay,
 		HorizonYears: domain.Ptr(cr.HorizonYears)}
 	if robot == nil {
-		for _, r := range results {
-			if r.Calculable && r.Rank != nil && *r.Rank == 1 {
-				robot = &r.SolutionID
-			}
-		}
+		robot = referenceRobot(results)
+	}
+	norms := cr.Request.Norms
+	if v, ok := norms.Value("productive_time_share"); ok {
+		out.Utilization = &v
 	}
 	if robot == nil {
 		return out
@@ -164,6 +164,12 @@ func calcDefaults(cr store.CalcRunRecord, results []store.CalcResult, robot *uui
 	out.SolutionID = robot
 	rd := d.Robots[*robot]
 	out.RobotPriceRub, out.RobotTripsPerHour = rd.PriceRub, rd.TripsPerHour
+	servicePct := rd.ServiceCostPct
+	if servicePct == nil {
+		if v, ok := norms.Value("annual_service_share"); ok {
+			servicePct = domain.Ptr(v * percent)
+		}
+	}
 	for _, r := range results {
 		if r.SolutionID != *robot || r.AcquisitionModel != calc.Purchase || !r.Calculable {
 			continue
@@ -171,9 +177,26 @@ func calcDefaults(cr store.CalcRunRecord, results []store.CalcResult, robot *uui
 		if r.Details.FleetUtilization != nil {
 			out.Utilization = r.Details.FleetUtilization
 		}
-		if rd.ServiceCostPct != nil && rd.PriceRub != nil && r.RobotCount != nil {
-			out.ServiceCostRubPerYear = domain.Ptr(*rd.PriceRub * float64(*r.RobotCount) * *rd.ServiceCostPct / percent)
+		if servicePct != nil && rd.PriceRub != nil && r.RobotCount != nil {
+			out.ServiceCostRubPerYear = domain.Ptr(*rd.PriceRub * float64(*r.RobotCount) * *servicePct / percent)
 		}
 	}
 	return out
+}
+
+// referenceRobot is the recommended robot, or the first calculated one when the calculator does not rank.
+func referenceRobot(results []store.CalcResult) *uuid.UUID {
+	var first *uuid.UUID
+	for _, r := range results {
+		if !r.Calculable || r.AcquisitionModel != calc.Purchase {
+			continue
+		}
+		if r.Rank != nil && *r.Rank == 1 {
+			return &r.SolutionID
+		}
+		if first == nil {
+			first = &r.SolutionID
+		}
+	}
+	return first
 }
