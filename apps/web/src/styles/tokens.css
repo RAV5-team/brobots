@@ -18,7 +18,7 @@
   /* --- Цвета: текст --- */
   --rav-color-text: #111111;
   --rav-color-text-secondary: #5e5e59;
-  --rav-color-text-muted: #8a867d; /* контраст 3.13 — D-23 */
+  --rav-color-text-muted: #66625b; /* макет #8a867d; ≥ 4.69 на всех поверхностях — D-23 */
   --rav-color-text-disabled: #b9b3a7;
 
   /* --- Цвета: инверсия и акцент --- */
@@ -34,7 +34,7 @@
   --rav-color-accent-border: #c9d62a;
 
   /* --- Цвета: статусы и слои --- */
-  --rav-color-danger: #ce2c31;
+  --rav-color-danger: #bf282d; /* макет #ce2c31; ≥ 4.57 на всех поверхностях — D-23 */
   --rav-color-danger-border: #e5484d;
   --rav-color-danger-bg: #f7e3de;
   --rav-color-scrim: rgb(17 17 17 / 0.32);
