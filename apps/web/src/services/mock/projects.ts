@@ -6,10 +6,13 @@ import { toSimulationJob, toSimulationRun } from '@/api/mappers/simulation'
 import { toSimulationTrace } from '@/api/mappers/trace'
 import {
   applyInputsPatch,
+  canAdvanceTo,
   canOpenStep,
   emptyInputs,
   furthestStep,
   markFresh,
+  matchingStaleCause,
+  stepAfterMatchingStale,
   type DraftProject,
   type Fleet,
   type MatchingEvaluation,
@@ -196,7 +199,9 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
     updateInputs: (id, patch) => attempt(() => {
       const stored = editable(id)
       const at = now()
-      put(id, { dto: { ...stored.dto, updatedAt: at }, local: { ...stored.local, inputs: applyInputsPatch(stored.local.inputs, patch, at) } })
+      const inputs = applyInputsPatch(stored.local.inputs, patch, at)
+      const step = stepAfterMatchingStale(stored.local.step, matchingStaleCause(patch, inputs))
+      put(id, { dto: { ...stored.dto, updatedAt: at }, local: { ...stored.local, step, inputs } })
       return toDomain(find(id))
     }),
 
@@ -217,7 +222,9 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
     openStep: (id, step) => attempt(() => {
       const stored = find(id)
       const project = toDomain(stored)
-      if (!canOpenStep(project, step)) throw new ConflictError('Этот шаг откроется, когда будут пройдены предыдущие')
+      if (!canOpenStep(project, step) && !canAdvanceTo(project, step)) {
+        throw new ConflictError('Этот шаг откроется, когда будут пройдены предыдущие')
+      }
       if (project.status === 'draft') put(id, { ...stored, local: { ...stored.local, step: furthestStep(project.step, step) } })
       return toDomain(find(id))
     }),

@@ -29,15 +29,34 @@ describe('мок проектов', () => {
     const projects = service()
     const edited = await projects.updateInputs('PJ-DEMO', { params: { assumptions: [{ code: 'route_length_m', value: 86, kind: 'fact' }] } })
     expect(edited.inputs.stale).toEqual({ matching: true, simulation: true })
+    expect(edited.step).toBe('params')
     expect((await projects.getProject('PJ-DEMO')).inputs.stale.matching).toBe(true)
     await expect(projects.updateInputs('PJ-01', { economics: { scenario: 'purchase' } })).rejects.toBeInstanceOf(ConflictError)
   })
 
-  it('открытие шага: черновик запоминает самый дальний, закрытый шаг — отказ', async () => {
+  it('открытие шага: CTA двигает на следующий, через один и назад без сдвига', async () => {
     const projects = service()
     await expect(projects.openStep('PJ-02', 'simulation')).rejects.toBeInstanceOf(ConflictError)
+    expect(await projects.openStep('PJ-02', 'matching')).toMatchObject({ step: 'matching' })
     const back = await projects.openStep('PJ-04', 'params')
     expect(back).toMatchObject({ step: 'matching' })
+  })
+
+  it('новый черновик проходит шаги кнопкой openStep до итога', async () => {
+    const projects = service()
+    const draft = await projects.createDraft({ name: 'x', locationId: 'LOC-01', locationProcessId: 'LP-01' })
+    expect(draft.step).toBe('params')
+    await expect(projects.openStep(draft.id, 'economics')).rejects.toBeInstanceOf(ConflictError)
+    expect(await projects.openStep(draft.id, 'matching')).toMatchObject({ step: 'matching' })
+    expect(await projects.openStep(draft.id, 'simulation')).toMatchObject({ step: 'simulation' })
+    expect(await projects.openStep(draft.id, 'economics')).toMatchObject({ step: 'economics' })
+  })
+
+  it('«Параметры расчёта» сжимают дальний шаг до подбора', async () => {
+    const projects = service()
+    const edited = await projects.updateInputs('PJ-DEMO', { matching: { calcParams: { workHoursPerDay: 20 } } })
+    expect(edited.step).toBe('matching')
+    expect(edited.inputs.stale.matching).toBe(true)
   })
 
   it('подбор есть у РЦ Химки · паллеты, отметка «устарело» — из решений проекта', async () => {

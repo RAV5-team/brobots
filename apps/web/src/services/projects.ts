@@ -38,7 +38,10 @@ export interface ProjectService {
    * сбрасываются, черновик возвращается на «Параметры» (D-94). Сохранённая оценка — ConflictError.
    */
   selectProcess(id: ProjectId, locationProcessId: LocationProcessId): Promise<Project>
-  /** Открыт шаг: черновик запоминает самый дальний. Закрытый шаг — ConflictError. */
+  /**
+   * Открыть шаг: пройденный — без сдвига, следующий — CTA записывает его как дальний.
+   * Дальше текущего+1 — ConflictError. URL закрытого шага лоадер не вызывает.
+   */
   openStep(id: ProjectId, step: ProjectStep): Promise<Project>
   /** Расчёт подбора (`GET /projects/{id}/evaluation`). Не рассчитан — NotFoundError. */
   getMatching(id: ProjectId): Promise<MatchingEvaluation>

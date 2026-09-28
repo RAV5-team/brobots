@@ -117,7 +117,7 @@ export interface Readiness {
  * Счётчики панели «Готовность профиля» (PRD 10.2). Правило, снимающее противоречие PRD 15 · №44:
  * «N / M обязательных» — обязательные поля, заполненные без ошибки; «Заполнено полей» — непустые поля, верные или нет.
  * Поля: тип, название, город, адрес + 11 числовых + норматив начислений = 16 у склада; таблица групп — отдельное правило.
- * Допущения — значения с плашкой «допущение» (у склада — только текучесть, пока она принятый 0; PRD 15 · №45).
+ * Допущения панели формы — плашка у текучести, пока она принятый 0 (PRD 10.2). На карточке локации считаются все параметры с источником assumption.
  */
 export function readiness(form: LocationForm, errors: FormErrors, params: ParameterIndex): Readiness {
   const filledText = (key: 'name' | 'city' | 'address') => form[key].trim() !== ''
@@ -146,6 +146,9 @@ export function readiness(form: LocationForm, errors: FormErrors, params: Parame
 }
 
 const MILLION = 1_000_000
+/** Датасет склада, приложение А: горизонт ТЭО и ориентир CAPEX, если справочник тип объекта их не отдал. */
+const DEFAULT_HORIZON_YEARS = 5
+const DEFAULT_CAPEX_MLN = 80
 
 function numericParameters(form: LocationForm): [string, ParameterValue][] {
   return NUMERIC_KEYS.flatMap((key): [string, ParameterValue][] => {
@@ -156,18 +159,24 @@ function numericParameters(form: LocationForm): [string, ParameterValue][] {
   })
 }
 
-/** Стандартные группы дублируются в параметры датасета (wh_pickers, wh_picker_salary) — как у демо-локаций. */
-function presetParameters(staff: readonly StaffGroupRow[]): [string, ParameterValue][] {
-  return STAFF_PRESETS.flatMap((preset): [string, ParameterValue][] => {
-    const row = staff.find((r) => r.key === preset.headcountCode)
-    if (!row) return []
-    const headcount = parseDecimal(row.headcount)
-    const salary = parseDecimal(row.salary)
-    return [
-      ...(headcount === null ? [] : [[preset.headcountCode, { value: headcount, source: 'user' }] as [string, ParameterValue]]),
-      ...(salary === null || preset.salaryCode === null ? [] : [[preset.salaryCode, { value: salary, source: 'user' }] as [string, ParameterValue]]),
-    ]
-  })
+/** Коды групп персонала: в api это `staffGroups`, не `parameters` (PRD 10.2 — таблица ролей). */
+const STAFF_PARAMETER_CODES: ReadonlySet<string> = new Set(
+  STAFF_PRESETS.flatMap((p) => (p.salaryCode === null ? [p.headcountCode] : [p.headcountCode, p.salaryCode])),
+)
+
+/** Значения формы, которые api принимает как параметры типа объекта. */
+function profileParameters(form: LocationForm, params: ParameterIndex): Readonly<Record<string, ParameterValue>> {
+  const coef = payrollCoef(params)
+  const payroll: [string, ParameterValue][] = coef === null ? [] : [['wh_payroll_tax_coef', { value: coef, source: 'organizer' }]]
+  return Object.fromEntries(
+    [...numericParameters(form), ...payroll]
+      .filter(([code]) => params.has(code) && !STAFF_PARAMETER_CODES.has(code)),
+  )
+}
+
+function datasetNumber(params: ParameterIndex, code: string, fallback: number): number {
+  const value = baseNumber(params, code)
+  return value > 0 ? value : fallback
 }
 
 function staffGroups(staff: readonly StaffGroupRow[]): readonly StaffGroup[] {
@@ -184,20 +193,18 @@ const baseNumber = (params: ParameterIndex, code: string): number => {
 }
 
 /**
- * Локация для `POST /locations`. Сохраняется только склад (D-36). Бюджет и горизонт на форме не задаются —
- * берём значения датасета, как у демо-локаций; меняются потом в параметрах проекта (PRD 11.1).
+ * Локация для `POST /locations` в модели api (PRD 10.2): поля склада, параметры справочника, группы персонала.
+ * Бюджет и горизонт на форме нет — из датасета (приложение А), иначе 80 млн ₽ и 5 лет.
  */
 export function toNewLocation(form: LocationForm, params: ParameterIndex): NewLocation {
-  const coef = payrollCoef(params)
-  const payroll: [string, ParameterValue][] = coef === null ? [] : [['wh_payroll_tax_coef', { value: coef, source: 'organizer' }]]
   return {
     name: form.name.trim(),
     city: form.city.trim(),
     address: form.address.trim(),
     facilityType: 'warehouse',
-    capexBudgetRub: baseNumber(params, 'wh_capex_budget') * MILLION,
-    horizonYears: baseNumber(params, 'wh_horizon_years'),
-    parameters: Object.fromEntries([...numericParameters(form), ...payroll, ...presetParameters(form.staff)]),
+    capexBudgetRub: datasetNumber(params, 'wh_capex_budget', DEFAULT_CAPEX_MLN) * MILLION,
+    horizonYears: datasetNumber(params, 'wh_horizon_years', DEFAULT_HORIZON_YEARS),
+    parameters: profileParameters(form, params),
     staffGroups: staffGroups(form.staff),
   }
 }

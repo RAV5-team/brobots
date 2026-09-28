@@ -1,6 +1,6 @@
 import { ArrowLeft } from 'lucide-react'
 import { useEffect, type ReactNode } from 'react'
-import { useNavigate, useSearchParams } from 'react-router'
+import { useSearchParams } from 'react-router'
 import { projectStepPath } from '@/app/routePaths'
 import { ButtonLink } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -13,6 +13,7 @@ import { ru } from '@/shared/i18n/ru'
 import { ProjectStepLayout } from '../ProjectStepLayout'
 import { demandOf } from '../matching/howCalculatedModel'
 import { findVariant } from '../matching/matchingModel'
+import { useAdvanceStep } from '../useAdvanceStep'
 import { ConditionsStage } from './ConditionsStage'
 import { RunStage } from './RunStage'
 import { ChartsStage } from './charts/ChartsStage'
@@ -81,10 +82,11 @@ function StaleRunNotice({ runId }: { readonly runId: string }) {
  */
 export function SimulationStep({ project: initial, locationName, isGuest }: SimulationStepProps) {
   const readOnly = isReadOnly(initial)
-  const state = useSimulationStep(initial, !isGuest && !readOnly)
+  const persist = !isGuest && !readOnly
+  const state = useSimulationStep(initial, persist)
+  const advance = useAdvanceStep(initial.id, persist)
   const { project, inputs, load } = state
   const [params, setParams] = useSearchParams()
-  const navigate = useNavigate()
   const requested = params.get('stage')
   const fallback: SimulationStage = state.run?.status === 'running' ? 'run' : inputs?.stage ?? 'scope'
   const stage: SimulationStage = isSimulationStage(requested) ? requested : fallback
@@ -209,7 +211,7 @@ export function SimulationStep({ project: initial, locationName, isGuest }: Simu
       onVerdict: state.setVerdict,
       onAccept: async () => {
         await state.commitVerdict()
-        await navigate(projectStepPath(project.id, 'economics'))
+        await advance.go('economics')
       },
       onRerun: (next: Fleet) => {
         state.setFleet(fleetToStore(next, fromMatching))

@@ -23,10 +23,10 @@ const location = (name: string) => LOCATIONS.find((l) => l.name === name)
 const classCodes = new Set(OPERATION_CLASSES.map((c) => c.code))
 
 describe('fixtures: integrity', () => {
-  it('holds all 138 dataset parameters (42 / 39 / 57)', () => {
+  it('holds warehouse, airport and medical parameters (43 / 39 / 57)', () => {
     const count = (t: string) => FACILITY_PARAMETERS.filter((p) => p.facilityType === t).length
-    expect([FACILITY_PARAMETERS.length, count('warehouse'), count('airport'), count('medical')]).toEqual([138, 42, 39, 57])
-    expect(new Set(FACILITY_PARAMETERS.map((p) => p.code)).size).toBe(138)
+    expect([FACILITY_PARAMETERS.length, count('warehouse'), count('airport'), count('medical')]).toEqual([139, 43, 39, 57])
+    expect(new Set(FACILITY_PARAMETERS.map((p) => p.code)).size).toBe(139)
   })
 
   it('keeps every numeric base value inside its range', () => {
@@ -127,9 +127,13 @@ describe('fixtures: resolved PRD 15 discrepancies (README)', () => {
     expect(LOCATION_PROCESSES.filter((lp) => lp.locationId === location('РЦ Химки')?.id)).toHaveLength(5)
   })
 
-  it('№45: РЦ Химки has two assumptions in its profile, as on the form', () => {
-    const params = Object.values(location('РЦ Химки')?.parameters ?? {})
-    expect(params.filter((p) => p.source === 'assumption')).toHaveLength(2)
+  it('№45: РЦ Химки has three assumptions in its profile', () => {
+    expect(
+      Object.entries(location('РЦ Химки')?.parameters ?? {})
+        .filter(([, p]) => p.source === 'assumption')
+        .map(([code]) => code)
+        .sort(),
+    ).toEqual(['wh_annual_turnover', 'wh_floor_flatness', 'wh_power_kw'])
   })
 
   it('№7: portions per day use the dataset base 1 950', () => {

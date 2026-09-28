@@ -9,6 +9,7 @@ import { numberParameter } from '@/pages/processes/locationStaffing'
 import { formatCount, formatDate, formatNumber, formatTime } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { ProjectStepLayout } from '../ProjectStepLayout'
+import { useAdvanceStep } from '../useAdvanceStep'
 import { AssumptionsBlock } from './AssumptionsBlock'
 import { ParamsRail } from './ParamsRail'
 import { paramsView } from './paramsModel'
@@ -60,7 +61,9 @@ function ObjectCard({ snapshot, snapshotAt }: { readonly snapshot: ProjectParams
  */
 export function ParamsStep({ project: initial, locationName, isGuest }: ParamsStepProps) {
   const readOnly = isReadOnly(initial)
-  const state = useParamsStep(initial, !isGuest && !readOnly)
+  const persist = !isGuest && !readOnly
+  const state = useParamsStep(initial, persist)
+  const advance = useAdvanceStep(initial.id, persist)
   const { project, draft } = state
 
   const layout = (body: ReactNode, rail?: ReactNode) => (
@@ -100,6 +103,9 @@ export function ParamsStep({ project: initial, locationName, isGuest }: ParamsSt
       readiness={view.readiness}
       missing={view.missing}
       saveNote={saveNote}
+      proceeding={advance.busy}
+      proceedError={advance.error}
+      onProceed={() => { void advance.go('matching') }}
     />,
   )
 }

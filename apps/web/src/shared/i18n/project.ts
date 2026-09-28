@@ -14,6 +14,7 @@ export const project = {
     documentTitle: (step: string, project: string) => `${step} · ${project} · RAV5`,
     notFound: { title: 'Проект не найден', description: 'Возможно, его удалили или ссылка устарела', back: 'К списку проектов' },
     error: { title: 'Не удалось открыть проект', message: 'Проверьте соединение и попробуйте ещё раз' },
+    advanceFailed: 'Не удалось перейти к следующему шагу. Проверьте соединение и повторите',
   },
   /** Шаг 1 «Параметры проекта» (PRD 11.2; экран 02, 16197:367). */
   params: {

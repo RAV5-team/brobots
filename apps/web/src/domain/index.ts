@@ -39,7 +39,10 @@ export type * from './projectSimulation'
 export { canProceedToEconomics, SIMULATION_VERDICTS } from './projectSimulation'
 export type * from './simulationTrace'
 export { countStates, positionsAt, traceDuration } from './simulationTrace'
-export { canOpenStep, furthestStep, isReadOnly, PROJECT_STEPS, stepState, type StepState } from './projectSteps'
+export {
+  canAdvanceTo, canOpenStep, furthestStep, isReadOnly, matchingStaleCause, PROJECT_STEPS, rewindStep,
+  stepAfterMatchingStale, stepState, type StepState,
+} from './projectSteps'
 export type * from './robot'
 export { isSameRobot, nextRobotId, specsCompleteness } from './robot'
 export * from './robotCharacteristics'

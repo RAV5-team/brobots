@@ -10,6 +10,7 @@ import { formatTime } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { ProjectStepLayout } from '../ProjectStepLayout'
 import { paramsView } from '../params/paramsModel'
+import { useAdvanceStep } from '../useAdvanceStep'
 import { HowCalculatedPanel } from './HowCalculatedPanel'
 import { demandOf } from './howCalculatedModel'
 import { BaselineCompare } from './BaselineCompare'
@@ -76,7 +77,9 @@ function budgetOf({ snapshot }: MatchingData): number | null {
  */
 export function MatchingStep({ project: initial, locationName, isGuest }: MatchingStepProps) {
   const readOnly = isReadOnly(initial)
-  const state = useMatchingStep(initial, !isGuest && !readOnly)
+  const persist = !isGuest && !readOnly
+  const state = useMatchingStep(initial, persist)
+  const advance = useAdvanceStep(initial.id, persist)
   const { project, draft, load } = state
   const [panel, setPanel] = useState<Panel>(null)
   const [compareKeys, setCompareKeys] = useState<readonly string[] | null>(null)
@@ -213,6 +216,9 @@ export function MatchingStep({ project: initial, locationName, isGuest }: Matchi
       changedParams={canEdit && evaluation.calcDefaults ? Object.keys(overrides).length : null}
       onOpenParams={() => { setPanel('params') }}
       saveNote={saveNote}
+      proceeding={advance.busy}
+      proceedError={advance.error}
+      onProceed={() => { void advance.go('simulation') }}
     />,
   )
 }

@@ -1,6 +1,6 @@
 import { ArrowRight } from 'lucide-react'
-import { generatePath, useNavigate } from 'react-router'
-import { ROUTE_PATHS, projectStepPath } from '@/app/routePaths'
+import { generatePath } from 'react-router'
+import { ROUTE_PATHS } from '@/app/routePaths'
 import { Card } from '@/components/ui/Card'
 import { MergedButton } from '@/components/ui/MergedButton'
 import { TextLink } from '@/components/ui/TextLink'
@@ -19,6 +19,9 @@ interface ParamsRailProps {
   readonly missing: readonly MissingItem[]
   /** Строка о сохранении: «Черновик сохранён · 10:42», демо-режим, только просмотр или ошибка. */
   readonly saveNote: { readonly text: string; readonly isError: boolean } | null
+  readonly proceeding: boolean
+  readonly proceedError: string | null
+  readonly onProceed: () => void
 }
 
 /** Тексты плашки готовности по правилам PRD 11.2: блокировка — одна причина, иначе — все предупреждения. */
@@ -44,8 +47,9 @@ function fillPath(project: Project, processId: LocationProcessId | null, item: M
 }
 
 /** Правая колонка шага 1 (16197:636): «Подобрать решения», готовность к подбору, решение из каталога, версии данных. */
-export function ParamsRail({ project, snapshot, processId, readiness, missing, saveNote }: ParamsRailProps) {
-  const navigate = useNavigate()
+export function ParamsRail({
+  project, snapshot, processId, readiness, missing, saveNote, proceeding, proceedError, onProceed,
+}: ParamsRailProps) {
   const r = t.readiness
   const canMatch = readiness?.canMatch ?? false
   return (
@@ -54,10 +58,11 @@ export function ParamsRail({ project, snapshot, processId, readiness, missing, s
         block
         label={r.match}
         icon={ArrowRight}
-        disabled={!canMatch}
+        disabled={!canMatch || proceeding}
         aria-describedby="params-readiness"
-        onClick={() => { void navigate(projectStepPath(project.id, 'matching')) }}
+        onClick={onProceed}
       />
+      {proceedError && <p role="alert" className="type-caption text-danger">{proceedError}</p>}
       <p className="type-caption text-text-secondary">
         {r.versions(formatDate(project.versions.snapshotAt), project.versions.catalog, project.versions.model)}
       </p>

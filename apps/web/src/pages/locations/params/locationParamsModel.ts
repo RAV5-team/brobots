@@ -49,7 +49,7 @@ function staffFromParameters(location: Location, params: ParameterIndex): readon
 
 /**
  * Форма вкладки «Параметры объекта» из сохранённой локации (PRD 10.3: те же секции, что у формы 14).
- * Текучести нет ни в профиле, ни в датасете — принятый 0, как на форме 14 (допущение).
+ * Текучесть из профиля; нет в профиле — принятый 0, как на форме 14 (допущение).
  */
 export function formFromLocation(location: Location, params: ParameterIndex): LocationForm {
   const base = buildInitialForm(params, { name: location.name, city: location.city, address: location.address })

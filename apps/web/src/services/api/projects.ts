@@ -7,9 +7,12 @@ import { toSimulationRun } from '@/api/mappers/simulation'
 import { toSimulationTrace } from '@/api/mappers/trace'
 import {
   applyInputsPatch,
+  canAdvanceTo,
   canOpenStep,
   furthestStep,
   markFresh,
+  matchingStaleCause,
+  stepAfterMatchingStale,
   type CalcParams,
   type ConditionRow,
   type DraftProject,
@@ -144,8 +147,10 @@ export function apiProjects(http: HttpClient, deps: Dependencies): Partial<Proje
 
     updateInputs: async (id, inputsPatch) => {
       const dto = await editableDto(id)
+      const current = toDomain(dto)
       const inputs = applyInputsPatch(localStateFromApi(dto).inputs, inputsPatch, now())
-      const project = await patch(id, { inputs })
+      const step = stepAfterMatchingStale(current.step, matchingStaleCause(inputsPatch, inputs))
+      const project = await patch(id, step === current.step ? { inputs } : { inputs, step })
       if (inputsPatch.matching && 'selection' in inputsPatch.matching) await putSelection(id, inputs)
       return project
     },
@@ -181,7 +186,9 @@ export function apiProjects(http: HttpClient, deps: Dependencies): Partial<Proje
 
     openStep: async (id, step) => {
       const project = toDomain(await getDto(id))
-      if (!canOpenStep(project, step)) throw new ConflictError('Этот шаг откроется, когда будут пройдены предыдущие')
+      if (!canOpenStep(project, step) && !canAdvanceTo(project, step)) {
+        throw new ConflictError('Этот шаг откроется, когда будут пройдены предыдущие')
+      }
       if (project.status !== 'draft') return project
       const next = furthestStep(project.step, step)
       return next === project.step ? project : patch(id, { step: next })

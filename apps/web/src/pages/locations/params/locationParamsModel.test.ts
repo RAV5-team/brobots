@@ -23,7 +23,6 @@ describe('formFromLocation', () => {
 
     expect(form).toMatchObject({ facilityType: 'warehouse', name: 'РЦ Химки', city: 'Москва', address: 'Москва, Ленинградское ш., 12' })
     expect([form.totalArea, form.activeArea, form.shifts, form.shiftHours, form.peakFactor].map(digits)).toEqual(['20000', '10000', '2', '11', '1,5'])
-    // Текучести нет ни в профиле, ни в датасете — принятый 0 (допущение).
     expect(form.turnover).toBe('0')
   })
 
@@ -75,13 +74,13 @@ describe('toLocationUpdate', () => {
     expect(update.parameters).not.toHaveProperty('wh_floors')
   })
 
-  it('saves staff groups and their dataset parameters', () => {
+  it('saves staff groups; dataset staff codes stay out of parameters', () => {
     const base = formFromLocation(khimki, params)
     const form = { ...base, staff: updateStaffRow(base.staff, 'wh_packing_operators', { salary: '90 000' }) }
     const update = toLocationUpdate(form, params, khimki)
 
     expect(update.staffGroups).toContainEqual({ role: 'Операторы упаковочных линий', headcount: 20, salaryGrossMonthRub: 90000 })
-    expect(update.parameters.wh_pickers).toEqual({ value: 100, source: 'organizer' })
+    expect(update.parameters).not.toHaveProperty('wh_pickers')
   })
 
   it('changes only the basics of a non-warehouse location', () => {

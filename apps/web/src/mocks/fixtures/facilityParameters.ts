@@ -1,4 +1,4 @@
-// Источник: PRD, приложение А (138 параметров датасетов организатора); коды — services/api/internal/seed/data/parameters.csv.
+// Источник: PRD, приложение А (138 параметров датасетов организатора) + текучесть склада с формы 14; коды — services/api/internal/seed/data/parameters.csv.
 // Собрано однократно скриптом конвертации; дальше правится вручную. Любое отступление от источника — строкой в README.md.
 // Разрешённые расхождения — apps/web/src/mocks/fixtures/README.md.
 import type { FacilityParameter, FacilityType } from '@/domain'
@@ -38,6 +38,7 @@ export const FACILITY_PARAMETERS: readonly FacilityParameter[] = [
   { code: "wh_payroll_tax_coef", facilityType: "warehouse", group: "Персонал", name: "Коэффициент начислений на ФОТ (страховые взносы)", unit: "", base: 1.302, min: 1.302, max: 1.302, note: "ОПФ 22% + ОМС 5.1% + ОСС 2.9% + НСиПЗ 0.2% = 30.2%" },
   { code: "wh_picker_productivity", facilityType: "warehouse", group: "Персонал", name: "Средняя выработка отборщика (строк/ч)", unit: "строк/ч·чел", base: 150, min: 80, max: 200, note: "До роботизации; учитывает ходьбу, поиск, упаковку. Зависит от размера склада" },
   { code: "wh_work_time_loss", facilityType: "warehouse", group: "Персонал", name: "Коэффициент потерь рабочего времени (отпуск, болезнь, текучесть)", unit: "%", base: 25, min: 15, max: 35, note: "Для расчёта потребной численности: +25% к нормативной" },
+  { code: "wh_annual_turnover", facilityType: "warehouse", group: "Персонал", name: "Годовая текучесть персонала", unit: "%", base: 0, min: 0, max: 100, note: "Нет в данных склада → принято 0: эффект на найм не считается" },
   { code: "wh_picker_route_length", facilityType: "warehouse", group: "Маршруты и планировка", name: "Средняя длина маршрута отборщика на 1 строку", unit: "м", base: 25, min: 15, max: 60, note: "Зависит от размера склада и системы слотирования" },
   { code: "wh_conveyor_length", facilityType: "warehouse", group: "Маршруты и планировка", name: "Протяжённость конвейерной/транспортной системы", unit: "м", base: 350, min: 0, max: 2000, note: "0 если её нет; учитывается при выборе решения" },
   { code: "wh_rack_type", facilityType: "warehouse", group: "Хранение и характеристики грузов", name: "Тип стеллажной системы", unit: "", base: "Фронтальные паллетные", min: null, max: null, note: "Альтернативы: Shuttle, AutoStore, Miniload, Drive-in, Push-back" },

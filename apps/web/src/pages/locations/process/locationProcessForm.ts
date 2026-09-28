@@ -113,7 +113,12 @@ export function siteValues({ process, operationClass, location, parameters }: Si
     template: {
       ...template,
       category: { ...template.category, facilityType: location.facilityType },
-      ...(base && { peakFactor: base.peakFactor, minAisleWidthM: base.rackAisle, workTimeLossShare: base.workTimeLossPct / PERCENT }),
+      ...(base && {
+        peakFactor: base.peakFactor,
+        minAisleWidthM: base.rackAisle,
+        workTimeLossShare: base.workTimeLossPct / PERCENT,
+        staffTurnoverShare: base.turnoverPct / PERCENT,
+      }),
       ...(salary != null && { fleetOperatorSalaryRub: salary }),
     },
     workers: template.staff,

@@ -8,7 +8,7 @@ locations:
     address: Москва, Ленинградское ш., 12
     capexBudget: { amount: 80000000, currency: RUB, sourceUnit: млн руб., source: Датасет «Склад» }
     horizonYears: 5
-    assumptions: [wh_floor_flatness, wh_power_kw]
+    assumptions: [wh_floor_flatness, wh_power_kw, wh_annual_turnover]
     tasks:
       - { process: PR-0001, name: Перемещение паллет }
       - { process: PR-0002 }
@@ -32,7 +32,7 @@ locations:
       wh_outbound_pallets: 500
       wh_picking_lines: 50000
       wh_picking_units: 75000
-    assumptions: [wh_total_area, wh_active_area, wh_staff_total]
+    assumptions: [wh_total_area, wh_active_area, wh_staff_total, wh_annual_turnover]
     staffGroups:
       - { roleName: Отборщики (комплектовщики), headcount: 30, salaryGrossMonthRub: 85000 }
       - { roleName: Операторы погрузчиков, headcount: 9, salaryGrossMonthRub: 95000 }

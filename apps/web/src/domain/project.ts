@@ -34,7 +34,7 @@ interface ProjectBase {
 /** Черновик: всё можно менять, открывается на шаге, где остановились (PRD 11.1). Цифр результата нет. */
 export interface DraftProject extends ProjectBase {
   readonly status: 'draft'
-  /** Самый дальний пройденный шаг: назад — на любой пройденный, вперёд — не дальше него. */
+  /** Самый дальний пройденный шаг: назад — на любой пройденный, вперёд — кнопкой CTA на следующий. */
   readonly step: ProjectStep
   /** Решение из каталога («Проверить на объекте», D-57): подбор начнёт с него. В API — `pinnedSolutionId`. */
   readonly pinnedSolutionId?: string

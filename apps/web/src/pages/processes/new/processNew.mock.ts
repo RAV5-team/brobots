@@ -49,6 +49,7 @@ export interface WarehouseBase {
   readonly rackAisle: number
   readonly palletMass: number
   readonly workTimeLossPct: number
+  readonly turnoverPct: number
   readonly payrollCoef: number
 }
 
@@ -73,6 +74,7 @@ export function warehouseBase(params: readonly FacilityParameter[]): WarehouseBa
     rackAisle: n('wh_rack_aisle_width'),
     palletMass: n('wh_pallet_mass'),
     workTimeLossPct: n('wh_work_time_loss'),
+    turnoverPct: n('wh_annual_turnover'),
     payrollCoef: n('wh_payroll_tax_coef'),
   }
 }
@@ -118,7 +120,7 @@ export function buildDemoForm(params: readonly FacilityParameter[]): ProcessForm
     minTempC: text(MACRO_DEFAULTS.minTempC),
     staff,
     replacement: Object.fromEntries(Object.entries(REPLACEMENT).map(([method, ratio]) => [method, RATIO_FORMAT.format(ratio)])),
-    turnoverPct: text(MACRO_DEFAULTS.turnoverPct),
+    turnoverPct: text(base.turnoverPct),
     workTimeLossPct: text(base.workTimeLossPct),
     fleetOperators: text(MACRO_DEFAULTS.fleetOperators),
     fleetSalaryRub: text(forkliftSalary),

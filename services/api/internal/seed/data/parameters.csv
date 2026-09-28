@@ -27,18 +27,21 @@ wh_forklift_salary;warehouse;Персонал;Средняя з/п операт�
 wh_payroll_tax_coef;warehouse;Персонал;Коэффициент начислений на ФОТ (страховые взносы);;number;1.302;;1.302;1.302;false;true;payroll_tax_coef;;;staff;ОПФ 22% + ОМС 5.1% + ОСС 2.9% + НСиПЗ 0.2% = 30.2%;26
 wh_picker_productivity;warehouse;Персонал;Средняя выработка отборщика (строк/ч);строк/ч·чел;number;150;;80;200;false;false;;;;staff;"До роботизации; учитывает ходьбу, поиск, упаковку. Зависит от размера склада";27
 wh_work_time_loss;warehouse;Персонал;Коэффициент потерь рабочего времени (отпуск, болезнь, текучесть);%;number;25;;15;35;false;false;work_time_loss;;;staff;Для расчёта потребной численности: +25% к нормативной;28
-wh_picker_route_length;warehouse;Маршруты и планировка;Средняя длина маршрута отборщика на 1 строку;м;number;25;;15;60;false;false;;;;object_params;Зависит от размера склада и системы слотирования;29
-wh_conveyor_length;warehouse;Маршруты и планировка;Протяжённость конвейерной/транспортной системы;м;number;350;;0;2000;false;false;;;;object_params;"0 если её нет; учитывается при выборе решения";30
-wh_rack_type;warehouse;Хранение и характеристики грузов;Тип стеллажной системы;;text;;Фронтальные паллетные;;;false;false;;;;object_params;Альтернативы: Shuttle, AutoStore, Miniload, Drive-in, Push-back;31
-wh_pallet_places;warehouse;Хранение и характеристики грузов;Количество паллетомест;м/п;number;20000;;10000;100000;false;false;;;;object_params;Ёмкость склада;32
-wh_pallet_mass;warehouse;Хранение и характеристики грузов;Средняя масса грузовой единицы (паллет);кг;number;800;;200;1500;false;false;;;;object_params;Влияет на грузоподъёмность роботов;33
-wh_unit_mass;warehouse;Хранение и характеристики грузов;Средняя масса штучной единицы (SKU);кг;number;1.8;;0.1;20;false;false;;;;object_params;Критично для G2P-систем;34
-wh_pallet_dimensions;warehouse;Хранение и характеристики грузов;Средние габариты паллеты (Д×Ш×В);мм;dimensions;;1200×800×1600;;;false;false;;;;object_params;Евростандарт;35
-wh_unit_dimensions;warehouse;Хранение и характеристики грузов;Средние габариты штучной единицы (Д×Ш×В);мм;dimensions;;300×200×150;;;false;false;;;;object_params;Среднестатистический короб;36
-wh_oversize_share;warehouse;Хранение и характеристики грузов;Доля негабаритных/нестандартных грузов;%;number;5;;0;30;false;false;;;;object_params;"Нестандарт - барьер для автоматизации; остаётся ручным";37
-wh_power_kw;warehouse;Инфраструктура и ограничения;Мощность электроснабжения (доступная);кВт;number;500;;100;3000;false;false;available_power_kw;;;object_params;Для зарядных станций роботов;38
-wh_wms;warehouse;Инфраструктура и ограничения;Наличие WMS;;text;;Да;;;false;true;;;;object_params;Наличие WMS обязательно для роботизации;39
-wh_erp;warehouse;Инфраструктура и ограничения;Наличие ERP/1С;;text;;1С:ERP;;;false;false;;;;object_params;Интеграция через REST API или COM-коннектор;40
+wh_annual_turnover;warehouse;Персонал;Годовая текучесть персонала;%;number;0;;0;100;false;false;turnover;;;staff;Нет в данных склада → принято 0: эффект на найм не считается;29
+wh_picker_route_length;warehouse;Маршруты и планировка;Средняя длина маршрута отборщика на 1 строку;м;number;25;;15;60;false;false;;;;object_params;Зависит от размера склада и системы слотирования;30
+wh_conveyor_length;warehouse;Маршруты и планировка;Протяжённость конвейерной/транспортной системы;м;number;350;;0;2000;false;false;;;;object_params;"0 если её нет; учитывается при выборе решения";31
+wh_rack_type;warehouse;Хранение и характеристики грузов;Тип стеллажной системы;;text;;Фронтальные паллетные;;;false;false;;;;object_params;Альтернативы: Shuttle, AutoStore, Miniload, Drive-in, Push-back;32
+wh_pallet_places;warehouse;Хранение и характеристики грузов;Количество паллетомест;м/п;number;20000;;10000;100000;false;false;;;;object_params;Ёмкость склада;33
+wh_pallet_mass;warehouse;Хранение и характеристики грузов;Средняя масса грузовой единицы (паллет);кг;number;800;;200;1500;false;false;;;;object_params;Влияет на грузоподъёмность роботов;34
+wh_unit_mass;warehouse;Хранение и характеристики грузов;Средняя масса штучной единицы (SKU);кг;number;1.8;;0.1;20;false;false;;;;object_params;Критично для G2P-систем;35
+wh_pallet_dimensions;warehouse;Хранение и характеристики грузов;Средние габариты паллеты (Д×Ш×В);мм;dimensions;;1200×800×1600;;;false;false;;;;object_params;Евростандарт;36
+wh_unit_dimensions;warehouse;Хранение и характеристики грузов;Средние габариты штучной единицы (Д×Ш×В);мм;dimensions;;300×200×150;;;false;false;;;;object_params;Среднестатистический короб;37
+wh_oversize_share;warehouse;Хранение и характеристики грузов;Доля негабаритных/нестандартных грузов;%;number;5;;0;30;false;false;;;;object_params;"Нестандарт - барьер для автоматизации; остаётся ручным";38
+wh_power_kw;warehouse;Инфраструктура и ограничения;Мощность электроснабжения (доступная);кВт;number;500;;100;3000;false;false;available_power_kw;;;object_params;Для зарядных станций роботов;39
+wh_wms;warehouse;Инфраструктура и ограничения;Наличие WMS;;text;;Да;;;false;true;;;;object_params;Наличие WMS обязательно для роботизации;40
+wh_erp;warehouse;Инфраструктура и ограничения;Наличие ERP/1С;;text;;1С:ERP;;;false;false;;;;object_params;Интеграция через REST API или COM-коннектор;41
+wh_capex_budget;warehouse;Инфраструктура и ограничения;Планируемый бюджет на роботизацию (CAPEX);млн руб.;number;80;;10;500;false;false;;;;object_params;Ориентир для фильтрации решений. Лизинг/RaaS — альтернатива;42
+wh_horizon_years;warehouse;Инфраструктура и ограничения;Горизонт расчёта окупаемости;лет;number;5;;3;10;false;false;;;;object_params;Типовой горизонт ТЭО для складской автоматизации;43
 ap_terminal_area;airport;Общие параметры объекта;Суммарная площадь терминала (ов);м²;number;85000;;8000;500000;true;false;total_area;;;area;Площадь пассажирского терминала - база для расчёта маршрутов роботов-транспортировщиков;1
 ap_apron_area;airport;Общие параметры объекта;Площадь перрона и технических зон;м²;number;100000;;10000;800000;true;false;;;;area;Открытая зона - ограничения на перемещение роботов (погода, допуски);2
 ap_terminals;airport;Общие параметры объекта;Количество терминалов;шт.;number;2;;1;6;false;false;;;;area;Несколько терминалов - сложная логистика между ними;3

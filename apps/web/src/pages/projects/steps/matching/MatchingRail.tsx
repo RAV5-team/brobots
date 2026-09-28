@@ -1,6 +1,4 @@
 import { ArrowRight, SlidersHorizontal } from 'lucide-react'
-import { useNavigate } from 'react-router'
-import { projectStepPath } from '@/app/routePaths'
 import { Button } from '@/components/ui/Button'
 import { Card, CardStat } from '@/components/ui/Card'
 import { MergedButton } from '@/components/ui/MergedButton'
@@ -21,11 +19,15 @@ interface MatchingRailProps {
   readonly changedParams: number | null
   readonly onOpenParams: () => void
   readonly saveNote: { readonly text: string; readonly isError: boolean } | null
+  readonly proceeding: boolean
+  readonly proceedError: string | null
+  readonly onProceed: () => void
 }
 
 /** Правая колонка шага 2 (16197:1025): выбранный вариант, что уточнить, «Перейти к симуляции», параметры и версии. */
-export function MatchingRail({ project, selected, stale, siteChecks, changedParams, onOpenParams, saveNote }: MatchingRailProps) {
-  const navigate = useNavigate()
+export function MatchingRail({
+  project, selected, stale, siteChecks, changedParams, onOpenParams, saveNote, proceeding, proceedError, onProceed,
+}: MatchingRailProps) {
   const canProceed = selected !== null && !stale
   return (
     <>
@@ -67,10 +69,11 @@ export function MatchingRail({ project, selected, stale, siteChecks, changedPara
         block
         label={r.toSimulation}
         icon={ArrowRight}
-        disabled={!canProceed}
+        disabled={!canProceed || proceeding}
         aria-describedby="matching-handoff"
-        onClick={() => { void navigate(projectStepPath(project.id, 'simulation')) }}
+        onClick={onProceed}
       />
+      {proceedError && <p role="alert" className="type-caption text-danger">{proceedError}</p>}
       <p id="matching-handoff" className="type-caption text-text-secondary">{stale && selected ? r.staleBlocked : r.handoff}</p>
       {changedParams !== null && (
         <div className="flex flex-col gap-4">
