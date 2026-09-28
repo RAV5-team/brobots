@@ -2,6 +2,7 @@ import { Navigate, useSearchParams } from 'react-router'
 import { ROUTE_PATHS } from '@/app/routePaths'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Search } from '@/components/ui/Search'
 import { Segmented } from '@/components/ui/Segmented'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
@@ -79,10 +80,7 @@ export function ProjectsPage() {
 
   return (
     <>
-      <header className="flex flex-col gap-4">
-        <h1 className="type-display-lg text-text">{t.title}</h1>
-        <p className="type-body text-text-secondary">{t.lead}</p>
-      </header>
+      <PageHeader title={t.title} lead={t.lead} />
 
       {state.status === 'loading' && <Skeleton className="h-(--rav-location-card-height)" />}
       {state.status === 'error' && <ErrorState title={t.error.title} message={t.error.message} onRetry={retry} />}

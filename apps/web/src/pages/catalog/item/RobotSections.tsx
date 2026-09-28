@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { ROUTE_PATHS } from '@/app/routePaths'
 import { ButtonLink } from '@/components/ui/Button'
 import { FILTER_PILL_CLASSES } from '@/components/ui/buttonStyles'
-import { Card } from '@/components/ui/Card'
+import { Card, CardTitle } from '@/components/ui/Card'
 import { CharacteristicRow } from '@/components/ui/CharacteristicRow'
 import { ChipList } from '@/components/ui/ChipList'
 import {
@@ -113,7 +113,7 @@ function LaunchGroup({ title, ids, items, lastGroup }: { readonly title: string;
   if (found.length === 0) return null
   return (
     <section aria-label={title} className="flex flex-col gap-4">
-      <h3 className="type-overline text-text-muted">{title}</h3>
+      <CardTitle>{title}</CardTitle>
       <ul>{found.map((item, i) => <LaunchRow key={item.id} item={item} last={lastGroup && i === found.length - 1} />)}</ul>
     </section>
   )
@@ -155,21 +155,21 @@ const GROUP_ORDER = Object.keys(ROBOT_CHARACTERISTIC_GROUPS) as RobotCharacteris
  * заканчивается расчётными строками полноты и подтверждённости (D-77). «Каталог ФЦ БАС v4» ведёт к «Качеству данных»,
  * «Сайт производителя» — по ссылке из данных; ссылки нет — кнопки нет (D-79).
  */
-export function RobotAllCharacteristics({ map, summary }: { readonly map: RobotCharacteristicMap; readonly summary: RobotCharacteristicSummary }) {
+export function RobotAllCharacteristics({ map, summary, catalogVersion }: { readonly map: RobotCharacteristicMap; readonly summary: RobotCharacteristicSummary; readonly catalogVersion: string }) {
   const link = map.sourceLink.value
   const href = link === null ? null : /^https?:\/\//.test(link) ? link : `https://${link}`
   return (
     <Card as="section" padding={20} gap={8} aria-labelledby="all-title">
       <div className="flex items-center gap-12">
         <h2 id="all-title" className="flex-1 type-heading font-semibold text-text">{t.allTitle}</h2>
-        <a href="#data-quality" className={FILTER_PILL_CLASSES}>{t.catalogSource}</a>
+        <a href="#data-quality" className={FILTER_PILL_CLASSES}>{t.catalogSource(catalogVersion)}</a>
         {href && link && (
           <a href={href} target="_blank" rel="noopener noreferrer" aria-label={t.vendorSiteLabel(link)} className={FILTER_PILL_CLASSES}>{t.vendorSite}</a>
         )}
       </div>
       {GROUP_ORDER.map((group) => (
         <section key={group} id={group === 'dataQuality' ? 'data-quality' : undefined} aria-label={t.groups[group]} className="scroll-mt-(--rav-form-nav-offset) pt-12">
-          <h3 className="type-overline text-text-muted">{t.groups[group]}</h3>
+          <CardTitle>{t.groups[group]}</CardTitle>
           <dl>
             {ROBOT_CHARACTERISTIC_GROUPS[group].map((key) => <Row key={key} label={t.rows[key]} c={map[key]} />)}
             {group === 'dataQuality' && (

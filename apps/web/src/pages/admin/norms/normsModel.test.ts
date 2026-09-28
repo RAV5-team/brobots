@@ -50,7 +50,7 @@ describe('parseNormValue', () => {
 describe('buildNormRows', () => {
   it('shows saved values when nothing is edited', () => {
     const rows = buildNormRows(NORMS, {})
-    expect(rows).toHaveLength(34)
+    expect(rows).toHaveLength(35)
     expect(rows[0]).toMatchObject({ text: '1,302', isDirty: false, error: null })
   })
 

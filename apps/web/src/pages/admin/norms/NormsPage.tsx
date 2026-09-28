@@ -1,20 +1,18 @@
 import { useState } from 'react'
-import { useLocation } from 'react-router'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { ErrorState, Skeleton } from '@/components/ui/States'
+import { ErrorState, SkeletonList } from '@/components/ui/States'
 import type { Norm } from '@/domain'
-import { canAccess } from '@/shared/auth/resolveRole'
-import { useRole } from '@/shared/auth/useRole'
 import { formatCount } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { AdminHeader } from '../AdminHeader'
 import { buildNormRows, collectNormChanges, type NormDraft } from './normsModel'
 import { NormsTable } from './NormsTable'
 import { useNorms, type SaveState } from './useNorms'
+import { AdminGuard } from '../AdminGuard'
 
 const t = ru.norms
-const SKELETON_ROWS = [0, 1, 2, 3, 4, 5]
+const SKELETON_ROWS = 6
 
 interface SaveBarProps {
   readonly changedCount: number
@@ -90,9 +88,7 @@ function NormsPanel() {
         <p className="type-body text-text-secondary">{t.lead}</p>
       </header>
       {state.status === 'loading' && (
-        <div className="flex flex-col gap-8" aria-busy="true">
-          {SKELETON_ROWS.map((i) => <Skeleton key={i} className="h-44" />)}
-        </div>
+        <SkeletonList rows={SKELETON_ROWS} rowClassName="h-44" />
       )}
       {state.status === 'error' && <ErrorState title={t.error.title} message={t.error.message} onRetry={retry} />}
       {state.status === 'ready' && <NormsEditor norms={state.norms} saveState={saveState} onSave={save} />}
@@ -102,19 +98,14 @@ function NormsPanel() {
 
 /** Экран А5 «Администрирование · нормативы и допущения» — значения по умолчанию для расчёта (PRD 6.8; 15997:371). */
 export function NormsPage() {
-  const role = useRole()
-  const { pathname } = useLocation()
-
   // Нормативы правит только администратор (PRD 5.3, 6).
-  if (!canAccess(role, pathname)) {
-    return <ErrorState title={ru.errors.accessDenied(ru.roles[role])} message={ru.admin.accessHint} />
-  }
-
   // Шаг 24 между шапкой, вкладками и панелью (15997:373 → 15997:377 → 15997:387).
   return (
-    <div className="flex flex-col gap-24">
-      <AdminHeader active="norms" />
-      <NormsPanel />
-    </div>
+    <AdminGuard>
+      <div className="flex flex-col gap-24">
+        <AdminHeader active="norms" />
+        <NormsPanel />
+      </div>
+    </AdminGuard>
   )
 }

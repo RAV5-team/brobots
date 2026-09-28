@@ -22,8 +22,6 @@ const t = ru.project.params
 const NO_ROUTE_CLASSES: readonly OperationClassCode[] = ['OP-05']
 /** Инвентаризация: без частоты пересчёта не посчитать парк — подбор недоступен (PRD 11.2). */
 const INVENTORY_CLASS: OperationClassCode = 'OP-06'
-/** Запас по ширине, когда в шаблоне процесса его нет: норматив модели прототипа (PRD 11.2; PRD 15 · №128). */
-const DEFAULT_WIDTH_MARGIN_M = 0.5
 const DAYS_PER_MONTH = 30
 
 /** Строка значения: подпись, значение и статус; `anchor` — цель кнопки «↓» у незаполненного значения. */
@@ -67,10 +65,16 @@ export interface ProcessCard {
 export const ASSUMPTION_CODES = ['route_length_m', 'operator_time_share_pct', 'peak_factor', 'width_margin_m'] as const
 export type AssumptionCode = (typeof ASSUMPTION_CODES)[number]
 
+/** Единица допущения; factor — безразмерный коэффициент: число показывается без подписи. */
+export type AssumptionUnit = 'm' | 'percent' | 'factor'
+
+/** Подпись единицы допущения: «м», «%», «коэф.». */
+export const assumptionUnitLabel = (unit: AssumptionUnit): string => ru.units[unit]
+
 /** Допущение блока 3: исходное значение и уточнение пользователя (значения — в единицах экрана: м, %, коэф.). */
 export interface AssumptionRow {
   readonly code: AssumptionCode
-  readonly unit: string
+  readonly unit: AssumptionUnit
   readonly base: number
   readonly min: number
   readonly max: number
@@ -137,7 +141,7 @@ export function missingOf(entry: ParamsProcessEntry, snapshot: ProjectParamsSnap
 const siteValue = (snapshot: ProjectParamsSnapshot, code: string): ParameterValue | undefined =>
   snapshot.siteValues[code] ?? snapshot.location.parameters[code]
 
-export const missingLabel = (m: MissingValue, snapshot: ProjectParamsSnapshot): string =>
+const missingLabel = (m: MissingValue, snapshot: ProjectParamsSnapshot): string =>
   t.missingLabels[m.code] ?? snapshot.siteParameters.find((p) => p.code === m.code)?.name.toLowerCase() ?? m.code
 
 const labelled = (missing: readonly MissingValue[], snapshot: ProjectParamsSnapshot): readonly MissingItem[] =>
@@ -172,15 +176,15 @@ function assumptionBases(entry: ParamsProcessEntry, snapshot: ProjectParamsSnaps
     ...(route && defaults.routeLengthM !== undefined ? { route_length_m: defaults.routeLengthM } : {}),
     ...(staff ? { operator_time_share_pct: staff.timeShare * 100 } : {}),
     peak_factor: locationNumber(snapshot, 'wh_peak_factor') ?? defaults.peakFactor ?? 1,
-    ...(route ? { width_margin_m: entry.process.template?.widthMarginM ?? DEFAULT_WIDTH_MARGIN_M } : {}),
+    ...(route ? { width_margin_m: entry.process.template?.widthMarginM ?? snapshot.widthMarginM } : {}),
   }
 }
 
 const ASSUMPTION_LIMITS: Record<AssumptionCode, Pick<AssumptionRow, 'unit' | 'min' | 'max' | 'digits'>> = {
-  route_length_m: { unit: 'м', min: 5, max: 5000, digits: 0 },
-  operator_time_share_pct: { unit: '%', min: 1, max: 100, digits: 0 },
-  peak_factor: { unit: 'коэф.', min: 1, max: 3, digits: 2 },
-  width_margin_m: { unit: 'м', min: 0.1, max: 1.5, digits: 2 },
+  route_length_m: { unit: 'm', min: 5, max: 5000, digits: 0 },
+  operator_time_share_pct: { unit: 'percent', min: 1, max: 100, digits: 0 },
+  peak_factor: { unit: 'factor', min: 1, max: 3, digits: 2 },
+  width_margin_m: { unit: 'm', min: 0.1, max: 1.5, digits: 2 },
 }
 
 export function assumptionRows(entry: ParamsProcessEntry, snapshot: ProjectParamsSnapshot, overrides: readonly AssumptionOverride[]): readonly AssumptionRow[] {
@@ -202,8 +206,7 @@ const refinedOrigin = (row: AssumptionRow | undefined, fallback: ValueOrigin): V
 /** Значение допущения с единицей: «100 м», «1,5», «95 %». */
 export function assumptionValueText(row: Pick<AssumptionRow, 'unit' | 'digits'>, value: number): string {
   const number = formatNumber(value, row.digits)
-  if (row.unit === 'коэф.') return number
-  return row.unit === '%' ? `${number} %` : `${number} ${row.unit}`
+  return row.unit === 'factor' ? number : `${number} ${assumptionUnitLabel(row.unit)}`
 }
 
 const row = (key: string, label: string, value: string | null, origin: ValueOrigin, extra: Pick<ValueRow, 'note' | 'anchor'> = {}): ValueRow =>
@@ -216,7 +219,7 @@ function objectGroup(entry: ParamsProcessEntry, snapshot: ProjectParamsSnapshot)
   const handlingNames = handling
     .map((h) => snapshot.handlingMethods.find((m) => m.code === h.method)?.name)
     .filter((name): name is string => name !== undefined)
-  const kg = (value: number) => `${formatNumber(value)} кг`
+  const kg = (value: number) => `${formatNumber(value)} ${ru.units.kg}`
   const rows: readonly (ValueRow | null)[] = [
     row('operationClass', r.operationClass, `${entry.process.operationClass} · ${entry.operationClass?.name ?? entry.process.name}`, 'specified'),
     d.carrier ? row('object', r.object, capitalize(d.carrier), 'specified') : null,
@@ -224,7 +227,7 @@ function objectGroup(entry: ParamsProcessEntry, snapshot: ProjectParamsSnapshot)
     d.unitMassKg === undefined ? null
       : d.maxUnitMassKg === undefined ? row('mass', r.massAvg, kg(d.unitMassKg), 'specified')
         : row('mass', r.mass, `${kg(d.unitMassKg)} / ${kg(d.maxUnitMassKg)}`, 'specified'),
-    d.unitDimensionsMm ? row('dimensions', r.dimensions, `${d.unitDimensionsMm.map((v) => formatNumber(v)).join(' × ')} мм`, 'specified') : null,
+    d.unitDimensionsMm ? row('dimensions', r.dimensions, `${d.unitDimensionsMm.map((v) => formatNumber(v)).join(' × ')} ${ru.units.mm}`, 'specified') : null,
     d.cargoDivisible === undefined ? null : row('divisible', r.divisible, d.cargoDivisible ? r.divisibleYes : r.divisibleNo, 'specified'),
     isInventory(entry)
       ? d.recountsPerMonth === undefined
@@ -259,7 +262,7 @@ export function peakDemand(entry: ParamsProcessEntry, hours: number, peakFactor:
 
 /** «2 000 ÷ 22 ч × 1,5 × 95 %». */
 export const peakDemandFormula = (p: PeakDemand): string =>
-  `${formatNumber(p.perDay)} ÷ ${formatNumber(p.hours)} ч × ${formatNumber(p.peakFactor, 2)} × ${formatPercent(p.share)}`
+  `${formatNumber(p.perDay)} ÷ ${formatNumber(p.hours)} ${ru.units.hours} × ${formatNumber(p.peakFactor, 2)} × ${formatPercent(p.share)}`
 
 /** Нагрузка в пик: объём ÷ часы × пик × доля (PRD 11.2); у инвентаризации объём — за цикл, нужна частота пересчёта. */
 function peakLoadRow(entry: ParamsProcessEntry, hours: number, peak: number): ValueRow {
@@ -329,7 +332,7 @@ function workersGroup(entry: ParamsProcessEntry, snapshot: ProjectParamsSnapshot
 }
 
 /** Группы А–Г выбранного процесса (PRD 11.2); у процесса без маршрута группы «В» нет. */
-export function processGroups(entry: ParamsProcessEntry, snapshot: ProjectParamsSnapshot, assumptions: readonly AssumptionRow[]): readonly RowGroup[] {
+function processGroups(entry: ParamsProcessEntry, snapshot: ProjectParamsSnapshot, assumptions: readonly AssumptionRow[]): readonly RowGroup[] {
   return [
     objectGroup(entry, snapshot),
     loadGroup(entry, snapshot, assumptions),
@@ -351,7 +354,7 @@ function siteValueText(snapshot: ProjectParamsSnapshot, code: string, pairCode: 
 }
 
 /** 25 параметров площадки по группам PRD 10.5 (D-92); «нет данных» — ссылка в профиль локации. */
-export function siteGroups(snapshot: ProjectParamsSnapshot, entry: ParamsProcessEntry | null): readonly SiteRowGroup[] {
+function siteGroups(snapshot: ProjectParamsSnapshot, entry: ParamsProcessEntry | null): readonly SiteRowGroup[] {
   const route = entry === null || hasRoute(entry)
   const groups = [...new Set(snapshot.siteParameters.map((p) => p.group))]
   return groups.map((group) => ({
@@ -395,7 +398,7 @@ export function paramsView(snapshot: ProjectParamsSnapshot, selectedId: Location
 export function validateAssumption(row: Pick<AssumptionRow, 'min' | 'max' | 'unit' | 'digits'>, value: number | null): string | null {
   const p = t.panel.errors
   if (value === null) return p.empty
-  if (value < row.min || value > row.max) return p.range(formatNumber(row.min, row.digits), formatNumber(row.max, row.digits), row.unit)
+  if (value < row.min || value > row.max) return p.range(formatNumber(row.min, row.digits), formatNumber(row.max, row.digits), assumptionUnitLabel(row.unit))
   return null
 }
 

@@ -6,7 +6,7 @@ import { FormulaStats } from '@/components/ui/FormulaStats'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
-import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
+import { EmptyState, ErrorState, Skeleton, SkeletonList } from '@/components/ui/States'
 import { ru } from '@/shared/i18n/ru'
 import { stateProps, type DemoState } from './demoState'
 import { ShowcaseSection, StateGrid } from './StateGrid'
@@ -98,6 +98,9 @@ export function StatesShowcase() {
             <Skeleton className="h-[148px] rounded-lg" />
           </div>
         </div>
+      </ShowcaseSection>
+      <ShowcaseSection title="SkeletonList">
+        <SkeletonList rows={4} rowClassName="h-44" />
       </ShowcaseSection>
     </div>
   )

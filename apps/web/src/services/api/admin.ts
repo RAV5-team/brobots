@@ -19,7 +19,7 @@ export function apiAdmin(http: HttpClient): Partial<AdminService> {
   return {
     listDataSources: async () => ((await http.get<ApiSchemas['DataSourceList']>('/data-sources')).items ?? []).map(dataSourceFromApi),
     createDataSource: async (input) => {
-      if (input.refresh !== 'manual' && !canAutoRefresh(input)) throw new ValidationError(FILE_REFRESH)
+      if (input.refresh !== 'manual' && !canAutoRefresh(input)) throw new ValidationError({ kind: 'refreshNeedsUrl' }, FILE_REFRESH)
       return dataSourceFromApi(await http.post<ApiSchemas['DataSource']>('/data-sources', dataSourceInput(input)))
     },
     updateDataSource: async (key, patch) =>

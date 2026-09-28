@@ -10,6 +10,8 @@ test.beforeAll(() => {
 
 for (const { id, path, role, prepare, ...options } of VISUAL_SCREENS) {
   test(`экран ${id}`, async ({ page, consoleErrors }) => {
+    // Открытие экрана + снимок до 30 с: под нагрузкой полного прогона тяжёлые экраны (08b, 09) не укладывались в стандартные 30 с на тест.
+    test.setTimeout(60_000)
     await openAs(page, path, role, options)
     if (prepare) {
       await prepare(page)

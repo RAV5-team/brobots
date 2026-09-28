@@ -2,15 +2,16 @@ import { describe, expect, it } from 'vitest'
 import { FACILITY_PARAMETERS } from '@/mocks/fixtures/facilityParameters'
 import { LOCATIONS } from '@/mocks/fixtures/locations'
 import { OPERATION_CLASSES } from '@/mocks/fixtures/operationClasses'
+import { PROCESS_DEMO_TEXT, PROCESS_TEMPLATE_DEFAULTS } from '@/mocks/fixtures/processTemplateDefaults'
 import { PROCESSES } from '@/mocks/fixtures/processes'
 import { staffTotals, toNewProcess, validateForm, volumeRates } from './processCalc'
+import { buildInitialForm, warehouseBase } from './processDemoForm'
 import { countFormulas, countRequired, parseDecimal, toggleHandling, updateStaffRow, type ProcessForm } from './processForm'
-import { buildDemoForm, warehouseBase } from './processNew.mock'
 import { carrierOptions, numericHints, templateCheck } from './processNewModel'
 import { staffStats, volumeStats } from './processStats'
 
 const WAREHOUSE = FACILITY_PARAMETERS.filter((p) => p.facilityType === 'warehouse')
-const demo = (): ProcessForm => buildDemoForm(WAREHOUSE)
+const demo = (): ProcessForm => buildInitialForm(WAREHOUSE, { ...PROCESS_TEMPLATE_DEFAULTS, widthMarginM: 0.6 }, PROCESS_DEMO_TEXT)
 const nbsp = (text: string) => text.replace(/[\u00a0\u202f]/g, ' ')
 
 describe('parseDecimal', () => {
@@ -158,5 +159,13 @@ describe('form options and hints', () => {
     expect(nbsp(hints.workHours ?? '')).toBe('= 2 смены × 11 ч (из локации)')
     expect(nbsp(hints.routeLengthM ?? '')).toBe('= √ активной зоны 10 000 м². Уточнится на 2D-схеме при симуляции')
     expect(nbsp(hints.liftTripPct ?? '')).toBe('1 этаж — лифты не нужны')
+  })
+})
+
+describe('начальная форма без демо-режима (аудит 2026-09-28, §6)', () => {
+  it('тексты примера пустые, значения датасета и по умолчанию — те же', () => {
+    const plain = buildInitialForm(WAREHOUSE, { ...PROCESS_TEMPLATE_DEFAULTS, widthMarginM: 0.6 }, null)
+    expect([plain.name, plain.carrier, plain.route]).toEqual(['', '', ''])
+    expect({ ...plain, name: '', carrier: '', route: '' }).toEqual({ ...demo(), name: '', carrier: '', route: '' })
   })
 })

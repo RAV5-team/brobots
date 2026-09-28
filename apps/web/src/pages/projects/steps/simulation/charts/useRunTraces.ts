@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { SimulationTrace } from '@/domain'
+import type { SimulationTrace, TraceResolution } from '@/domain'
 import { useServices } from '@/services/useServices'
 
 export type RunTracesLoad =
@@ -11,16 +11,19 @@ type Fetched = { readonly runId: string; readonly traces: readonly SimulationTra
 
 /**
  * 2D-трассы прогона (`GET /api/simulations/{id}/traces`): «из подбора» и, если состав изменился, итоговая.
- * Файлы тяжёлые — грузятся только на вкладке 07a, отдельным чанком (spike-2d.md).
+ * Полная запись тяжёлая — только на вкладке 07a (docs/spike-2d.md); кадру отчёта хватает почасового среза (`hourly`).
  */
-export function useRunTraces(runId: string): { readonly load: RunTracesLoad; readonly retry: () => void } {
+export function useRunTraces(
+  runId: string,
+  resolution: TraceResolution = 'full',
+): { readonly load: RunTracesLoad; readonly retry: () => void } {
   const services = useServices()
   const [fetched, setFetched] = useState<Fetched>(null)
   const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     let cancelled = false
-    services.projects.getSimulationTraces(runId)
+    services.projects.getSimulationTraces(runId, resolution)
       .then((traces) => { if (!cancelled) setFetched({ runId, traces }) })
       .catch((error: unknown) => {
         if (cancelled) return
@@ -28,7 +31,7 @@ export function useRunTraces(runId: string): { readonly load: RunTracesLoad; rea
         setFetched({ runId, traces: null })
       })
     return () => { cancelled = true }
-  }, [services, runId, attempt])
+  }, [services, runId, resolution, attempt])
 
   const retry = useCallback(() => {
     setFetched(null)

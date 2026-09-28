@@ -2,8 +2,6 @@ import type { AcquisitionModel } from './projectInputs'
 import type { CostItem } from './projectMatching'
 import type { CurrentProcessEconomics, ScenarioEconomics } from './projectEconomics'
 
-/** Начисления на ФОТ: страховые взносы 30,2 % [ДС-Легенда]. */
-export const PAYROLL_FACTOR = 1.302
 const MONTHS = 12
 
 /** Остаются в процессе после внедрения: ФОТ оставшихся исполнителей и обслуживание оставшихся погрузчиков. */
@@ -53,9 +51,12 @@ export function newCostItems(scenario: ScenarioEconomics): readonly CostItem[] {
   return scenario.opexItems.filter((item) => !REMAINING_CODES.has(item.code))
 }
 
-/** Сколько ставок даёт экономия ФОТ: 16,7 млн ÷ (120 000 × 12 × 1,302) ≈ 8,9 (PRD 11.5). */
-export function staffEquivalent(laborSavingsRub: number, salaryRubPerMonth: number): number {
-  return laborSavingsRub / (salaryRubPerMonth * MONTHS * PAYROLL_FACTOR)
+/**
+ * Сколько ставок даёт экономия ФОТ: 16,7 млн ÷ (120 000 × 12 × 1,302) ≈ 8,9 (PRD 11.5).
+ * `payrollTaxRatio` — норматив начислений на ФОТ А5 (`payroll_tax_ratio`).
+ */
+export function staffEquivalent(laborSavingsRub: number, salaryRubPerMonth: number, payrollTaxRatio: number): number {
+  return laborSavingsRub / (salaryRubPerMonth * MONTHS * payrollTaxRatio)
 }
 
 /** Год выхода в плюс по накопленному потоку: окупаемость 0,7 года — «в течение года 1»; null — не окупается. */
@@ -64,9 +65,7 @@ export function breakEvenYear(paybackYears: number | null): number | null {
 }
 
 export type SensitivityParameter = 'price' | 'labor' | 'volume'
-export const SENSITIVITY_PARAMETERS: readonly SensitivityParameter[] = ['price', 'labor', 'volume']
-/** ±20 % — допущение команды для одиночных проверок (PRD 11.5). */
-export const SENSITIVITY_SHIFT = 0.2
+const SENSITIVITY_PARAMETERS: readonly SensitivityParameter[] = ['price', 'labor', 'volume']
 
 /** Итог сценария при отклонённом параметре. */
 export interface ShiftedResult {
@@ -146,7 +145,7 @@ export function shiftedResult(
   }
 }
 
-/** Строка «Устойчивость результата» сценария: −20 % и +20 % параметра. */
+/** Строка «Устойчивость результата» сценария: параметр со сдвигом вниз и вверх на шаг чувствительности. */
 export interface SensitivityResult {
   readonly parameter: SensitivityParameter
   readonly minus: ShiftedResult
@@ -160,12 +159,14 @@ export interface SensitivityResult {
 /**
  * Чувствительность сценария к трём параметрам (ТЗ 3.5.6). Предпочтение — сценарий с меньшим TCO; при отклонении
  * другие сценарии пересчитываются с тем же отклонением, кроме цены — она у каждого своя, другой берётся без изменения.
+ * `shift` — шаг чувствительности, доля: норматив А5 `sensitivity_step_pct` (0,2 — «±20 %», PRD 11.5).
  */
 export function sensitivity(
   scenario: ScenarioEconomics,
   others: readonly ScenarioEconomics[],
   current: CurrentProcessEconomics,
   horizonYears: number,
+  shift: number,
 ): readonly SensitivityResult[] {
   const all = [scenario, ...others]
   const cheapest = (tco: (s: ScenarioEconomics) => number): AcquisitionModel | null =>
@@ -175,9 +176,9 @@ export function sensitivity(
     const at = (s: ScenarioEconomics, shift: number) => shiftedResult(s, current, horizonYears, parameter, shift)
     const leaderAt = (shift: number) =>
       cheapest((s) => at(s, s === scenario || parameter !== 'price' ? shift : 0).tcoRub)
-    const minus = at(scenario, -SENSITIVITY_SHIFT)
-    const plus = at(scenario, SENSITIVITY_SHIFT)
-    const flipsTo = [leaderAt(-SENSITIVITY_SHIFT), leaderAt(SENSITIVITY_SHIFT)].find((l) => l !== null && l !== baseLeader) ?? null
+    const minus = at(scenario, -shift)
+    const plus = at(scenario, shift)
+    const flipsTo = [leaderAt(-shift), leaderAt(shift)].find((l) => l !== null && l !== baseLeader) ?? null
     return { parameter, minus, plus, staysPositive: minus.effectRub > 0 && plus.effectRub > 0, flipsTo }
   })
 }

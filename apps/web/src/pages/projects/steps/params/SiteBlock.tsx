@@ -7,7 +7,7 @@ import { Toggle } from '@/components/ui/Toggle'
 import type { LocationId } from '@/domain'
 import { ru } from '@/shared/i18n/ru'
 import type { SiteRowGroup } from './paramsModel'
-import { ValueTable } from './ValueTable'
+import { ValueTable } from '../../shared/ValueTable'
 
 const t = ru.project.params.site
 

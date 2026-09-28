@@ -12,7 +12,7 @@ export function Logo() {
           key={letter}
           aria-hidden
           className={clsx(
-            'flex size-36 items-center justify-center rounded-full border-[1.2px] border-text type-logo text-text-secondary',
+            'flex size-36 items-center justify-center rounded-full border-(length:--rav-border-width-logo) border-text type-logo text-text-secondary',
             index === 0 && '-mr-6',
           )}
         >

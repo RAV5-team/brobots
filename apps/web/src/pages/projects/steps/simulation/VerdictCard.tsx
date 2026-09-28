@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react'
 import { Card } from '@/components/ui/Card'
 import { Chip } from '@/components/ui/Chip'
+import { Well } from '@/components/ui/Well'
 import type { SimulationRun, SimulationVerdict } from '@/domain'
 import { ru } from '@/shared/i18n/ru'
 import { kpisLine } from './verdictModel'
@@ -9,16 +9,6 @@ const t = ru.project.simulation.verdict
 
 /** Состав справляется — лаймовая плашка; проблема — светлая: лайм на экране — знак «всё в порядке». */
 const PASSED: ReadonlySet<SimulationVerdict> = new Set(['confirmed', 'can_reduce'])
-
-/** Вложенная плашка тёмной карточки: «Где тоньше всего», «Что проверить на пилоте» (16197:1889); «Вывод» итога 08. */
-export function Well({ title, children }: { readonly title: string; readonly children: ReactNode }) {
-  return (
-    <section aria-label={title} className="flex flex-col gap-4 rounded-lg bg-inverse-well px-16 py-16">
-      <h3 className="type-overline text-text-disabled">{title}</h3>
-      {children}
-    </section>
-  )
-}
 
 /** Список с лаймовыми точками (16197:1876). */
 function Points({ items, label }: { readonly items: readonly string[]; readonly label: string }) {

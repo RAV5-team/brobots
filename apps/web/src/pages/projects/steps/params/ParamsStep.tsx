@@ -4,7 +4,7 @@ import { ROUTE_PATHS } from '@/app/routePaths'
 import { ButtonLink } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { ErrorState, Skeleton } from '@/components/ui/States'
-import { isReadOnly, type Project, type ProjectParamsSnapshot } from '@/domain'
+import { isReadOnly, type ProjectParamsSnapshot } from '@/domain'
 import { numberParameter } from '@/pages/processes/locationStaffing'
 import { formatCount, formatDate, formatNumber, formatTime } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
@@ -16,14 +16,9 @@ import { paramsView } from './paramsModel'
 import { ProcessBlock } from './ProcessBlock'
 import { SiteBlock } from './SiteBlock'
 import { useParamsStep } from './useParamsStep'
+import type { ProjectStepProps } from '../stepProps'
 
 const t = ru.project.params
-
-interface ParamsStepProps {
-  readonly project: Project
-  readonly locationName: string
-  readonly isGuest: boolean
-}
 
 /** «склад · 20 000 м² · 2 смены · 180 человек · снимок 15.09.2026»; неизвестные значения пропускаются. */
 function objectLine(snapshot: ProjectParamsSnapshot, snapshotAt: string): string {
@@ -59,7 +54,7 @@ function ObjectCard({ snapshot, snapshotAt }: { readonly snapshot: ProjectParams
  * Шаг 1 «Параметры проекта» (экран 02, 16197:367; PRD 11.2). Значения процесса и площадки — только чтение из снимка;
  * менять можно процесс и допущения. Гость — без сохранения (D-14), сохранённая оценка — только просмотр (D-17).
  */
-export function ParamsStep({ project: initial, locationName, isGuest }: ParamsStepProps) {
+export function ParamsStep({ project: initial, locationName, isGuest }: ProjectStepProps) {
   const readOnly = isReadOnly(initial)
   const persist = !isGuest && !readOnly
   const state = useParamsStep(initial, persist)

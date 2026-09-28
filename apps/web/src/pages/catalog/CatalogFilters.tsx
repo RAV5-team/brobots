@@ -1,3 +1,4 @@
+import { clsx } from 'clsx'
 import { X } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router'
 import { ROUTE_PATHS } from '@/app/routePaths'
@@ -118,7 +119,8 @@ export function CatalogFilters({ filter, onChange, operationClasses, facilityTyp
           }}
         />
         {compatibleName !== null && (
-          <span data-active="true" className={FILTER_PILL_CLASSES}>
+          // Тёмная пилюля: кольцо фокуса «×» внутри — лаймовое, #111 на bg-inverse не видно (D-02).
+          <span data-active="true" className={clsx(FILTER_PILL_CLASSES, 'surface-inverse')}>
             {t.filters.compatibleWith(compatibleName)}
             <button
               type="button"

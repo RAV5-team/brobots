@@ -1,38 +1,13 @@
-// Пример заполнения формы 09а: «Перемещение паллет · кросс-докинг» на значениях демо-склада (PRD 9.2).
-// Значения из датасета «Склад» берутся из параметров типа объекта; остальные — значения по умолчанию макета 15935:903.
-// Коэффициенты без норматива (PRD 15 · №22) — здесь, пока их нет в справочнике нормативов А5.
-import type { FacilityParameter, HandlingMethodCode } from '@/domain'
-import { formatNumber, formatPercent } from '@/shared/format'
+// Начальное заполнение формы 09а (PRD 9.2): значения датасета «Склад» — из параметров типа объекта,
+// остальные — значения по умолчанию из сервиса процессов (PRD 15 · №22); тексты примера — только в демо-режиме.
+import type { FacilityParameter, ProcessDemoText, ProcessTemplateDefaults } from '@/domain'
+import { formatNumber } from '@/shared/format'
 import { WAREHOUSE_STAFF } from '../staffParameters'
 import { categoryValue, type ProcessForm, type StaffRow } from './processForm'
 
-/** Коэффициенты замещения труда по способам: вилы и платформа — из PR-0001, остальные — подсказка секции 4 макета. */
-export const REPLACEMENT: Readonly<Record<Exclude<HandlingMethodCode, 'none'>, number>> = {
-  forks: 0.8,
-  platform: 0.6,
-  tow: 0.8,
-  body: 0.5,
-  manipulator: 0.5,
-  brushes: 0.7,
-}
+/** Без демо-режима текстовые поля пустые: форма не предлагает имя, которое при сохранении даст дубль. */
+const NO_DEMO_TEXT: ProcessDemoText = { name: '', carrier: '', route: '' }
 
-export const MACRO_DEFAULTS = {
-  speedLimitMps: 1.5,
-  widthMarginM: 0.6,
-  liftTripPct: 0,
-  liftWaitS: 0,
-  minTempC: 5,
-  turnoverPct: 0,
-  fleetOperators: 1,
-  sitePrepPct: 5,
-  itIntegrationRub: 2_000_000,
-  consumablesRub: 0,
-  otherEffectsRub: 0,
-} as const
-
-const DEMO_NAME = 'Перемещение паллет · кросс-докинг'
-const DEMO_CARRIER = 'Паллета на полу'
-const DEMO_ROUTE = 'Приёмка → зона хранения → отгрузка'
 const RATIO_FORMAT = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 /** Параметры демо-склада, из которых форма берёт значения и подсказки-формулы. */
@@ -92,18 +67,22 @@ function staffRows(params: readonly FacilityParameter[]): readonly StaffRow[] {
 
 const text = (value: number, digits = 1): string => formatNumber(value, digits)
 
-/** Демо-заполнение формы: формулы «= 2 × 11 ч», «= 1 − 5 %», «= √ 10 000 м²» считаются из датасета. */
-export function buildDemoForm(params: readonly FacilityParameter[]): ProcessForm {
+/**
+ * Начальная форма: формулы «= 2 × 11 ч», «= 1 − 5 %», «= √ 10 000 м²» считаются из датасета;
+ * `demo` — тексты примера «Перемещение паллет · кросс-докинг», null — пустые поля.
+ */
+export function buildInitialForm(params: readonly FacilityParameter[], defaults: ProcessTemplateDefaults, demo: ProcessDemoText | null): ProcessForm {
   const base = warehouseBase(params)
   const staff = staffRows(params)
   const forkliftSalary = staff[0]?.salaryRub ?? 0
+  const texts = demo ?? NO_DEMO_TEXT
   return {
     operationClass: 'OP-01',
-    name: DEMO_NAME,
+    name: texts.name,
     category: categoryValue('warehouse', 'internal_logistics'),
-    carrier: DEMO_CARRIER,
+    carrier: texts.carrier,
     cargoDivisible: false,
-    route: DEMO_ROUTE,
+    route: texts.route,
     handling: ['forks', 'platform'],
     indoor: true,
     unitMassKg: text(base.palletMass),
@@ -112,24 +91,21 @@ export function buildDemoForm(params: readonly FacilityParameter[]): ProcessForm
     peakFactor: text(base.peakFactor),
     automationPct: text((1 - base.oversizeShare) * 100),
     routeLengthM: text(Math.sqrt(base.activeArea), 0),
-    speedLimitMps: text(MACRO_DEFAULTS.speedLimitMps),
-    widthMarginM: text(MACRO_DEFAULTS.widthMarginM),
-    liftTripPct: text(MACRO_DEFAULTS.liftTripPct),
-    liftWaitS: text(MACRO_DEFAULTS.liftWaitS),
+    speedLimitMps: text(defaults.speedLimitMps),
+    widthMarginM: text(defaults.widthMarginM),
+    liftTripPct: text(defaults.liftTripPct),
+    liftWaitS: text(defaults.liftWaitS),
     minAisleWidthM: text(base.rackAisle),
-    minTempC: text(MACRO_DEFAULTS.minTempC),
+    minTempC: text(defaults.minTempC),
     staff,
-    replacement: Object.fromEntries(Object.entries(REPLACEMENT).map(([method, ratio]) => [method, RATIO_FORMAT.format(ratio)])),
+    replacement: Object.fromEntries(Object.entries(defaults.replacement).map(([method, ratio]) => [method, RATIO_FORMAT.format(ratio)])),
     turnoverPct: text(base.turnoverPct),
     workTimeLossPct: text(base.workTimeLossPct),
-    fleetOperators: text(MACRO_DEFAULTS.fleetOperators),
+    fleetOperators: text(defaults.fleetOperators),
     fleetSalaryRub: text(forkliftSalary),
-    sitePrepPct: text(MACRO_DEFAULTS.sitePrepPct),
-    itIntegrationRub: text(MACRO_DEFAULTS.itIntegrationRub),
-    consumablesRub: text(MACRO_DEFAULTS.consumablesRub),
-    otherEffectsRub: text(MACRO_DEFAULTS.otherEffectsRub),
+    sitePrepPct: text(defaults.sitePrepPct),
+    itIntegrationRub: text(defaults.itIntegrationRub),
+    consumablesRub: text(defaults.consumablesRub),
+    otherEffectsRub: text(defaults.otherEffectsRub),
   }
 }
-
-export const formatRatio = (ratio: number): string => RATIO_FORMAT.format(ratio)
-export const formatShare = (share: number): string => formatPercent(share)

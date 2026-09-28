@@ -61,9 +61,17 @@ export function Card({ variant = 'panel', padding = 20, gap, as: Tag = 'section'
   )
 }
 
+interface CardTitleProps {
+  readonly children: ReactNode
+  /** Уровень по месту в документе: h2 — первый заголовок карточки под h1 страницы, h3 — внутри секции. */
+  readonly as?: 'h2' | 'h3'
+  /** id — для aria-labelledby карточки. */
+  readonly id?: string
+}
+
 /** Заголовок карточки: капсом, приглушённый («ПРОВЕРКА ШАБЛОНА»). */
-export function CardTitle({ children }: { readonly children: ReactNode }) {
-  return <h3 className="type-overline text-text-muted">{children}</h3>
+export function CardTitle({ children, as: Heading = 'h3', id }: CardTitleProps) {
+  return <Heading id={id} className="type-overline text-text-muted">{children}</Heading>
 }
 
 /** Строка «подпись — значение» внутри <dl>. */

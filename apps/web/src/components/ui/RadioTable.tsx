@@ -17,6 +17,8 @@ export interface RadioTableRow<T extends string> {
   readonly label: string
   /** Ячейки по порядку колонок: первая — название и подпись, остальные — числа справа. */
   readonly cells: readonly ReactNode[]
+  /** Строку нельзя выбрать: полупрозрачна, стрелки её пропускают (как пункт Select). */
+  readonly disabled?: boolean
 }
 
 interface RadioTableProps<T extends string> {
@@ -65,6 +67,7 @@ export function RadioTable<T extends string>({ label, columns, rows, value, onCh
           <RadixRadio.Item
             key={row.value}
             value={row.value}
+            disabled={row.disabled ?? false}
             aria-label={row.label}
             onFocus={() => {
               if (!isArrowMove.current) return
@@ -72,8 +75,9 @@ export function RadioTable<T extends string>({ label, columns, rows, value, onCh
               onChange(row.value)
             }}
             className={clsx(
-              'group flex w-full cursor-pointer items-center gap-12 rounded-md border-b border-border p-12 text-left transition-colors last:border-b-0',
-              'not-data-[state=checked]:hover:bg-surface-muted data-[state=checked]:bg-surface-sunken',
+              'group flex w-full items-center gap-12 rounded-md border-b border-border p-12 text-left transition-colors last:border-b-0',
+              'not-data-disabled:cursor-pointer not-data-disabled:not-data-[state=checked]:hover:bg-surface-muted data-[state=checked]:bg-surface-sunken',
+              'data-disabled:cursor-not-allowed data-disabled:opacity-(--rav-disabled-opacity)',
             )}
           >
             <span

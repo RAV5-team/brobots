@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { Field } from '@/components/ui/Field'
-import { Input } from '@/components/ui/Input'
+import { NumberField } from '@/components/ui/NumberField'
 import { Select, type SelectOption } from '@/components/ui/Select'
 import { parseConditionField, toFieldText, type ConditionOrigin, type NumericFieldSpec } from './conditionsModel'
 
@@ -32,24 +32,23 @@ export function NumberCondition({ spec, label, unit, hint, origin, value, crossE
   const error = parsed && !parsed.ok ? parsed.error : crossError ?? undefined
 
   return (
-    <Field label={label} hint={hint || undefined} error={error} badge={<Badge kind={origin} />}>
-      <Input
-        value={text ?? toFieldText(spec, value)}
-        inputMode="decimal"
-        autoComplete="off"
-        suffix={unit || undefined}
-        invalid={error !== undefined}
-        disabled={disabled}
-        onChange={(e) => {
-          const next = e.target.value
-          const result = parseConditionField(spec, next)
-          setText(next)
-          onValidity(result.ok)
-          if (result.ok) onCommit(result.value)
-        }}
-        onBlur={() => { if (parsed?.ok) setText(null) }}
-      />
-    </Field>
+    <NumberField
+      label={label}
+      hint={hint || undefined}
+      error={error}
+      badge={<Badge kind={origin} />}
+      unit={unit || undefined}
+      value={text ?? toFieldText(spec, value)}
+      invalid={error !== undefined}
+      disabled={disabled}
+      onChange={(next) => {
+        const result = parseConditionField(spec, next)
+        setText(next)
+        onValidity(result.ok)
+        if (result.ok) onCommit(result.value)
+      }}
+      onBlur={() => { if (parsed?.ok) setText(null) }}
+    />
   )
 }
 

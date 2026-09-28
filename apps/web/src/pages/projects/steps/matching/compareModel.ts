@@ -1,7 +1,7 @@
 import type { CompareCell, CompareCellTone, CompareGroup } from '@/components/ui/CompareTable'
 import type { HandlingMethod, RankedVariant, Robot, SolutionCheck } from '@/domain'
 import { specsCompleteness } from '@/domain'
-import { formatCount, formatNumber, formatPercent, formatRubCompact, formatYears } from '@/shared/format'
+import { formatCount, formatNumber, formatPercent, formatRubTenth, formatYears } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { formatScore } from './matchingModel'
 
@@ -25,7 +25,7 @@ interface Context {
 
 type Row = readonly [key: string, label: string, value: (e: CompareEntry) => string | null, tone?: (e: CompareEntry) => CompareCellTone]
 
-const money = (value: number | null | undefined): string | null => (value == null ? null : formatRubCompact(value, { fractionDigits: 1 }))
+const money = (value: number | null | undefined): string | null => (value == null ? null : formatRubTenth(value))
 const years = (value: number | null): string => (value === null ? ru.project.matching.ranking.notPaying : formatYears(value))
 
 /** У решения вне рейтинга расчёта нет — «не рассчитано», а не «нет данных». */
@@ -53,7 +53,7 @@ function temperature(robot: Robot): string | null {
 function dimensions(robot: Robot): string | null {
   const { lengthMm, widthMm, heightMm } = robot.specs
   if (lengthMm === undefined || widthMm === undefined || heightMm === undefined) return null
-  return `${[lengthMm, widthMm, heightMm].map((n) => formatNumber(n)).join(' × ')} мм`
+  return `${[lengthMm, widthMm, heightMm].map((n) => formatNumber(n)).join(' × ')} ${ru.units.mm}`
 }
 
 const spec = (pick: (r: Robot) => string | null) => (e: CompareEntry): string | null => (e.robot ? pick(e.robot) : null)
@@ -78,10 +78,10 @@ function rows(ctx: Context): Readonly<Record<'economics' | 'technical' | 'data',
       ['tco', r.tco, calc((v) => money(v.tcoRub))],
     ],
     technical: [
-      ['payload', r.payload, spec((x) => (x.specs.payloadKg === undefined ? null : `${formatNumber(x.specs.payloadKg)} кг`)), violationTone('payload')],
+      ['payload', r.payload, spec((x) => (x.specs.payloadKg === undefined ? null : `${formatNumber(x.specs.payloadKg)} ${ru.units.kg}`)), violationTone('payload')],
       ['dimensions', r.dimensions, spec(dimensions), violationTone('aisle_width')],
-      ['speed', r.speed, spec((x) => (x.specs.maxSpeedMps === undefined ? null : `${formatNumber(x.specs.maxSpeedMps, 2)} м/с`))],
-      ['autonomy', r.autonomy, spec((x) => (x.specs.autonomyH === undefined ? null : `${formatNumber(x.specs.autonomyH)} ч`))],
+      ['speed', r.speed, spec((x) => (x.specs.maxSpeedMps === undefined ? null : `${formatNumber(x.specs.maxSpeedMps, 2)} ${ru.units.mps}`))],
+      ['autonomy', r.autonomy, spec((x) => (x.specs.autonomyH === undefined ? null : `${formatNumber(x.specs.autonomyH)} ${ru.units.hours}`))],
       ['handling', r.handling, spec((x) => ctx.handlingMethods.find((h) => h.code === x.specs.handlingMethod)?.name ?? null), violationTone('handling')],
       ['environment', r.environment, spec(environment), violationTone('environment')],
       ['temperature', r.temperature, spec(temperature), violationTone('min_temperature')],

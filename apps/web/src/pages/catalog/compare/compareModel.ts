@@ -43,8 +43,6 @@ function fromCharacteristic(c: Characteristic): CompareValue {
   return text(c.value, c.status === 'confirmed' ? 'default' : 'unconfirmed')
 }
 
-/** Запас по ширине прохода: ширина робота + 0,6 м ≤ проход — правило карточки робота А2 (PRD 6.3, D-75). */
-export const AISLE_CLEARANCE_M = 0.6
 const MM_IN_M = 1000
 const PALLET_MASS = 'wh_pallet_mass'
 const RACK_AISLE = 'wh_rack_aisle_width'
@@ -59,7 +57,8 @@ const numericParameter = (location: Location, code: string): number | null => {
  * грузоподъёмности, проходы — ширина робота против прохода с запасом. Температуры и допустимой нагрузки на пол
  * в профиле склада нет — «?» (D-75).
  */
-export function siteFit(robot: Robot, location: Location): Record<'cargo' | 'aisles' | 'temperature' | 'floorLoad', CompareValue> {
+/** `widthMarginM` — норматив А5 `width_margin_m`: ширина робота + запас ≤ проход (правило карточки А2, PRD 6.3, D-75). */
+export function siteFit(robot: Robot, location: Location, widthMarginM: number): Record<'cargo' | 'aisles' | 'temperature' | 'floorLoad', CompareValue> {
   const mass = numericParameter(location, PALLET_MASS)
   const payload = robot.specs.payloadKg
   const cargo: CompareValue = mass === null || payload === undefined
@@ -72,7 +71,7 @@ export function siteFit(robot: Robot, location: Location): Record<'cargo' | 'ais
   const width = robot.specs.widthMm === undefined ? null : robot.specs.widthMm / MM_IN_M
   const aisles: CompareValue = aisle === null || width === null
     ? { kind: 'fit', status: 'unknown', text: t.fit.aisleUnknown }
-    : width <= aisle - AISLE_CLEARANCE_M
+    : width <= aisle - widthMarginM
       ? { kind: 'fit', status: 'fit', text: t.fit.aisleOk(formatNumber(aisle, 1), formatNumber(width, 2)) }
       : { kind: 'fit', status: 'misfit', text: t.fit.aisleTooNarrow(formatNumber(aisle, 1), formatNumber(width, 2)) }
 
@@ -89,6 +88,8 @@ interface ModelContext extends CharacteristicContext {
   readonly robots: readonly Robot[]
   /** Локация блока «Соответствие»; нет — блока нет (D-58). */
   readonly location: Location | null
+  /** Норматив А5 `width_margin_m` для проверки проходов. */
+  readonly widthMarginM: number
 }
 
 type RowSpec = readonly [key: string, label: string, robot: (r: Robot, ctx: ModelContext) => CompareValue, item: (i: LaunchItem, ctx: ModelContext) => CompareValue]
@@ -169,8 +170,8 @@ function buildRows(specs: readonly RowSpec[], entries: readonly CatalogEntry[], 
   }))
 }
 
-function fitGroup(entries: readonly CatalogEntry[], location: Location): CompareModelGroup {
-  const fits = entries.map((e) => (e.kind === 'robot' ? siteFit(e.robot, location) : null))
+function fitGroup(entries: readonly CatalogEntry[], location: Location, widthMarginM: number): CompareModelGroup {
+  const fits = entries.map((e) => (e.kind === 'robot' ? siteFit(e.robot, location, widthMarginM) : null))
   const row = (key: 'cargo' | 'aisles' | 'temperature' | 'floorLoad', label: string): CompareModelRow => ({
     key, label, values: fits.map((f) => f?.[key] ?? NOT_APPLICABLE),
   })
@@ -189,7 +190,7 @@ export function buildCompareGroups(entries: readonly CatalogEntry[], ctx: ModelC
     { key: 'requirements', title: t.groups.requirements, rows: buildRows(REQUIREMENTS, entries, ctx) },
     { key: 'quality', title: t.groups.quality, rows: buildRows(QUALITY, entries, ctx) },
   ]
-  return ctx.location ? [...groups, fitGroup(entries, ctx.location)] : groups
+  return ctx.location ? [...groups, fitGroup(entries, ctx.location, ctx.widthMarginM)] : groups
 }
 
 /** Позиции набора в порядке добавления; позиций, которых уже нет в каталоге, не показываем. */

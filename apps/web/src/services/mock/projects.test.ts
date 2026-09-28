@@ -102,7 +102,7 @@ describe('мок проектов', () => {
     await expect(service().startSimulation('PJ-01', { fleet: { robots: 18, stations: 6 }, conditions: {} })).rejects.toBeInstanceOf(ConflictError)
   })
 
-  it('2D-трассы: прогон с изменённым составом — две (из подбора и итоговая), без изменений — одна', async () => {
+  it('2D-трассы: прогон с изменённым составом — две (из подбора и итоговая), без изменений — одна; срез — по запросу', async () => {
     // Маленькие трассы вместо файлов по 1,7 МБ: формат настоящих файлов проверяет traces.test.ts.
     const tiny = (robots: number) => ({
       name: `${String(robots)} роботов`, step_s: 15, n_robots: robots, n_chargers: 1, states: ['idle'],
@@ -110,15 +110,16 @@ describe('мок проектов', () => {
       frames: [{ t: 0, r: Array.from({ length: robots }, () => [0, 0, 0]) }],
     })
     const loaded: string[] = []
-    const projects = createMockProjects({ latencyMs: 0 }, (file) => {
-      loaded.push(file)
+    const projects = createMockProjects({ latencyMs: 0 }, (file, resolution) => {
+      loaded.push(`${file}:${resolution}`)
       return Promise.resolve(tiny(file === 'demo-18-6' ? 18 : 16))
     })
     const [before, after] = await projects.getSimulationTraces('SIM-0926-02')
     expect([before?.robots, after?.robots]).toEqual([18, 16])
     expect(await projects.getSimulationTraces('SIM-0926-01')).toHaveLength(1)
     expect(await projects.getSimulationTraces('SIM-0926-03')).toEqual([])
-    expect(loaded).toEqual(['demo-18-6', 'demo-16-5', 'demo-18-6'])
+    expect(await projects.getSimulationTraces('SIM-0926-02', 'hourly')).toHaveLength(2)
+    expect(loaded).toEqual(['demo-18-6:full', 'demo-16-5:full', 'demo-18-6:full', 'demo-18-6:hourly', 'demo-16-5:hourly'])
     await expect(projects.getSimulationTraces('SIM-X')).rejects.toBeInstanceOf(NotFoundError)
   })
 

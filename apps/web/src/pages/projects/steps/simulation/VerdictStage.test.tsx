@@ -7,6 +7,7 @@ import { createMockServices } from '@/services/mock'
 import { ServicesProvider } from '@/services/ServicesProvider'
 import { RoleProvider } from '@/shared/auth/RoleProvider'
 import { ProjectStepPage } from '../ProjectStepPage'
+import { SimulationStep } from './SimulationStep'
 
 const RUNS: Readonly<Record<SimulationVerdict, string>> = {
   confirmed: 'SIM-0926-01',
@@ -34,7 +35,7 @@ const renderAt = (path: string, services: Services) =>
       <ServicesProvider services={services}>
         <RoleProvider>
           <Routes>
-            <Route path="/projects/:projectId/simulation" element={<><ProjectStepPage step="simulation" /><Search /></>} />
+            <Route path="/projects/:projectId/simulation" element={<><ProjectStepPage step="simulation" Step={SimulationStep} /><Search /></>} />
             <Route path="/projects/:projectId/economics" element={<p>итог и экономика</p>} />
             <Route path="*" element={<p>другая страница</p>} />
           </Routes>

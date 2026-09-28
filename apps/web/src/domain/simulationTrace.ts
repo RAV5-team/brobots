@@ -54,6 +54,12 @@ export interface RobotPosition {
   readonly state: RobotState
 }
 
+/**
+ * Полнота записи: `full` — все кадры (плеер 07a), `hourly` — кадры на границах часа (кадр отчёта 09).
+ * В пиковый час позиции совпадают: час делится на шаг записи нацело.
+ */
+export type TraceResolution = 'full' | 'hourly'
+
 export const traceDuration = (trace: SimulationTrace): number => trace.frames.at(-1)?.t ?? 0
 
 /** Позиции в момент t, с: между кадрами — линейно, состояние — из предыдущего кадра. Кадры идут с шагом `stepS`. */

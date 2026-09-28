@@ -6,7 +6,7 @@ import { useServices } from '@/services/useServices'
  * Локация блока «Соответствие». Способа выбрать локацию на экране пока нет (D-58 — open);
  * до решения — демо-локация РЦ Химки (D-75).
  */
-export const DEMO_FIT_LOCATION_ID: LocationId = 'LOC-01'
+const DEMO_FIT_LOCATION_ID: LocationId = 'LOC-01'
 
 export interface CompareData {
   readonly robots: readonly Robot[]
@@ -16,6 +16,8 @@ export interface CompareData {
   readonly operationClasses: readonly OperationClass[]
   readonly processes: readonly Process[]
   readonly facilityTypes: readonly FacilityType[]
+  /** Версия каталога сессии — в подписях источника характеристик. */
+  readonly catalogVersion: string
 }
 
 export type CompareDataState =
@@ -41,9 +43,10 @@ export function useCompareData(): { readonly state: CompareDataState; readonly r
       services.catalog.listOperationClasses(),
       services.processes.listProcesses(),
       services.locations.listFacilityTypes(),
+      services.session.getDataVersion(),
     ])
-      .then(([robots, launchItems, location, operationClasses, processes, facilityTypes]) => {
-        if (!cancelled) setState({ status: 'ready', robots, launchItems, location, operationClasses, processes, facilityTypes })
+      .then(([robots, launchItems, location, operationClasses, processes, facilityTypes, dataVersion]) => {
+        if (!cancelled) setState({ status: 'ready', robots, launchItems, location, operationClasses, processes, facilityTypes, catalogVersion: dataVersion.catalog })
       })
       .catch((error: unknown) => {
         if (cancelled) return

@@ -2,7 +2,7 @@ import { ChevronDown } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { CompareTable, type CompareCell, type CompareColumn, type CompareGroup } from '@/components/ui/CompareTable'
 import type { MatchBaseline, RankedVariant } from '@/domain'
-import { formatCount, formatPercent, formatRubCompact, formatYears } from '@/shared/format'
+import { formatCount, formatPercent, formatRubCompact, formatRubTenth, formatYears } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 
 const t = ru.project.matching
@@ -17,7 +17,7 @@ interface BaselineCompareProps {
 
 type Value = (v: RankedVariant) => string
 
-const money = (value: number | null): string => (value === null ? '—' : formatRubCompact(value, { fractionDigits: 1 }))
+const money = (value: number | null): string => (value === null ? '—' : formatRubTenth(value))
 
 /** Изменение расходов к текущему: «−16,7 млн ₽ (−33 %)». */
 function change(v: RankedVariant, baseline: MatchBaseline): string {

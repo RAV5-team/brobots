@@ -1,5 +1,5 @@
 import { ButtonLink } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
+import { Card, CardTitle } from '@/components/ui/Card'
 import { Chip } from '@/components/ui/Chip'
 import { ru } from '@/shared/i18n/ru'
 import { catalogHref } from './processDetailModel'
@@ -17,7 +17,7 @@ export function ProcessDetailRail({ classCode, classLabel }: ProcessDetailRailPr
     <aside className="flex w-(--rav-form-rail-width) shrink-0 flex-col gap-16 self-start">
       <Card elevation="md" aria-labelledby="class-key-title">
         <div className="flex flex-col items-start gap-6">
-          <h2 id="class-key-title" className="type-overline text-text-muted">{t.classTitle}</h2>
+          <CardTitle as="h2" id="class-key-title">{t.classTitle}</CardTitle>
           <Chip size="md">{classLabel}</Chip>
           <p className="type-caption text-text-secondary">{t.classNote}</p>
         </div>

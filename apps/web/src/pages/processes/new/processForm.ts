@@ -97,9 +97,6 @@ export const NUMERIC_SPECS: Readonly<Record<NumericKey, NumericSpec>> = {
   otherEffectsRub: { section: 'costs', min: 0, max: 10_000_000_000 },
 }
 
-export const numericKeysOf = (section: SectionId): readonly NumericKey[] =>
-  (Object.keys(NUMERIC_SPECS) as NumericKey[]).filter((key) => NUMERIC_SPECS[key].section === section)
-
 /** Обязательные поля вне числовых: класс, название, единица груза, делимость, способы обработки (секция 1). */
 const REQUIRED_CHOICE_FIELDS = ['operationClass', 'name', 'carrier', 'cargoDivisible', 'handling'] as const
 /** Колонки таблицы исполнителей со звёздочкой: «Оклад gross *», «Доля времени на процесс *». */

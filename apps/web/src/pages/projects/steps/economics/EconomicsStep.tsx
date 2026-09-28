@@ -10,6 +10,7 @@ import { isReadOnly, newCostItems, type AcquisitionModel, type Project } from '@
 import { downloadText, toCsv } from '@/shared/dom/download'
 import { formatCount, formatDate } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
+import { useModelNorms } from '@/shared/norms/useModelNorms'
 import { NEW_PROJECT_PARAMS } from '../../new/newProjectModel'
 import { missingOf } from '../params/paramsModel'
 import { ProjectStepLayout } from '../ProjectStepLayout'
@@ -35,18 +36,13 @@ import { RecommendationCard } from './RecommendationCard'
 import { ScenarioCompare } from './ScenarioCompare'
 import { SensitivityCard } from './SensitivityCard'
 import { useEconomicsStep, type EconomicsData, type EconomicsStepState } from './useEconomicsStep'
+import type { ProjectStepProps } from '../stepProps'
 
 const t = ru.project.economics
 const YEARS = ru.project.matching.plural.years
 const VIEW_PARAM = 'scenario'
 /** Порядок сценариев — как в PRD 11.5 и на переключателе макета: покупка, затем RaaS. */
 const ORDER: readonly AcquisitionModel[] = ['purchase', 'raas']
-
-interface EconomicsStepProps {
-  readonly project: Project
-  readonly locationName: string
-  readonly isGuest: boolean
-}
 
 /** «Данные расчёта» (PRD 11.5): версии данных итога под шапкой, свёрнуто. */
 function CalcData({ project, runId, criteria, scope }: { readonly project: Project; readonly runId: string | null; readonly criteria: number; readonly scope: string }) {
@@ -103,6 +99,7 @@ interface ReadyProps {
 function EconomicsBody({ data, state, locationName, isGuest, view }: ReadyProps) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const norms = useModelNorms()
   const { economics, matching, snapshot, run } = data
   const { project, selected } = state
   const readOnly = isReadOnly(project)
@@ -118,7 +115,7 @@ function EconomicsBody({ data, state, locationName, isGuest, view }: ReadyProps)
   const outcome = simulationOutcome(project, run)
   const conclusion = conclusionView(scenario, conditions, outcome, run)
   const selectedConclusion = conclusionView(selectedScenario, conditionsFor(economics.conditions, selected), outcome, run)
-  const rows = scenarioRows({ economics, scenarios, facts, run, conditions: economics.conditions })
+  const rows = scenarioRows({ norms, economics, scenarios, facts, run, conditions: economics.conditions })
   const horizon = formatCount(economics.horizonYears, YEARS)
   const mode = footerMode(project, isGuest)
 
@@ -166,9 +163,9 @@ function EconomicsBody({ data, state, locationName, isGuest, view }: ReadyProps)
         canChoose={canChoose}
         onChoose={state.choose}
       />
-      <CostsCard scenario={scenario} solutionName={economics.solutionName} chain={chainRows(scenario, economics, facts, newCostItems(scenario))} laborSavingsRub={scenario.laborSavingsRubPerYear ?? 0} />
+      <CostsCard scenario={scenario} solutionName={economics.solutionName} chain={chainRows(scenario, economics, facts, newCostItems(scenario), norms)} laborSavingsRub={scenario.laborSavingsRubPerYear ?? 0} />
       <CashFlowCard scenario={scenario} horizonYears={economics.horizonYears} />
-      <SensitivityCard acquisition={view} rows={sensitivityView(scenario, others, economics, facts)} />
+      <SensitivityCard acquisition={view} rows={sensitivityView(scenario, others, economics, facts, norms)} />
       <ConditionsCard rows={conditions} solution={`${economics.solutionName} · ${acquisitionName(view)}`} />
       <EconomicsFooter
         mode={mode}
@@ -193,7 +190,7 @@ function EconomicsBody({ data, state, locationName, isGuest, view }: ReadyProps)
  * Переключатель в шапке показывает сценарий (`?scenario=`), выбирает его — только «Выбрать этот сценарий» (D-106).
  * Сохранённая оценка — тот же экран только для просмотра (D-17), выбранный сценарий — из снимка (D-81).
  */
-export function EconomicsStep({ project: initial, locationName, isGuest }: EconomicsStepProps) {
+export function EconomicsStep({ project: initial, locationName, isGuest }: ProjectStepProps) {
   const readOnly = isReadOnly(initial)
   const state = useEconomicsStep(initial, !isGuest && !readOnly)
   const { project, load, selected } = state

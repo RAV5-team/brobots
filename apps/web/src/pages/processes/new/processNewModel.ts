@@ -3,7 +3,7 @@ import type { FacilityType, Location, OperationClass, OperationClassCode, Proces
 import { formatCount, formatNumber, formatPercent } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { categoryValue, countFormulas, countRequired, parseCategory, type NumericKey, type ProcessForm } from './processForm'
-import type { WarehouseBase } from './processNew.mock'
+import type { WarehouseBase } from './processDemoForm'
 import type { CheckRow } from './ProcessCheckRail'
 
 const t = ru.processNew

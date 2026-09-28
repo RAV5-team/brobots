@@ -1,6 +1,7 @@
 import { ArrowLeft } from 'lucide-react'
 import { ButtonLink } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { StatTile } from '@/components/ui/StatTile'
 import type { MatchingEvaluation } from '@/domain'
 import { formatCount } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
@@ -36,11 +37,7 @@ export function ConditionsBlock({ evaluation, paramsPath }: ConditionsBlockProps
       </div>
       <ul className="grid grid-cols-3 gap-8">
         {conditions.map((c) => (
-          <li key={c.code} className="flex flex-col gap-4 rounded-md bg-surface-sunken px-16 py-12">
-            <span className="type-caption text-text-secondary">{c.label}</span>
-            <span className="type-body font-semibold text-text">{conditionValue(c)}</span>
-            {c.note && <span className="type-caption text-text-secondary">{c.note}</span>}
-          </li>
+          <StatTile key={c.code} size="sm" label={c.label} value={conditionValue(c)} caption={c.note === null || c.note === '' ? undefined : c.note} />
         ))}
       </ul>
       <p className="type-caption text-text-secondary">{t.conditions.lead}</p>

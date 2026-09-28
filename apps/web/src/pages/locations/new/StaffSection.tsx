@@ -21,7 +21,7 @@ import {
   type Range,
   type StaffGroupRow,
 } from './locationForm'
-import { NumberField, type LocationSectionProps } from './LocationSections'
+import { LocationNumberField, type LocationSectionProps } from './LocationSections'
 
 const t = ru.locationNew
 const s = t.staffTable
@@ -161,14 +161,14 @@ export function StaffSection(props: LocationSectionProps) {
   return (
     <FormSection id="staff" title={t.sections.staff.title} description={t.sections.staff.description}>
       <FieldGrid>
-        <NumberField name="staffTotal" {...props} />
+        <LocationNumberField name="staffTotal" {...props} />
         <PayrollField params={props.params} />
       </FieldGrid>
       <StaffGroupsTable {...props} />
       <FieldGrid>
-        <NumberField name="pickerProductivity" {...props} />
-        <NumberField name="workTimeLoss" {...props} />
-        <NumberField name="turnover" {...props} />
+        <LocationNumberField name="pickerProductivity" {...props} />
+        <LocationNumberField name="workTimeLoss" {...props} />
+        <LocationNumberField name="turnover" {...props} />
       </FieldGrid>
     </FormSection>
   )

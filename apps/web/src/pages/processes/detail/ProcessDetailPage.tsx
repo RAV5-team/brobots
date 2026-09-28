@@ -55,7 +55,7 @@ function ProcessDetail({ data, isGuest }: { readonly data: ProcessDetailData; re
       <div className="flex items-start gap-16">
         <div className="flex min-w-0 flex-1 flex-col gap-24">
           <AutomationSection process={process} operationClass={operationClass} facilities={facilities} />
-          <RequirementsSection process={process} />
+          <RequirementsSection process={process} requirements={data.requirements} />
           <RobotsSection classCode={process.operationClass} summary={robotSummary(data.robots)} />
           <LocationsSection usages={locationUsages(data)} />
         </div>

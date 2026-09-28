@@ -1,6 +1,7 @@
 import { ArrowLeft } from 'lucide-react'
 import { DemoBanner } from '@/components/shell/DemoBanner'
 import { Chip } from '@/components/ui/Chip'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { SectionNav } from '@/components/ui/SectionNav'
 import type { SelectOption } from '@/components/ui/Select'
 import { TextLink } from '@/components/ui/TextLink'
@@ -9,7 +10,7 @@ import { formatTime } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { ProcessCheckRail, type CheckRailCopy, type CheckRow } from './ProcessCheckRail'
 import { ProcessSection } from './ProcessSection'
-import { StaffSection } from './StaffSection'
+import { ProcessStaffSection } from './ProcessStaffSection'
 import { CostsSection, RouteSection, VolumeSection } from './VolumeRouteSections'
 import { SECTION_IDS, type NumericKey } from './processForm'
 import type { ProcessFormState } from './useProcessFormState'
@@ -49,10 +50,7 @@ export function ProcessFormLayout({ back, title, lead, state, canSave, hints, ra
           ? savedAt && <Chip tone="muted" size="md"><span role="status">{t.draftSaved(formatTime(savedAt.toISOString()))}</span></Chip>
           : <DemoBanner />}
       </div>
-      <header className="flex flex-col gap-8">
-        <h1 className="type-display-lg text-text">{title}</h1>
-        <p className="type-body text-text-secondary">{lead}</p>
-      </header>
+      <PageHeader title={title} lead={lead} gap={8} />
       <div className="flex items-start gap-24">
         <div className="flex min-w-0 flex-1 flex-col gap-20">
           <div className="sticky top-16 z-10">
@@ -68,7 +66,7 @@ export function ProcessFormLayout({ back, title, lead, state, canSave, hints, ra
           />
           <VolumeSection {...sectionProps} />
           <RouteSection {...sectionProps} />
-          <StaffSection {...sectionProps} handlingMethods={options.handlingMethods} payrollCoef={options.payrollCoef} />
+          <ProcessStaffSection {...sectionProps} handlingMethods={options.handlingMethods} payrollCoef={options.payrollCoef} />
           <CostsSection {...sectionProps} />
         </div>
         <ProcessCheckRail copy={rail.copy} rows={rail.rows} canSave={canSave} saving={saving} message={message} />

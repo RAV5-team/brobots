@@ -36,7 +36,28 @@ export function formatRubCompact(value: number, { perYear = false, fractionDigit
 }
 
 const MILLION = 1_000_000
+
+/** Суммы вариантов подбора — один знак: «6,1 млн ₽», «42 млн ₽» (03, сравнение вариантов). */
+export function formatRubTenth(value: number): string {
+  return formatRubCompact(value, { fractionDigits: 1 })
+}
+
+/** Колонка сумм с одним знаком и нулём: «84,0 млн ₽» рядом с «6,1 млн ₽» (список проектов A1). */
+export function formatRubTenthFixed(value: number): string {
+  return formatRubCompact(value, { fractionDigits: 1, fixed: true })
+}
+
+/** Суммы итога 08: миллионы с одним знаком и нулём («42,0 млн ₽»), меньше миллиона — как обычно («400 тыс. ₽»). */
+export function formatRubTotal(value: number): string {
+  return Math.abs(value) >= MILLION ? formatRubTenthFixed(value) : formatRubCompact(value)
+}
 const MILLIONS = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+/** Разница сумм в миллионах со знаком, как суммы колонок: «−0,5 млн ₽»; меньше 0,05 млн — «0» (сравнение прогонов 07). */
+export function formatRubMillionsDelta(delta: number): string {
+  const text = formatNumber(delta / MILLION, 1, { signed: true })
+  return text === '0' ? text : `${text}\u00a0млн${RUB}`
+}
 
 /** Цена в каталоге — миллионы с двумя знаками: «3,75 млн ₽», «4,00 млн ₽» (А1). */
 export function formatRubMillions(value: number): string {

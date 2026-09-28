@@ -4,11 +4,13 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Chip } from '@/components/ui/Chip'
 import { CompareTable, type CompareGroup } from '@/components/ui/CompareTable'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
 import { TextLink } from '@/components/ui/TextLink'
 import { COMPARE_LIMIT } from '@/domain'
 import { useCompare } from '@/shared/compare/useCompare'
 import { ru } from '@/shared/i18n/ru'
+import { useModelNorms } from '@/shared/norms/useModelNorms'
 import { entryName, entryRef, type CatalogEntry } from '../catalogModel'
 import { CompareColumnHead } from './CompareColumnHead'
 import { buildCompareGroups, resolveEntries, type CompareModelGroup, type CompareValue } from './compareModel'
@@ -49,11 +51,12 @@ const toTableGroups = (groups: readonly CompareModelGroup[], entries: readonly C
 
 function CompareContent({ data }: { readonly data: CompareData }) {
   const { entries: selected, toggle } = useCompare()
+  const { widthMarginM } = useModelNorms()
   const entries = resolveEntries(selected, data.robots, data.launchItems)
 
   if (entries.length === 0) return <EmptyState size="lg" title={t.empty.title} description={t.empty.description} />
 
-  const groups = buildCompareGroups(entries, { ...data, items: data.launchItems })
+  const groups = buildCompareGroups(entries, { ...data, items: data.launchItems, widthMarginM })
   return (
     <Card padding={20} gap={0}>
       <CompareTable
@@ -78,16 +81,16 @@ export function ComparePage() {
   return (
     <>
       <TextLink to={backToCatalogPath(routeState)} icon={ArrowLeft} className="self-start">{t.back}</TextLink>
-      <header className="flex items-end justify-between gap-16">
-        <div className="flex flex-col gap-4">
-          <h1 className="type-display-lg text-text">{t.title}</h1>
-          <p className="type-body text-text-secondary">
+      <PageHeader
+        title={t.title}
+        lead={(
+          <>
             <span className="font-medium text-text">{t.selected(selected.length, COMPARE_LIMIT)}</span>
             {t.greyHint}
-          </p>
-        </div>
-        <Button onClick={clear} disabled={selected.length === 0}>{t.clear}</Button>
-      </header>
+          </>
+        )}
+        actions={<Button onClick={clear} disabled={selected.length === 0}>{t.clear}</Button>}
+      />
       {error && <p role="alert" className="type-body-sm text-danger">{error}</p>}
 
       {state.status === 'loading' && <Skeleton className="h-(--rav-empty-panel-min-height)" />}

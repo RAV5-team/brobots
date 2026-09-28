@@ -14,6 +14,7 @@ import type {
   SimulationRequest,
   SimulationRun,
   SimulationTrace,
+  TraceResolution,
 } from '@/domain'
 
 /** Проекты оценки (PRD 11). Ответы API переводятся в модель экрана мапперами src/api/mappers. */
@@ -58,8 +59,11 @@ export interface ProjectService {
   /** Ход задания (`GET /api/simulations/jobs/{id}`): журнал строками, секунды, готовый прогон. Отмены в API нет (№14). */
   getSimulationJob(jobId: string): Promise<SimulationJob>
   getSimulationRun(runId: string): Promise<SimulationRun>
-  /** 2D-трассы прогона (`GET /api/simulations/{id}/traces`): «из подбора» и, если состав изменился, итоговая. */
-  getSimulationTraces(runId: string): Promise<readonly SimulationTrace[]>
+  /**
+   * 2D-трассы прогона (`GET /api/simulations/{id}/traces`): «из подбора» и, если состав изменился, итоговая.
+   * `hourly` — только кадры на границах часа (`?step_s=3600`, api-contract.md №6): кадру отчёта 09 не нужна вся запись.
+   */
+  getSimulationTraces(runId: string, resolution?: TraceResolution): Promise<readonly SimulationTrace[]>
   /** Итог и экономика выбранного решения (из расчёта подбора; отдельного эндпоинта нет). */
   getEconomics(id: ProjectId): Promise<EconomicsResult>
   /**

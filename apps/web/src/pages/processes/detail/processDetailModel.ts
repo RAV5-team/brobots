@@ -8,6 +8,10 @@ import type {
   LocationProcess,
   LocationProcessId,
   Process,
+  ProcessRequirement,
+  ProcessRequirements,
+  RequirementGroupKey,
+  RequirementUnit,
   Robot,
 } from '@/domain'
 import { ROUTE_PATHS } from '@/app/routePaths'
@@ -21,7 +25,7 @@ import { PAYROLL_COEF_PARAMETER, PEAK_FACTOR_PARAMETER } from '../staffParameter
 const t = ru.processCard
 const MONTHS_PER_YEAR = 12
 /** Карточек решений в блоке — как на макете; остальные — в каталоге по кнопке «Открыть каталог по процессу». */
-export const ROBOT_CARDS_LIMIT = 6
+const ROBOT_CARDS_LIMIT = 6
 /** Порядок «по подтверждённости данных»: да → частично → нет (PRD 7). */
 export const CONFIDENCE_ORDER: readonly DataConfidence[] = ['confirmed', 'partial', 'unconfirmed']
 
@@ -155,4 +159,28 @@ export function newProjectContext(usage: Pick<LocationUsage, 'locationId' | 'loc
 /** Каталог с фильтром по классу процесса (PRD 9.3). Фильтр — в адресе, чтобы ссылкой можно было поделиться. */
 export function catalogHref(classCode: string): string {
   return `${ROUTE_PATHS.catalog}?${new URLSearchParams({ class: classCode }).toString()}`
+}
+
+/** Строка «Что нужно знать для подбора»: подпись и единица; «—», если единицы нет. */
+export interface RequirementRow {
+  readonly key: string
+  readonly label: string
+  readonly unit: string | null
+}
+
+const requirementUnit = (unit: RequirementUnit): string | null => (unit === null ? null : ru.units[unit])
+
+/**
+ * Требования процесса к локации по группам (PRD 9.3). Объём потока — первый обязательный параметр любого процесса,
+ * в единице его KPI («паллет / ч»); остальное — коды из сервиса процессов, подписи — из словаря.
+ */
+export function requirementRows(requirements: ProcessRequirements, rateUnit: string): Readonly<Record<RequirementGroupKey, readonly RequirementRow[]>> {
+  const items = ru.processCard.requirements.items
+  const rows = (list: readonly ProcessRequirement[]): readonly RequirementRow[] =>
+    list.map((r) => ({ key: r.code, label: items[r.code], unit: requirementUnit(r.unit) }))
+  return {
+    required: [{ key: 'flow', label: items.flow, unit: rateUnit }, ...rows(requirements.required)],
+    desirable: rows(requirements.desirable),
+    environment: rows(requirements.environment),
+  }
 }

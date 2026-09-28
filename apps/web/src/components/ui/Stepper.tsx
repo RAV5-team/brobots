@@ -33,7 +33,8 @@ const t = ru.ui.stepper
 
 /**
  * Степпер шагов (components.md: Stepper; D-54 — 4 шага по PRD 0.9). Шаги — упорядоченный список в навигации,
- * текущий — `aria-current="step"`, закрытый — `aria-disabled`. Пройденные и доступные шаги — ссылки.
+ * текущий — `aria-current="step"`, закрытый — скрытая пометка «недоступен» (`aria-disabled` у нефокусируемого span
+ * скринридер не озвучивает). Пройденные и доступные шаги — ссылки.
  */
 export function Stepper({ label, steps, variant = 'pills', ...demo }: StepperProps) {
   const demoKey = steps.find((s) => isLink(s))?.key
@@ -60,20 +61,23 @@ interface ItemProps {
   readonly demoState: string | undefined
 }
 
-/** Шаг — ссылкой, если его можно открыть; текущий и закрытый — текстом с ARIA-состоянием. */
+/** Шаг — ссылкой, если его можно открыть; текущий — текстом с `aria-current`, закрытый — текстом с пометкой в подписи. */
 function StepShell({ step, demoState, className, children }: ItemProps & { readonly className: string; readonly children: ReactNode }) {
   if (isLink(step)) {
     return <Link to={step.to} data-demo-state={demoState} className={className}>{children}</Link>
   }
   return (
-    <span
-      aria-current={step.state === 'current' ? 'step' : undefined}
-      aria-disabled={step.state === 'locked' ? true : undefined}
-      className={className}
-    >
+    <span aria-current={step.state === 'current' ? 'step' : undefined} className={className}>
       {children}
     </span>
   )
+}
+
+/** Скрытая пометка состояния к подписи шага: «, пройден» или «, недоступен». */
+function StateNote({ state }: { readonly state: StepperStepState }) {
+  if (state === 'done') return <span className="sr-only">{t.done}</span>
+  if (state === 'locked') return <span className="sr-only">{t.locked}</span>
+  return null
 }
 
 function Pill({ step, number, demoState }: ItemProps & { readonly number: number }) {
@@ -81,7 +85,7 @@ function Pill({ step, number, demoState }: ItemProps & { readonly number: number
     <>
       <span className="sr-only">{t.stepPrefix(number)}</span>{' '}
       {step.label}
-      {step.state === 'done' && <span className="sr-only">{t.done}</span>}
+      <StateNote state={step.state} />
     </>
   )
   if (step.state === 'current') {
@@ -121,7 +125,7 @@ function Segment({ step, demoState }: ItemProps) {
       <span aria-hidden className={clsx('h-4 w-full rounded-xs', current ? 'bg-inverse' : 'bg-surface-sunken')} />
       <span className={clsx('truncate type-caption', current ? 'font-medium text-text' : 'text-text-secondary')}>
         {step.label}
-        {step.state === 'done' && <span className="sr-only">{t.done}</span>}
+        <StateNote state={step.state} />
       </span>
     </StepShell>
   )

@@ -6,7 +6,7 @@ import {
   type RunKpis,
   type SimulationRun,
 } from '@/domain'
-import { formatCount, formatNumber, formatPercent, formatRubCompact, formatYears, pluralize, type PluralForms } from '@/shared/format'
+import { formatCount, formatNumber, formatPercent, formatRubCompact, formatRubMillionsDelta, formatYears, pluralize, type PluralForms } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 
 const t = ru.project.simulation.verdict
@@ -113,12 +113,6 @@ export interface EconomicsRow {
 }
 
 const rub = (value: number): string => formatRubCompact(value, { fractionDigits: 1 })
-const MILLION = 1_000_000
-/** Разница — в миллионах, как суммы колонок: «−0,5 млн ₽»; меньше 0,05 млн — «0». */
-const signedRub = (delta: number): string => {
-  const text = formatNumber(delta / MILLION, 1, { signed: true })
-  return text === '0' ? text : `${text}\u00a0млн\u00a0₽`
-}
 const years = (value: number | null): string => (value === null ? t.economics.noPayback : formatYears(value))
 const signedYears = (a: number | null, b: number | null): string => {
   if (a === null || b === null) return '—'
@@ -131,8 +125,8 @@ export function economicsRows(variant: RankedVariant, plan: Fleet): readonly Eco
   const to = previewEconomics(variant, plan)
   const r = t.economics.rows
   const rows: EconomicsRow[] = [
-    { key: 'capex', label: r.capex, from: rub(from.capexRub), to: rub(to.capexRub), delta: signedRub(to.capexRub - from.capexRub) },
-    { key: 'effect', label: r.effect, from: rub(from.annualEffectRub), to: rub(to.annualEffectRub), delta: signedRub(to.annualEffectRub - from.annualEffectRub) },
+    { key: 'capex', label: r.capex, from: rub(from.capexRub), to: rub(to.capexRub), delta: formatRubMillionsDelta(to.capexRub - from.capexRub) },
+    { key: 'effect', label: r.effect, from: rub(from.annualEffectRub), to: rub(to.annualEffectRub), delta: formatRubMillionsDelta(to.annualEffectRub - from.annualEffectRub) },
     { key: 'payback', label: r.payback, from: years(from.paybackYears), to: years(to.paybackYears), delta: signedYears(from.paybackYears, to.paybackYears) },
   ]
   if (from.utilization === null || to.utilization === null) return rows
