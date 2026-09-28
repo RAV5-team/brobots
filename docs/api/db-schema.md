@@ -34,6 +34,10 @@ erDiagram
   MATCH_RUN ||--o{ MATCH_CANDIDATE : yields
   MATCH_CANDIDATE ||--o{ MATCH_CHECK : explains
   ROBOT_CAPABILITY ||--o{ MATCH_CANDIDATE : matched_as
+  PROJECT ||--o{ CALC_RUN : calculates
+  MATCH_RUN ||--o{ CALC_RUN : based_on
+  CALC_RUN ||--o{ CALC_RESULT : yields
+  CALC_RESULT |o--o| PROJECT : selected_as
 ```
 
 ## 0001_reference — справочники и классы операций
@@ -76,16 +80,37 @@ erDiagram
 
 ## 0005_project_matching — проекты и подбор
 
-- **`project`** — `name`, `location_id`, `task_id` (ровно одна задача), `status` (params, matching, simulation, economics, result), `horizon_years`, `catalog_version`, `dictionaries_version`, `model_version` (заполнит оркестратор), `snapshot` (JSONB: локация, параметры, задача на момент закрепления), `snapshot_taken_at`, `pinned_solution_id` («Проверить на своём объекте»), `selected_solution_id`, `selected_acquisition_model` (purchase, raas), `copied_from_id`, `is_demo`, `owner_id`, `deleted_at`.
+- **`project`** — `name`, `location_id`, `task_id` (ровно одна задача), `status` (с 0006 — draft, saved), `horizon_years`, `catalog_version`, `dictionaries_version`, `model_version` (версия ядра калькуляции, пишется при сохранении), `snapshot` (JSONB: локация, параметры, задача на момент закрепления; с 0006 — и выбранный робот), `snapshot_taken_at`, `pinned_solution_id` («Проверить на своём объекте»), `selected_solution_id`, `selected_acquisition_model` (purchase, raas), `copied_from_id`, `is_demo`, `owner_id`, `deleted_at`.
 - **`project_condition_override`** `(project_id, check_code, value_number, value_text, value_list[], note)` — условия подбора, изменённые в проекте: handling, environment, payload, aisle_width, min_temperature, lift_height.
 - **`project_manual_candidate`** `(project_id, solution_id, reason, added_at)`.
 - **`match_run`** — прогон: `project_id`, `task_id`, `work_type_id`, `catalog_version`, `ruleset_version`, `conditions` (JSONB, вход прогона), счётчики `total_candidates`, `passed_count`, `verify_count`, `excluded_count`.
 - **`match_candidate`** — `run_id`, `solution_id`, `capability_id`, `offer_id`, `state` (passed, needs_verification, excluded), `is_manual`, `transfer_flag` (P0–P3), `risks[]`, `summary_ru`, `sort`. `UNIQUE (run_id, solution_id)`.
 - **`match_check`** `(candidate_id, check_code)` — `status` (pass, fail, unknown, not_applicable), `robot_value`, `required_value`, `unit`, `robot_value_source`, `required_value_source`, `message_ru`, `sort`.
 
+## 0006_orchestrator — жизненный цикл проекта и расчёты
+
+Оркестратор проекта описан в [../orchestrator.md](../orchestrator.md).
+
+- **`project`**:
+  - `status` — `draft` или `saved`; при миграции `result` стал `saved`, остальные значения — `draft`;
+  - `saved_at` — когда проект сохранён;
+  - `inputs_version` — счётчик изменений входа расчёта: снимок, условия, ручные кандидаты, горизонт;
+  - `selected_calc_result_id` — выбранный результат расчёта.
+- **`calc_run`** — расчёт кандидатов одного прогона подбора: `project_id`, `match_run_id`, `model_version`, `catalog_version`, `inputs_version` на момент запуска, `horizon_years`, `request` (JSONB: весь вход расчёта, включая поля каталога всех кандидатов). Если `inputs_version` расчёта не совпадает с проектом, расчёт устарел.
+- **`calc_result`** — результат по паре «робот × модель приобретения»: `solution_id`, `acquisition_model` (purchase, raas), `calculable`, `reason`, `robot_count`, `charger_count`, `capex_rub`, `opex_year_rub`, `labor_savings_year_rub`, `net_effect_year_rub`, `payback_years` (пусто — не окупается), `roi`, `tco_rub`, `budget_over_rub`, `budget_over_pct`, `trace` (JSONB: шаги расчёта с формулой и источником), `warnings[]`, `sort`. `UNIQUE (calc_run_id, solution_id, acquisition_model)`.
+
+## 0007_norms_economics — нормативы А5 и ответ сервиса economics
+
+- **`norm_set`** — неизменная версия нормативов: `version` (уникальна, растёт с каждой правкой), `label`, `note`, `created_by`, `created_at`. Первую версию создаёт api при старте из `domain.NormDefinitions`.
+- **`norm_value`** `(norm_set_id, code)` — норматив: `group_code` (staff, fleet, capex, opex, finance, interpretation, robot_defaults, ranking), `label`, `value`, `unit`, `kind` (norm, assumption), `source`, `sort`. Коды экономических нормативов совпадают с полями `NormsDto` сервиса economics.
+- **`project.norm_set_id`** — закреплённая версия; пишется при создании и `refresh-snapshot`. Пусто у проектов до 0007: они считаются на последней версии.
+- **`calc_run`**: `norm_set_id` — версия нормативов расчёта, `ranking_version` — методика рейтинга (`ranking-v1`; пусто у мок-модели). Весь набор нормативов лежит и во входе `request.norms`.
+- **`calc_result`**: `rank` (место среди показанных пар «решение + модель»), `score` (0–1), `feasibility` (high, medium, low, none), `details` (JSONB: `capexItems`, `opexItems`, `baselineOpexYearRub`, `baselineTcoRub`, `fleetUtilization`, `cycleTimeS`, `scoreCriteria`, `assumptions`).
+
 ## Правила целостности
 
 - Каталожные сущности (`work_type`, `solution`, `robot_capability`, `process`) не удаляются, а скрываются: `is_active = false`. Сохранённые прогоны и снимки продолжают на них ссылаться.
 - Задача, которая есть в проектах, при удалении архивируется (`archived_at`), иначе удаляется.
 - Удаление локации мягкое (`deleted_at`) и архивирует её задачи; проекты сохраняют снимок и показывают `locationDeleted`.
-- Проект видит устаревание: `dataChanged` — задача или локация изменились после `snapshot_taken_at`; `catalogUpdated` — текущий `reference_version.catalog` больше закреплённого.
+- Проект видит устаревание: `dataChanged` — задача или локация изменились после `snapshot_taken_at`; `catalogUpdated` — текущий `reference_version.catalog` больше закреплённого; `normsUpdated` — есть версия нормативов новее закреплённой.
+- Расчёты не удаляются при повторном расчёте: история `calc_run` остаётся, проект указывает на выбранный результат. Сохранённый проект (`saved`) не меняет входы и расчёт, пока его не откроют (`reopen`).

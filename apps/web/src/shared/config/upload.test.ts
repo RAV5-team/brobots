@@ -46,3 +46,18 @@ describe('upload rules (D-18)', () => {
     )
   })
 })
+
+describe('locationDocument rule (17б; D-18 open, PRD 15 · №55)', () => {
+  const named = (name: string) => new File(['x'], name)
+
+  it('accepts a CAD plan that the common rule rejects', () => {
+    expect(validateFiles('locationDocument', [named('План склада, этаж 1.dwg')]).errors).toEqual([])
+    expect(validateFiles('document', [named('План склада, этаж 1.dwg')]).errors).toHaveLength(1)
+  })
+
+  it('accepts a group of 10 photos and limits one upload to 20 files', () => {
+    const photos = (n: number) => Array.from({ length: n }, (_, i) => named(`${String(i)}.jpg`))
+    expect(validateFiles('locationDocument', photos(10)).errors).toEqual([])
+    expect(validateFiles('locationDocument', photos(21)).errors[0]?.message).toBe('Не больше 20 файлов. Уберите лишние: 1')
+  })
+})

@@ -1,4 +1,5 @@
 import { Outlet, useLocation } from 'react-router'
+import { NewProjectDialog } from '@/pages/projects/new/NewProjectDialog'
 import { useRole } from '@/shared/auth/useRole'
 import { activeNavKey } from './navigation'
 import { Sidebar } from './Sidebar'
@@ -16,6 +17,8 @@ export function AppShell() {
       <main className="flex min-w-0 flex-1 flex-col gap-16 px-24 pt-24 pb-32">
         <Outlet />
       </main>
+      {/* Окно A2 поверх любой страницы кабинета; у гостя его нет (D-84). */}
+      {role !== 'guest' && <NewProjectDialog />}
     </div>
   )
 }

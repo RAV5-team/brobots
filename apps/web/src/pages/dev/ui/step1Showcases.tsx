@@ -10,6 +10,7 @@ import { stateProps, type DemoState } from './demoState'
 import { ShowcaseSection, StateGrid } from './StateGrid'
 
 const s = ru.dev.samples
+const source = ru.dataSources.create
 const INTERACTIVE: readonly DemoState[] = ['default', 'hover', 'active', 'focus', 'disabled']
 const LINK_STATES: readonly DemoState[] = ['default', 'hover', 'focus']
 const INPUT_STATES: readonly DemoState[] = ['default', 'focus', 'invalid', 'computed', 'disabled']
@@ -25,6 +26,7 @@ export function ButtonShowcase() {
             { label: 'secondary · md', render: (st) => <Button {...stateProps(st)}><Plus aria-hidden size={16} />{s.addLocation}</Button> },
             { label: 'secondary · sm', render: (st) => <Button size="sm" {...stateProps(st)}>{s.allProjects}</Button> },
             { label: 'danger · md', render: (st) => <Button variant="danger" {...stateProps(st)}>{s.removeFromLocation}</Button> },
+            { label: 'accent · md', render: (st) => <div className="surface-inverse rounded-xl bg-inverse p-8"><Button variant="accent" {...stateProps(st)}>{ru.adminCatalog.added.open}</Button></div> },
           ]}
         />
       </ShowcaseSection>
@@ -119,6 +121,10 @@ export function FieldShowcase() {
         </Field>
         <Field label={s.payroll}>
           <Input value={s.payrollValue} computed />
+        </Field>
+        {/* Действие в капсуле: «Проверить» у ссылки источника (А7б, 15966:7933). */}
+        <Field label={source.fields.url} required hint={source.urlHint}>
+          <Input type="url" defaultValue="https://moros.ru/catalog/amr-800" action={{ label: source.check, ariaLabel: source.checkLabel, onClick: () => undefined }} />
         </Field>
       </div>
     </ShowcaseSection>

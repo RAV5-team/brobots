@@ -25,7 +25,8 @@ export function formatCount(count: number, forms: PluralForms, maxFractionDigits
 
 const YEARS: PluralForms = ['год', 'года', 'лет']
 
-/** Срок окупаемости: «0,7 года», «1 год», «5 лет». */
-export function formatYears(years: number): string {
-  return formatCount(years, YEARS, 1)
+/** Срок окупаемости: «0,7 года», «1 год», «5 лет»; `fixed` — «7,0 лет» в колонке таблицы (A1). */
+export function formatYears(years: number, { fixed = false }: { readonly fixed?: boolean } = {}): string {
+  if (!fixed) return formatCount(years, YEARS, 1)
+  return `${formatNumber(years, 1, { fixed })}\u00a0${pluralize(years, YEARS)}`
 }

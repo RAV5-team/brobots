@@ -10,10 +10,10 @@ const project = (id: string, processIds: string[], annualEffectRub: number | nul
   name: id,
   locationId: 'LOC-01',
   processIds: processIds.map((p) => `LP-${p}` as const),
-  status: 'draft',
-  step: 'economics',
+  status: 'saved',
   updatedAt: '2026-09-15T11:32:00Z',
-  preliminary: { paybackYears: 1, annualEffectRub },
+  savedAt: '2026-09-15T11:32:00Z',
+  result: { capexRub: 1, opexRubPerYear: 1, paybackYears: 1, annualEffectRub },
 })
 
 describe('foundSavingsRub (PRD 8.2: лучший проект на каждый процесс)', () => {
@@ -32,6 +32,11 @@ describe('foundSavingsRub (PRD 8.2: лучший проект на каждый 
   it('ignores projects without an annual effect', () => {
     expect(foundSavingsRub([project('a', ['01'], null)])).toBe(0)
   })
+
+  it('ignores drafts: their numbers are not saved yet (PRD 11.1)', () => {
+    const draft: Project = { id: 'PJ-d', name: 'd', locationId: 'LOC-01', processIds: ['LP-02'], status: 'draft', step: 'economics', updatedAt: '2026-09-15T11:32:00Z' }
+    expect(foundSavingsRub([draft, project('a', ['01'], 5)])).toBe(5)
+  })
 })
 
 describe('buildDashboard on the demo fixtures', () => {
@@ -42,9 +47,13 @@ describe('buildDashboard on the demo fixtures', () => {
     expect(dashboard.facilityTypes).toEqual(['warehouse', 'airport', 'medical'])
   })
 
-  it('counts projects and those with a result (PRD 8.2)', () => {
-    expect(dashboard.projectCount).toBe(5)
-    expect(dashboard.calculatedCount).toBe(1)
+  it('counts projects and saved assessments (PRD 8.2)', () => {
+    expect(dashboard.projectCount).toBe(7)
+    expect(dashboard.calculatedCount).toBe(4)
+  })
+
+  it('finds savings by the best saved project of each process: v2 purchase beats RaaS on LP-01', () => {
+    expect(dashboard.savingsRub).toBe(16_700_000)
   })
 
   it('sums manual labor over all locations, not only the visible ones (PRD 15 · 12)', () => {
@@ -58,7 +67,7 @@ describe('buildDashboard on the demo fixtures', () => {
 
   it('shows three locations with labor cost and computed project count', () => {
     expect(dashboard.locations.map((l) => [l.location.name, l.laborRub, l.projectCount])).toEqual([
-      ['РЦ Химки', 231_000_000, 2],
+      ['РЦ Химки', 231_000_000, 4],
       ['Даркстор Юг', 84_000_000, 1],
       ['Терминал Внуково-2', 183_000_000, 1],
     ])

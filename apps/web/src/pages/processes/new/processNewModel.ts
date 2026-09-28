@@ -4,7 +4,7 @@ import { formatCount, formatNumber, formatPercent } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { categoryValue, countFormulas, countRequired, parseCategory, type NumericKey, type ProcessForm } from './processForm'
 import type { WarehouseBase } from './processNew.mock'
-import type { TemplateCheck } from './TemplateCheckRail'
+import type { CheckRow } from './ProcessCheckRail'
 
 const t = ru.processNew
 
@@ -59,6 +59,13 @@ export function numericHints(base: WarehouseBase, form: ProcessForm): Readonly<P
   }
 }
 
+export interface TemplateCheck {
+  readonly formulas: number
+  readonly required: number
+  readonly robots: number
+  readonly locations: number
+}
+
 /** Строки «Проверки шаблона»: счётчики формы и совпадения по классу и типу объекта (PRD 9.2). */
 export function templateCheck(
   form: ProcessForm,
@@ -72,4 +79,15 @@ export function templateCheck(
     robots: robotsByClass[form.operationClass] ?? 0,
     locations: locations.filter((l) => l.facilityType === facilityType).length,
   }
+}
+
+/** Счётчики «Проверки шаблона» → строки панели 09а. */
+export function templateCheckRows(check: TemplateCheck): readonly CheckRow[] {
+  const r = t.rail
+  return [
+    { label: r.formulas, value: formatNumber(check.formulas) },
+    { label: r.required, value: formatNumber(check.required) },
+    { label: r.robots, value: formatNumber(check.robots) },
+    { label: r.locations, value: formatNumber(check.locations) },
+  ]
 }

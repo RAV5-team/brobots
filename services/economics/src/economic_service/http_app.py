@@ -7,6 +7,9 @@ from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
+from sqlalchemy import text
+from sqlalchemy.engine import Engine
+from starlette.concurrency import run_in_threadpool
 
 from economic_service.adapters.http.schemas import (
     ErrorResponseDto,
@@ -35,18 +38,28 @@ from economic_service.model_versions import (
 LOGGER = logging.getLogger(__name__)
 REQUEST_ID_HEADER = "X-Request-ID"
 
+ReadinessProbe = Callable[[], None]
+
 
 def create_app(
     settings: AppSettings | None = None,
     evaluation_service: EvaluationApplicationService | None = None,
+    readiness_probe: ReadinessProbe | None = None,
 ) -> FastAPI:
-    """Creates the FastAPI application for the configured environment."""
+    """Creates the FastAPI application for the configured environment.
+
+    Without an injected service the app wires PostgreSQL and checks it in
+    /readyz; an injected service is checked only by readiness_probe.
+    """
 
     resolved_settings = settings or AppSettings.from_environment()
     configure_logging(resolved_settings.log_level)
-    service = evaluation_service or _default_evaluation_service(
-        resolved_settings
-    )
+    service = evaluation_service
+    probe = readiness_probe
+    if service is None:
+        engine = create_engine_for_url(resolved_settings.database_url)
+        service = _default_evaluation_service(engine)
+        probe = probe or _database_probe(engine)
 
     application = FastAPI(
         title="RAV5 Economic Service",
@@ -110,11 +123,28 @@ def create_app(
 
         return {"status": "ok", "service": resolved_settings.app_name}
 
-    @application.get("/readyz", tags=["system"])
+    @application.get(
+        "/readyz",
+        tags=["system"],
+        responses={
+            503: {
+                "model": ErrorResponseDto,
+                "description": "The database is unavailable.",
+            },
+        },
+    )
     async def readiness_check() -> dict[str, str]:
-        """Reports readiness before external dependency wiring is enabled."""
+        """Reports readiness: the snapshot database answers."""
 
-        LOGGER.debug("Readiness check passed", extra={"request_id": "system"})
+        if probe is not None:
+            try:
+                await run_in_threadpool(probe)
+            except Exception as error:
+                LOGGER.warning("Readiness check failed: %s", error)
+                raise HTTPException(
+                    status_code=503,
+                    detail="The database is unavailable.",
+                ) from error
         return {"status": "ready", "service": resolved_settings.app_name}
 
     @application.get(
@@ -187,14 +217,23 @@ def create_app(
 
 
 def _default_evaluation_service(
-    settings: AppSettings,
+    engine: Engine,
 ) -> EvaluationApplicationService:
     """Creates the production-wired service without opening a DB connection."""
 
-    engine = create_engine_for_url(settings.database_url)
     repository = SqlAlchemyEvaluationSnapshotRepository.from_engine(engine)
     return EvaluationApplicationService(
         calculator=EconomicCalculationEngine(),
         repository=repository,
         clock=SystemClock(),
     )
+
+
+def _database_probe(engine: Engine) -> ReadinessProbe:
+    """Builds a readiness probe that runs one trivial query."""
+
+    def probe() -> None:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+
+    return probe

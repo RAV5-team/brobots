@@ -4,8 +4,8 @@ Run from services/economics:
 
     python scripts/export_openapi.py
 
-The API service consumes this contract; the OpenAPI contract test fails when
-the committed file differs from the application.
+The API service (Go) consumes this contract; the OpenAPI contract test fails
+when the committed file differs from the application.
 """
 
 from __future__ import annotations
@@ -16,6 +16,8 @@ from pathlib import Path
 import yaml
 
 _CONTRACT_PATH = Path("packages", "contracts", "openapi", "economics.yaml")
+# services/economics/scripts → the repository root; the Docker image has no
+# packages/, so the contract path points to a missing file there.
 CONTRACT = next(
     (
         parent / _CONTRACT_PATH

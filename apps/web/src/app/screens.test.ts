@@ -34,6 +34,7 @@ describe('SCREENS registry', () => {
       '05', '06', '07', '09а', '11',
       '12', '12а', '14', '15', '15а', '16', '17', '17а', '17б', '17в',
       'А1', 'А1а', 'А2', 'А3', 'А5', 'А6', 'А7', 'А7б', 'А8', 'А10',
+      'К-1', 'К-2', 'К-3', 'К-4',
     ])
   })
 })
@@ -60,7 +61,10 @@ describe('samplePath', () => {
 
 describe('screensByRoute', () => {
   it('groups several screens living on one route', () => {
+    // 15а — окно над вкладкой «Процессы локации» на маршруте локации (D-38).
+    expect(screensByRoute(ROUTE_PATHS.location).map((s) => s.code)).toEqual(['15', '15а'])
     const codes = screensByRoute(ROUTE_PATHS.locationProcesses).map((s) => s.code)
-    expect(codes).toEqual(['15а', '17', '17в'])
+    // Пустая вкладка (locprocsempty) — состояние того же адреса.
+    expect(codes).toEqual(['17', '17в', '—'])
   })
 })

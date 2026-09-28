@@ -2,8 +2,11 @@
 
 The economic service evaluates warehouse robot candidates through a versioned
 calculation model and persists immutable evaluation snapshots in PostgreSQL.
-It runs as an internal-only service in the root Compose deployment. The Go API
-and web application do not call it yet.
+It runs as an internal-only service in the root Compose deployment. The project
+orchestrator of the Go API calls it on every `POST /projects/{id}/evaluate`
+(client `services/api/internal/calc/economics`, see
+[`docs/orchestrator.md`](../../docs/orchestrator.md)); the web application
+reaches it only through the API.
 
 ## Run locally
 
@@ -31,7 +34,9 @@ checks.
 ## API and persistence
 
 - `GET /healthz` reports process liveness.
-- `GET /readyz` reports service readiness.
+- `GET /readyz` reports readiness: it runs `SELECT 1` on the snapshot database
+  and answers 503 while it fails. The Docker healthcheck uses it, so the API
+  starts only when the service can calculate.
 - `GET /api/v1/model-version` returns the calculation model version callers
   must send (`economic-v1.2`) and the default ranking version (`ranking-v1`).
 - `POST /api/v1/evaluations` calculates and persists an evaluation. A
@@ -93,6 +98,9 @@ Python CI workflow. Additional model risks found during the draft audit are
 recorded as release blockers in
 [the economics backlog](../../docs/economics/backlog.md).
 
-The port preserves the draft's current calculation behavior. It does not
-provide project orchestration, call integration from the Go API, or a frontend
-integration.
+This service now calculates with `economic-v1.2`. Before using that version
+end to end, the Go adapter must send each candidate's acquisition offers and
+read structured reason objects. Project orchestration, norm versioning (screen
+А5) and the mapping of project data to the request live in the Go API; the
+integration notes and backlog are in
+[`docs/economics/integration-report.md`](../../docs/economics/integration-report.md).

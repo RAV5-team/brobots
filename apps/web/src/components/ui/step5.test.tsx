@@ -27,6 +27,14 @@ describe('Modal', () => {
     expect(trigger).toHaveFocus()
   })
 
+  it('renders the confirmation size without children (17в)', async () => {
+    render(<Modal size="sm" title="Удалить?" description="Только с этой локации" trigger={<Button>Удалить</Button>} footer={<Button>Отмена</Button>} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Удалить?' })
+    expect(dialog).toHaveClass('w-[560px]', 'p-32', 'gap-20')
+    expect(dialog.querySelector('footer')).toHaveClass('pb-24')
+  })
+
   it('has a labelled close button', async () => {
     render(<Modal title="Окно" trigger={<Button>Открыть</Button>}><p /></Modal>)
     fireEvent.click(screen.getByRole('button', { name: 'Открыть' }))

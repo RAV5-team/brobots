@@ -7,20 +7,48 @@ export type ProjectId = `PJ-${string}`
 /** Шаг черновика: параметры → подбор → симуляция → итог и экономика (PRD 11). */
 export type ProjectStep = 'params' | 'matching' | 'simulation' | 'economics'
 
-/** Проект: черновик или сохранённая оценка (только просмотр, D-17). */
-export interface Project {
+interface ProjectBase {
   readonly id: ProjectId
   readonly name: string
   readonly locationId: LocationId
   readonly processIds: readonly LocationProcessId[]
-  readonly status: 'draft' | 'saved'
-  readonly step: ProjectStep
   readonly updatedAt: IsoDateTime
-  /** Предварительный результат с экрана; до появления экономической модели не пересчитывается. */
-  readonly preliminary: ProjectPreliminary | null
 }
 
-export interface ProjectPreliminary {
+/** Черновик: всё можно менять, открывается на шаге, где остановились (PRD 11.1). Цифр результата нет. */
+export interface DraftProject extends ProjectBase {
+  readonly status: 'draft'
+  readonly step: ProjectStep
+  /** Решение из каталога («Проверить на объекте», D-57): подбор начнёт с него. */
+  readonly solutionId?: string
+}
+
+/** Черновик из окна «Новый проект» (A2): локация, а процесс и решение — если окно открыли из их карточек. */
+export interface NewProjectDraft {
+  readonly name: string
+  readonly locationId: LocationId
+  readonly locationProcessId?: LocationProcessId
+  readonly solutionId?: string
+}
+
+/** Сохранённая оценка: только просмотр (D-17), цифры — из снимка и не пересчитываются. */
+export interface SavedProject extends ProjectBase {
+  readonly status: 'saved'
+  readonly savedAt: IsoDateTime
+  readonly result: ProjectResultSnapshot
+}
+
+/** Проект: черновик или сохранённая оценка. */
+export type Project = DraftProject | SavedProject
+
+/**
+ * Снимок результата выбранного сценария на момент сохранения (ТЗ 3.1.5, 3.7.2):
+ * те же числа показывают список A1, итог 4.x, отчёт и выгрузка.
+ */
+export interface ProjectResultSnapshot {
+  readonly capexRub: number
+  readonly opexRubPerYear: number
   readonly paybackYears: number
+  /** Чистый годовой эффект; null — в источниках нет (нужен дашборду для «Найденной экономии», PRD 8.2). */
   readonly annualEffectRub: number | null
 }

@@ -1,5 +1,6 @@
 import type { DataVersion } from '@/domain'
 import type { PluralForms } from '@/shared/format'
+import { robotNew } from './robotNew'
 
 /**
  * Словарь интерфейса. Все подписи — отсюда, не строками в JSX (глоссарий).
@@ -108,6 +109,8 @@ export const ru = {
       matching: 'Подбор',
       simulation: 'Симуляция',
       economics: 'Результат',
+      /** Сохранённая оценка — как на макете 06 у рассчитанного проекта. */
+      saved: 'Результат',
     },
     locations: {
       title: 'Локации',
@@ -245,6 +248,348 @@ export const ru = {
     },
   },
 
+  /** Экран 12 «Локации · список» (PRD 10.1; 15950:1627). */
+  locations: {
+    title: 'Локации',
+    /** Подзаголовок в две строки, как на макете. */
+    lead: [
+      'Профиль площадки: процессы, ручной труд, параметры и ограничения.',
+      'На одной локации живёт несколько проектов — каждый со своим снимком данных',
+    ],
+    search: 'Локация, город или тип объекта',
+    add: 'Добавить локацию',
+    listLabel: 'Локации организации',
+    filters: {
+      facilityType: 'Тип объекта',
+      allFacilityTypes: 'Все типы объекта',
+      completeness: 'Параметры объекта',
+      /** Значения — как у фильтра `completeness` в API: complete, has_assumptions, has_missing. */
+      completenessOptions: {
+        all: 'Все профили',
+        complete: 'Заполнены полностью',
+        has_assumptions: 'Есть допущения',
+        has_missing: 'Есть незаполненные',
+      },
+      projects: 'Проекты',
+      /** Как фильтр `projects` в API: has_completed, drafts, none. */
+      projectsOptions: {
+        all: 'Все локации',
+        has_completed: 'Есть завершённые',
+        drafts: 'Только черновики',
+        none: 'Без проектов',
+      },
+      sort: 'Сортировка',
+      /** Как `sort` в API; по умолчанию — «Сначала обновлённые» (PRD 10.1, PRD 15 · №63). */
+      sortOptions: {
+        updated: 'Сначала обновлённые',
+        name: 'По названию',
+        completeness: 'Сначала полные профили',
+        projects: 'Больше проектов',
+        labor_cost: 'Больше ручного труда',
+      },
+    },
+    card: {
+      subtitle: (facility: string, city: string) => `${facility} · ${city}`,
+      area: 'Площадь',
+      staff: 'Персонал',
+      shifts: 'Смены',
+      processes: 'Процессов',
+      areaValue: (value: string) => `${value} м²`,
+      staffValue: (value: string) => `${value} чел`,
+      shiftsValue: (shifts: string, hours: string) => `${shifts} × ${hours} ч`,
+      labor: (amount: string) => `${amount} / год`,
+      laborCaption: (people: string) => `затраты на персонал · ${people} в операционных процессах`,
+      laborCaptionNoWorkers: 'затраты на персонал в операционных процессах',
+      /** До первого процесса считать нечего (PRD 10.1, 12а; PRD 15 · №43). */
+      noLabor: 'Нет процессов — затраты посчитаются после их добавления',
+      completeness: 'Параметры объекта',
+      projects: 'Связанных проектов',
+      projectsValue: (count: string, completed: string) => `${count} (${completed} завершено)`,
+      updated: (date: string) => `обновлено ${date}`,
+      /** Дата у только что созданной локации (экран 12а). */
+      createdJustNow: 'создана только что',
+      none: '—',
+      more: 'Подробнее',
+      moreLabel: (name: string) => `Подробнее о локации «${name}»`,
+    },
+    /**
+     * Плашка после сохранения формы 14 (PRD 10.1, экран 12а). Вторая строка — профиль новой локации,
+     * а не текст карточки робота с макета (PRD 15 · №42, D-19); персонал — вся численность, не «в процессах» (№75).
+     */
+    created: {
+      title: (name: string) => `Локация «${name}» создана`,
+      profile: (parts: readonly string[], completeness: string) =>
+        `${parts.join(' · ')} · профиль заполнен на ${completeness} — добавьте процессы`,
+      open: 'Открыть локацию',
+      openLabel: (name: string) => `Открыть локацию «${name}»`,
+    },
+    empty: {
+      title: 'Локаций пока нет',
+      description: 'Добавьте площадку: профиль, режим и персонал — дальше на неё можно добавить процессы и создать проект',
+    },
+    notFound: {
+      title: 'Ничего не нашлось',
+      description: 'Измените запрос или сбросьте фильтры',
+      reset: 'Сбросить фильтры',
+    },
+    error: {
+      title: 'Не удалось загрузить локации',
+      message: 'Сервис данных не ответил. Проверьте подключение и нажмите «Повторить» — данные локаций не пострадали',
+    },
+  },
+
+  /** Экран локации: шапка, вкладки и «Процессы локации» (PRD 10.3, 10.4; экран 15, 15950:2489). */
+  location: {
+    documentTitle: (name: string) => `${name} · RAV5`,
+    back: 'Локации',
+    /** «2 смены × 11 ч» в строке «Москва · 20 000 м² · 180 сотрудников · 2 смены × 11 ч». */
+    shifts: (shifts: string, hours: string) => `${shifts} × ${hours} ч`,
+    /** «Обновлено 14.09.2026» под строкой профиля (PRD 10.3; 16005:298). Автора в данных нет. */
+    updated: (date: string) => `Обновлено ${date}`,
+    tabsLabel: 'Разделы локации',
+    tabs: {
+      params: 'Параметры объекта',
+      processes: 'Процессы локации',
+      documents: 'Документы',
+    },
+    /** Со вкладки процесс создаётся в справочнике (PRD 10.4, 15а): форма 09а. */
+    createProcess: 'Создать процесс',
+    addFromTemplate: 'Добавить процесс из шаблона',
+    /** Окно 15а «Процесс из шаблона» (PRD 10.4; 15950:3023). */
+    templatePicker: {
+      title: 'Процесс из шаблона',
+      description: (location: string) =>
+        `Копия шаблона привяжется к ${location}: значения настроите под эту локацию, справочник не изменится`,
+      search: 'Найти шаблон процесса',
+      listLabel: 'Шаблоны процессов',
+      classLabel: (code: string, name: string) => `${code} ${name}`,
+      noRobots: 'роботов с этим классом в каталоге нет',
+      otherFacilityType: 'другой тип объекта',
+      onLocation: 'уже на локации',
+      add: (name: string) => `Добавить «${name}» на локацию`,
+      adding: 'Добавляем…',
+      cancel: 'Отмена',
+      /** Новый шаблон в справочнике — форма 09а (PRD 10.4). */
+      createProcess: 'Создать процесс',
+      notFound: {
+        title: 'Шаблон не найден',
+        description: 'Измените запрос или создайте новый процесс в справочнике',
+      },
+      error: 'Не удалось добавить процесс. Проверьте подключение и попробуйте ещё раз — локация не изменилась',
+      conflict: 'Этот шаблон уже на локации — обновите страницу',
+    },
+    listLabel: (name: string) => `Процессы локации «${name}»`,
+    card: {
+      /** Процесс входит в расчёт хотя бы одного проекта локации (PRD 10.4). */
+      selected: 'Выбран',
+      selectedHint: 'Процесс входит в расчёт проекта',
+      /** Из девяти обязательных значений заполнены все (PRD 10.4). */
+      ready: (total: number) => `Готово к расчёту · ${String(total)}/${String(total)}`,
+      missing: (count: number, items: string) => `Не хватает ${String(count)}: ${items}`,
+      missingItems: { volume: 'объём', workers: 'исполнители', salary: 'оклад' },
+      more: 'Подробнее',
+      moreLabel: (name: string) => `Подробнее о процессе «${name}» на локации`,
+      remove: 'Удалить',
+      removeLabel: (name: string) => `Удалить процесс «${name}» с локации`,
+    },
+    /** Окно 17в «Удалить процесс с локации» (PRD 10.4; 16036:573, D-43). */
+    removeProcess: {
+      title: (process: string, location: string) => `Удалить «${process}» с ${location}?`,
+      description: 'Процесс удалится только с этой локации. Шаблон в разделе «Процессы» и другие локации не изменятся',
+      cancel: 'Отмена',
+      confirm: 'Удалить с локации',
+      removing: 'Удаляем…',
+      error: 'Не удалось удалить процесс. Проверьте подключение и попробуйте ещё раз — локация не изменилась',
+      notFound: 'Процесс уже снят с локации — обновите страницу',
+      removed: (process: string) => `«${process}» удалён с локации`,
+    },
+    /** Пустая вкладка «Процессы локации» — locprocsempty (15919:241, D-40). */
+    empty: {
+      heading: 'Процессы объекта · ещё ничего не добавлено',
+      lead: 'Опишите, что реально происходит на площадке — без привязки к роботам',
+      title: 'На этой локации ещё нет процессов',
+      description: 'Добавьте процесс из раздела «Процессы» — он станет отдельным экземпляром этой локации',
+      add: 'Добавить процесс',
+    },
+    /** Вкладка «Параметры объекта» — экран 17а (PRD 10.3, 10.5; 16005:291). */
+    params: {
+      edit: 'Изменить',
+      editLabel: 'Изменить параметры объекта',
+      cancel: 'Отменить изменения',
+      sectionNavLabel: 'Разделы профиля',
+      /** Подсказка формы 14 отсылает к этой же вкладке (PRD 15 · №46) — здесь говорим, где эти условия сейчас. */
+      areaDescription:
+        'Размеры объекта и число уровней. Проходы, покрытие и другие условия для роботов в профиль пока не входят — приложите план и обследование во вкладке «Документы»',
+      typeLocked: 'Тип объекта не меняется после создания: от него зависят разделы профиля и процессы локации',
+      otherType: {
+        title: (type: string) => `Разделы для типа «${type}» ещё не готовы`,
+        description: 'Параметры этого типа взяты из датасета организатора и уже участвуют в расчёте, но формы для них в макетах пока нет. Здесь можно изменить название, город и адрес',
+      },
+      saved: (time: string) => `Изменения сохранены · ${time}`,
+      saveFailed: 'Не удалось сохранить изменения. Проверьте подключение и попробуйте ещё раз — введённые значения не потеряны',
+    },
+    /** Вкладка «Документы» — экран 17б (PRD 10.3; 16005:1024). */
+    documents: {
+      add: 'Добавить документ',
+      adding: 'Загружаем…',
+      heading: (count: string) => `Документы · ${count}`,
+      listLabel: 'Документы обследования',
+      /** Подпись строки по виду документа: «CAD-план · загружено 12.09.2026». */
+      kinds: { cad: 'CAD-план', photo: 'фото', excel: 'Excel', csv: 'CSV', scheme: 'схема', pdf: 'PDF' },
+      files: ['файл', 'файла', 'файлов'],
+      uploaded: (date: string) => `загружено ${date}`,
+      open: (name: string) => `Открыть документ «${name}»`,
+      /** Демо-документы без файла: кнопка видна, но недоступна (D-42). */
+      noFile: (name: string) => `Файл «${name}» к демо-данным не приложен`,
+      added: ['документ добавлен', 'документа добавлено', 'документов добавлено'],
+      uploadFailed: 'Не удалось загрузить документ. Проверьте подключение и попробуйте ещё раз — уже добавленные документы на месте',
+      empty: {
+        title: 'Документов пока нет',
+        description: 'Приложите планы, фото, таблицы и схемы обследования — из них берутся проходы, зоны и маршруты',
+        guestDescription: 'К этой локации документы обследования ещё не приложены',
+      },
+    },
+    notFound: {
+      title: 'Локация не найдена',
+      description: 'Возможно, её удалили или ссылка устарела',
+      back: 'К списку локаций',
+    },
+    error: {
+      title: 'Не удалось загрузить локацию',
+      message: 'Сервис данных не ответил. Проверьте подключение и нажмите «Повторить» — данные локации не пострадали',
+    },
+  },
+
+  /** Экран 16 «Локации · процесс на локации» — копия шаблона на площадке (PRD 10.4; 15950:3096). */
+  locationProcess: {
+    documentTitle: (name: string, location: string) => `${name} · ${location} · RAV5`,
+    lead: (location: string) =>
+      `Процесс из справочника на этой локации. Значения уже взяты из профиля ${location} по формулам процесса — правьте только то, что отличается`,
+    /** Панель и кнопка говорят о локации, а не о шаблоне (PRD 10.4; PRD 15 · №47, D-19). */
+    rail: {
+      title: 'Проверка процесса на локации',
+      changed: 'Изменено на локации',
+      note: (location: string) => `Изменения сохранятся только на ${location}: шаблон в справочнике и другие локации не изменятся`,
+      save: 'Сохранить на локации',
+    },
+    notFound: {
+      title: 'Процесс на локации не найден',
+      description: 'Возможно, его сняли с локации или ссылка устарела',
+      back: 'К процессам локации',
+    },
+    error: {
+      title: 'Не удалось открыть процесс на локации',
+      message: 'Сервис данных не ответил. Повторите — черновик не потерян',
+    },
+  },
+
+  /** Экран 14 «Локации · новая локация · форма» (PRD 10.2; 15950:1952). */
+  locationNew: {
+    documentTitle: 'Новая локация · RAV5',
+    back: 'Локации',
+    title: 'Новая локация',
+    draftSaved: (time: string) => `Черновик сохранён · ${time}`,
+    sectionNavLabel: 'Разделы формы',
+    nav: {
+      basics: 'Основное',
+      area: 'Площадь и этажность',
+      schedule: 'Режим',
+      staff: 'Персонал',
+    },
+    sections: {
+      basics: { title: '1. Основное', description: 'Тип объекта определяет набор полей ниже' },
+      area: {
+        title: '2. Площадь и этажность',
+        description: 'Размеры объекта и число уровней. Проходы, покрытие и другие условия для роботов заполняются во вкладке «Параметры объекта» после сохранения',
+      },
+      schedule: { title: '3. Режим работы' },
+      staff: {
+        title: '4. Персонал',
+        description: 'Группы — это те, кого роботы могут частично заменить. Процесс потом выберет свои группы и долю их времени',
+      },
+    },
+    facilityType: {
+      label: 'Тип объекта',
+      hint: 'Для аэропорта и медучреждения откроются свои разделы; для своего назначения — общие',
+      options: { warehouse: 'Склад', airport: 'Аэропорт', medical: 'Медучреждение', custom: 'Свой объект' },
+    },
+    /** Разделов аэропорта, медучреждения и своего объекта в макетах нет (PRD 10.2 [Предложение], D-36). */
+    otherType: {
+      title: (type: string) => `Разделы для типа «${type}» ещё не готовы`,
+      description: 'Состав параметров уже описан (PRD 10.5), но формы в макетах нет. Сейчас можно завести склад — или загрузить параметры из Excel, когда появится экран загрузки',
+    },
+    text: {
+      name: { label: 'Название', hint: 'Так локация будет называться в проектах' },
+      city: { label: 'Город' },
+      address: { label: 'Адрес' },
+    },
+    /** Подсказки получают диапазон датасета, уже отформатированный: «10 000–100 000». */
+    fields: {
+      totalArea: { label: 'Общая площадь склада', unit: 'м²', hint: (range: string) => `Допустимо ${range}` },
+      activeArea: { label: 'Площадь активной (роботизируемой) зоны', unit: 'м²', hint: (range: string) => `Допустимо ${range} · не больше общей площади` },
+      floors: { label: 'Количество этажей (мезонинов)', unit: 'шт.', hint: (range: string) => `Допустимо ${range} · при 2+ понадобятся лифты` },
+      shifts: { label: 'Количество рабочих смен в сутки', unit: 'смен', hint: (range: string) => `Допустимо ${range}` },
+      workingDays: { label: 'Рабочих дней в году', unit: 'дн.' },
+      shiftHours: { label: 'Продолжительность смены', unit: 'ч', hint: (range: string) => `Допустимо ${range} · с учётом перерывов` },
+      peakFactor: { label: 'Пиковый коэффициент нагрузки', unit: 'коэф.', hint: (range: string) => `Макс. час ÷ средний час · допустимо ${range} · e‑com до 2,5` },
+      staffTotal: { label: 'Общая численность персонала склада', unit: 'чел.', hint: (range: string) => `Допустимо ${range} · включая ИТР, кладовщиков, уборку` },
+      pickerProductivity: { label: 'Средняя выработка отборщика', unit: 'строк/ч·чел', hint: (range: string) => `Допустимо ${range} · до роботизации` },
+      workTimeLoss: { label: 'Коэффициент потерь рабочего времени', unit: '%', hint: (range: string) => `Отпуск, болезнь, текучесть · допустимо ${range}` },
+      turnover: { label: 'Годовая текучесть персонала', unit: '%', hint: () => 'Нет в данных склада → принято 0: эффект на найм не считается' },
+    },
+    payroll: { label: 'Коэффициент начислений на ФОТ', unit: 'коэф.', hint: 'ОПФ 22% + ОМС 5,1% + ОСС 2,9% + НСиПЗ 0,2%' },
+    staffTable: {
+      caption: 'Группы персонала',
+      role: 'Группа (роль)',
+      headcount: 'Численность',
+      salary: 'Оклад gross',
+      remove: 'Удалить',
+      rolePlaceholder: 'Название группы',
+      roleLabel: 'Название группы персонала',
+      headcountLabel: (role: string) => `Численность: ${role || 'новая группа'}`,
+      salaryLabel: (role: string) => `Оклад gross: ${role || 'новая группа'}`,
+      removeLabel: (role: string) => `Удалить группу «${role || 'новая группа'}»`,
+      people: 'чел.',
+      salaryUnit: '₽/мес.',
+      empty: '—',
+      hint: (people: string, salary: string | null) => (salary ? `${people} чел. · ${salary} тыс. ₽` : `${people} чел.`),
+      salaryLater: (people: string) => `${people ? `${people} чел. · ` : ''}оклад понадобится, если группа станет исполнителем процесса`,
+      rule: 'Обязательно: хотя бы одна группа с численностью и окладом. Оклад остальных групп нужен, только если они станут исполнителями процесса',
+      add: 'Добавить группу персонала',
+    },
+    rail: {
+      title: 'Готовность профиля',
+      requiredLabel: 'обязательных',
+      requiredProgress: 'Обязательные поля заполнены верно',
+      filled: 'Заполнено полей',
+      filledValue: (filled: string, total: string) => `${filled} из ${total}`,
+      errors: 'Ошибки',
+      goToError: 'Перейти к первой ошибке',
+      assumptions: 'Допущения',
+      optionalEmpty: 'Необязательные пустые',
+      save: 'Сохранить',
+      saving: 'Сохраняем…',
+      importExcel: 'Загрузить из Excel',
+      downloadTemplate: 'Скачать шаблон',
+      excelSoon: 'Загрузка и шаблон Excel появятся вместе с экраном загрузки (PRD 10.8)',
+      guestSave: 'В демо-режиме локации не сохраняются: войдите в рабочий кабинет',
+      otherTypeSave: 'Сохранить можно локацию типа «Склад»: разделов других типов пока нет',
+    },
+    errors: {
+      required: 'Заполните поле',
+      number: 'Введите число: например, 1,5',
+      integer: 'Введите целое число',
+      positive: 'Введите число больше нуля',
+      range: (min: string, max: string) => `Допустимо от ${min} до ${max}`,
+      activeOverTotal: (total: string) => `Больше общей площади склада — ${total} м²`,
+      staff: 'Добавьте хотя бы одну группу с численностью и окладом',
+      summary: (count: string) => `Проверьте поля с ошибками: ${count}`,
+      saveFailed: 'Не удалось сохранить локацию. Черновик сохранён — повторите через минуту',
+      loadTitle: 'Не удалось открыть форму',
+      loadMessage: 'Сервис справочников не ответил. Повторите — черновик не потерян',
+    },
+  },
+
   /** Экран 09а «Процессы · новый процесс вручную» (PRD 9.2; 15935:903). */
   processNew: {
     documentTitle: 'Новый процесс · RAV5',
@@ -284,7 +629,12 @@ export const ru = {
       },
     },
     fields: {
-      operationClass: { label: 'Класс операции — ID привязки к роботам', hint: 'Ключ подбора: у процесса один класс, у робота — несколько' },
+      operationClass: {
+        label: 'Класс операции — ID привязки к роботам',
+        hint: 'Ключ подбора: у процесса один класс, у робота — несколько',
+        /** Форма 16: класс копии наследуется из шаблона (PRD 10.4). */
+        lockedHint: 'Класс задан процессом из справочника и не меняется',
+      },
       name: { label: 'Название процесса', hint: 'Так процесс виден в справочнике и в проектах' },
       category: { label: 'Категория', hint: 'Иерархия справочника: отрасль → тип объекта → процесс' },
       carrier: { label: 'Единица груза' },
@@ -457,6 +807,536 @@ export const ru = {
     },
   },
 
+  /** Раздел «Администрирование» (PRD 6): шапка и вкладки общие для А1, А5, А6, А8, журнала. */
+  admin: {
+    title: 'Администрирование',
+    lead: 'Каталог решений, классы операций, нормативы и допущения по умолчанию, источники данных',
+    tabsLabel: 'Разделы администрирования',
+    accessHint: 'Каталог, нормативы и справочники ведёт администратор. Войдите под учётной записью администратора',
+    tabs: {
+      catalog: 'Каталог',
+      norms: 'Нормативы и допущения',
+      sources: 'Источники',
+      operationClasses: 'Классы операций',
+      journal: 'Журнал',
+    },
+  },
+
+  /** Экран А1 «Каталог решений» (PRD 6.2). */
+  adminCatalog: {
+    title: 'Каталог решений',
+    search: 'Найти решение или производителя',
+    refresh: 'Обновить каталог по запросу',
+    add: 'Добавить робота',
+    columns: {
+      solution: 'Решение',
+      operationClasses: 'Классы операций',
+      payload: 'Грузоподъёмность',
+      price: 'Цена',
+      updated: 'Обновлено',
+      completeness: 'Полнота ТТХ',
+      actions: 'Действия',
+    },
+    needsConfirmation: 'требует подтверждения',
+    noOperationClass: 'нет класса операции',
+    payload: (kg: string) => `до ${kg} кг`,
+    noPayload: 'нет данных',
+    noPrice: 'нет цены',
+    updatedNow: 'сейчас',
+    /** Экран А3 «Робот добавлен» (PRD 6.2). */
+    added: {
+      title: 'Каталог обновлён',
+      open: 'Открыть в каталоге',
+    },
+    open: (name: string) => `Открыть карточку ${name}`,
+    shown: (shown: number, total: string) => `${shown === 1 ? 'Показано' : 'Показаны'} ${String(shown)} из ${total}`,
+    empty: {
+      title: 'В каталоге пока нет решений',
+      description: 'Добавьте робота вручную или обновите каталог по запросу — строки появятся здесь',
+    },
+    notFound: {
+      title: 'Ничего не нашлось',
+      description: 'Проверьте написание или ищите по производителю: «Ронави», «Морос»',
+    },
+    error: {
+      title: 'Не удалось загрузить каталог',
+      message: 'Сервис каталога не ответил. Проверьте подключение и повторите — данные каталога не изменились',
+    },
+  },
+
+  /** Экран А1а «Каталог · загрузка»: опрос источников по запросу (PRD 6.2). */
+  robotNew,
+
+  /** Статус значения характеристики (D-76): плашка в строке характеристики К-4, серые ячейки К-3. */
+  characteristicStatus: { confirmed: 'подтверждено', estimate: 'оценка', missing: 'нет данных' },
+  catalog: {
+    title: 'Каталог роботизированных решений',
+    lead: 'Роботы, инфраструктура, ПО и сервисы для построения полной конфигурации автоматизации',
+    search: 'Робот или производитель',
+    tabsLabel: 'Что показываем',
+    tabs: { robots: 'Роботы', infrastructure: 'Инфраструктура', software: 'ПО и интеграции', services: 'Сервисы' },
+    listLabel: 'Позиции каталога',
+    filters: {
+      operationClass: 'Класс операции',
+      industry: 'Отрасль',
+      industrySearch: 'Найти отрасль',
+      facility: 'Тип объекта',
+      readiness: 'Готовность',
+      cost: 'Стоимость',
+      costTypeGroup: 'Тип затрат',
+      priceGroup: 'Цена за единицу',
+      classOption: (code: string, name: string) => `${code} · ${name}`,
+      readinessOptions: { operation: 'В эксплуатации', pilot: 'Пилот', rnd: 'НИОКР' },
+      costTypes: { capex: 'CAPEX', opex: 'OPEX' },
+      priceRanges: { upTo1m: 'до 1 млн ₽', from1to3m: '1–3 млн ₽', over3m: 'от 3 млн ₽' },
+      /** Фильтр не относится к позициям вкладки: у инфраструктуры, ПО и сервисов нет класса, отрасли и готовности (D-72). */
+      notForTab: 'Этот фильтр — только для роботов',
+      compatibleWith: (name: string) => `Совместимо с ${name}`,
+      clearCompatible: (name: string) => `Снять фильтр «Совместимо с ${name}»`,
+      reset: 'Сбросить',
+    },
+    sortLabel: 'Сортировка',
+    sort: {
+      relevance: 'По релевантности',
+      cheaper: 'Сначала дешевле',
+      pricier: 'Сначала дороже',
+      trl: 'По готовности (УГТ)',
+      confirmed: 'По подтверждённости данных',
+    },
+    card: {
+      operationClass: 'Класс операции',
+      payload: 'Грузоподъёмность',
+      launch: 'Для запуска',
+      compatible: 'Совместимо',
+      noData: 'нет данных',
+      noClass: 'без класса операции',
+      /** Плашка класса на карточке — без «·», как на К-1 (16642:684); в списке фильтра — «OP-01 · …». */
+      classChip: (code: string, name: string) => `${code} ${name}`,
+      payloadValue: (kg: string) => `до ${kg} кг`,
+      manufacturerLine: (manufacturer: string, subtype: string) => `${manufacturer} · ${subtype}`,
+      readiness: (trl: string, status: string) => `${trl} · ${status}`,
+      trl: (value: number) => `УГТ ${String(value)}`,
+      noTrl: 'УГТ нет данных',
+      status: { operation: 'эксплуатация', pilot: 'пилот', rnd: 'НИОКР', unknown: 'статус нет данных' },
+      costType: { capex: 'CAPEX', 'opex-yearly': 'OPEX, в год' },
+      percentOfCapex: (percent: number) => `${String(percent)}% CAPEX в год`,
+      noPrice: 'цена нет данных',
+      details: 'Подробнее',
+      detailsLabel: (name: string) => `Подробнее о позиции «${name}»`,
+      photoAlt: (name: string) => `Фото: ${name}`,
+    },
+    compare: {
+      add: 'Сравнить',
+      added: 'В сравнении',
+      /** Имя кнопки содержит видимую подпись (WCAG 2.5.3): «Сравнить: AMR 100», «В сравнении: AMR 100». */
+      itemLabel: (action: string, name: string) => `${action}: ${name}`,
+      full: 'В сравнении уже 4 позиции — уберите одну, чтобы добавить другую',
+      open: (count: number) => `Сравнить (${String(count)})`,
+      failed: 'Не удалось изменить набор сравнения. Попробуйте ещё раз',
+    },
+    notFound: {
+      title: 'Ничего не найдено',
+      description: 'Измените поиск или снимите часть фильтров',
+      reset: 'Сбросить фильтры',
+    },
+    error: { title: 'Каталог не загрузился', message: 'Проверьте соединение и попробуйте ещё раз' },
+    item: {
+      notFound: { title: 'Позиция не найдена', description: 'Возможно, её убрали из каталога. Вернитесь к списку' },
+      toCatalog: 'К каталогу',
+      addToCompare: 'Добавить в сравнение',
+      inCompare: 'В сравнении',
+      checkOnSite: 'Проверить на своём объекте',
+      priceNote: 'ориентировочная стоимость изделия с НДС, без доставки и пусконаладки',
+      trl: (value: number) => `УГТ ${String(value)}`,
+      noTrl: 'УГТ нет данных',
+      readiness: { operation: 'В эксплуатации', pilot: 'Пилот', rnd: 'НИОКР', unknown: 'Статус нет данных' },
+      keySpecs: (confirmed: number, total: number) => `${String(confirmed)} из ${String(total)}`,
+      keySpecsNote: 'ключевых ТТХ подтверждено',
+      itemSpecsNote: 'характеристик подтверждено',
+      costTypeNote: (costType: string) => `тип затрат · ${costType}`,
+      keyTitle: 'Ключевые характеристики',
+      classesTitle: 'Классы операций',
+      payloadTitle: 'Грузоподъёмность',
+      whereTitle: 'Где применяется',
+      requirementsTitle: 'Требования к объекту',
+      launchTitle: 'Что потребуется для запуска',
+      launchLead: (cost: string) => `Обязательная часть конфигурации — от ${cost} на проект, без учёта количества роботов.`,
+      launchNorms: (software: string, commissioning: string) => ` В расчёте проекта эти статьи берутся по нормативам модели: ПО ${software}%, ПНР ${commissioning}%`,
+      launchRequired: 'Обязательно',
+      launchConditional: 'В зависимости от объекта',
+      openItem: (name: string) => `Открыть позицию: ${name}`,
+      compatibleAll: 'Посмотреть все совместимые компоненты',
+      compatibleTitle: 'Совместимо',
+      specsTitle: 'Характеристики',
+      allTitle: 'Все технические характеристики',
+      catalogSource: 'Каталог ФЦ БАС v4',
+      vendorSite: 'Сайт производителя',
+      vendorSiteLabel: (host: string) => `Сайт производителя: ${host} (откроется в новой вкладке)`,
+      groups: {
+        identification: 'Идентификация',
+        technical: 'Технические характеристики',
+        infrastructure: 'Инфраструктура',
+        economics: 'Экономика',
+        applicability: 'Применимость',
+        dataQuality: 'Качество данных',
+      },
+      /** Подписи строк К-4 (16777:977, 16777:854); в «Требованиях к объекту» у части строк своя подпись. */
+      rows: {
+        manufacturer: 'Производитель', id: 'Уникальный идентификатор', solutionType: 'Тип решения', operationClasses: 'Классы операций',
+        origin: 'Страна происхождения', availability: 'Статус доступности',
+        payload: 'Грузоподъёмность', dimensions: 'Габариты (Д×Ш×В)', speed: 'Скорость движения', productivity: 'Производительность',
+        autonomy: 'Автономность', positioningAccuracy: 'Точность позиционирования', navigation: 'Тип навигации',
+        operatingConditions: 'Допустимые условия эксплуатации',
+        aisleRequirements: 'Требования к проходам', floorRequirements: 'Требования к покрытию', charging: 'Зарядные станции',
+        connectivity: 'Связь', integration: 'Интеграция', service: 'Сервисное обслуживание',
+        equipmentPrice: 'Стоимость оборудования', software: 'ПО и лицензии', implementation: 'Внедрение и интеграция',
+        maintenance: 'Обслуживание', acquisitionModel: 'Модель приобретения', serviceLife: 'Срок службы',
+        supportedProcesses: 'Поддерживаемые процессы', facilityTypes: 'Типы объектов', limitations: 'Ограничения', cases: 'Реализованные кейсы',
+        dataSource: 'Источник', sourceLink: 'Ссылка на источник', actualizedAt: 'Дата актуализации',
+        temperature: 'Температура',
+        completeness: 'Полнота характеристик', confirmedness: 'Подтверждённость',
+      },
+      siteRows: { aisleRequirements: 'Ширина проходов', floorRequirements: 'Покрытие пола', charging: 'Зарядная инфраструктура' },
+      keyRows: { speed: 'Скорость', aisleRequirements: 'Минимальный проход' },
+      completenessValue: (filled: number, total: number) => `${String(filled)} из ${String(total)} полей`,
+      confirmednessValue: (confirmed: number, estimate: number, missing: number) =>
+        `${String(confirmed)} подтверждено · ${String(estimate)} оценка · ${String(missing)} нет данных`,
+      platformCalc: 'расчёт платформы',
+      itemRows: { supplier: 'Поставщик', id: 'Уникальный идентификатор', type: 'Тип позиции', price: 'Цена', costType: 'Тип затрат', quantityNorm: 'Норма на объект', source: 'Источник' },
+      /** Подпись характеристики позиции по порядку: в данных у неё только значение (D-79). */
+      specLabel: (index: number) => (index === 0 ? 'Категория' : index === 1 ? 'Вид' : 'Параметр'),
+      itemTypes: { infrastructure: 'Инфраструктура', software: 'ПО и интеграции', service: 'Услуги внедрения', support: 'Поддержка' },
+      /** Выведенные из полей значения (D-76). */
+      derived: {
+        catalog: 'каталог v4',
+        catalogFile: 'catalog_export_v4',
+        registry: 'реестр источников',
+        region: 'регион производителя в каталоге',
+        facilities: 'по процессам классов операций (D-72)',
+        notInData: 'нет в данных организатора',
+        noClass: 'класс не назначен',
+        catalogWithTrl: (trl: number) => `каталог v4 · УГТ ${String(trl)}`,
+        kg: (value: string) => `${value} кг`,
+        mm: (l: string, w: string, h: string) => `${l} × ${w} × ${h} мм`,
+        speed: (value: string) => `до ${value} м/с`,
+        hours: (value: string) => `${value} ч`,
+        priceWithVat: (price: string) => `${price} · с НДС`,
+        dataSource: 'каталог ФЦ БАС v4',
+      },
+    },
+    comparePage: {
+      back: 'Назад к результатам',
+      title: 'Сравнение решений',
+      selected: (count: number, limit: number) => `${String(count)} из ${String(limit)} выбрано`,
+      greyHint: ' · ячейки без подтверждённых данных показаны серым',
+      clear: 'Очистить сравнение',
+      caption: 'Сравнение выбранных позиций каталога',
+      remove: (name: string) => `Убрать из сравнения: ${name}`,
+      checkOnSite: 'Проверить на объекте',
+      checkOnSiteLabel: (name: string) => `Проверить на объекте: ${name}`,
+      trl: (value: number) => `УГТ ${String(value)}`,
+      empty: {
+        title: 'В сравнении пока ничего нет',
+        description: 'Выберите до 4 позиций кнопкой «Сравнить» на карточках каталога',
+      },
+      notApplicable: 'не применимо',
+      noData: 'нет данных',
+      groups: {
+        main: 'Основное',
+        performance: 'Производительность',
+        requirements: 'Требования к объекту',
+        quality: 'Качество данных',
+        fit: (location: string) => `Соответствие · ${location}`,
+      },
+      rows: {
+        price: 'Цена',
+        role: 'Роль в конфигурации',
+        trl: 'УГТ',
+        status: 'Статус',
+        costType: 'Тип затрат',
+        quantityNorm: 'Норма количества',
+        solutionType: 'Тип решения',
+        operationClasses: 'Классы операций',
+        region: 'Регион',
+        payload: 'Грузоподъёмность',
+        productivity: 'Производительность',
+        autonomy: 'Автономность',
+        minAisle: 'Минимальный проход',
+        floor: 'Покрытие пола',
+        temperature: 'Температура',
+        connectivity: 'Связь',
+        launchInfrastructure: 'Инфраструктура для запуска',
+        compatibility: 'Совместимость',
+        completeness: 'Полнота данных',
+        confirmed: 'Подтверждено характеристик',
+        cargo: 'Груз',
+        aisles: 'Проходы',
+        temperatureMode: 'Температурный режим',
+        floorLoad: 'Нагрузка на пол',
+      },
+      role: {
+        robot: 'Робот или система',
+        required: 'Обязательная часть конфигурации',
+        optional: 'В зависимости от объекта',
+      },
+      status: { operation: 'в эксплуатации', pilot: 'пилот', rnd: 'НИОКР' },
+      noClass: 'без класса операции',
+      kg: (value: string) => `${value} кг`,
+      hours: (value: string) => `${value} ч`,
+      temperatureRange: (min: string, max: string) => `${min}…${max} °C`,
+      temperatureFrom: (min: string) => `от ${min} °C`,
+      temperatureTo: (max: string) => `до ${max} °C`,
+      confidence: { confirmed: 'подтверждено', partial: 'частично', unconfirmed: 'не подтверждено' },
+      confirmedOf: (confirmed: number, total: number) => `${String(confirmed)} из ${String(total)}`,
+      /** Подписи инфраструктуры для запуска на К-3 (16642:2662) — полные, в отличие от коротких на карточке К-1. */
+      launchInfrastructure: { charging: 'Зарядная станция', fleet: 'Fleet Manager', commissioning: 'Commissioning', wms: 'WMS Connector' },
+      fit: {
+        cargoOk: (mass: string, payload: string) => `груз: ${mass} ≤ ${payload} кг`,
+        cargoTooHeavy: (mass: string, payload: string) => `груз: ${mass} > ${payload} кг`,
+        cargoUnknown: 'грузоподъёмность не указана',
+        aisleOk: (aisle: string, width: string) => `проход ${aisle} м, робот ${width} м`,
+        aisleTooNarrow: (aisle: string, width: string) => `проход ${aisle} м узок для робота ${width} м`,
+        aisleUnknown: 'требование к проходу не указано',
+        temperatureUnknown: 'температура объекта не указана',
+        floorLoadUnknown: 'допустимая нагрузка на пол',
+      },
+    },
+    /** Обязательная часть конфигурации на карточке К-1 — «Для запуска» (D-63). */
+    launchCategory: {
+      charging: 'зарядка',
+      fleet: 'Fleet Manager',
+      commissioning: 'внедрение',
+      wms: 'коннектор WMS',
+    },
+  },
+  catalogRefresh: {
+    title: 'Обновление каталога',
+    refreshing: 'Обновляем каталог…',
+    starting: 'Запускаем опрос источников',
+    startingDetail: 'Опрашиваем источники с автообновлением из вкладки «Источники»',
+    polling: (step: number, total: number) => `Опрашиваем источники · ${String(step)} из ${String(total)}`,
+    progressLabel: 'Опрос источников',
+    received: (count: string) => `получено ${count}`,
+    status: { waiting: 'ждём ответа', queued: 'в очереди', failed: 'не ответил' },
+    loadingNote: 'Загружаем каталог — таблица обновится, когда источники ответят',
+    error: {
+      title: 'Не удалось опросить источники',
+      message: 'Сервис каталога не ответил. Повторите опрос — каталог и сохранённые проекты не изменились',
+    },
+  },
+
+  /** Экран А5 «Нормативы и допущения» (PRD 6.8). */
+  norms: {
+    title: 'Нормативы и допущения по умолчанию',
+    lead: 'Норматив — значение из данных ФЦ БАС или методики; допущение — значение RAV5 по умолчанию, его можно уточнить. Значения применяются к новым проектам, существующие считают на своём снимке',
+    columns: {
+      parameter: 'Параметр',
+      kind: 'Тип',
+      value: 'Значение',
+      unit: 'Единица',
+      source: 'Источник',
+    },
+    groups: {
+      staff: 'Персонал',
+      fleet: 'Парк роботов',
+      capex: 'CAPEX',
+      opex: 'OPEX',
+      finance: 'Финансы',
+      interpretation: 'Интерпретация',
+    },
+    valueLabel: (name: string, unit: string) => `${name}, ${unit}`,
+    valueErrors: {
+      empty: 'Введите значение',
+      notNumber: 'Только число, например 7,5',
+      negative: 'Не меньше 0',
+    },
+    changed: (count: string) => `Изменено ${count}. Сохранение создаст новую версию нормативов: новые проекты посчитаются по ней, существующие — на своём снимке`,
+    invalid: (count: string) => `Исправьте ${count} с ошибкой — с ними сохранить нельзя`,
+    save: 'Сохранить изменения',
+    saving: 'Сохраняем…',
+    reset: 'Отменить изменения',
+    saved: (count: string) => `Нормативы сохранены: ${count}. Новые проекты считают по новой версии`,
+    saveError: 'Не удалось сохранить нормативы. Правки остались в полях — повторите сохранение; справочник не изменился',
+    error: {
+      title: 'Не удалось загрузить нормативы',
+      message: 'Сервис справочников не ответил. Проверьте подключение и повторите — значения не изменились',
+    },
+  },
+
+  /** Экран А6 «Источники данных» (PRD 6.9). */
+  dataSources: {
+    title: 'Источники данных',
+    add: 'Добавить источник',
+    columns: {
+      source: 'Источник',
+      status: 'Статус',
+      provides: 'Что даёт',
+      actualized: 'Обновлён',
+      refresh: 'Автообновление',
+      actions: 'Действия',
+    },
+    status: {
+      confirmed: 'подтверждено',
+      estimate: 'оценка',
+    },
+    origin: {
+      organizerTable: 'таблица организатора',
+      organizer: 'данные организатора',
+      open: 'открытый источник',
+      internal: 'внутренний справочник',
+    },
+    /** Режим в таблице А6: период строчными («раз в неделю», 15966:7768). */
+    refresh: {
+      daily: 'раз в сутки',
+      weekly: 'раз в неделю',
+      biweekly: 'раз в две недели',
+      monthly: 'раз в месяц',
+      quarterly: 'раз в квартал',
+      manual: 'вручную',
+      manualFile: 'вручную · файл',
+      manualReviewed: 'вручную · после проверки',
+    },
+    /** Тип источника — что он даёт (`source_type` API); порядок — как в списке окна А7. */
+    kinds: {
+      specs: 'ТТХ решений',
+      prices: 'Цены решений',
+      cases: 'Кейсы внедрений',
+      catalog: 'Каталог решений',
+      dataset: 'Датасеты объектов',
+      norms: 'Нормативы',
+    },
+    added: (name: string) => `Источник «${name}» добавлен в реестр`,
+    /** Окно А7 «Новый источник данных» (PRD 6.10). */
+    create: {
+      title: 'Новый источник данных',
+      description: 'Источник попадёт в отчёты и реестр допущений',
+      fields: {
+        name: 'Название',
+        kind: 'Тип',
+        locator: 'Файл или ссылка',
+        url: 'Ссылка на источник',
+        actualizedOn: 'Дата актуализации',
+        status: 'Статус данных',
+        refresh: 'Автообновление',
+      },
+      placeholders: {
+        name: 'Например, данные поставщика «Морос», ТТХ AMR 800',
+        kind: 'Выберите тип',
+        actualizedOn: 'ДД.ММ.ГГГГ',
+      },
+      locatorKinds: { file: 'Файл', url: 'Ссылка' },
+      urlPlaceholder: 'https://',
+      urlHint: 'Официальный сайт производителя, техпаспорт или публичный каталог',
+      check: 'Проверить',
+      checking: 'Проверяем…',
+      checkLabel: 'Проверить ссылку на источник',
+      checkOk: (modified: string | null) =>
+        modified === null ? 'Страница открывается. Дату изменения сервер не сообщил' : `Страница открывается · изменена ${modified}`,
+      checkUnreachable: 'Страница не открылась. Проверьте адрес — источник можно добавить, но опрос каталога не получит из него данных',
+      checkFailed: 'Не удалось проверить ссылку: сервис не ответил. Повторите — добавить источник можно и без проверки',
+      /** Список периода автообновления (15966:7948): с прописной, как в макете. */
+      periods: {
+        daily: 'Раз в сутки',
+        weekly: 'Раз в неделю',
+        biweekly: 'Раз в две недели',
+        monthly: 'Раз в месяц',
+        quarterly: 'Раз в квартал',
+      },
+      periodLabel: 'Период автообновления',
+      fileHint: 'Для сайта или онлайн-каталога переключитесь на «Ссылку» — там поле для адреса и автообновление',
+      refreshFile: 'вручную · это файл',
+      refreshToggle: 'Автообновление источника',
+      errors: {
+        name: 'Введите название источника — так он появится в реестре и отчётах',
+        duplicate: 'Источник с таким названием уже есть в реестре. Уточните название, например добавьте модель или дату',
+        kind: 'Выберите тип — от него зависит, какие данные источник даёт расчёту',
+        file: 'Выберите файл источника',
+        url: 'Вставьте ссылку на страницу источника',
+        invalidUrl: 'Это не похоже на адрес страницы. Вставьте ссылку целиком, например https://moros.ru/catalog/amr-800',
+        actualizedOn: 'Укажите дату актуализации в формате ДД.ММ.ГГГГ',
+        invalidDate: 'Такой даты нет. Введите дату в формате ДД.ММ.ГГГГ, например 19.09.2026',
+        futureDate: 'Дата актуализации не может быть позже сегодняшней',
+      },
+      cancel: 'Отмена',
+      submit: 'Добавить источник',
+      submitting: 'Добавляем…',
+      failed: 'Не удалось добавить источник: сервис не ответил. Повторите — введённые данные сохранены',
+    },
+    toggleLabel: (name: string) => `Автообновление: ${name}`,
+    refreshAction: 'Обновить',
+    refreshing: 'Обновляем…',
+    refreshActionLabel: (name: string) => `Обновить: ${name}`,
+    refreshed: (name: string, date: string) => `Источник «${name}» обновлён · ${date}`,
+    refreshFailed: (name: string) => `Не удалось обновить «${name}»: источник не ответил. Повторите позже — данные в расчётах не изменились`,
+    updateFailed: (name: string) => `Не удалось сохранить автообновление «${name}». Повторите — режим остался прежним`,
+    empty: {
+      title: 'Источников пока нет',
+      description: 'Добавьте файл организатора или ссылку — без источника данные каталога и нормативов не попадут в отчёт',
+    },
+    error: {
+      title: 'Не удалось загрузить источники данных',
+      message: 'Сервис администрирования не ответил. Проверьте подключение и повторите — реестр не изменился',
+    },
+  },
+
+  /** Экран А8 «Классы операций» (PRD 6.7). */
+  operationClasses: {
+    title: 'Классы операций',
+    add: 'Добавить класс',
+    created: (code: string, name: string) =>
+      `Класс ${code} «${name}» добавлен. Отметьте его в карточках роботов — пока их нет, подбор по этому классу будет пустым`,
+    columns: {
+      code: 'Код',
+      name: 'Класс операции',
+      robots: 'Роботов',
+      processes: 'Процессов',
+    },
+    noProcesses: 'нет процессов',
+    footnote: (classes: string) =>
+      `${classes}. У процесса один класс, у робота — один или несколько: по совпадению класса система подбирает роботов`,
+    empty: {
+      title: 'Классов операций пока нет',
+      description: 'Добавьте первый класс — без него процессы и роботы не встретятся в подборе',
+    },
+    error: {
+      title: 'Не удалось загрузить классы операций',
+      message: 'Сервис каталога не ответил. Проверьте подключение и повторите — справочник не изменился',
+    },
+    /** Окно А10 «Новый класс операции» (PRD 6.7; в Figma шаг подписан «А9», D-05). */
+    create: {
+      title: 'Новый класс операции',
+      description: 'Класс — ключ подбора: процесс получает один класс, робот может иметь несколько',
+      fields: {
+        code: 'Код класса',
+        name: 'Название',
+        description: 'Что делает процесс',
+        unit: 'Единица измерения',
+        typicalCarriers: 'Типовые носители',
+        exampleProcesses: 'Примеры процессов',
+      },
+      codeValue: (code: string) => `${code} · присваивается автоматически`,
+      placeholders: {
+        name: 'Например, Буксировка прицепов',
+        description: 'Например, перемещение прицепов и тележек между зонами тягачом',
+        unit: 'Например, ед. / ч',
+        typicalCarriers: 'Через запятую: прицеп, тележка',
+        exampleProcesses: 'Через запятую: Буксировка багажных тележек',
+      },
+      // PRD 15 · №49: подсказка загрузки файла из макета не переносится (D-19).
+      descriptionHint: 'Коротко: что именно перемещается или обрабатывается и между какими зонами',
+      errors: {
+        name: 'Введите название класса — оно видно в списках и карточках',
+        description: 'Опишите одной строкой, что делает процесс этого класса',
+        unit: 'Укажите единицу, например «ед. / ч»',
+        duplicate: (code: string) => `Такое название уже есть у класса ${code}. Уточните название, чтобы классы не путали`,
+      },
+      cancel: 'Отмена',
+      submit: 'Создать класс',
+      submitting: 'Создаём класс…',
+      failed: 'Не удалось создать класс: сервис каталога не ответил. Проверьте подключение и повторите — введённое сохранено',
+    },
+  },
+
   /** Происхождение значения в формах (PRD: «формула», «допущение», «точное значение»; экраны 09а, 14, А2, А5). */
   valueBadges: {
     assumption: 'допущение',
@@ -478,6 +1358,73 @@ export const ru = {
     norms: 'Нормативы и допущения',
   },
 
+  /** Экран A1 «Проекты» (PRD 11.1; 16325:14). */
+  projects: {
+    title: 'Проекты',
+    lead: 'Расчёты по локациям: подбор решений, проверка на схеме и экономика',
+    tabsLabel: 'Проекты по статусу',
+    tabs: { all: 'Все', draft: 'Черновики', saved: 'Готовые оценки' },
+    /** На макете «Поиск по объекту»; ищет и по названию (D-83). */
+    search: 'Поиск по названию и объекту',
+    tableCaption: 'Проекты',
+    columns: {
+      name: 'Название',
+      location: 'Объект',
+      status: 'Статус',
+      capex: 'CAPEX',
+      opex: 'OPEX / год',
+      payback: 'Окупаемость',
+      action: 'Открыть',
+    },
+    status: { draft: 'Черновик', saved: 'Оценка готова' },
+    stoppedAt: (stage: string) => `остановились на: ${stage}`,
+    noValue: '—',
+    open: (name: string) => `Открыть проект «${name}»`,
+    /** Подпись под таблицей — PRD 11.1 (D-83). */
+    legend: 'Черновик — оценка в работе, всё можно менять. Оценка готова — сохранена со снимком данных, открывается только для просмотра; изменить можно в новом проекте на её основе',
+    empty: {
+      title: 'Проектов пока нет',
+      description: 'Создайте проект кнопкой «Новый проект» в меню слева — он появится здесь',
+    },
+    notFound: {
+      title: 'Ничего не найдено',
+      description: 'Измените запрос или откройте другую вкладку',
+      reset: 'Показать все проекты',
+    },
+    error: {
+      title: 'Не удалось загрузить проекты',
+      message: 'Сервис данных не ответил. Проверьте подключение и повторите — сохранённые оценки не пострадали',
+    },
+  },
+
+  /** Окно A2 «Новый проект» (PRD 11.1; 16429:2). */
+  newProject: {
+    title: 'Выберите локацию нового проекта',
+    tableLabel: 'Локация нового проекта',
+    columns: { location: 'Локация', area: 'Площадь', staff: 'Персонал', labor: 'Ручной труд' },
+    caption: (facilityType: string, date: string) => `${facilityType} · данные от ${date}`,
+    area: (value: string) => `${value} м²`,
+    staff: (value: string) => `${value} чел`,
+    noValue: '—',
+    rowLabel: (row: { readonly name: string; readonly caption: string; readonly area: string; readonly staff: string; readonly labor: string }) =>
+      `${row.name}, ${row.caption}; площадь ${row.area}, персонал ${row.staff}, ручной труд ${row.labor}`,
+    cancel: 'Отменить',
+    continue: 'Продолжить',
+    creating: 'Создаём проект…',
+    /** До выбора процесса на шаге 1; потом — «Роботизация {процесс} · {локация}» (PRD 11.1, D-84). */
+    draftName: (location: string) => `Новый проект · ${location}`,
+    createError: 'Не удалось создать проект. Повторите — выбранная локация сохранится',
+    loadError: {
+      title: 'Не удалось загрузить локации',
+      message: 'Сервис данных не ответил. Проверьте подключение и повторите',
+    },
+    empty: {
+      title: 'Локаций пока нет',
+      description: 'Проект считается для локации: создайте её, чтобы начать оценку',
+      action: 'Создать локацию',
+    },
+  },
+
   projectSteps: {
     params: 'Параметры',
     matching: 'Подбор',
@@ -485,21 +1432,55 @@ export const ru = {
     economics: 'Итог и экономика',
   },
 
+  /** Короткие названия стадий черновика (PRD 11.1: «Параметры · Подбор · Симуляция · Итог»). */
+  projectStages: {
+    parameters: 'Параметры',
+    selection: 'Подбор',
+    simulation: 'Симуляция',
+    result: 'Итог',
+  },
+
   plural: {
     robots: ['робот', 'робота', 'роботов'],
+    /** Родительный падеж после «из»: «из 1 решения», «из 20 решений». */
+    solutionsOf: ['решения', 'решений', 'решений'],
     processes: ['процесс', 'процесса', 'процессов'],
+    /** Родительный падеж после «для»: «для 1 процесса», «для 6 процессов». */
+    processesOf: ['процесса', 'процессов', 'процессов'],
+    classes: ['класс', 'класса', 'классов'],
     locations: ['локация', 'локации', 'локаций'],
     projects: ['проект', 'проекта', 'проектов'],
     parameters: ['параметр', 'параметра', 'параметров'],
     people: ['человек', 'человека', 'человек'],
+    positions: ['позиция', 'позиции', 'позиций'],
+    values: ['значение', 'значения', 'значений'],
+    fields: ['поле', 'поля', 'полей'],
+    norms: ['норматив', 'норматива', 'нормативов'],
+    employees: ['сотрудник', 'сотрудника', 'сотрудников'],
+    shifts: ['смена', 'смены', 'смен'],
+    assumptions: ['допущение', 'допущения', 'допущений'],
   } satisfies Record<string, PluralForms>,
 
   ui: {
     close: 'Закрыть',
     chooseFiles: 'Выбрать файлы',
+    chooseFile: 'Выбрать файл',
+    replaceFile: 'Заменить',
+    noFile: 'Файл не выбран',
+    fileActionLabel: (action: string, field: string) => `${action}: ${field}`,
     orChooseFiles: 'или выберите файлы на компьютере',
     uploadedOf: (count: number, max: number) => `загружено ${String(count)} из ${String(max)}`,
     retry: 'Повторить',
+    multiSelect: {
+      one: (label: string, value: string) => `${label}: ${value}`,
+      many: (label: string, count: number) => `${label}: ${String(count)}`,
+      reset: 'Сбросить',
+      nothingFound: 'Ничего не найдено',
+    },
+    chipList: {
+      more: (count: number) => `ещё ${String(count)}`,
+      moreLabel: (labels: readonly string[]) => `ещё: ${labels.join(', ')}`,
+    },
   },
 
   errors: {
@@ -525,6 +1506,7 @@ export const ru = {
     screensTitle: 'Экраны RAV5',
     screensColumns: { code: '№', screen: 'Экран', route: 'Маршрут' },
     switchRole: 'Роль в dev-сборке',
+    scenarioFailed: 'Не удалось открыть состояние — подробности в консоли',
     tokensTitle: 'Токены RAV5',
     tokensLead: 'CSS-переменная --rav-* · утилита Tailwind · значение из tokens.css',
     tokenGroups: { colors: 'Цвета', typography: 'Типографика', radii: 'Радиусы', spacing: 'Отступы', shadows: 'Тени' },
@@ -593,6 +1575,8 @@ export const ru = {
       kpiManualCaption: 'сумма по всем объектам, ₽/год',
       insetValue: '24',
       insetCaption: 'Класс совпадает, ТТХ подтверждены',
+      wellValue: '231 млн ₽ / год',
+      wellCaption: 'затраты на персонал · 145 человек в операционных процессах',
       sectionTitle: '1. Процесс и груз',
       sectionDescription: 'Что перемещаем и как робот может это взять. Если точного значения нет, укажите ориентировочное — оно войдёт в расчёт как допущение.',
       parametersCaption: 'Параметры РЦ Химки',
@@ -600,12 +1584,18 @@ export const ru = {
       columnValue: 'Значение',
       columnSource: 'Источник',
       sourcesPolling: 'Опрос источников',
+      pollingTitle: 'Опрашиваем источники · 2 из 3',
+      pollingDetail: 'ФЦ БАС · catalog_export_v5.csv — получено 12 позиций · Ронави Роботикс — ждём ответа · Реестр Минпромторга — в очереди',
       modalTitle: 'Новый источник данных',
       modalDescription: 'Источник попадёт в отчёты и реестр допущений',
       sourceName: 'Название',
       sourceNameValue: 'Данные поставщика «Морос», ТТХ AMR 800',
       sourceType: 'Тип',
       sourceTypeValue: 'ТТХ решений',
+      sourceFile: 'moros_amr800_spec.pdf',
+      fileEmpty: 'пусто',
+      fileFilled: 'файл выбран',
+      fileError: 'ошибка',
       cancel: 'Отмена',
       addSource: 'Добавить источник',
       dropPhotos: 'Перетащите фото сюда',
@@ -616,6 +1606,7 @@ export const ru = {
       errorTitle: 'Не удалось загрузить каталог',
       errorMessage: 'Сервис каталога не ответил. На экране последние сохранённые данные — повторите через минуту',
       openModal: 'Открыть окно',
+      openConfirm: 'Открыть подтверждение (sm)',
       operationClassHint: 'Ключ подбора: у процесса один класс, у робота — несколько',
     },
   },

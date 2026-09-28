@@ -26,7 +26,7 @@ paths:
       tags:
       - system
       summary: Readiness Check
-      description: Reports readiness before external dependency wiring is enabled.
+      description: 'Reports readiness: the snapshot database answers.'
       operationId: readiness_check_readyz_get
       responses:
         '200':
@@ -38,6 +38,12 @@ paths:
                   type: string
                 type: object
                 title: Response Readiness Check Readyz Get
+        '503':
+          description: The database is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
   /api/v1/model-version:
     get:
       tags:

@@ -35,6 +35,7 @@ export function ChipShowcase() {
             <Chip tone="muted">{s.missing}</Chip>
             <Chip tone="inverse">{s.needsConfirmation}</Chip>
             <Chip tone="success" checked>{s.readyToCalculate}</Chip>
+            <Chip tone="accent">{ru.dataSources.status.confirmed}</Chip>
           </div>
           <span className="type-caption font-medium text-text-secondary">md · 32</span>
           <div className="flex flex-wrap gap-8">
@@ -64,6 +65,11 @@ export function BadgeShowcase() {
         <Badge kind="formula" />
         <Badge kind="norm" />
         <Badge kind="exact" />
+      </div>
+      <div className="flex flex-wrap gap-8">
+        <Badge variant="pill" kind="norm" className="w-(--rav-norms-pill-width)" />
+        <Badge variant="pill" kind="assumption" className="w-(--rav-norms-pill-width)" />
+        <Badge variant="pill" kind="exact" />
       </div>
     </ShowcaseSection>
   )

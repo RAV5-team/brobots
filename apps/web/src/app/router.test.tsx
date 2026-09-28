@@ -18,24 +18,68 @@ describe('router', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Процессы' })).toBeInTheDocument()
   })
 
-  it('renders a stub with the Figma link on routes without a screen yet', () => {
+  it('renders the operation classes screen А8 for an admin', async () => {
+    renderAt('/admin/operation-classes?as=admin')
+    expect(screen.getByRole('heading', { level: 1, name: 'Администрирование' })).toBeInTheDocument()
+    expect(await screen.findByRole('table', { name: 'Классы операций' })).toBeInTheDocument()
+  })
+
+  it('renders the norms screen А5 for an admin', async () => {
+    renderAt('/admin/norms?as=admin')
+    expect(screen.getByRole('heading', { level: 1, name: 'Администрирование' })).toBeInTheDocument()
+    expect(await screen.findByRole('table', { name: 'Нормативы и допущения по умолчанию' })).toBeInTheDocument()
+  })
+
+  it('renders the solutions catalog screen А1 for an admin', async () => {
+    renderAt('/admin/catalog?as=admin')
+    expect(screen.getByRole('heading', { level: 1, name: 'Администрирование' })).toBeInTheDocument()
+    expect(await screen.findByRole('table', { name: 'Каталог решений' })).toBeInTheDocument()
+  })
+
+  it('renders the catalog refresh state А1а for an admin', async () => {
+    renderAt('/admin/catalog/import?as=admin')
+    expect(screen.getByRole('heading', { level: 1, name: 'Администрирование' })).toBeInTheDocument()
+    expect(await screen.findByText('Опрашиваем источники · 1 из 3')).toBeInTheDocument()
+  })
+
+  it('renders the locations screen on /locations', () => {
     renderAt('/locations')
-    expect(screen.getByRole('link', { name: /15950:1627/ })).toHaveAttribute(
+    expect(screen.getByRole('heading', { level: 1, name: 'Локации' })).toBeInTheDocument()
+  })
+
+  it('renders the new location form on /locations/new', async () => {
+    renderAt('/locations/new')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Новая локация' })).toBeInTheDocument()
+  })
+
+  it('renders a stub with the Figma link on routes without a screen yet', () => {
+    renderAt('/admin/journal?as=admin')
+    expect(screen.getByRole('link', { name: /14581:50271/ })).toHaveAttribute(
       'href',
-      'https://www.figma.com/design/sd1kJRdpW6RBFzSi1ztXYK/?node-id=15950-1627',
+      'https://www.figma.com/design/sd1kJRdpW6RBFzSi1ztXYK/?node-id=14581-50271',
     )
   })
 
-  it('lists states and modals living on the same route', () => {
-    renderAt('/locations/demo/processes')
-    expect(screen.getByRole('heading', { level: 1, name: 'Локации · процессы локации' })).toBeInTheDocument()
-    expect(screen.getByText('Локации · выбрать процесс')).toBeInTheDocument()
-    expect(screen.getByText('Локации · удалить процесс с локации')).toBeInTheDocument()
+  it('renders the documents tab on /locations/:locationId/documents', async () => {
+    renderAt('/locations/LOC-01/documents')
+    expect(await screen.findByRole('heading', { name: 'Документы · 4' })).toBeInTheDocument()
   })
 
-  it('prefers the static /admin/catalog/new over /admin/catalog/:robotId', () => {
-    renderAt('/admin/catalog/new')
-    expect(screen.getByRole('heading', { level: 1, name: 'Администрирование · новый робот' })).toBeInTheDocument()
+  it('renders the object parameters tab on /locations/:locationId/params', async () => {
+    renderAt('/locations/LOC-01/params')
+    expect(await screen.findByRole('heading', { level: 1, name: 'РЦ Химки' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Параметры объекта' })).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('renders the location processes tab on /locations/:locationId/processes', async () => {
+    renderAt('/locations/LOC-01/processes')
+    expect(await screen.findByRole('heading', { level: 1, name: 'РЦ Химки' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Процессы локации' })).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('renders the new robot card А2 on the static /admin/catalog/new, not /admin/catalog/:robotId', async () => {
+    renderAt('/admin/catalog/new?as=admin')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Новый робот' })).toBeInTheDocument()
   })
 
   it('shows the screen index on /dev/screens', () => {
@@ -56,21 +100,21 @@ describe('router', () => {
   })
 
   it('switches the role with ?as= and remembers it for the session', async () => {
-    const view = renderAt('/catalog?as=admin')
+    const view = renderAt('/projects/PJ-01/params?as=admin')
     expect(screen.getByTestId('current-role')).toHaveTextContent('Администратор')
     await waitFor(() => { expect(sessionStorage.getItem('rav5.role')).toBe('admin') })
     view.unmount()
-    renderAt('/catalog')
+    renderAt('/projects/PJ-01/params')
     expect(screen.getByTestId('current-role')).toHaveTextContent('Администратор')
   })
 
   it('defaults to the user role in dev without ?as=', () => {
-    renderAt('/catalog')
+    renderAt('/projects/PJ-01/params')
     expect(screen.getByTestId('current-role')).toHaveTextContent('Пользователь')
   })
 
   it('marks sections closed for the role (PRD 5.3)', () => {
-    renderAt('/admin/norms?as=guest')
+    renderAt('/admin/journal?as=guest')
     expect(screen.getByTestId('route-access')).toHaveTextContent('Раздел недоступен для роли «Гость»')
   })
 

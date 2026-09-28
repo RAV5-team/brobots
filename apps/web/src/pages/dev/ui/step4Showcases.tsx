@@ -2,6 +2,7 @@ import { Badge, type BadgeKind } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card, CardStat, CardTitle, KpiCard } from '@/components/ui/Card'
 import { Progress } from '@/components/ui/Progress'
+import { ProgressPanel } from '@/components/ui/ProgressPanel'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from '@/components/ui/Table'
 import type { ValueSource } from '@/domain'
@@ -51,6 +52,14 @@ export function CardShowcase() {
           <Card variant="inset" padding={16} gap={4}>
             <p className="type-display-lg text-text">{s.insetValue}</p>
             <p className="type-caption text-text-secondary">{s.insetCaption}</p>
+          </Card>
+        </div>
+      </ShowcaseSection>
+      <ShowcaseSection title="Card · well">
+        <div className="w-[491px]">
+          <Card variant="well" padding={16} gap={4}>
+            <p className="type-title-lg text-text">{s.wellValue}</p>
+            <p className="type-caption text-text-secondary">{s.wellCaption}</p>
           </Card>
         </div>
       </ShowcaseSection>
@@ -104,6 +113,9 @@ export function ProgressShowcase() {
             <Progress label={s.sourcesPolling} value={v} />
           </div>
         ))}
+      </div>
+      <div className="w-[660px]">
+        <ProgressPanel title={s.pollingTitle} label={s.sourcesPolling} value={66}>{s.pollingDetail}</ProgressPanel>
       </div>
     </ShowcaseSection>
   )

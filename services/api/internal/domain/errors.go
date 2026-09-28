@@ -48,6 +48,22 @@ func Forbidden(code, message string) error {
 	return &ForbiddenError{Code: code, Message: message}
 }
 
+// UnavailableError reports a dependency that did not answer, such as the economics service.
+type UnavailableError struct {
+	Code    string
+	Message string
+	Err     error
+}
+
+func (e *UnavailableError) Error() string { return e.Message + ": " + e.Err.Error() }
+
+func (e *UnavailableError) Unwrap() error { return e.Err }
+
+// Unavailable builds an UnavailableError with a user-facing Russian message.
+func Unavailable(code, message string, err error) error {
+	return &UnavailableError{Code: code, Message: message, Err: err}
+}
+
 // FieldError describes one invalid input field in user-facing Russian.
 type FieldError struct {
 	Field   string `json:"field"`

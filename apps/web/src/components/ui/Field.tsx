@@ -14,11 +14,14 @@ interface FieldProps {
   readonly labelVariant?: 'default' | 'overline'
   /** Плашка происхождения значения справа от подписи: «допущение», «формула» (15935:964). */
   readonly badge?: ReactNode
+  /** id контрола — чтобы перейти к полю из сводки ошибок; по умолчанию генерируется. */
+  readonly id?: string | undefined
 }
 
 /** Поле формы: подпись + контрол + подсказка или ошибка (components.md: Field; 15935:935, 15950:2023). */
-export function Field({ label, required = false, hint, error, children, labelVariant = 'default', badge }: FieldProps) {
-  const id = useId()
+export function Field({ label, required = false, hint, error, children, labelVariant = 'default', badge, id: ownId }: FieldProps) {
+  const generatedId = useId()
+  const id = ownId ?? generatedId
   const messageId = `${id}-message`
   const message = error ?? hint
   const invalid = error !== undefined

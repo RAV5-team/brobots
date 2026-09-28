@@ -1,4 +1,5 @@
-import type { ProjectStep } from '@/domain'
+import { generatePath } from 'react-router'
+import type { Project, ProjectStep } from '@/domain'
 
 // Маршруты приложения (D-22, proposed). Состояния и модалки живут на маршруте родителя.
 export const ROUTE_PATHS = {
@@ -18,6 +19,9 @@ export const ROUTE_PATHS = {
   locationDocuments: '/locations/:locationId/documents',
 
   catalog: '/catalog',
+  // «compare» объявлен раньше «:itemId» (D-68): сравнение К-3 — не страница позиции.
+  catalogCompare: '/catalog/compare',
+  catalogItem: '/catalog/:itemId',
 
   projects: '/projects',
   projectParams: '/projects/:projectId/params',
@@ -51,6 +55,12 @@ export const PROJECT_STEP_PATHS = {
   simulation: ROUTE_PATHS.projectSimulation,
   economics: ROUTE_PATHS.projectEconomics,
 } as const satisfies Record<ProjectStep, RoutePath>
+
+/** Куда открывать проект: черновик — на его шаг, сохранённая оценка — только просмотр (D-17, D-22). */
+export function projectOpenPath(project: Project): string {
+  const path = project.status === 'draft' ? PROJECT_STEP_PATHS[project.step] : ROUTE_PATHS.projectResult
+  return generatePath(path, { projectId: project.id })
+}
 
 // Служебные страницы разработки, в продуктовую навигацию не входят.
 export const DEV_PATHS = {

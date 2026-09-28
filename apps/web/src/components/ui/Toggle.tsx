@@ -25,12 +25,13 @@ export function Toggle({ label, checked, defaultChecked, onCheckedChange, disabl
         disabled={disabled}
         data-demo-state={demo['data-demo-state']}
         className={clsx(
-          'flex h-20 w-36 shrink-0 items-center rounded-full bg-surface-muted px-4 transition-colors',
+          // Выкл — вдавленная дорожка и выпуклый бегунок (15966:7320), вкл — тёмная дорожка без теней (15966:7301).
+          'flex h-20 w-36 shrink-0 items-center rounded-full bg-surface-muted px-4 shadow-inset-sm transition-colors',
           'not-disabled:hover:bg-surface-sunken disabled:cursor-not-allowed',
-          'data-[state=checked]:bg-inverse data-[state=checked]:hover:bg-inverse-hover',
+          'data-[state=checked]:bg-inverse data-[state=checked]:shadow-none data-[state=checked]:hover:bg-inverse-hover',
         )}
       >
-        <Switch.Thumb className="block size-14 rounded-full bg-bg transition-transform data-[state=checked]:translate-x-14 data-[state=checked]:bg-on-inverse" />
+        <Switch.Thumb className="block size-14 rounded-full bg-bg shadow-raised-sm transition-transform data-[state=checked]:translate-x-14 data-[state=checked]:bg-on-inverse data-[state=checked]:shadow-none" />
       </Switch.Root>
       <label htmlFor={id} className={clsx('type-body text-text', hideLabel && 'sr-only', !disabled && 'cursor-pointer')}>
         {label}

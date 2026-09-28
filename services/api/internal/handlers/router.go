@@ -74,6 +74,12 @@ func NewRouter(svc *service.Service, log *slog.Logger, opts Options) http.Handle
 		r.Get("/dictionaries", a.dictionaries)
 		r.Get("/versions", a.versions)
 		r.Get("/dashboard/summary", a.dashboard)
+		r.Get("/norms", a.currentNorms)
+		r.Route("/norm-sets", func(r chi.Router) {
+			r.Get("/", a.listNormSets)
+			r.With(admin).Post("/", a.createNormSet)
+			r.Get("/{id}", a.getNormSet)
+		})
 
 		r.Route("/work-types", func(r chi.Router) {
 			r.Get("/", a.listWorkTypes)
@@ -150,7 +156,11 @@ func NewRouter(svc *service.Service, log *slog.Logger, opts Options) http.Handle
 			r.Get("/{id}/manual-candidates", a.manualCandidates)
 			r.With(user).Post("/{id}/manual-candidates", a.addManualCandidate)
 			r.With(user).Delete("/{id}/manual-candidates/{solutionId}", a.removeManualCandidate)
+			r.With(user).Post("/{id}/evaluate", a.evaluate)
+			r.Get("/{id}/evaluation", a.evaluation)
 			r.With(user).Put("/{id}/selection", a.putSelection)
+			r.With(user).Post("/{id}/save", a.saveProject)
+			r.With(user).Post("/{id}/reopen", a.reopenProject)
 			r.Get("/{id}/evaluation-context", a.evaluationContext)
 		})
 		r.Get("/matching-runs/{id}", a.getRun)

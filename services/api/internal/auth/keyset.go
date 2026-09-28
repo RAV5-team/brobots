@@ -81,7 +81,7 @@ func (k *KeySet) fetchLocked(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("fetch JWKS: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck // a read-only body; the decode error is what matters
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("fetch JWKS: status %d", resp.StatusCode)
 	}

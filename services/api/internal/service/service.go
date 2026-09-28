@@ -12,19 +12,21 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/brobots/api/internal/calc"
 	"github.com/brobots/api/internal/domain"
 	"github.com/brobots/api/internal/store"
 )
 
 // Service coordinates the store and the domain rules.
 type Service struct {
-	st  *store.Store
-	log *slog.Logger
+	st   *store.Store
+	log  *slog.Logger
+	calc calc.Calculator
 }
 
-// New creates the service.
-func New(st *store.Store, log *slog.Logger) *Service {
-	return &Service{st: st, log: log}
+// New creates the service; calculator computes fleet and economics for the orchestrator.
+func New(st *store.Store, log *slog.Logger, calculator calc.Calculator) *Service {
+	return &Service{st: st, log: log, calc: calculator}
 }
 
 // Ping checks the database.
@@ -170,9 +172,19 @@ func (s *Service) Dictionaries(ctx context.Context) (map[string][]domain.Option,
 	return out, nil
 }
 
-// Versions returns the current reference versions.
+// Versions returns the current reference versions, with the latest norm set as scope «norms».
 func (s *Service) Versions(ctx context.Context) ([]domain.ReferenceVersion, error) {
-	return s.st.Q().Versions(ctx)
+	q := s.st.Q()
+	list, err := q.Versions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	norms, err := q.CurrentNormSet(ctx)
+	if err != nil || norms == nil {
+		return list, err
+	}
+	return append(list, domain.ReferenceVersion{Scope: "norms", Version: norms.Version, Label: norms.Label,
+		UpdatedAt: norms.CreatedAt}), nil
 }
 
 func (s *Service) checkDict(ctx context.Context, q store.Q, v *domain.Validator, t store.DictTable, field, label string, code *string) error {

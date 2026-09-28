@@ -5,8 +5,9 @@ Go-сервис `services/api` закрывает три логических б
 - **Location, task, and project service** — локации с параметрами типа объекта, задачи (процесс на локации), проекты ровно с одной задачей, снимок входных данных и закреплённые версии.
 - **Catalog and work-type service** — классы операций OP-01…OP-10, каталог роботов и позиций для запуска, ТТХ, строки «робот × класс», предложения с ценой, источники данных, справочник процессов.
 - **Work-type matching and hard checks** — кандидаты по совпадению класса операции и жёсткие проверки со значениями, источниками и причинами.
+- **Оркестратор проекта** — жизненный цикл проекта (`draft` → `saved`): расчёт подбора по кандидатам, выбор робота с копией его полей в снимок, закрепление версии ядра калькуляции. Описание — [../orchestrator.md](../orchestrator.md).
 
-Оркестрации пока нет. Доступ — по access token Keycloak (см. «Доступ» ниже). Экономику, скоринг и симуляцию считают соседние сервисы; этот сервис отдаёт им контекст оценки (`GET /api/v1/projects/{id}/evaluation-context`).
+Доступ — по access token Keycloak (см. «Доступ» ниже). Парк, экономику и рейтинг считает сервис economics за портом `internal/calc` (клиент `internal/calc/economics`, контракт [`economics.yaml`](../../packages/contracts/openapi/economics.yaml)); с `ECONOMICS_URL=` — встроенная мок-модель `mock-calc/v1`. Нормативы расчёта (экран А5) хранит api. Симуляции в оркестраторе пока нет.
 
 Документы рядом:
 
@@ -55,6 +56,8 @@ go run ./cmd/api        # сервер на :8000
 | `SEED_DEMO` | `false` (в compose `true`) | Загрузить демо-данные; существующие записи не перезаписываются |
 | `SWAGGER_ENABLED` | `true` | Swagger UI на `/docs` |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
+| `ECONOMICS_URL` | пусто (в compose `http://economics:8002`) | Сервис расчёта парка и экономики; пусто — встроенная мок-модель `mock-calc/v1` |
+| `ECONOMICS_TIMEOUT` | `10s` | Предел ожидания каждого вызова economics; дольше — `evaluate` отвечает 503 |
 | `OIDC_ISSUER` | — | Издатель токенов, обязателен: `${PUBLIC_URL}/auth/realms/rav5`, без `/` в конце, сверяется с `iss` побайтно |
 | `OIDC_JWKS_URL` | — | Ключи Keycloak по внутреннему адресу, обязателен: `http://keycloak:8080/auth/realms/rav5/protocol/openid-connect/certs` |
 | `OIDC_AUDIENCE` | — | Аудитория сервиса, обязательна: `rav5-api` |
@@ -69,7 +72,7 @@ go run ./cmd/api        # сервер на :8000
 | `/healthz`, `/readyz`, `/api/v1/openapi.yaml`, `/docs` | все, токен не проверяется |
 | `GET /api/v1/...` | гость (без `Authorization`) или пользователь |
 | `POST/PUT/PATCH/DELETE` локаций, задач, проектов и процессов | пользователь (владение проверяет сервис, см. ниже) |
-| запись в `/work-types`, `/data-sources`, `/solutions` | роль `admin` |
+| запись в `/work-types`, `/data-sources`, `/solutions`, `/norm-sets` | роль `admin` |
 
 Присланный токен обязан быть валидным и на гостевых путях (401). Сервисный токен на этих путях — 403;
 у сервисного клиента нет `aud rav5-api`, поэтому на деле он получает 401. Ошибки доступа — `{"code", "message"}`
@@ -111,14 +114,17 @@ cd services/api
 go test ./...                                  # модульные и контрактные тесты
 TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" \
   go test -tags=integration ./internal/integration/   # на живом Postgres, создаёт и удаляет свою БД
+# + ECONOMICS_TEST_URL=http://localhost:18002 — сквозной сценарий и тест клиента на живом economics
 go generate ./...                              # пересобрать OpenAPI после изменения API
 docker build -f services/api/Dockerfile --target test .   # из корня репозитория
 ```
 
 - `internal/matching` — табличные тесты каждой жёсткой проверки, итогового состояния, рисков и сортировки.
+- `internal/calc/mock` — формулы мок-модели и трасса.
+- `internal/calc/economics` — клиент economics: схема запроса (строковые Decimal, обязательные nullable-поля), разбор записанного ответа живого сервиса (`testdata/evaluation_response.json`), предпроверки, ошибки 409/422/5xx, перевод рисков; `TestLiveService` — на живом сервисе.
 - `internal/domain`, `internal/formula`, `internal/service`, `internal/seed` — форматирование, валидация параметров, производные задачи, готовность, формулы, merge patch, разбор CSV каталога.
 - `tools/openapi` — маршруты роутера совпадают с операциями контракта, сгенерированный файл актуален, спецификация валидна.
-- `internal/integration` — миграции вверх и вниз, повторный seed ничего не меняет, эталонный подбор РЦ Химки, сквозной сценарий «локация → задача → проект → подбор → условия → ручной кандидат → снимок», админка каталога.
+- `internal/integration` — миграции вверх и вниз (в том числе перевод статусов в 0006), повторный seed ничего не меняет, эталонный подбор РЦ Химки, сквозной сценарий «локация → задача → проект → подбор → условия → ручной кандидат → снимок», оркестратор «расчёт → выбор → сохранение → воспроизводимость после правок задачи и каталога → reopen», админка каталога; с `ECONOMICS_TEST_URL` — тот же путь на сервисе economics с рейтингом и новой версией нормативов.
 
 CI — [`.github/workflows/api.yml`](../../.github/workflows/api.yml): gofmt, go vet, golangci-lint, проверка актуальности контракта, unit с `-race`, integration с Postgres 16, сборка стадий `test` и `runtime`, публикация образа в GHCR при пуше в `main`.
 
@@ -127,13 +133,14 @@ CI — [`.github/workflows/api.yml`](../../.github/workflows/api.yml): gofmt, go
 ```text
 services/api/
   cmd/api/                 main: serve | migrate | seed
-  migrations/              0001_reference … 0005_project_matching (goose, встроены в бинарь)
+  migrations/              0001_reference … 0007_norms_economics (goose, встроены в бинарь)
   internal/config/         переменные окружения
+  internal/calc/           порт калькуляции: контракт, мок-модель, клиент economics
   internal/domain/         сущности, валидация, производные задачи, готовность, полнота ТТХ
   internal/formula/        формулы процессов (expr) по параметрам локации
   internal/matching/       условия задачи и жёсткие проверки, без БД
   internal/store/          репозитории на pgx
-  internal/service/        сценарии: задача из процесса, снимок проекта, прогон подбора
+  internal/service/        сценарии: задача из процесса, снимок проекта, прогон подбора, оркестратор
   internal/handlers/       chi-роутер, JSON, ошибки RFC 7807
   internal/seed/           загрузчик и данные: каталог ФЦ БАС, датасеты, процессы, демо-локации
   internal/apispec/        встроенная копия OpenAPI
@@ -171,14 +178,15 @@ services/api/
 | 17в удалить задачу | `DELETE /tasks/{id}` |
 | 18 подходящие роботы | `GET /tasks/{id}/match-preview` |
 | projects, np, npnew, nptyp, rowmenu, delete | `GET/POST/PATCH/DELETE /projects`, `POST /projects/{id}/copy` |
-| saved, versions | `GET /projects/{id}` (`dataChanged`, `catalogUpdated`, `versions`), `POST /projects/{id}/refresh-snapshot` |
+| saved, versions | `GET /projects/{id}` (`status`, `dataChanged`, `catalogUpdated`, `versions`, `latestEvaluation`), `POST /projects/{id}/save`, `POST …/reopen`, `POST …/refresh-snapshot` |
 | params, conds (12a) | `GET/PUT/DELETE /projects/{id}/conditions` |
-| podbor (12) | `POST /projects/{id}/matching-runs`, `GET …/matching-runs/latest`, `POST/DELETE …/manual-candidates`, `PUT …/selection` |
+| podbor (12) | `POST /projects/{id}/evaluate`, `GET …/evaluation` (кандидаты, проверки, парк, CAPEX, OPEX, окупаемость, место и балл, `recommendedResultId`, статьи затрат и базовый сценарий в `details`), `POST/DELETE …/manual-candidates`, `PUT …/selection` |
+| A5 нормативы | `GET /norms`, `GET /norm-sets`, `GET /norm-sets/{id}`, `POST /norm-sets` |
 | e7, e8 | `POST /locations/{id}/tasks`, затем `POST /projects` |
 | catalog, catfilt, catdrop, catind, catready, catcost, catsort | `GET /solutions` (фильтры и `sort`) |
 | solution, compare | `GET /solutions/{id}`, `GET /solutions/compare?ids=` |
 
-Вне рамок сервиса: A1а (обновление каталога по запросу), A5 (нормативы), 17б (документы), загрузка Excel и фото, sim*, econ*, calc, weights, result, report, kp, integr. Балл, CAPEX, число роботов и окупаемость на экране «Подбор» добавит оркестратор поверх `matching-runs`.
+Вне рамок сервиса: A1а (обновление каталога по запросу), 17б (документы), загрузка Excel и фото, sim*, report, kp, integr. Число роботов, CAPEX, OPEX, окупаемость, место и балл на экране «Подбор» отдаёт `GET /projects/{id}/evaluation`; веса рейтинга — нормативы группы `ranking`.
 
 ## Открытые вопросы к команде
 
@@ -187,6 +195,6 @@ services/api/
 3. **Фильтр каталога «Тип объекта»** выводится через процессы, применимые к типу, и их классы.
 4. **Робот без цены** исключается проверкой `price`, остальные проверки видны — можно показывать «технически подходит, нет цены» (пример — PuduBot 2).
 5. **Производительность-диапазон**: в расчёт идёт нижняя граница, исходный диапазон хранится в `throughputRangeText`.
-6. **Кнопки без бэкенда**: «Загрузить из Excel», «Скачать шаблон», «Обновить каталог», A5, 17б, загрузка фото — скрыть или назначить владельца.
-7. **Таблицы результатов расчёта** (`configuration_result`, `simulation_run`) в общей базе api — кто их создаёт и владеет ими.
+6. **Кнопки без бэкенда**: «Загрузить из Excel», «Скачать шаблон», «Обновить каталог», 17б, загрузка фото — скрыть или назначить владельца.
+7. **Результаты симуляции** (`simulation_run`) и принятые поправки — где хранить и как оркестратор передаёт их в пересчёт экономики. Результаты расчёта уже хранит api (`calc_run`, `calc_result`).
 8. **Демо-цифры макетов расходятся с датасетом**: у упаковки на РЦ Химки нет оклада (готовность 8/9), площадь Даркстора Юг 8 400 м² ниже минимума датасета (взято 10 500 м²), у робота AMR 800 в карточке 2 м/с, в расчётах модели 1,5 м/с.

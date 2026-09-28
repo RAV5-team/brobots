@@ -67,6 +67,23 @@ func (s *Service) visibleProject(ctx context.Context, q store.Q, id uuid.UUID, w
 	return rec, accessOf(ctx).project(rec.ID, rec.OwnerID, rec.IsDemo, write)
 }
 
+// draftProject loads a project the caller may change; a saved project is frozen.
+func (s *Service) draftProject(ctx context.Context, q store.Q, id uuid.UUID) (store.ProjectRecord, error) {
+	rec, err := s.visibleProject(ctx, q, id, true)
+	if err != nil {
+		return rec, err
+	}
+	return rec, editable(rec)
+}
+
+func editable(rec store.ProjectRecord) error {
+	if rec.Status == domain.ProjectSaved {
+		return domain.Conflict("project_saved",
+			"Проект сохранён: его данные и расчёт закреплены. Откройте проект для изменений или скопируйте его")
+	}
+	return nil
+}
+
 // ProjectCreateInput creates a project for exactly one task.
 type ProjectCreateInput struct {
 	LocationID       *uuid.UUID `json:"locationId"`
@@ -133,7 +150,7 @@ func (s *Service) CreateProject(ctx context.Context, body []byte) (domain.Projec
 		return domain.Project{}, err
 	}
 	a := accessOf(ctx)
-	rec := store.ProjectRecord{ID: store.NewID(), LocationID: *in.LocationID, TaskID: *in.TaskID, Status: "params",
+	rec := store.ProjectRecord{ID: store.NewID(), LocationID: *in.LocationID, TaskID: *in.TaskID, Status: domain.ProjectDraft,
 		PinnedSolutionID: in.PinnedSolutionID, SnapshotTakenAt: time.Now(), OwnerID: a.owner()}
 	err := s.st.Tx(ctx, func(q store.Q) error {
 		snap, ver, err := s.buildSnapshot(ctx, q, *in.LocationID, *in.TaskID)
@@ -149,6 +166,9 @@ func (s *Service) CreateProject(ctx context.Context, body []byte) (domain.Projec
 		rec.HorizonYears = in.HorizonYears
 		if rec.HorizonYears == nil {
 			rec.HorizonYears = snap.Location.HorizonYears
+		}
+		if err := pinNorms(ctx, q, &rec); err != nil {
+			return err
 		}
 		if in.PinnedSolutionID != nil {
 			if _, err := q.GetSolution(ctx, *in.PinnedSolutionID); err != nil {
@@ -169,35 +189,47 @@ func (s *Service) CreateProject(ctx context.Context, body []byte) (domain.Projec
 	return s.GetProject(ctx, rec.ID)
 }
 
-// ProjectPatchInput is the editable part of a project.
+// ProjectPatchInput is the editable part of a project. The status changes by save and reopen.
 type ProjectPatchInput struct {
 	Name         string `json:"name"`
-	Status       string `json:"status"`
-	HorizonYears *int   `json:"horizonYears"`
+	HorizonYears *int   `json:"horizonYears" description:"Вход расчёта: у сохранённого проекта не меняется"`
 }
 
-// PatchProject updates name, status and horizon.
+// PatchProject updates the name and the horizon.
 func (s *Service) PatchProject(ctx context.Context, id uuid.UUID, body []byte) (domain.Project, error) {
-	q := s.st.Q()
-	rec, err := s.visibleProject(ctx, q, id, true)
+	err := s.st.Tx(ctx, func(q store.Q) error {
+		rec, err := s.visibleProject(ctx, q, id, true)
+		if err != nil {
+			return err
+		}
+		in := ProjectPatchInput{Name: rec.Name, HorizonYears: rec.HorizonYears}
+		if err := MergePatch(&in, body); err != nil {
+			return err
+		}
+		var v domain.Validator
+		v.Required("name", "Название проекта", in.Name)
+		if in.HorizonYears != nil {
+			v.Range("horizonYears", "Горизонт расчёта", domain.Ptr(float64(*in.HorizonYears)), domain.Ptr(1.0), domain.Ptr(30.0), "лет")
+		}
+		if err := v.Err(); err != nil {
+			return err
+		}
+		horizonChanged := domain.Deref(in.HorizonYears) != domain.Deref(rec.HorizonYears)
+		if horizonChanged {
+			if err := editable(rec); err != nil {
+				return err
+			}
+		}
+		rec.Name, rec.HorizonYears = strings.TrimSpace(in.Name), in.HorizonYears
+		if err := q.SaveProject(ctx, rec); err != nil {
+			return err
+		}
+		if horizonChanged {
+			return q.BumpProjectInputs(ctx, id)
+		}
+		return nil
+	})
 	if err != nil {
-		return domain.Project{}, err
-	}
-	in := ProjectPatchInput{Name: rec.Name, Status: rec.Status, HorizonYears: rec.HorizonYears}
-	if err := MergePatch(&in, body); err != nil {
-		return domain.Project{}, err
-	}
-	var v domain.Validator
-	v.Required("name", "Название проекта", in.Name)
-	v.OneOf("status", "Статус", in.Status, domain.Codes(domain.ProjectStatuses))
-	if in.HorizonYears != nil {
-		v.Range("horizonYears", "Горизонт расчёта", domain.Ptr(float64(*in.HorizonYears)), domain.Ptr(1.0), domain.Ptr(30.0), "лет")
-	}
-	if err := v.Err(); err != nil {
-		return domain.Project{}, err
-	}
-	rec.Name, rec.Status, rec.HorizonYears = strings.TrimSpace(in.Name), in.Status, in.HorizonYears
-	if err := q.SaveProject(ctx, rec); err != nil {
 		return domain.Project{}, err
 	}
 	return s.GetProject(ctx, id)
@@ -231,8 +263,11 @@ func (s *Service) CopyProject(ctx context.Context, id uuid.UUID) (domain.Project
 			return err
 		}
 		src := rec.ID
-		rec.ID, rec.Name, rec.CopiedFromID, rec.Status = store.NewID(), "Копия · "+rec.Name, &src, "params"
+		rec.ID, rec.Name, rec.CopiedFromID, rec.Status = store.NewID(), "Копия · "+rec.Name, &src, domain.ProjectDraft
 		rec.OwnerID, rec.IsDemo = a.owner(), a.system && rec.IsDemo // a copy of a demo project is the user's own
+		// The copy keeps the inputs, not the decision: calculations stay with the source project.
+		clearSelection(&rec)
+		rec.SavedAt, rec.Versions.Model = nil, nil
 		newID = rec.ID
 		if err := q.SaveProject(ctx, rec); err != nil {
 			return err
@@ -253,10 +288,11 @@ func (s *Service) CopyProject(ctx context.Context, id uuid.UUID) (domain.Project
 	return s.GetProject(ctx, newID)
 }
 
-// RefreshSnapshot re-reads the location and task and pins the current versions.
+// RefreshSnapshot re-reads the location and task and pins the current versions. The selected
+// robot is dropped: its figures were calculated on the old inputs.
 func (s *Service) RefreshSnapshot(ctx context.Context, id uuid.UUID) (domain.Project, error) {
 	err := s.st.Tx(ctx, func(q store.Q) error {
-		rec, err := s.visibleProject(ctx, q, id, true)
+		rec, err := s.draftProject(ctx, q, id)
 		if err != nil {
 			return err
 		}
@@ -270,7 +306,14 @@ func (s *Service) RefreshSnapshot(ctx context.Context, id uuid.UUID) (domain.Pro
 		}
 		ver.Model = rec.Versions.Model
 		rec.Snapshot, rec.Versions, rec.SnapshotTakenAt = snap, ver, time.Now()
-		return q.SaveProject(ctx, rec)
+		if err := pinNorms(ctx, q, &rec); err != nil {
+			return err
+		}
+		clearSelection(&rec)
+		if err := q.SaveProject(ctx, rec); err != nil {
+			return err
+		}
+		return q.BumpProjectInputs(ctx, id)
 	})
 	if err != nil {
 		return domain.Project{}, err
@@ -307,7 +350,7 @@ func (s *Service) PutConditions(ctx context.Context, id uuid.UUID, items []match
 	var v domain.Validator
 	seen := map[string]bool{}
 	err := s.st.Tx(ctx, func(q store.Q) error {
-		if _, err := s.visibleProject(ctx, q, id, true); err != nil {
+		if _, err := s.draftProject(ctx, q, id); err != nil {
 			return err
 		}
 		for i, o := range items {
@@ -362,6 +405,9 @@ func (s *Service) RunMatching(ctx context.Context, id uuid.UUID) (matching.Run, 
 		if err != nil {
 			return err
 		}
+		if err := editable(rec); err != nil {
+			return err
+		}
 		manual, err := q.ManualCandidates(ctx, id)
 		if err != nil {
 			return err
@@ -381,14 +427,7 @@ func (s *Service) RunMatching(ctx context.Context, id uuid.UUID) (matching.Run, 
 		run = matching.Run{ProjectID: &rec.ID, TaskID: rec.TaskID, WorkType: rec.Snapshot.Task.WorkType,
 			CatalogVersion: version, RulesetVersion: matching.RulesetVersion, Conditions: conds.List(),
 			Counts: matching.Count(cands), Candidates: cands}
-		if err := q.SaveRun(ctx, &run, conds); err != nil {
-			return err
-		}
-		if rec.Status == "params" {
-			rec.Status = "matching"
-			return q.SaveProject(ctx, rec)
-		}
-		return nil
+		return q.SaveRun(ctx, &run, conds)
 	})
 	return run, err
 }
@@ -447,66 +486,32 @@ func (s *Service) AddManualCandidate(ctx context.Context, projectID uuid.UUID, b
 	if in.SolutionID == nil {
 		return nil, &domain.ValidationError{Errors: []domain.FieldError{{Field: "solutionId", Code: "required", Message: "Не выбрано решение", Hint: "Укажите solutionId из каталога"}}}
 	}
-	q := s.st.Q()
-	if _, err := s.visibleProject(ctx, q, projectID, true); err != nil {
-		return nil, err
-	}
-	if _, err := q.GetSolution(ctx, *in.SolutionID); err != nil {
-		return nil, err
-	}
-	if err := q.AddManualCandidate(ctx, projectID, *in.SolutionID, trimPtr(in.Reason)); err != nil {
-		return nil, err
-	}
-	return q.ManualCandidates(ctx, projectID)
+	var out []domain.ManualCandidate
+	err := s.st.Tx(ctx, func(q store.Q) error {
+		if _, err := s.draftProject(ctx, q, projectID); err != nil {
+			return err
+		}
+		if _, err := q.GetSolution(ctx, *in.SolutionID); err != nil {
+			return err
+		}
+		if err := q.AddManualCandidate(ctx, projectID, *in.SolutionID, trimPtr(in.Reason)); err != nil {
+			return err
+		}
+		var err error
+		out, err = q.ManualCandidates(ctx, projectID)
+		return err
+	})
+	return out, err
 }
 
 // RemoveManualCandidate removes a hand-added solution.
 func (s *Service) RemoveManualCandidate(ctx context.Context, projectID, solutionID uuid.UUID) error {
 	return s.st.Tx(ctx, func(q store.Q) error {
-		if _, err := s.visibleProject(ctx, q, projectID, true); err != nil {
+		if _, err := s.draftProject(ctx, q, projectID); err != nil {
 			return err
 		}
 		return q.RemoveManualCandidate(ctx, projectID, solutionID)
 	})
-}
-
-// SelectionInput chooses the configuration of the project.
-type SelectionInput struct {
-	SolutionID       *uuid.UUID `json:"solutionId"`
-	AcquisitionModel *string    `json:"acquisitionModel"`
-}
-
-// PutSelection stores or clears the chosen configuration.
-func (s *Service) PutSelection(ctx context.Context, id uuid.UUID, body []byte) (domain.Project, error) {
-	var in SelectionInput
-	if err := MergePatch(&in, body); err != nil {
-		return domain.Project{}, err
-	}
-	var v domain.Validator
-	if in.AcquisitionModel != nil {
-		v.OneOf("acquisitionModel", "Модель приобретения", *in.AcquisitionModel, []string{"purchase", "raas"})
-	}
-	if err := v.Err(); err != nil {
-		return domain.Project{}, err
-	}
-	q := s.st.Q()
-	rec, err := s.visibleProject(ctx, q, id, true)
-	if err != nil {
-		return domain.Project{}, err
-	}
-	if in.SolutionID != nil {
-		if _, err := q.GetSolution(ctx, *in.SolutionID); err != nil {
-			return domain.Project{}, err
-		}
-	}
-	rec.SelectedSolutionID, rec.SelectedModel = in.SolutionID, in.AcquisitionModel
-	if in.SolutionID == nil {
-		rec.SelectedModel = nil
-	}
-	if err := q.SaveProject(ctx, rec); err != nil {
-		return domain.Project{}, err
-	}
-	return s.GetProject(ctx, id)
 }
 
 // EvaluationCandidate is an eligible candidate with full catalog data.
@@ -578,7 +583,7 @@ func (s *Service) Dashboard(ctx context.Context) (domain.Dashboard, error) {
 	projects := page.Items
 	d.Projects.Total = page.Total
 	for _, p := range projects {
-		if p.Status == "result" {
+		if p.Status == domain.ProjectSaved {
 			d.Projects.Calculated++
 		}
 	}

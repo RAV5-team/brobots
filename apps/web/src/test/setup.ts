@@ -17,3 +17,9 @@ if (!('ResizeObserver' in globalThis)) {
     disconnect() { /* jsdom ничего не измеряет */ }
   }
 }
+
+// Radix Select прокручивает к выбранной опции и захватывает указатель — в jsdom этих методов нет.
+const element = Element.prototype as Partial<Element>
+element.scrollIntoView ??= () => { /* jsdom не прокручивает */ }
+element.hasPointerCapture ??= () => false
+element.releasePointerCapture ??= () => { /* jsdom не захватывает указатель */ }

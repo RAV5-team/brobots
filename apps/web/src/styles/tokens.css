@@ -124,6 +124,11 @@
 
   /* --- Разметка --- */
   --rav-sidebar-width: 240px;
+  /* Окно A2 «Новый проект» (16429:2): ширина окна и колонки таблицы-радиогруппы. */
+  --rav-modal-wide-width: 640px;
+  --rav-new-project-area-width: 69px;
+  --rav-new-project-staff-width: 68px;
+  --rav-new-project-labor-width: 104px;
   /* Дашборд 06: колонка «Результат» в строке проекта (15935:158) и правая панель «Локации» (15935:179). */
   --rav-dashboard-result-width: 168px;
   --rav-dashboard-aside-width: 380px;
@@ -133,8 +138,74 @@
   --rav-staff-count-width: 102px;
   --rav-staff-salary-width: 122px;
   --rav-staff-share-width: 152px;
+  /* А8 «Классы операций» (15966:8042): колонки 120 / 130 / 170 плюс зазор 16 справа (у последней зазора нет). */
+  --rav-op-class-code-width: 136px;
+  --rav-op-class-robots-width: 146px;
+  --rav-op-class-processes-width: 170px;
+  /* А6 «Источники данных» (15966:7275): колонки 130 / 200 / 110 / 150 плюс зазор 16 справа, действие 160 без зазора; «Источник» — остаток. */
+  --rav-sources-status-width: 146px;
+  --rav-sources-provides-width: 216px;
+  --rav-sources-actualized-width: 126px;
+  --rav-sources-refresh-width: 166px;
+  --rav-sources-action-width: 160px;
+  /* А5 «Нормативы и допущения» (15997:391): колонки 300 / 110 / 110 / 140 плюс зазор 12 справа; «Источник» — остаток. Плашка типа — 88 (15997:409). */
+  --rav-norms-param-width: 312px;
+  --rav-norms-kind-width: 122px;
+  --rav-norms-value-width: 122px;
+  --rav-norms-unit-width: 152px;
+  --rav-norms-pill-width: 88px;
+  /* Отступ прокрутки полей над липкой панелью сохранения (D-49): панель 76 + 16 до края окна + 12. */
+  --rav-norms-save-clearance: 104px;
+  /* А1 «Каталог решений» (15997:38): колонки 150 / 140 / 110 / 100 / 100 плюс зазор 12 справа; колонка действия 98 — последняя, без зазора. */
+  --rav-catalog-classes-width: 162px;
+  --rav-catalog-payload-width: 152px;
+  --rav-catalog-price-width: 122px;
+  --rav-catalog-updated-width: 112px;
+  --rav-catalog-completeness-width: 112px;
+  --rav-catalog-action-width: 98px;
+  /* А2 «Новый робот»: плитка фото 200 × 140 (15966:6183), зона перетаскивания по высоте плитки с подписью — 172 (15966:6188). */
+  --rav-robot-photo-width: 200px;
+  --rav-robot-photo-height: 140px;
+  --rav-robot-dropzone-height: 172px;
+  /* Ряд полей с местом под подсказку: подпись 16 + 8 + поле 44 + 8 + подсказка 16 (15966:6007). */
+  --rav-field-hinted-height: 92px;
+  /* Форма локации 14: колонки таблицы групп персонала (15950:2091) — численность и оклад. */
+  --rav-location-staff-count-width: 120px;
+  --rav-location-staff-salary-width: 160px;
+  /* Список локаций 12: высота карточки (15950:1666) — минимум карточки и скелетон загрузки. */
+  --rav-location-card-height: 408px;
+  /* Окно 15а «Процесс из шаблона»: высота списка шаблонов, дальше — прокрутка (15950:3033). */
+  --rav-template-list-height: 396px;
+  /* Пустой раздел целиком (EmptyState lg, 15919:552): отступы 64 / 88 и наименьшая высота панели. */
+  --rav-empty-panel-pad-x: 64px;
+  --rav-empty-panel-pad-y: 88px;
+  --rav-empty-panel-min-height: 450px;
   /* Отступ якоря секции под липкой навигацией формы: 16 сверху + 40 капсула + 16. */
   --rav-form-nav-offset: 72px;
+  /* К-1 «Каталог · список»: плашка фото карточки 120 (16642:672), фото — с отступом 10 внутри (16642:674). */
+  --rav-catalog-photo-height: 120px;
+  /* Выпадающий список с мультивыбором (MultiSelectFilter): ширина панели. Макета нет — по самому длинному значению «Отрасли». */
+  --rav-multiselect-width: 280px;
+  /* К-3 «Сравнение»: колонка подписей строк 300 (16642:2532); колонки решений делят остаток поровну. */
+  --rav-compare-label-width: 300px;
+  /* К-4 «Карточка решения»: строка характеристики — подпись 160, статус 128, источник 172, значение — остаток (16777:987). */
+  --rav-characteristic-label-width: 160px;
+  --rav-characteristic-status-width: 128px;
+  --rav-characteristic-source-width: 172px;
+  /* К-4, шапка (16777:795, 16777:805): фото 200 × 180, плитки фактов 108. */
+  --rav-solution-photo-width: 200px;
+  --rav-solution-photo-height: 180px;
+  --rav-solution-fact-height: 108px;
+  /*
+   * A1 «Проекты» (16362:8226): колонки 150 / 176 / 100 / 100 / 104 плюс зазор 16 таблицы roomy; действие 36 без зазора; «Название» — остаток.
+   * На макете статус 160, CAPEX и OPEX по 110, окупаемость 120, зазор 12: подпись «остановились на: Параметры» (169 px, D-83)
+   * не помещается в 160 — 16 px взяты у окупаемости; зазор 16 вместо 12 съедает 24 px — их отдают CAPEX и OPEX, чтобы «Название» осталось 280+.
+   */
+  --rav-projects-location-width: 166px;
+  --rav-projects-status-width: 192px;
+  --rav-projects-money-width: 116px;
+  --rav-projects-payback-width: 120px;
+  --rav-projects-action-width: 36px;
 
   /* --- Тени: неоморфные пары (blur Figma = blur CSS) --- */
   --rav-shadow-raised-sm: -2px -2px 6px rgb(255 255 255 / 0.85), 2px 2px 6px rgb(185 179 167 / 0.3);

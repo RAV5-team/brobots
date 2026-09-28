@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
+import { NORM_GROUPS, specsCompleteness } from '@/domain'
+import { formatCount } from '@/shared/format'
+import { ru } from '@/shared/i18n/ru'
+import { DATA_SOURCES } from './dataSources'
 import { FACILITY_PARAMETERS } from './facilityParameters'
 import { LOCATION_PROCESSES } from './locationProcesses'
 import { LOCATIONS } from './locations'
+import { NORMS } from './norms'
 import { OPERATION_CLASSES } from './operationClasses'
 import { PROCESSES } from './processes'
 import { PROJECTS } from './projects'
@@ -72,6 +77,32 @@ describe('fixtures: integrity', () => {
 })
 
 describe('fixtures: resolved PRD 15 discrepancies (README)', () => {
+  it('№10: the norms reference has 34 rows in 6 groups, 12 norms and 22 assumptions (PRD 6.8, D-49)', () => {
+    expect(NORMS).toHaveLength(34)
+    expect(new Set(NORMS.map((n) => n.code)).size).toBe(34)
+    const countOf = (group: string) => NORMS.filter((n) => n.group === group).length
+    expect(Object.fromEntries(NORM_GROUPS.map((group) => [group, countOf(group)]))).toEqual({
+      staff: 3, fleet: 5, capex: 7, opex: 7, finance: 8, interpretation: 4,
+    })
+    expect(NORMS.filter((n) => n.kind === 'norm')).toHaveLength(12)
+  })
+
+  it('№10: the norms source on А6 counts the same 34 rows as А5', () => {
+    const norms = DATA_SOURCES.find((s) => s.kind === 'norms')
+    expect(norms?.provides).toBe(formatCount(NORMS.length, ru.plural.norms))
+  })
+
+  it('№16: ТТХ completeness is counted from the eight А2 parameters (D-46)', () => {
+    const amr800 = robot('AMR 800')
+    expect(amr800?.specs).toMatchObject({ chargeTimeMin: 60, avgPowerKw: 1, loadTimeS: 45, unloadTimeS: 45 })
+    expect(amr800 && specsCompleteness(amr800.specs)).toBe(1)
+    expect(amr800?.updatedAt.startsWith('2026-09-19')).toBe(true)
+  })
+
+  it('№53: only DMR 600 and Сёмабот await confirmation (D-46)', () => {
+    expect(ROBOTS.filter((r) => r.needsConfirmation).map((r) => r.name).sort()).toEqual(['DMR 600', 'Сёмабот'])
+  })
+
   it('№37, №67: pallet mass is the dataset value 800 kg', () => {
     expect(base('wh_pallet_mass')).toBe(800)
     expect(process('PR-0001')?.defaults.unitMassKg).toBe(800)
@@ -96,6 +127,11 @@ describe('fixtures: resolved PRD 15 discrepancies (README)', () => {
     expect(LOCATION_PROCESSES.filter((lp) => lp.locationId === location('РЦ Химки')?.id)).toHaveLength(5)
   })
 
+  it('№45: РЦ Химки has two assumptions in its profile, as on the form', () => {
+    const params = Object.values(location('РЦ Химки')?.parameters ?? {})
+    expect(params.filter((p) => p.source === 'assumption')).toHaveLength(2)
+  })
+
   it('№7: portions per day use the dataset base 1 950', () => {
     expect(process('PR-0010')?.defaults.dailyVolume).toBe(base('med_portions_day'))
   })
@@ -112,9 +148,19 @@ describe('fixtures: resolved PRD 15 discrepancies (README)', () => {
     expect(robot('DMR Carrier P')?.subtype).toBe('FMR')
   })
 
-  it('№57, №61: the Даркстор Юг project is a draft at simulation', () => {
+  it('№57, №61: the Даркстор Юг project is a saved assessment (PRD 11.1)', () => {
     const project = PROJECTS.find((p) => p.locationId === location('Даркстор Юг')?.id)
-    expect(project).toMatchObject({ status: 'draft', step: 'simulation', preliminary: { paybackYears: 2.2 } })
+    expect(project).toMatchObject({ status: 'saved', result: { capexRub: 52_400_000, paybackYears: 1.6 } })
+  })
+
+  it('№106: snapshots keep the new model values shown on the result, not the old A1 board', () => {
+    const results = PROJECTS.flatMap((p) => (p.status === 'saved' ? [[p.id, p.result.capexRub, p.result.opexRubPerYear, p.result.paybackYears]] : []))
+    expect(results).toEqual([
+      ['PJ-01', 6_100_000, 42_000_000, 0.7],
+      ['PJ-03', 52_400_000, 21_300_000, 1.6],
+      ['PJ-05', 84_000_000, 12_500_000, 7],
+      ['PJ-06', 47_400_000, 34_500_000, 2.8],
+    ])
   })
 
   it('№65, №66: class codes and names follow the A8 reference', () => {
