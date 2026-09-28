@@ -51,6 +51,11 @@ describe('demo form (экран 09а, значения демо-склада)', 
   it('fails loudly when a dataset parameter is missing', () => {
     expect(() => warehouseBase([])).toThrow(/wh_inbound_pallets/)
   })
+
+  it('assumes 0 turnover when the warehouse catalog has no turnover code (PRD 10.2)', () => {
+    const without = WAREHOUSE.filter((p) => p.code !== 'wh_annual_turnover')
+    expect(warehouseBase(without).turnoverPct).toBe(0)
+  })
 })
 
 describe('volume and staff formulas (PRD 9.2)', () => {

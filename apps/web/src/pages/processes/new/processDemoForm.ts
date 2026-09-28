@@ -34,6 +34,12 @@ function numberParam(params: readonly FacilityParameter[], code: string): number
   return base
 }
 
+/** Текучести нет в приложении А и в старом seed api — принято 0, как на форме 14 (PRD 10.2). */
+function numberParamOr(params: readonly FacilityParameter[], code: string, fallback: number): number {
+  const base = params.find((p) => p.code === code)?.base
+  return typeof base === 'number' ? base : fallback
+}
+
 export function warehouseBase(params: readonly FacilityParameter[]): WarehouseBase {
   const n = (code: string) => numberParam(params, code)
   return {
@@ -49,7 +55,7 @@ export function warehouseBase(params: readonly FacilityParameter[]): WarehouseBa
     rackAisle: n('wh_rack_aisle_width'),
     palletMass: n('wh_pallet_mass'),
     workTimeLossPct: n('wh_work_time_loss'),
-    turnoverPct: n('wh_annual_turnover'),
+    turnoverPct: numberParamOr(params, 'wh_annual_turnover', 0),
     payrollCoef: n('wh_payroll_tax_coef'),
   }
 }

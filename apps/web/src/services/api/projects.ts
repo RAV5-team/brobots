@@ -221,7 +221,11 @@ export function apiProjects(http: HttpClient, deps: Dependencies): Partial<Proje
 
     getSimulationJob: async (jobId) => jobOf(await http.get<SimulationRunDto>(`/simulation-runs/${jobId}`)),
 
-    getSimulationRun: async (runId) => toSimulationRun(await http.get(`/simulation-runs/${runId}/result`)),
+    getSimulationRun: async (runId) => {
+      const dto = await http.get(`/simulation-runs/${runId}/result`)
+      // Результат — тело services/simulation (`simulation_id`). Трассы читаются по id прогона api.
+      return { ...toSimulationRun(dto), id: runId }
+    },
 
     getSimulationTraces: async (runId) => {
       const traces = await http.get<readonly unknown[]>(`/simulation-runs/${runId}/traces`)
