@@ -28,6 +28,7 @@ export const READY_ROUTES: readonly ReadyRoute[] = [
   { path: '/projects/PJ-DEMO/matching', roles: ALL },
   // Шаг 2 у сохранённой оценки — только просмотр (D-17); у PJ-04 подбор не рассчитан.
   { path: '/projects/PJ-01/matching', roles: SIGNED_IN },
+  { path: '/projects/PJ-04/matching', roles: SIGNED_IN },
   { path: '/projects/PJ-DEMO/simulation', roles: ALL },
   // Этап 1 симуляции (04); у сохранённой оценки состав только для просмотра (D-17, D-101).
   { path: '/projects/PJ-DEMO/simulation?stage=scope', roles: ALL },
@@ -64,6 +65,8 @@ export const READY_ROUTES: readonly ReadyRoute[] = [
   { path: '/locations/LOC-01/params', roles: ALL },
   { path: '/locations/LOC-01/documents', roles: ALL },
   { path: '/admin/catalog', roles: ADMIN },
+  // А3 «Робот добавлен» — состояние А1 (D-48); эталона пока нет: снимается вместе с 03a и 07c отдельным PR.
+  { path: '/admin/catalog?added=RB-0008', roles: ADMIN },
   { path: '/admin/catalog/import', roles: ADMIN, busy: true },
   { path: '/admin/catalog/new', roles: ADMIN },
   { path: '/admin/norms', roles: ADMIN },
@@ -159,8 +162,9 @@ export const VISUAL_SCREENS: readonly VisualScreen[] = [
     },
   },
   { id: 'К-4', path: '/catalog/RB-0008', role: 'user' },
-  { id: 'A1', path: '/projects', role: 'user' },
-  { id: 'A2', path: '/projects?new=1', role: 'user' },
+  // P1, P2 — A1 и A2 доски проекта (латинская A): эталоны не путаются с А1, А2 администрирования (кириллица).
+  { id: 'P1', path: '/projects', role: 'user' },
+  { id: 'P2', path: '/projects?new=1', role: 'user' },
   { id: '02', path: '/projects/PJ-DEMO/params', role: 'user' },
   { id: '02-guest', path: '/projects/PJ-DEMO/params', role: 'guest' },
   { id: '02-blocked', path: '/projects/PJ-07/params', role: 'user' },

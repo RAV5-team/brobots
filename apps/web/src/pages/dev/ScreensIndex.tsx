@@ -9,7 +9,7 @@ import { useRole } from '@/shared/auth/useRole'
 import { ru } from '@/shared/i18n/ru'
 import { SCREEN_SCENARIOS, type ScreenScenario } from './screenScenarios'
 
-const SERIES_ORDER: readonly ScreenSeries[] = ['clean', 'first', 'pending']
+const SERIES_ORDER: readonly ScreenSeries[] = ['clean', 'prototype', 'board', 'first', 'pending', 'archive']
 
 /** Служебный список всех экранов со ссылками на заглушки — для проверки этапов. */
 export function ScreensIndex() {
