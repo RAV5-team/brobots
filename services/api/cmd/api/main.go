@@ -22,6 +22,7 @@ import (
 	"github.com/brobots/api/internal/calc"
 	"github.com/brobots/api/internal/calc/economics"
 	"github.com/brobots/api/internal/calc/mock"
+	"github.com/brobots/api/internal/clients/simulation"
 	"github.com/brobots/api/internal/config"
 	"github.com/brobots/api/internal/handlers"
 	"github.com/brobots/api/internal/seed"
@@ -85,6 +86,13 @@ func run() error {
 	}
 	st := store.New(pool)
 	svc := service.New(st, log, calculator)
+	if cfg.SimulationURL != "" {
+		log.Info("simulation step by services/simulation", slog.String("url", cfg.SimulationURL),
+			slog.Duration("timeout", cfg.SimulationTimeout))
+		svc.WithSimulator(simulation.New(cfg.SimulationURL, cfg.SimulationTimeout))
+	} else {
+		log.Warn("SIMULATION_URL is not set: the simulation step answers 503")
+	}
 	if err := svc.EnsureNorms(ctx); err != nil {
 		return fmt.Errorf("norms: %w", err)
 	}

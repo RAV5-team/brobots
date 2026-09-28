@@ -7,7 +7,7 @@ Go-сервис `services/api` закрывает три логических б
 - **Work-type matching and hard checks** — кандидаты по совпадению класса операции и жёсткие проверки со значениями, источниками и причинами.
 - **Оркестратор проекта** — жизненный цикл проекта (`draft` → `saved`): расчёт подбора по кандидатам, выбор робота с копией его полей в снимок, закрепление версии ядра калькуляции. Описание — [../orchestrator.md](../orchestrator.md).
 
-Доступ — по access token Keycloak (см. «Доступ» ниже). Парк, экономику и рейтинг считает сервис economics за портом `internal/calc` (клиент `internal/calc/economics`, контракт [`economics.yaml`](../../packages/contracts/openapi/economics.yaml)); с `ECONOMICS_URL=` — встроенная мок-модель `mock-calc/v1`. Нормативы расчёта (экран А5) хранит api. Симуляции в оркестраторе пока нет.
+Доступ — по access token Keycloak (см. «Доступ» ниже). Парк, экономику и рейтинг считает сервис economics за портом `internal/calc` (клиент `internal/calc/economics`, контракт [`economics.yaml`](../../packages/contracts/openapi/economics.yaml)); с `ECONOMICS_URL=` — встроенная мок-модель `mock-calc/v1`. Нормативы расчёта (экран А5) хранит api. Шаг «Симуляция» оркестратор проверяет в `services/simulation` (`SIMULATION_URL`) от имени пользователя.
 
 Документы рядом:
 
@@ -58,6 +58,8 @@ go run ./cmd/api        # сервер на :8000
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 | `ECONOMICS_URL` | пусто (в compose `http://economics:8002`) | Сервис расчёта парка и экономики; пусто — встроенная мок-модель `mock-calc/v1` |
 | `ECONOMICS_TIMEOUT` | `10s` | Предел ожидания каждого вызова economics; дольше — `evaluate` отвечает 503 |
+| `SIMULATION_URL` | пусто (в compose `http://simulation:8765`) | Сервис симуляции шага «Симуляция»; пусто — `/simulation-runs` отвечают 503 |
+| `SIMULATION_TIMEOUT` | `30s` | Предел ожидания каждого вызова simulation (постановка в очередь, опрос, результат, трассы) |
 | `OIDC_ISSUER` | — | Издатель токенов, обязателен: `${PUBLIC_URL}/auth/realms/rav5`, без `/` в конце, сверяется с `iss` побайтно |
 | `OIDC_JWKS_URL` | — | Ключи Keycloak по внутреннему адресу, обязателен: `http://keycloak:8080/auth/realms/rav5/protocol/openid-connect/certs` |
 | `OIDC_AUDIENCE` | — | Аудитория сервиса, обязательна: `rav5-api` |
@@ -182,6 +184,8 @@ services/api/
 | params, conds (12a) | `GET/PUT/DELETE /projects/{id}/conditions` |
 | podbor (12) | `POST /projects/{id}/evaluate`, `GET …/evaluation` (кандидаты, проверки, парк, CAPEX, OPEX, окупаемость, место и балл, `recommendedResultId`, статьи затрат и базовый сценарий в `details`), `POST/DELETE …/manual-candidates`, `PUT …/selection` |
 | A5 нормативы | `GET /norms`, `GET /norm-sets`, `GET /norm-sets/{id}`, `POST /norm-sets` |
+| шаг «Симуляция» (PRD 11.4) | `POST /projects/{id}/simulation-runs`, `GET/DELETE /simulation-runs/{id}`, `GET …/result`, `GET …/traces` |
+| итог, КП (08b) | `GET /projects/{id}/evaluation`, `PATCH /projects/{id}` (`inputs`), `POST /projects/{id}/quote-request` |
 | e7, e8 | `POST /locations/{id}/tasks`, затем `POST /projects` |
 | catalog, catfilt, catdrop, catind, catready, catcost, catsort | `GET /solutions` (фильтры и `sort`) |
 | solution, compare | `GET /solutions/{id}`, `GET /solutions/compare?ids=` |

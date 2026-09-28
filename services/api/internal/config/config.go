@@ -22,6 +22,9 @@ type Config struct {
 	// EconomicsURL is the calculation service (docs/orchestrator.md); empty — the in-process mock model.
 	EconomicsURL     string
 	EconomicsTimeout time.Duration
+	// SimulationURL is services/simulation for the «Симуляция» step; empty — the step answers 503.
+	SimulationURL     string
+	SimulationTimeout time.Duration
 	// Keycloak access token verification (docs/keycloak/middleware.md).
 	OIDCIssuer   string
 	OIDCJWKSURL  string
@@ -94,6 +97,10 @@ func (c Config) finish() (Config, error) {
 	}
 	c.EconomicsURL = strings.TrimSpace(os.Getenv("ECONOMICS_URL"))
 	if c.EconomicsTimeout, err = parseDuration("ECONOMICS_TIMEOUT", 10*time.Second); err != nil {
+		return Config{}, err
+	}
+	c.SimulationURL = strings.TrimRight(strings.TrimSpace(os.Getenv("SIMULATION_URL")), "/")
+	if c.SimulationTimeout, err = parseDuration("SIMULATION_TIMEOUT", 30*time.Second); err != nil {
 		return Config{}, err
 	}
 	return c, nil

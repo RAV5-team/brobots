@@ -22,6 +22,7 @@ type Service struct {
 	st   *store.Store
 	log  *slog.Logger
 	calc calc.Calculator
+	sim  Simulator
 }
 
 // New creates the service; calculator computes fleet and economics for the orchestrator.

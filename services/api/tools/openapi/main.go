@@ -308,6 +308,11 @@ func Operations() []op {
 		{http.MethodPut, "/api/v1/projects/{id}/selection", "orchestrator", "Выбрать робота", "Только из результатов последнего актуального расчёта. Поля робота копируются в snapshot.robot из входа расчёта. solutionId: null снимает выбор.", new(idPath), new(service.SelectionInput), new(domain.Project), 200, withBodyNF},
 		{http.MethodPost, "/api/v1/projects/{id}/save", "orchestrator", "Сохранить проект", "draft → saved: закрепляет снимок с выбранным роботом, расчёт и версию ядра. Нужен выбор по актуальному расчёту.", new(idPath), nil, new(domain.Project), 200, []int{404, 409}},
 		{http.MethodPost, "/api/v1/projects/{id}/reopen", "orchestrator", "Открыть проект для изменений", "saved → draft. Сохранённые расчёты остаются в истории.", new(idPath), nil, new(domain.Project), 200, notFound},
+		{http.MethodPost, "/api/v1/projects/{id}/simulation-runs", "simulation", "Запустить симуляцию выбранной конфигурации", "Шаг «Симуляция» (PRD 11.4): вход собирается из снимка проекта, выбранного робота и его расчёта; fleet — состав этапа 1 (пусто — из расчёта), conditions — условия этапа 2. Прогон ставится в очередь services/simulation от имени вызывающего. Гость запускает прогон и на демо-проекте. 409 — вариант не выбран или проект сохранён, 422 — симуляция не приняла вход, 503 — сервис симуляции не ответил.", new(idPath), new(service.SimulationRunInput), new(service.SimulationRun), 201, []int{404, 409, 422, 503}},
+		{http.MethodGet, "/api/v1/simulation-runs/{id}", "simulation", "Ход прогона симуляции", "Опрашивает задание services/simulation, пока оно в очереди или идёт: журнал строками и секунды. done — есть simulationId, результат и трассы. stale — параметры проекта изменились после запуска.", new(idPath), nil, new(service.SimulationRun), 200, []int{404, 503}},
+		{http.MethodDelete, "/api/v1/simulation-runs/{id}", "simulation", "Остановить прогон", "services/simulation не отменяет задание: api помечает прогон cancelled и не читает его результат. 409 — прогон уже завершён.", new(idPath), nil, nil, 204, []int{404, 409}},
+		{http.MethodGet, "/api/v1/simulation-runs/{id}/result", "simulation", "Результат прогона", "SimulationRun services/simulation как есть: вердикт, состав было → стало, KPI, загрузка по часам, поправки (services/simulation/docs/openapi.json).", new(idPath), nil, new(map[string]any), 200, []int{404, 409, 503}},
+		{http.MethodGet, "/api/v1/simulation-runs/{id}/traces", "simulation", "2D-трассы прогона", "Массив трасс simcore/viz.export_trace для 2D-плеера: из подбора и, если состав изменился, итоговая. С Accept-Encoding: gzip — сжатыми.", new(idPath), nil, new([]map[string]any), 200, []int{404, 409, 503}},
 		{http.MethodPost, "/api/v1/projects/{id}/quote-request", "orchestrator", "Запросить коммерческое предложение", "По выбранной конфигурации (08b): отметка quoteRequestedAt. Оценку не меняет — доступно и сохранённому проекту. 409 — вариант не выбран.", new(idPath), nil, new(domain.Project), 200, []int{404, 409}},
 		{http.MethodGet, "/api/v1/projects/{id}/evaluation-context", "matching", "Контекст для оркестратора оценки", "Снимок, условия и подходящие кандидаты последнего прогона с полными данными каталога.", new(idPath), nil, new(service.EvaluationContext), 200, notFound},
 	}
@@ -334,6 +339,8 @@ func AccessOf(method, path string) Access {
 		return Public
 	case method == http.MethodGet:
 		return Guest
+	case strings.HasSuffix(path, "/simulation-runs") || strings.HasPrefix(path, "/api/v1/simulation-runs"):
+		return Guest // a guest checks a demo project too (D-14): reading the project is enough
 	case strings.HasPrefix(path, "/api/v1/processes"):
 		return User // reference processes need admin, own ones their author: checked by the service
 	}

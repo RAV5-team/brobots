@@ -163,15 +163,27 @@ func NewRouter(svc *service.Service, log *slog.Logger, opts Options) http.Handle
 			r.With(user).Post("/{id}/reopen", a.reopenProject)
 			r.With(user).Post("/{id}/quote-request", a.requestQuote)
 			r.Get("/{id}/evaluation-context", a.evaluationContext)
+			// A guest checks a demo project too (D-14): reading the project is enough, the service decides.
+			r.Post("/{id}/simulation-runs", a.startSimulation)
 		})
 		r.Get("/matching-runs/{id}", a.getRun)
+		r.Route("/simulation-runs", func(r chi.Router) {
+			r.Get("/{id}", a.getSimulation)
+			r.Delete("/{id}", a.cancelSimulation)
+			r.Get("/{id}/result", a.simulationResult)
+			r.Get("/{id}/traces", a.simulationTraces)
+		})
 	})
 	return r
 }
 
-// withActor passes the signed-in user to the service, which checks data ownership.
+// withActor passes the signed-in user to the service, which checks data ownership, and the caller's token, which
+// the service forwards to services/simulation.
 func withActor(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if h := r.Header.Get("Authorization"); h != "" {
+			r = r.WithContext(service.WithBearer(r.Context(), h))
+		}
 		p, ok := auth.FromContext(r.Context())
 		if !ok {
 			next.ServeHTTP(w, r)

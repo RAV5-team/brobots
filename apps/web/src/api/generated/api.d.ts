@@ -3670,6 +3670,105 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/simulation-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Запустить симуляцию выбранной конфигурации
+         * @description Шаг «Симуляция» (PRD 11.4): вход собирается из снимка проекта, выбранного робота и его расчёта; fleet — состав этапа 1 (пусто — из расчёта), conditions — условия этапа 2. Прогон ставится в очередь services/simulation от имени вызывающего. Гость запускает прогон и на демо-проекте. 409 — вариант не выбран или проект сохранён, 422 — симуляция не приняла вход, 503 — сервис симуляции не ответил.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["SimulationRunInput"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SimulationRun"];
+                    };
+                };
+                /** @description Токен не прислан (где он обязателен), невалиден или просрочен */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthError"];
+                    };
+                };
+                /** @description Нет нужной роли или прислан сервисный токен */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthError"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Service Unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/snapshot": {
         parameters: {
             query?: never;
@@ -3718,6 +3817,318 @@ export interface paths {
                 };
                 /** @description Not Found */
                 404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/simulation-runs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ход прогона симуляции
+         * @description Опрашивает задание services/simulation, пока оно в очереди или идёт: журнал строками и секунды. done — есть simulationId, результат и трассы. stale — параметры проекта изменились после запуска.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SimulationRun"];
+                    };
+                };
+                /** @description Токен не прислан (где он обязателен), невалиден или просрочен */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthError"];
+                    };
+                };
+                /** @description Нет нужной роли или прислан сервисный токен */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthError"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Service Unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Остановить прогон
+         * @description services/simulation не отменяет задание: api помечает прогон cancelled и не читает его результат. 409 — прогон уже завершён.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Токен не прислан (где он обязателен), невалиден или просрочен */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthError"];
+                    };
+                };
+                /** @description Нет нужной роли или прислан сервисный токен */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthError"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/simulation-runs/{id}/result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Результат прогона
+         * @description SimulationRun services/simulation как есть: вердикт, состав было → стало, KPI, загрузка по часам, поправки (services/simulation/docs/openapi.json).
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+                /** @description Токен не прислан (где он обязателен), невалиден или просрочен */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthError"];
+                    };
+                };
+                /** @description Нет нужной роли или прислан сервисный токен */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthError"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Service Unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/simulation-runs/{id}/traces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 2D-трассы прогона
+         * @description Массив трасс simcore/viz.export_trace для 2D-плеера: из подбора и, если состав изменился, итоговая. С Accept-Encoding: gzip — сжатыми.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: unknown;
+                        }[];
+                    };
+                };
+                /** @description Токен не прислан (где он обязателен), невалиден или просрочен */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthError"];
+                    };
+                };
+                /** @description Нет нужной роли или прислан сервисный токен */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthError"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Service Unavailable */
+                503: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -5568,6 +5979,10 @@ export interface components {
             hint?: string;
             message?: string;
         };
+        Fleet: {
+            robots: number;
+            stations: number;
+        };
         Formula: {
             description?: string | null;
             expression?: string;
@@ -5798,6 +6213,10 @@ export interface components {
         };
         ParametersBody: {
             items?: components["schemas"]["ParameterInput"][] | null;
+        };
+        PeakHours: {
+            inbound?: number[] | null;
+            outbound?: number[] | null;
         };
         Price: {
             amountRub?: number | null;
@@ -6146,6 +6565,59 @@ export interface components {
             /** @enum {string|null} */
             acquisitionModel?: "purchase" | "raas" | null;
             solutionId?: components["schemas"]["UUID"];
+        };
+        SimulationConditions: {
+            /** @enum {string|null} */
+            designVolume?: "current" | "growth" | null;
+            fastMoversAtGates?: boolean | null;
+            firstShiftStartHour?: number | null;
+            /** @enum {string|null} */
+            fleetPolicy?: "add_only" | "add_and_reduce" | null;
+            growthReserve?: number | null;
+            inboundPalletsPerDay?: number | null;
+            /** @description Для экономики; в симуляцию не передаётся */
+            laborReplacementRatio?: number | null;
+            manualShare?: number | null;
+            maxWaitMin?: number | null;
+            onTimeTarget?: number | null;
+            /** @description Для экономики; в симуляцию не передаётся */
+            operatorTimeShare?: number | null;
+            outboundPalletsPerDay?: number | null;
+            peakFactor?: number | null;
+            peakHours?: components["schemas"]["PeakHours"];
+            repairHours?: number | null;
+            routeLengthM?: number | null;
+            shiftHours?: number | null;
+            shiftsPerDay?: number | null;
+            tolerance?: number | null;
+            /** @enum {string|null} */
+            traffic?: "rare" | "sometimes" | "often" | "very_often" | null;
+        };
+        SimulationRun: {
+            /** @description Значения входа, принятые допущением: ТТХ робота, которых нет в каталоге */
+            assumptions: string[] | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: double */
+            elapsedS: number;
+            error?: string | null;
+            /** @description Поля входа, которые не приняла симуляция */
+            errors?: components["schemas"]["FieldError"][] | null;
+            fleet: components["schemas"]["Fleet"];
+            id: components["schemas"]["UUID"];
+            /** @description Журнал прогона строками */
+            log: string[] | null;
+            projectId: components["schemas"]["UUID"];
+            /** @description Прогон в services/simulation; есть у готового */
+            simulationId?: string | null;
+            /** @description Параметры проекта изменились после запуска */
+            stale: boolean;
+            /** @enum {string} */
+            status: "queued" | "running" | "done" | "error" | "cancelled";
+        };
+        SimulationRunInput: {
+            conditions?: components["schemas"]["SimulationConditions"];
+            fleet?: components["schemas"]["Fleet"];
         };
         Solution: {
             acquisitionModels?: string[] | null;
