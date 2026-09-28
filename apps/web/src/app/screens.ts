@@ -1,6 +1,17 @@
 import { ROUTE_PATHS as R, type RoutePath } from './routePaths'
+import { ECONOMICS_SCREENS } from './screenRows/economics'
+import { MATCHING_SCREENS } from './screenRows/matching'
+import { PARAMS_SCREENS } from './screenRows/params'
+import { PROJECTS_SCREENS } from './screenRows/projects'
+import { SIMULATION_SCREENS } from './screenRows/simulation'
+import type { ScreenKind, ScreenRow } from './screenRows/types'
 
 // Реестр экранов — копия apps/web/docs/design/screens.md (разделы 1–5) для заглушек и /dev/screens.
+export type { ScreenKind } from './screenRows/types'
+
+/** Строки проекта по шагам: каждый поток правит только свой файл в app/screenRows. */
+const STEP_ROWS = [PROJECTS_SCREENS, PARAMS_SCREENS, MATCHING_SCREENS, SIMULATION_SCREENS, ECONOMICS_SCREENS]
+
 export const FIGMA_FILE_KEY = 'sd1kJRdpW6RBFzSi1ztXYK'
 
 /**
@@ -8,9 +19,6 @@ export const FIGMA_FILE_KEY = 'sd1kJRdpW6RBFzSi1ztXYK'
  * (справка, экраны сделаны по прототипу); first — первая итерация; pending — ждут чистовых макетов; archive — архив первой итерации.
  */
 export type ScreenSeries = 'clean' | 'prototype' | 'board' | 'first' | 'pending' | 'archive'
-
-/** Как экран живёт на маршруте: отдельная страница, состояние страницы или модальное окно. */
-export type ScreenKind = 'page' | 'state' | 'modal'
 
 export interface Screen {
   readonly id: string
@@ -23,16 +31,6 @@ export interface Screen {
   /** null — маршрута пока нет (назначение экрана не определено). */
   readonly route: RoutePath | null
 }
-
-type ScreenRow = [
-  id: string,
-  code: string,
-  title: string,
-  nodeId: string | null,
-  prd: string,
-  kind: ScreenKind,
-  route: RoutePath | null,
-]
 
 const rows = (series: ScreenSeries, list: readonly ScreenRow[]): Screen[] =>
   list.map(([id, code, title, nodeId, prd, kind, route]) => ({
@@ -101,50 +99,11 @@ const ARCHIVE: readonly ScreenRow[] = [
   ['first-14e', '14e', 'Экономика · журнал изменений расчёта', '14588:1104', '11.4.9', 'modal', null],
 ]
 
-/** Проект — прототип, секция 15877:2: основной источник визуала шагов (D-54). id сценариев — в pages/dev/screenScenarios. */
-const PROTOTYPE: readonly ScreenRow[] = [
-  ['pending-projects', '00', 'Проекты · список', '16197:4', '11.1', 'page', R.projects],
-  ['pending-project-new', '01', 'Новый проект · выбор локации', '16197:228', '11.1', 'modal', R.projects],
-  ['proto-01a', '01a', 'Новый проект · создать локацию (D-85 open)', '16202:2', '11.1', 'modal', R.projects],
-  ['pending-params', 'Шаг 1', 'Параметры проекта', '16197:367', '11.2', 'page', R.projectParams],
-  ['pending-matching', 'Шаг 2', 'Подбор решения', '16197:713', '11.3', 'page', R.projectMatching],
-  ['proto-03a', '03a', 'Подбор · как рассчитано', '16202:92', '11.3', 'modal', R.projectMatching],
-  ['proto-03b', '03b', 'Подбор · веса критериев — не делаем (D-88)', '16202:581', '11.3', 'modal', null],
-  ['pending-simulation', 'Шаг 3', 'Симуляция', '16197:1114', '11.4', 'page', R.projectSimulation],
-  ['proto-05', '05', 'Симуляция · условия', '16197:1285', '11.4', 'state', R.projectSimulation],
-  ['proto-06', '06', 'Симуляция · прогон', '16197:1700', '11.4', 'state', R.projectSimulation],
-  ['proto-07-confirmed', '07', 'Симуляция · вердикт · подтверждено (демо-проект)', '16197:1815', '11.4', 'state', R.projectSimulation],
-  ['proto-07-can-reduce', '07', 'Симуляция · вердикт · можно уменьшить (демо-проект)', '16197:1815', '11.4', 'state', R.projectSimulation],
-  ['proto-07-need-more', '07b', 'Симуляция · вердикт · нужно докупить (демо-проект)', '16198:895', '11.4', 'state', R.projectSimulation],
-  ['proto-07-layout', '07', 'Симуляция · вердикт · узкое место планировки (демо-проект)', '16197:1815', '11.4', 'state', R.projectSimulation],
-  ['proto-07-unreachable', '07', 'Симуляция · вердикт · поток недостижим (демо-проект)', '16197:1815', '11.4', 'state', R.projectSimulation],
-  ['proto-07a', '07a', 'Симуляция · графики и 2D-сравнение · можно уменьшить (демо-проект)', '16198:29', '11.4', 'state', R.projectSimulation],
-  ['proto-07c', '07c', 'Вердикт · свой состав', '16198:903', '11.4', 'state', R.projectSimulation],
-  ['pending-economics', 'Шаг 4', 'Итог и экономика', '16197:2005', '11.5', 'page', R.projectEconomics],
-  ['proto-08a', '08a', 'Итог · выбран сценарий «покупка» (демо-проект)', '16198:911', '11.5', 'state', R.projectEconomics],
-  ['proto-08b', '08b', 'Итог · КП запрошено (демо-проект)', '16198:919', '11.6', 'state', R.projectEconomics],
-  ['pending-report', '—', 'Отчёт PDF', '16197:2318', '11.6', 'page', R.projectReport],
-]
+/** Проект — прототип, секция 15877:2: шаг 4 (D-54). id сценариев — в pages/dev/screenScenarios. Строки по шагам — app/screenRows. */
+const PROTOTYPE: readonly ScreenRow[] = STEP_ROWS.flatMap((step) => step.prototype)
 
-/** Доска «user flow · проект-оценка» 16325:2 — справка к прототипу; экраны сделаны по 15877:2. */
-const BOARD: readonly ScreenRow[] = [
-  ['board-A1', 'A1', 'Проекты', '16325:14', '11.1', 'page', R.projects],
-  ['board-A2', 'A2', 'Новый проект · мои локации', '16325:23', '11.1', 'modal', R.projects],
-  ['board-1.1', '1.1', 'Параметры проекта', '16325:53', '11.2', 'page', R.projectParams],
-  ['board-2.1', '2.1', 'Подбор решения', '16325:101', '11.3', 'page', R.projectMatching],
-  ['board-2.2', '2.2', 'Как посчитан подбор', '16325:110', '11.3', 'modal', R.projectMatching],
-  ['board-3.1', '3.1', 'Что проверяем', '16325:149', '11.4', 'state', R.projectSimulation],
-  ['board-3.2', '3.2', 'Условия симуляции', '16325:158', '11.4', 'state', R.projectSimulation],
-  ['board-3.3', '3.3', 'Прогон', '16325:167', '11.4', 'state', R.projectSimulation],
-  ['board-3.4', '3.4', 'Вердикт · нужно докупить', '16325:176', '11.4', 'state', R.projectSimulation],
-  ['board-3.5', '3.5', 'Графики и 2D-сравнение', '16325:185', '11.4', 'state', R.projectSimulation],
-  ['board-3.6', '3.6', 'Вердикт · состав подтверждён', '16325:194', '11.4', 'state', R.projectSimulation],
-  ['board-4.1', '4.1', 'Итог и экономика · RaaS', '16325:206', '11.5', 'page', R.projectEconomics],
-  ['board-4.2', '4.2', 'Итог · покупка', '16325:215', '11.5', 'state', R.projectEconomics],
-  ['board-4.3', '4.3', 'Проект сохранён', '16325:224', '11.5, 11.6', 'state', R.projectEconomics],
-  ['board-4.4', '4.4', 'Итог · демо-режим', '16325:233', '11.5, 11.6', 'state', R.projectEconomics],
-  ['board-4.5', '4.5', 'Отчёт PDF', '16325:242', '11.6', 'page', R.projectReport],
-]
+/** Доска «user flow · проект-оценка» 16325:2: шаги 1–3 (D-54). Строки по шагам — app/screenRows. */
+const BOARD: readonly ScreenRow[] = STEP_ROWS.flatMap((step) => step.board)
 
 const PENDING: readonly ScreenRow[] = [
   ['pending-integrations', '—', 'Интеграции', null, '12', 'page', R.integrations],

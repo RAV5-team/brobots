@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest'
  * - данные мок-бэкенда (`mocks`, `services/mock`) — то, что пришлёт API: названия, сообщения прогона;
  * - слой локали `shared/format` — «млн», «тыс.», «год/лет» в форматтерах (аудит 2026-09-28, §2);
  * - витрины `/dev/*` — демо-данные макета, в продукт не попадают;
- * - реестр экранов `app/screens.ts` — служебный список для `/dev/screens` и заглушек.
+ * - реестр экранов `app/screens.ts` и его строки по шагам `app/screenRows` — служебный список для `/dev/screens` и заглушек.
  */
 const sources = import.meta.glob<string>([
   '/src/**/*.{ts,tsx}',
@@ -20,6 +20,7 @@ const sources = import.meta.glob<string>([
   '!/src/shared/format/**',
   '!/src/pages/dev/**',
   '!/src/app/screens.ts',
+  '!/src/app/screenRows/**',
 ], { query: '?raw', import: 'default', eager: true })
 
 const CYRILLIC = /[А-Яа-яЁё]/
