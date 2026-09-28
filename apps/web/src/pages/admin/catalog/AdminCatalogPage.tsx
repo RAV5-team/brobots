@@ -62,7 +62,7 @@ function CatalogTableRow({ row }: { readonly row: CatalogRow }) {
             size={36}
             icon={ArrowRight}
             label={t.open(row.name)}
-            to={generatePath(ROUTE_PATHS.adminRobot, { robotId: row.id })}
+            to={generatePath(ROUTE_PATHS.catalogItem, { itemId: row.id })}
           />
         </div>
       </TableCell>

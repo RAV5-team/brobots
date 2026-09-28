@@ -151,8 +151,6 @@ const PENDING: readonly ScreenRow[] = [
   ['pending-profile', '—', 'Профиль и уведомления', null, '5.2', 'page', R.profile],
   ['pending-help', '—', 'Справка и методика', null, '5.2', 'page', R.help],
   ['pending-A01', 'A01', 'Неизвестный экран (открытый вопрос PRD)', null, '6.12', 'page', null],
-  // Адрес карточки робота остался от прежней записи А3; А3 — состояние /admin/catalog?added= (D-48). Удаление маршрута — PR-5 аудита.
-  ['pending-admin-robot', '—', 'Администрирование · карточка робота — макета нет (D-48)', null, '6.2', 'page', R.adminRobot],
 ]
 
 export const SCREENS: readonly Screen[] = [
