@@ -21,6 +21,12 @@ export const READY_ROUTES: readonly ReadyRoute[] = [
   { path: '/login', roles: ['guest'] },
   { path: '/', roles: ALL },
   { path: '/projects', roles: SIGNED_IN },
+  // Шаги проекта (каркас, пункт 3): гостю открыты (D-14, D-82); сохранённая оценка — только просмотр (D-17).
+  { path: '/projects/PJ-DEMO/params', roles: ALL },
+  { path: '/projects/PJ-DEMO/matching', roles: ALL },
+  { path: '/projects/PJ-DEMO/simulation', roles: ALL },
+  { path: '/projects/PJ-DEMO/economics', roles: ALL },
+  { path: '/projects/PJ-01/economics', roles: SIGNED_IN },
   { path: '/catalog', roles: ALL },
   { path: '/catalog/compare', roles: ALL },
   { path: '/catalog/RB-0008', roles: ALL },

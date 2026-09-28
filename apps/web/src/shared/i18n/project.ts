@@ -6,6 +6,16 @@ import type { SimulationStage } from '@/domain'
  */
 export const project = {
   stepsNav: 'Шаги проекта',
+  crumbsNav: 'Путь к проекту',
+  /** Сохранённая оценка открывается только для просмотра (D-17). */
+  readOnly: 'Оценка готова · только просмотр',
+  page: {
+    documentTitle: (step: string, project: string) => `${step} · ${project} · RAV5`,
+    notFound: { title: 'Проект не найден', description: 'Возможно, его удалили или ссылка устарела', back: 'К списку проектов' },
+    error: { title: 'Не удалось открыть проект', message: 'Проверьте соединение и попробуйте ещё раз' },
+    /** Тело шага до экранов 02–08 (пункт 6 плана): каркас уже настоящий. */
+    pending: { title: 'Экран шага собирается', description: 'Каркас шага готов: путь, шаги и данные проекта. Содержание — по секции Figma 15877:2 и PRD 11' },
+  },
   params: {
     processChoice: 'Процесс проекта',
     readyToMatch: 'Готово к расчёту',
