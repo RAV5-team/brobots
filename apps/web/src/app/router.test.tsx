@@ -13,6 +13,13 @@ describe('router', () => {
     expect(screen.queryByTestId('current-role')).not.toBeInTheDocument()
   })
 
+  it('redirects the old saved-assessment path /result to the result step /economics with the same query', async () => {
+    const router = createMemoryRouter(routes, { initialEntries: ['/projects/PJ-01/result?as=user'] })
+    render(<RouterProvider router={router} />)
+    await waitFor(() => { expect(router.state.location.pathname).toBe('/projects/PJ-01/economics') })
+    expect(router.state.location.search).toBe('?as=user')
+  })
+
   it('renders the processes screen on /processes', () => {
     renderAt('/processes')
     expect(screen.getByRole('heading', { level: 1, name: 'Процессы' })).toBeInTheDocument()
@@ -82,15 +89,15 @@ describe('router', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Новый робот' })).toBeInTheDocument()
   })
 
-  it('shows the screen index on /dev/screens', () => {
+  it('shows the screen index on /dev/screens (loaded lazily)', async () => {
     renderAt('/dev/screens')
-    expect(screen.getByRole('heading', { level: 1, name: 'Экраны RAV5' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Экраны RAV5' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Вход · авторизация' })).toHaveAttribute('href', '/login')
   })
 
-  it('shows the token showcase on /dev/tokens', () => {
+  it('shows the token showcase on /dev/tokens (loaded lazily)', async () => {
     renderAt('/dev/tokens')
-    expect(screen.getByRole('heading', { level: 1, name: 'Токены RAV5' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Токены RAV5' })).toBeInTheDocument()
     for (const group of ['Цвета', 'Типографика', 'Радиусы', 'Отступы', 'Тени']) {
       expect(screen.getByRole('heading', { level: 2, name: group })).toBeInTheDocument()
     }
@@ -100,16 +107,16 @@ describe('router', () => {
   })
 
   it('switches the role with ?as= and remembers it for the session', async () => {
-    const view = renderAt('/projects/PJ-01/params?as=admin')
+    const view = renderAt('/integrations?as=admin')
     expect(screen.getByTestId('current-role')).toHaveTextContent('Администратор')
     await waitFor(() => { expect(sessionStorage.getItem('rav5.role')).toBe('admin') })
     view.unmount()
-    renderAt('/projects/PJ-01/params')
+    renderAt('/integrations')
     expect(screen.getByTestId('current-role')).toHaveTextContent('Администратор')
   })
 
   it('defaults to the user role in dev without ?as=', () => {
-    renderAt('/projects/PJ-01/params')
+    renderAt('/integrations')
     expect(screen.getByTestId('current-role')).toHaveTextContent('Пользователь')
   })
 

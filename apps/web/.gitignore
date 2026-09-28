@@ -2,3 +2,5 @@ node_modules/
 dist/
 *.tsbuildinfo
 coverage/
+test-results/
+playwright-report/

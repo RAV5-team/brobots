@@ -94,7 +94,7 @@ export function locationProcessViews(data: LocationDetailData): readonly Locatio
       classLabel: ru.processes.classOption(process.operationClass, operationClass?.name ?? ''),
       rows: defaultRows(onLocation),
       robotCount: data.robotsByClass[process.operationClass] ?? 0,
-      isSelected: data.projects.some((project) => project.processIds.includes(lp.id)),
+      isSelected: data.projects.some((project) => project.locationProcessId === lp.id),
       missing: missingValues(process, lp, data),
     }]
   })

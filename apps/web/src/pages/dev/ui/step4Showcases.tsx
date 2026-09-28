@@ -5,15 +5,33 @@ import { Progress } from '@/components/ui/Progress'
 import { ProgressPanel } from '@/components/ui/ProgressPanel'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from '@/components/ui/Table'
-import type { ValueSource } from '@/domain'
+import { operationCostRub, type ValueSource } from '@/domain'
+import { toSimulationRun } from '@/api/mappers/simulation'
+import { toEconomics } from '@/api/mappers/economics'
+import { EVALUATION_LP01 } from '@/mocks/fixtures/projectMatching'
+import { SIMULATION_RUNS } from '@/mocks/fixtures/simulationRuns.generated'
 import { FACILITY_PARAMETERS } from '@/mocks/fixtures/facilityParameters'
 import { LOCATIONS } from '@/mocks/fixtures/locations'
 import { PROJECTS } from '@/mocks/fixtures/projects'
-import { formatNumber, formatRubCompact } from '@/shared/format'
+import { formatNumber, formatPercent, formatRubCompact } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { ShowcaseSection } from './StateGrid'
 
 const s = ru.dev.samples
+const pm = ru.project.matching
+const ph = ru.project.simulation.hourly
+
+// Стоимость операции RaaS к текущему процессу — считается из итога LP-01 (D-13), как в правой колонке подбора 03.
+const ECONOMICS = toEconomics(EVALUATION_LP01, 'RB-0008', { conditions: [], operationsPerDay: 2000 })
+const RAAS = ECONOMICS.scenarios.find((sc) => sc.acquisition === 'raas')
+const costNow = operationCostRub(ECONOMICS.current.opexRubPerYear, ECONOMICS.operationsPerDay)
+const costRaas = RAAS ? operationCostRub(RAAS.opexRubPerYear, ECONOMICS.operationsPerDay) : costNow
+const rub = (value: number) => `${formatNumber(value, 1, { fixed: true })} ₽`
+
+// Часы пика прогона «нужно докупить»: доля в срок ниже цели 95 % — нарушение (07a).
+const NEED_MORE_DTO = SIMULATION_RUNS.find((run) => run.status === 'needs_additions')
+const PEAK_HOURS = NEED_MORE_DTO ? toSimulationRun(NEED_MORE_DTO).hourlyBefore.filter((h) => h.hour >= 7 && h.hour <= 12) : []
+const ON_TIME_TARGET = 0.95
 const BADGE_BY_SOURCE: Record<ValueSource, BadgeKind> = { organizer: 'exact', user: 'exact', assumption: 'assumption', computed: 'formula' }
 const KHIMKI = LOCATIONS[0]
 const ROWS = KHIMKI
@@ -45,6 +63,13 @@ export function CardShowcase() {
           <KpiCard label={s.kpiLocations} value={formatNumber(LOCATIONS.length)} caption={s.kpiLocationsCaption} />
           <KpiCard label={s.kpiProjects} value={formatNumber(PROJECTS.length)} />
           <KpiCard label={s.kpiManual} value={formatRubCompact(591_000_000)} caption={s.kpiManualCaption} />
+          <KpiCard
+            label={pm.operationCost}
+            value={rub(costRaas)}
+            previous={pm.previous(rub(costNow))}
+            change={formatPercent(costRaas / costNow - 1, 0, { signed: true })}
+            caption={pm.perPallet}
+          />
         </div>
       </ShowcaseSection>
       <ShowcaseSection title="Card · inset">
@@ -54,6 +79,12 @@ export function CardShowcase() {
             <p className="type-caption text-text-secondary">{s.insetCaption}</p>
           </Card>
         </div>
+      </ShowcaseSection>
+      <ShowcaseSection title="Card · inverse">
+        <Card variant="inverse" padding={24} gap={16}>
+          <p className="type-display-md text-bg">{ru.project.simulation.verdict.title}</p>
+          <p className="rounded-lg bg-inverse-well px-16 py-16 type-body-sm text-bg">{ru.project.simulation.verdict.thinnest}</p>
+        </Card>
       </ShowcaseSection>
       <ShowcaseSection title="Card · well">
         <div className="w-[491px]">
@@ -97,6 +128,24 @@ export function TableShowcase() {
               <TableCell><Badge kind={BADGE_BY_SOURCE[row.value.source]} /></TableCell>
             </TableRow>
           ))}
+        </TableBody>
+      </Table>
+      <Table caption={ph.caption}>
+        <TableHead>
+          <TableRow>
+            <TableHeaderCell>{ph.hour}</TableHeaderCell>
+            {PEAK_HOURS.map((h) => <TableHeaderCell key={h.hour} align="end">{String(h.hour).padStart(2, '0')}</TableHeaderCell>)}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          <TableRow>
+            <TableCell>{ph.onTime}</TableCell>
+            {PEAK_HOURS.map((h) => (
+              <TableCell key={h.hour} align="end" tone={h.onTime !== null && h.onTime < ON_TIME_TARGET ? 'violation' : 'default'}>
+                {h.onTime === null ? '—' : formatNumber(h.onTime * 100)}
+              </TableCell>
+            ))}
+          </TableRow>
         </TableBody>
       </Table>
     </ShowcaseSection>

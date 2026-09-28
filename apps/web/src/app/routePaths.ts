@@ -1,5 +1,5 @@
 import { generatePath } from 'react-router'
-import type { Project, ProjectStep } from '@/domain'
+import type { Project, ProjectId, ProjectStep } from '@/domain'
 
 // Маршруты приложения (D-22, proposed). Состояния и модалки живут на маршруте родителя.
 export const ROUTE_PATHS = {
@@ -28,7 +28,6 @@ export const ROUTE_PATHS = {
   projectMatching: '/projects/:projectId/matching',
   projectSimulation: '/projects/:projectId/simulation',
   projectEconomics: '/projects/:projectId/economics',
-  projectResult: '/projects/:projectId/result',
   projectReport: '/projects/:projectId/report',
 
   adminCatalog: '/admin/catalog',
@@ -48,7 +47,7 @@ export const ROUTE_PATHS = {
 
 export type RoutePath = (typeof ROUTE_PATHS)[keyof typeof ROUTE_PATHS]
 
-/** Куда открывать черновик проекта: на шаг, где пользователь остановился (PRD 11). */
+/** Путь шага проекта — ключ и адрес по ProjectStep (4 шага PRD 0.9; итог и экономика — один шаг). */
 export const PROJECT_STEP_PATHS = {
   params: ROUTE_PATHS.projectParams,
   matching: ROUTE_PATHS.projectMatching,
@@ -56,15 +55,24 @@ export const PROJECT_STEP_PATHS = {
   economics: ROUTE_PATHS.projectEconomics,
 } as const satisfies Record<ProjectStep, RoutePath>
 
-/** Куда открывать проект: черновик — на его шаг, сохранённая оценка — только просмотр (D-17, D-22). */
-export function projectOpenPath(project: Project): string {
-  const path = project.status === 'draft' ? PROJECT_STEP_PATHS[project.step] : ROUTE_PATHS.projectResult
-  return generatePath(path, { projectId: project.id })
+export function projectStepPath(projectId: ProjectId, step: ProjectStep): string {
+  return generatePath(PROJECT_STEP_PATHS[step], { projectId })
 }
+
+/** Куда открывать проект: черновик — на его шаг, сохранённая оценка — на итог, только просмотр (D-17, D-22). */
+export function projectOpenPath(project: Project): string {
+  return projectStepPath(project.id, project.status === 'draft' ? project.step : 'economics')
+}
+
+/** Старые адреса, которые перенаправляются: сохранённая оценка жила на отдельном `/result` (D-22). */
+export const LEGACY_PATHS = {
+  projectResult: '/projects/:projectId/result',
+} as const
 
 // Служебные страницы разработки, в продуктовую навигацию не входят.
 export const DEV_PATHS = {
   screens: '/dev/screens',
   tokens: '/dev/tokens',
   ui: '/dev/ui/:primitive?',
+  spike2d: '/dev/spike-2d',
 } as const

@@ -36,6 +36,16 @@ export function FormulaStatsShowcase() {
           { key: 'average', label: s.average, value: s.opsPerHour('86'), formula: s.averageFormula('2 000', '0,95', '22') },
         ]}
       />
+      <div className="w-[504px]">
+        <FormulaStats
+          layout="list"
+          label={s.label}
+          stats={[
+            { key: 'peak', label: s.peak, value: s.opsPerHour('136'), formula: s.peakFormula('2 000', '22', '1,5') },
+            { key: 'toRobots', label: s.toRobots, value: s.tripsPerHour('130'), formula: s.toRobotsFormula('136', '0,95') },
+          ]}
+        />
+      </div>
     </ShowcaseSection>
   )
 }
@@ -64,6 +74,8 @@ export function StatusBannerShowcase() {
         {/* inverse — А3 «каталог обновлён» (15966:6274). */}
         <StatusBanner variant="inverse" title={a.title} action={<Button variant="accent" className="h-40 px-20">{a.open}</Button>} />
         <StatusBanner variant="inverse" title={a.title} />
+        {/* danger — дисклеймер отчёта 09 (16197:2325, ТЗ 3.7.5). */}
+        <StatusBanner variant="danger" title={ru.project.economics.footer.disclaimer} />
       </div>
     </ShowcaseSection>
   )

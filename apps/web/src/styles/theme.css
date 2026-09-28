@@ -21,6 +21,7 @@
   --color-text-disabled: var(--rav-color-text-disabled);
   --color-inverse: var(--rav-color-inverse);
   --color-inverse-hover: var(--rav-color-inverse-hover);
+  --color-inverse-well: var(--rav-color-inverse-well);
   --color-on-inverse: var(--rav-color-on-inverse);
   --color-accent: var(--rav-color-accent);
   --color-accent-surface: var(--rav-color-accent-surface);

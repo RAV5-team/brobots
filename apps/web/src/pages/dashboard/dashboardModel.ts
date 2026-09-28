@@ -39,24 +39,16 @@ interface DashboardSources {
 const isCalculated = (project: Project): boolean => project.status === 'saved'
 
 /**
- * Найденная экономия (PRD 8.2): у каждого процесса — лучший проект, и ни один процесс не считается дважды.
- * Эффект проекта на процессы не делится, поэтому берём проекты по убыванию эффекта и пропускаем те,
- * чьи процессы уже покрыты более выгодным проектом.
+ * Найденная экономия (PRD 8.2): у каждого процесса — лучший проект, ни один процесс не считается дважды.
+ * Проект — ровно один процесс (PRD 11.1), поэтому берём наибольший эффект по каждому процессу и складываем.
  */
 export function foundSavingsRub(projects: readonly Project[]): number {
-  const withEffect = projects
-    .map((p) => ({ processIds: p.processIds, effect: p.status === 'saved' ? p.result.annualEffectRub : null }))
-    .filter((p): p is { processIds: readonly LocationProcessId[]; effect: number } => p.effect !== null)
-    .sort((a, b) => b.effect - a.effect)
-
-  const { total } = withEffect.reduce<{ covered: ReadonlySet<LocationProcessId>; total: number }>(
-    (acc, p) =>
-      p.processIds.some((id) => acc.covered.has(id))
-        ? acc
-        : { covered: new Set([...acc.covered, ...p.processIds]), total: acc.total + p.effect },
-    { covered: new Set(), total: 0 },
-  )
-  return total
+  const best = projects.reduce<ReadonlyMap<LocationProcessId, number>>((acc, p) => {
+    if (p.status !== 'saved' || p.result.annualEffectRub === null) return acc
+    const current = acc.get(p.locationProcessId)
+    return current !== undefined && current >= p.result.annualEffectRub ? acc : new Map([...acc, [p.locationProcessId, p.result.annualEffectRub]])
+  }, new Map())
+  return [...best.values()].reduce((sum, effect) => sum + effect, 0)
 }
 
 /** Всё, что показывает дашборд, из сервисов: счётчики и суммы вычисляются, а не хранятся (D-13). */

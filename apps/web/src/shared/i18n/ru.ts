@@ -1,5 +1,7 @@
-import type { DataVersion } from '@/domain'
+import type { DataVersion, ProjectStep } from '@/domain'
 import type { PluralForms } from '@/shared/format'
+import { project } from './project'
+import { report } from './report'
 import { robotNew } from './robotNew'
 
 /**
@@ -866,6 +868,8 @@ export const ru = {
 
   /** Экран А1а «Каталог · загрузка»: опрос источников по запросу (PRD 6.2). */
   robotNew,
+  project,
+  report,
 
   /** Статус значения характеристики (D-76): плашка в строке характеристики К-4, серые ячейки К-3. */
   characteristicStatus: { confirmed: 'подтверждено', estimate: 'оценка', missing: 'нет данных' },
@@ -1343,6 +1347,15 @@ export const ru = {
     formula: 'формула',
     norm: 'норматив',
     exact: 'точное значение',
+    task: 'из задачи',
+    default: 'по умолчанию',
+    /** Статусы значений шага 1 проекта (PRD 11.2). */
+    file: 'из файла',
+    specified: 'указано',
+    location: 'из локации',
+    computed: 'рассчитано',
+    preliminary: 'предварительно',
+    missing: 'нет данных',
   },
 
   entities: {
@@ -1430,18 +1443,32 @@ export const ru = {
     matching: 'Подбор',
     simulation: 'Симуляция',
     economics: 'Итог и экономика',
-  },
+  } satisfies Record<ProjectStep, string>,
 
   /** Короткие названия стадий черновика (PRD 11.1: «Параметры · Подбор · Симуляция · Итог»). */
+  /** Короткое название стадии черновика: «остановились на: Итог» (PRD 11.1). Ключи — ProjectStep. */
   projectStages: {
-    parameters: 'Параметры',
-    selection: 'Подбор',
+    params: 'Параметры',
+    matching: 'Подбор',
     simulation: 'Симуляция',
-    result: 'Итог',
+    economics: 'Итог',
+  } satisfies Record<ProjectStep, string>,
+
+  /** Заголовок шага проекта и подпись в степпере (PRD 0.9, 4 шага). Ключи — ProjectStep. */
+  projectStepTitles: {
+    params: 'Параметры проекта',
+    matching: 'Подбор решения',
+    simulation: 'Симуляция',
+    economics: 'Итог и экономика',
   },
 
   plural: {
     robots: ['робот', 'робота', 'роботов'],
+    /** Родительный падеж: «экономия 1 робота», «докупка 3 роботов». */
+    robotsOf: ['робота', 'роботов', 'роботов'],
+    stations: ['станция', 'станции', 'станций'],
+    /** Родительный падеж: «и 1 станции», «и 5 станций». */
+    stationsOf: ['станции', 'станций', 'станций'],
     /** Родительный падеж после «из»: «из 1 решения», «из 20 решений». */
     solutionsOf: ['решения', 'решений', 'решений'],
     processes: ['процесс', 'процесса', 'процессов'],
@@ -1459,10 +1486,24 @@ export const ru = {
     employees: ['сотрудник', 'сотрудника', 'сотрудников'],
     shifts: ['смена', 'смены', 'смен'],
     assumptions: ['допущение', 'допущения', 'допущений'],
+    criteria: ['критерий', 'критерия', 'критериев'],
+    /** Родительный падеж после «по»: «по 8 критериям». */
+    criteriaBy: ['критерию', 'критериям', 'критериям'],
+    rates: ['ставка', 'ставки', 'ставок'],
+    items: ['пункт', 'пункта', 'пунктов'],
   } satisfies Record<string, PluralForms>,
 
   ui: {
     close: 'Закрыть',
+    stepper: {
+      /** Номер шага для чтения с экрана: «Шаг 1. Параметры, пройден». */
+      stepPrefix: (n: number) => `Шаг ${String(n)}.`,
+      done: ', пройден',
+    },
+    numberStepper: {
+      decrease: (label: string) => `Уменьшить: ${label}`,
+      increase: (label: string) => `Увеличить: ${label}`,
+    },
     chooseFiles: 'Выбрать файлы',
     chooseFile: 'Выбрать файл',
     replaceFile: 'Заменить',
@@ -1517,6 +1558,23 @@ export const ru = {
     typeSample: 'Подбор роботов · 591 млн ₽',
     uiTitle: 'Примитивы UI',
     uiHint: 'Выберите примитив: варианты по строкам, состояния по столбцам.',
+    spike2d: {
+      title: '2D-плеер · спайк',
+      lead: 'Два записанных прогона с общим временем (07a, PRD 11.4). SVG + requestAnimationFrame; критерий — не меньше 30 кадров/с на ×1800 с двумя плеерами на 1366×768 (D-87)',
+      loading: 'Загружаем трассы прогонов…',
+      error: 'Не удалось загрузить трассы',
+      play: 'Пуск',
+      pause: 'Пауза',
+      toStart: 'В начало',
+      speed: 'Скорость воспроизведения',
+      speedOption: (x: number) => `×${String(x)}`,
+      timeline: 'Время дня',
+      measure: 'Замер: 10 с на ×1800',
+      measuring: 'Идёт замер…',
+      result: (fps: string, p95: string, long: number, frames: number) => `${fps} кадров/с · p95 кадра ${p95} мс · длинных кадров ${String(long)} из ${String(frames)}`,
+      passed: 'критерий выполнен',
+      failed: 'критерий не выполнен — нужен Canvas 2D',
+    },
     variant: 'Вариант',
     states: {
       default: 'Обычное',

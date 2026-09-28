@@ -93,7 +93,17 @@ export function TableHeaderCell({ align = 'start', tone = 'overline', className,
   return <th scope="col" className={clsx('last:pr-0', HEADER_PADDING[density], HEADER_TONE[tone], ALIGN[align], className)} {...rest} />
 }
 
-export function TableCell({ align = 'start', className, ...rest }: Omit<TdHTMLAttributes<HTMLTableCellElement>, 'align'> & { readonly align?: Align }) {
+/** violation — нарушение требования (часы 07a «Что происходило по часам»): `danger-bg` и `danger`, как ✕ в К-3. */
+export type TableCellTone = 'default' | 'violation'
+
+const CELL_TONE: Record<TableCellTone, string> = { default: 'text-text', violation: 'bg-danger-bg text-danger' }
+
+interface TableCellProps extends Omit<TdHTMLAttributes<HTMLTableCellElement>, 'align'> {
+  readonly align?: Align
+  readonly tone?: TableCellTone
+}
+
+export function TableCell({ align = 'start', tone = 'default', className, ...rest }: TableCellProps) {
   const density = use(DensityContext)
-  return <td className={clsx('type-body text-text last:pr-0', CELL_PADDING[density], ALIGN[align], className)} {...rest} />
+  return <td className={clsx('type-body last:pr-0', CELL_TONE[tone], CELL_PADDING[density], ALIGN[align], className)} {...rest} />
 }

@@ -6,6 +6,7 @@ import type { LocationService } from './locations'
 import type { ProcessService } from './processes'
 import type { ProjectService } from './projects'
 import type { SessionService } from './session'
+import type { SimulationRunService } from './simulationRuns'
 
 /**
  * Все сервисы данных. Экраны получают их только через useServices(),
@@ -17,6 +18,8 @@ export interface Services {
   readonly processes: ProcessService
   readonly locations: LocationService
   readonly projects: ProjectService
+  /** Прогоны симуляции поверх projects: живут дольше страницы (D-103). */
+  readonly simulationRuns: SimulationRunService
   readonly admin: AdminService
   readonly session: SessionService
   readonly dashboard: DashboardService
@@ -24,5 +27,6 @@ export interface Services {
 
 export type { AdminService, CatalogService, CompareService, DashboardService, LocationService, ProcessService, ProjectService, SessionService }
 export type { RobotFilter } from './catalog'
+export type { SimulationRunProgress, SimulationRunService } from './simulationRuns'
 export { InvalidCredentialsError, NotFoundError, ValidationError } from './errors'
 export type { Credentials } from './session'

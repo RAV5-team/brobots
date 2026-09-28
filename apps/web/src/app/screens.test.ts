@@ -25,7 +25,21 @@ describe('SCREENS registry', () => {
       if (s.nodeId === null) continue
       expect(s.nodeId).toMatch(/^\d+:\d+$/)
       expect(s.nodeId).not.toBe('15935:2')
+      expect(s.nodeId).not.toBe('15877:2')
     }
+  })
+
+  it('keeps the archived first-iteration project screens (12–14e) off the routes (PRD 0.9)', () => {
+    const archived = SCREENS.filter((s) => /^first-1[24][a-e]?$/.test(s.id))
+    expect(archived.length).toBeGreaterThan(0)
+    expect(archived.filter((s) => s.route !== null)).toEqual([])
+  })
+
+  it('lists four project steps (PRD 0.9) and no separate result step', () => {
+    const steps = SCREENS.filter((s) => s.series === 'pending' && s.code.startsWith('Шаг')).map((s) => [s.code, s.title])
+    expect(steps).toEqual([
+      ['Шаг 1', 'Параметры проекта'], ['Шаг 2', 'Подбор решения'], ['Шаг 3', 'Симуляция'], ['Шаг 4', 'Итог и экономика'],
+    ])
   })
 
   it('includes the clean-series screens from screens.md', () => {

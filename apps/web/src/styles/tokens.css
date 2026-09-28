@@ -25,6 +25,8 @@
   --rav-color-inverse: #111111;
   /* Наведение на тёмный элемент — на шаг светлее (D-02); значение из макета (неактивные сегменты). */
   --rav-color-inverse-hover: #3f3f3b;
+  /* Утопленная плашка внутри тёмной карточки: журнал прогона (06, 16197:1755; D-103). */
+  --rav-color-inverse-well: #242320;
   --rav-color-on-inverse: #d9f24a;
   --rav-color-accent: #d9f24a;
   --rav-color-accent-surface: #e4f33d;
@@ -126,6 +128,19 @@
   --rav-sidebar-width: 240px;
   /* Окно A2 «Новый проект» (16429:2): ширина окна и колонки таблицы-радиогруппы. */
   --rav-modal-wide-width: 640px;
+  /* Боковая панель «Как рассчитано», «Параметры расчёта» (03a, 16202:490; 16202:979): вариант Modal side. */
+  --rav-modal-side-width: 560px;
+  /* Графики (D-87): подпись и значение строки «Устойчивость ±20 %» (08, 16197:2216). */
+  --rav-chart-row-label-width: 360px;
+  --rav-chart-row-value-width: 160px;
+  /* 07a (D-105): подпись строки и ширина таблицы «Что происходило по часам» (16198:217: 214 + 24 × 34); поле 2D-плеера (16198:736). */
+  --rav-hourly-table-label-width: 214px;
+  --rav-hourly-table-min-width: 1030px;
+  --rav-player-field-height: 230px;
+  /* Отчёт 09 (16197:2318, D-15, D-107): лист 1240 с полями 100 на экране; колонка подписей таблиц «показатель — значение». */
+  --rav-report-width: 1240px;
+  --rav-report-pad: 100px;
+  --rav-report-label-width: 320px;
   --rav-new-project-area-width: 69px;
   --rav-new-project-staff-width: 68px;
   --rav-new-project-labor-width: 104px;
@@ -188,6 +203,10 @@
   --rav-multiselect-width: 280px;
   /* К-3 «Сравнение»: колонка подписей строк 300 (16642:2532); колонки решений делят остаток поровну. */
   --rav-compare-label-width: 300px;
+  /* 03 «Сравнение вариантов» в основной колонке 762: подписи 180, чтобы четыре варианта уместились (D-96). */
+  --rav-compare-label-width-compact: 180px;
+  /* 03 «Исключённые решения»: колонка названия 200 (16197:998). */
+  --rav-excluded-name-width: 200px;
   /* К-4 «Карточка решения»: строка характеристики — подпись 160, статус 128, источник 172, значение — остаток (16777:987). */
   --rav-characteristic-label-width: 160px;
   --rav-characteristic-status-width: 128px;
@@ -206,6 +225,19 @@
   --rav-projects-money-width: 116px;
   --rav-projects-payback-width: 120px;
   --rav-projects-action-width: 36px;
+
+  /*
+   * Шаг 1 «Параметры проекта» (16197:517): таблица «Уточнить перед подбором» — колонки 250 / 100 / 216 / 112.
+   * Колонка «Откуда» 112 вместо 100: плашка «допущение» с подписью источника; статус таблиц значений — 128, как у характеристик.
+   */
+  --rav-params-label-width: 250px;
+  --rav-params-status-width: 128px;
+  --rav-params-source-width: 112px;
+  --rav-params-action-width: 112px;
+
+  /* 05 «Пиковые часы» (16197:1543): ячейка часа 26; подпись ряда «Приёмка» / «Отгрузка» — 72 (в макете ряд один, D-102). */
+  --rav-hour-grid-cell-height: 26px;
+  --rav-hour-grid-label-width: 72px;
 
   /* --- Тени: неоморфные пары (blur Figma = blur CSS) --- */
   --rav-shadow-raised-sm: -2px -2px 6px rgb(255 255 255 / 0.85), 2px 2px 6px rgb(185 179 167 / 0.3);

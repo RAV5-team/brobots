@@ -3,6 +3,7 @@
 @import './theme.css';
 @import './typography.css';
 @import './states.css';
+@import './print.css';
 
 @layer base {
   body {

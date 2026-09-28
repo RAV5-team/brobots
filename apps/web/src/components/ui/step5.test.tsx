@@ -35,6 +35,26 @@ describe('Modal', () => {
     expect(dialog.querySelector('footer')).toHaveClass('pb-24')
   })
 
+  it('side panel: 560 px on the right edge, focus inside, Escape closes, the body scrolls (03a, 16202:979)', async () => {
+    render(
+      <Modal size="side" title="Как рассчитано" description="AMR 800 · RaaS" trigger={<Button>Как рассчитано</Button>} footer={<Button>Понятно</Button>}>
+        <p>Шаги расчёта</p>
+      </Modal>,
+    )
+    const trigger = screen.getByRole('button', { name: 'Как рассчитано' })
+    fireEvent.click(trigger)
+    const dialog = await screen.findByRole('dialog', { name: 'Как рассчитано' })
+    expect(dialog).toHaveClass('right-0', 'h-full', 'w-(--rav-modal-side-width)', 'rounded-l-3xl')
+    expect(dialog).toContainElement(document.activeElement as HTMLElement)
+    const body = screen.getByRole('region', { name: 'Как рассчитано' })
+    expect(body).toHaveClass('overflow-y-auto')
+    expect(body).toHaveTextContent('Шаги расчёта')
+    expect(dialog.querySelector('footer')).toHaveClass('bg-surface-muted')
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    await waitFor(() => { expect(screen.queryByRole('dialog')).not.toBeInTheDocument() })
+    expect(trigger).toHaveFocus()
+  })
+
   it('has a labelled close button', async () => {
     render(<Modal title="Окно" trigger={<Button>Открыть</Button>}><p /></Modal>)
     fireEvent.click(screen.getByRole('button', { name: 'Открыть' }))
