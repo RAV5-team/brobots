@@ -10,6 +10,7 @@ import { TextLink } from '@/components/ui/TextLink'
 import { COMPARE_LIMIT } from '@/domain'
 import { useCompare } from '@/shared/compare/useCompare'
 import { ru } from '@/shared/i18n/ru'
+import { useModelNorms } from '@/shared/norms/useModelNorms'
 import { entryName, entryRef, type CatalogEntry } from '../catalogModel'
 import { CompareColumnHead } from './CompareColumnHead'
 import { buildCompareGroups, resolveEntries, type CompareModelGroup, type CompareValue } from './compareModel'
@@ -50,11 +51,12 @@ const toTableGroups = (groups: readonly CompareModelGroup[], entries: readonly C
 
 function CompareContent({ data }: { readonly data: CompareData }) {
   const { entries: selected, toggle } = useCompare()
+  const { widthMarginM } = useModelNorms()
   const entries = resolveEntries(selected, data.robots, data.launchItems)
 
   if (entries.length === 0) return <EmptyState size="lg" title={t.empty.title} description={t.empty.description} />
 
-  const groups = buildCompareGroups(entries, { ...data, items: data.launchItems })
+  const groups = buildCompareGroups(entries, { ...data, items: data.launchItems, widthMarginM })
   return (
     <Card padding={20} gap={0}>
       <CompareTable

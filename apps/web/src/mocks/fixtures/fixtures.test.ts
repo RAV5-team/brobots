@@ -77,17 +77,17 @@ describe('fixtures: integrity', () => {
 })
 
 describe('fixtures: resolved PRD 15 discrepancies (README)', () => {
-  it('№10: the norms reference has 34 rows in 6 groups, 12 norms and 22 assumptions (PRD 6.8, D-49)', () => {
-    expect(NORMS).toHaveLength(34)
-    expect(new Set(NORMS.map((n) => n.code)).size).toBe(34)
+  it('№10: the norms reference has 34 rows of PRD 6.8 plus width_margin_m — 35 in 6 groups, 13 norms and 22 assumptions (D-49)', () => {
+    expect(NORMS).toHaveLength(35)
+    expect(new Set(NORMS.map((n) => n.code)).size).toBe(35)
     const countOf = (group: string) => NORMS.filter((n) => n.group === group).length
     expect(Object.fromEntries(NORM_GROUPS.map((group) => [group, countOf(group)]))).toEqual({
-      staff: 3, fleet: 5, capex: 7, opex: 7, finance: 8, interpretation: 4,
+      staff: 3, fleet: 6, capex: 7, opex: 7, finance: 8, interpretation: 4,
     })
-    expect(NORMS.filter((n) => n.kind === 'norm')).toHaveLength(12)
+    expect(NORMS.filter((n) => n.kind === 'norm')).toHaveLength(13)
   })
 
-  it('№10: the norms source on А6 counts the same 34 rows as А5', () => {
+  it('№10: the norms source on А6 counts the same rows as А5', () => {
     const norms = DATA_SOURCES.find((s) => s.kind === 'norms')
     expect(norms?.provides).toBe(formatCount(NORMS.length, ru.plural.norms))
   })

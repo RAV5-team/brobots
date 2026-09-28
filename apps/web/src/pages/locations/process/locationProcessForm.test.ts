@@ -21,7 +21,7 @@ const parameters = FACILITY_PARAMETERS.filter((p) => p.facilityType === 'warehou
 const lp01 = find(LOCATION_PROCESSES, (lp) => lp.id === 'LP-01')
 
 function forms(process: Process, lp: LocationProcess, location: Location = khimki) {
-  const ctx = { defaults: PROCESS_TEMPLATE_DEFAULTS, process, location, parameters, operationClass: OPERATION_CLASSES.find((c) => c.code === process.operationClass) }
+  const ctx = { defaults: { ...PROCESS_TEMPLATE_DEFAULTS, widthMarginM: 0.6 }, process, location, parameters, operationClass: OPERATION_CLASSES.find((c) => c.code === process.operationClass) }
   const site = siteValues(ctx)
   return { site: formOf(site, ctx), copy: formOf(copyValues(site, lp), ctx) }
 }

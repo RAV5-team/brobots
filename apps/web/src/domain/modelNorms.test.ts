@@ -17,7 +17,7 @@ describe('нормативы А5 в расчётах (аудит 2026-09-28, §3
       return n
     })
     const norms = modelNormsFrom(edited)
-    expect(norms).toEqual({ payrollTaxRatio: 1.5, sensitivityShift: 0.1, simulationTolerance: 0.15, horizonYears: 7 })
+    expect(norms).toEqual({ payrollTaxRatio: 1.5, sensitivityShift: 0.1, simulationTolerance: 0.15, horizonYears: 7, widthMarginM: 0.6 })
     expect(staffEquivalent(18_000_000, 100_000, norms.payrollTaxRatio)).toBe(10)
   })
 

@@ -11,7 +11,7 @@ import { carrierOptions, numericHints, templateCheck } from './processNewModel'
 import { staffStats, volumeStats } from './processStats'
 
 const WAREHOUSE = FACILITY_PARAMETERS.filter((p) => p.facilityType === 'warehouse')
-const demo = (): ProcessForm => buildInitialForm(WAREHOUSE, PROCESS_TEMPLATE_DEFAULTS, PROCESS_DEMO_TEXT)
+const demo = (): ProcessForm => buildInitialForm(WAREHOUSE, { ...PROCESS_TEMPLATE_DEFAULTS, widthMarginM: 0.6 }, PROCESS_DEMO_TEXT)
 const nbsp = (text: string) => text.replace(/[\u00a0\u202f]/g, ' ')
 
 describe('parseDecimal', () => {
@@ -164,7 +164,7 @@ describe('form options and hints', () => {
 
 describe('начальная форма без демо-режима (аудит 2026-09-28, §6)', () => {
   it('тексты примера пустые, значения датасета и по умолчанию — те же', () => {
-    const plain = buildInitialForm(WAREHOUSE, PROCESS_TEMPLATE_DEFAULTS, null)
+    const plain = buildInitialForm(WAREHOUSE, { ...PROCESS_TEMPLATE_DEFAULTS, widthMarginM: 0.6 }, null)
     expect([plain.name, plain.carrier, plain.route]).toEqual(['', '', ''])
     expect({ ...plain, name: '', carrier: '', route: '' }).toEqual({ ...demo(), name: '', carrier: '', route: '' })
   })

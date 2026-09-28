@@ -2,7 +2,8 @@
 // Коэффициенты без норматива (PRD 15 · №22) — здесь, пока их нет в справочнике нормативов А5.
 import type { ProcessDemoText, ProcessTemplateDefaults } from '@/domain'
 
-export const PROCESS_TEMPLATE_DEFAULTS: ProcessTemplateDefaults = {
+/** Запас по ширине прохода сюда не входит: его значение — норматив А5 `width_margin_m` (`norms.ts`). */
+export const PROCESS_TEMPLATE_DEFAULTS: Omit<ProcessTemplateDefaults, 'widthMarginM'> = {
   /** Вилы и платформа — из PR-0001, остальные — подсказка секции 4 макета. */
   replacement: {
     forks: 0.8,
@@ -13,7 +14,6 @@ export const PROCESS_TEMPLATE_DEFAULTS: ProcessTemplateDefaults = {
     brushes: 0.7,
   },
   speedLimitMps: 1.5,
-  widthMarginM: 0.6,
   liftTripPct: 0,
   liftWaitS: 0,
   minTempC: 5,

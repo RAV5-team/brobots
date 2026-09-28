@@ -18,7 +18,7 @@ const entries = resolveEntries(
   [{ kind: 'robot', id: 'RB-0007' }, { kind: 'robot', id: 'RB-0008' }, { kind: 'launch-item', id: 'SI-SW-01' }],
   ROBOTS, LAUNCH_ITEMS,
 )
-const CTX = { items: LAUNCH_ITEMS, robots: ROBOTS, operationClasses: OPERATION_CLASSES, processes: PROCESSES, facilityTypes: FACILITY_TYPES, catalogVersion: 'v4' }
+const CTX = { items: LAUNCH_ITEMS, robots: ROBOTS, operationClasses: OPERATION_CLASSES, processes: PROCESSES, facilityTypes: FACILITY_TYPES, catalogVersion: 'v4', widthMarginM: 0.6 }
 const withLocation = buildCompareGroups(entries, { ...CTX, location: HIMKI })
 
 describe('compareModel (К-3, PRD 7.6)', () => {
@@ -61,18 +61,18 @@ describe('compareModel (К-3, PRD 7.6)', () => {
   })
 
   it('checks cargo against the pallet mass of РЦ Химки: 800 kg (PRD 7.6)', () => {
-    expect(siteFit(robot('AMR 100'), HIMKI).cargo).toEqual({ kind: 'fit', status: 'misfit', text: 'груз: 800 > 100 кг' })
-    expect(siteFit(robot('AMR 800'), HIMKI).cargo).toEqual({ kind: 'fit', status: 'fit', text: 'груз: 800 ≤ 800 кг' })
-    expect(siteFit(robot('AS-RS P'), HIMKI).cargo.kind === 'fit' && siteFit(robot('AS-RS P'), HIMKI).cargo).toMatchObject({ status: 'unknown' })
+    expect(siteFit(robot('AMR 100'), HIMKI, 0.6).cargo).toEqual({ kind: 'fit', status: 'misfit', text: 'груз: 800 > 100 кг' })
+    expect(siteFit(robot('AMR 800'), HIMKI, 0.6).cargo).toEqual({ kind: 'fit', status: 'fit', text: 'груз: 800 ≤ 800 кг' })
+    expect(siteFit(robot('AS-RS P'), HIMKI, 0.6).cargo.kind === 'fit' && siteFit(robot('AS-RS P'), HIMKI, 0.6).cargo).toMatchObject({ status: 'unknown' })
   })
 
   it('checks the aisle with a 0.5 m clearance and leaves temperature and floor load unknown (D-75)', () => {
-    const fit = siteFit(robot('AMR 800'), HIMKI)
+    const fit = siteFit(robot('AMR 800'), HIMKI, 0.6)
     expect(fit.aisles).toEqual({ kind: 'fit', status: 'fit', text: 'проход 2,8 м, робот 0,64 м' })
-    expect(siteFit(robot('DMR Carrier P'), HIMKI).aisles).toMatchObject({ status: 'fit' })
+    expect(siteFit(robot('DMR Carrier P'), HIMKI, 0.6).aisles).toMatchObject({ status: 'fit' })
     const wide: Robot = { ...robot('EVOCARGO N1'), specs: { ...robot('EVOCARGO N1').specs, widthMm: 2400 } }
-    expect(siteFit(wide, HIMKI).aisles).toEqual({ kind: 'fit', status: 'misfit', text: 'проход 2,8 м узок для робота 2,4 м' })
-    expect(siteFit(robot('AMR 100'), HIMKI).aisles).toMatchObject({ status: 'unknown', text: 'требование к проходу не указано' })
+    expect(siteFit(wide, HIMKI, 0.6).aisles).toEqual({ kind: 'fit', status: 'misfit', text: 'проход 2,8 м узок для робота 2,4 м' })
+    expect(siteFit(robot('AMR 100'), HIMKI, 0.6).aisles).toMatchObject({ status: 'unknown', text: 'требование к проходу не указано' })
     expect(fit.temperature).toMatchObject({ status: 'unknown' })
     expect(fit.floorLoad).toMatchObject({ status: 'unknown', text: 'допустимая нагрузка на пол' })
     expect(valueText(cell(withLocation, 'cargo', 2))).toBe('не применимо')

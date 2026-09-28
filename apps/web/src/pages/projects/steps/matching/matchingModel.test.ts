@@ -56,7 +56,7 @@ describe('рейтинг подбора (PRD 11.3)', () => {
       return conditionValue(condition)
     }
     expect(value('payload')).toBe('≥ 800 кг')
-    expect(value('aisle_width')).toBe('≤ 2,5 м')
+    expect(value('aisle_width')).toBe('≤ 2,2 м')
     expect(value('handling')).toBe('вилы / платформа')
   })
 

@@ -10,6 +10,7 @@ import {
   emptyInputs,
   furthestStep,
   markFresh,
+  modelNormsFrom,
   type DraftProject,
   type Fleet,
   type MatchingEvaluation,
@@ -23,6 +24,7 @@ import {
 import { FACILITY_PARAMETERS } from '@/mocks/fixtures/facilityParameters'
 import { LOCATION_PROCESSES } from '@/mocks/fixtures/locationProcesses'
 import { LOCATIONS } from '@/mocks/fixtures/locations'
+import { NORMS } from '@/mocks/fixtures/norms'
 import { HANDLING_METHODS, OPERATION_CLASSES } from '@/mocks/fixtures/operationClasses'
 import { PROCESSES } from '@/mocks/fixtures/processes'
 import { ROBOTS } from '@/mocks/fixtures/robots'
@@ -142,6 +144,7 @@ function paramsSnapshot(dto: ProjectDto): ProjectParamsSnapshot {
     processes: processesOf(location.id),
     handlingMethods: HANDLING_METHODS,
     pinnedSolution: pinned ? { id: pinned.id, name: pinned.name } : null,
+    widthMarginM: modelNormsFrom(NORMS).widthMarginM,
   }
 }
 

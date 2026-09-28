@@ -1,4 +1,5 @@
-import type { Process, ProcessCode, ProcessRequirements } from '@/domain'
+import { modelNormsFrom, type Process, type ProcessCode, type ProcessRequirements } from '@/domain'
+import { NORMS } from '@/mocks/fixtures/norms'
 import { ENVIRONMENT_REQUIREMENTS, REQUIREMENTS_FROM_MOCKUP } from '@/mocks/fixtures/processRequirements'
 import { PROCESS_DEMO_TEXT, PROCESS_TEMPLATE_DEFAULTS } from '@/mocks/fixtures/processTemplateDefaults'
 import { PROCESSES } from '@/mocks/fixtures/processes'
@@ -38,7 +39,8 @@ export function createMockProcesses(options: MockOptions): ProcessService {
       library = [...library, created]
       return respond(created, options)
     },
-    getTemplateDefaults: () => respond(PROCESS_TEMPLATE_DEFAULTS, options),
+    // Запас по ширине — из справочника нормативов: одно определение для формы 09а, шага 1 и сравнения каталога.
+    getTemplateDefaults: () => respond({ ...PROCESS_TEMPLATE_DEFAULTS, widthMarginM: modelNormsFrom(NORMS).widthMarginM }, options),
     getDemoText: () => respond(PROCESS_DEMO_TEXT, options),
     getRequirements: (code) => {
       const process = library.find((p) => p.code === code)

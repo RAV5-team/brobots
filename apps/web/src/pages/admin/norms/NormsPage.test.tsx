@@ -33,19 +33,19 @@ describe('NormsPage (экран А5)', () => {
     expect(within(tabs).getByRole('link', { name: 'Нормативы и допущения' })).toHaveAttribute('aria-current', 'page')
   })
 
-  it('lists 34 values in 6 groups with kind, unit and source (PRD 6.8)', async () => {
+  it('lists 35 values in 6 groups with kind, unit and source (PRD 6.8)', async () => {
     renderPage()
     const rows = await bodyRows()
-    expect(rows).toHaveLength(34)
+    expect(rows).toHaveLength(35)
     const first = within(rows[0] as HTMLElement)
     expect(first.getByText('Коэффициент начислений на ФОТ (страховые взносы)')).toBeInTheDocument()
     expect(first.getByText('Персонал')).toBeInTheDocument()
     expect(first.getByText('норматив')).toBeInTheDocument()
     expect(first.getByRole('textbox')).toHaveValue('1,302')
     expect(first.getByText('коэф.')).toBeInTheDocument()
-    expect(screen.getAllByText('норматив')).toHaveLength(12)
+    expect(screen.getAllByText('норматив')).toHaveLength(13)
     expect(screen.getAllByText('допущение')).toHaveLength(22)
-    expect(within(rows[33] as HTMLElement).getByRole('textbox')).toHaveValue('±10')
+    expect(within(rows[34] as HTMLElement).getByRole('textbox')).toHaveValue('±10')
   })
 
   it('shows no save bar until a value changes', async () => {
@@ -110,7 +110,7 @@ describe('NormsPage (экран А5)', () => {
     renderPage('?as=admin', services)
     fireEvent.click(await screen.findByRole('button', { name: 'Повторить' }))
     await waitFor(() => { expect(list).toHaveBeenCalledTimes(2) })
-    expect(await bodyRows()).toHaveLength(34)
+    expect(await bodyRows()).toHaveLength(35)
   })
 
   it('is closed to a user (PRD 5.3)', () => {

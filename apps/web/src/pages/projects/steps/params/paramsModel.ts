@@ -22,8 +22,6 @@ const t = ru.project.params
 const NO_ROUTE_CLASSES: readonly OperationClassCode[] = ['OP-05']
 /** Инвентаризация: без частоты пересчёта не посчитать парк — подбор недоступен (PRD 11.2). */
 const INVENTORY_CLASS: OperationClassCode = 'OP-06'
-/** Запас по ширине, когда в шаблоне процесса его нет: норматив модели прототипа (PRD 11.2; PRD 15 · №128). */
-const DEFAULT_WIDTH_MARGIN_M = 0.5
 const DAYS_PER_MONTH = 30
 
 /** Строка значения: подпись, значение и статус; `anchor` — цель кнопки «↓» у незаполненного значения. */
@@ -178,7 +176,7 @@ function assumptionBases(entry: ParamsProcessEntry, snapshot: ProjectParamsSnaps
     ...(route && defaults.routeLengthM !== undefined ? { route_length_m: defaults.routeLengthM } : {}),
     ...(staff ? { operator_time_share_pct: staff.timeShare * 100 } : {}),
     peak_factor: locationNumber(snapshot, 'wh_peak_factor') ?? defaults.peakFactor ?? 1,
-    ...(route ? { width_margin_m: entry.process.template?.widthMarginM ?? DEFAULT_WIDTH_MARGIN_M } : {}),
+    ...(route ? { width_margin_m: entry.process.template?.widthMarginM ?? snapshot.widthMarginM } : {}),
   }
 }
 
