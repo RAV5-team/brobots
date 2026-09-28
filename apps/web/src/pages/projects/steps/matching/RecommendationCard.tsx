@@ -8,7 +8,7 @@ import { TextLink } from '@/components/ui/TextLink'
 import { specsCompleteness, type MatchBaseline, type RankedVariant, type Robot } from '@/domain'
 import { formatCount, formatPercent, formatRub, formatRubCompact, formatYears } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
-import { StatTile } from '../StatTile'
+import { StatTile } from '@/components/ui/StatTile'
 import { contributionsText, formatScore, solutionLine } from './matchingModel'
 
 const t = ru.project.matching

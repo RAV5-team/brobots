@@ -3,6 +3,7 @@ import { useMemo, useState, type SyntheticEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { ROUTE_PATHS } from '@/app/routePaths'
 import { Chip } from '@/components/ui/Chip'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { ErrorState, Skeleton } from '@/components/ui/States'
 import { TextLink } from '@/components/ui/TextLink'
 import { nextRobotId } from '@/domain'
@@ -99,10 +100,7 @@ function RobotNewForm({ data }: { readonly data: RobotNewData }) {
         <TextLink to={ROUTE_PATHS.adminCatalog} icon={ArrowLeft}>{t.back}</TextLink>
         {savedAt && <Chip tone="muted" size="md"><span role="status">{t.draftSaved(formatTime(savedAt.toISOString()))}</span></Chip>}
       </div>
-      <header className="flex flex-col gap-8">
-        <h1 className="type-display-lg text-text">{t.title}</h1>
-        <p className="type-body text-text-secondary">{t.lead}</p>
-      </header>
+      <PageHeader title={t.title} lead={t.lead} gap={8} />
       <div className="flex items-start gap-24">
         <div className="flex min-w-0 flex-1 flex-col gap-20">
           <MainSection {...sectionProps} solutionTypes={solutionTypes} />

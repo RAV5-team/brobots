@@ -1,6 +1,7 @@
 import { ArrowLeft } from 'lucide-react'
 import { DemoBanner } from '@/components/shell/DemoBanner'
 import { Chip } from '@/components/ui/Chip'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { SectionNav } from '@/components/ui/SectionNav'
 import type { SelectOption } from '@/components/ui/Select'
 import { TextLink } from '@/components/ui/TextLink'
@@ -49,10 +50,7 @@ export function ProcessFormLayout({ back, title, lead, state, canSave, hints, ra
           ? savedAt && <Chip tone="muted" size="md"><span role="status">{t.draftSaved(formatTime(savedAt.toISOString()))}</span></Chip>
           : <DemoBanner />}
       </div>
-      <header className="flex flex-col gap-8">
-        <h1 className="type-display-lg text-text">{title}</h1>
-        <p className="type-body text-text-secondary">{lead}</p>
-      </header>
+      <PageHeader title={title} lead={lead} gap={8} />
       <div className="flex items-start gap-24">
         <div className="flex min-w-0 flex-1 flex-col gap-20">
           <div className="sticky top-16 z-10">

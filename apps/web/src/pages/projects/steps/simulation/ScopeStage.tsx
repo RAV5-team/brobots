@@ -5,7 +5,7 @@ import { NumberStepper } from '@/components/ui/NumberStepper'
 import type { Fleet, RankedVariant } from '@/domain'
 import { formatCount, formatNumber, formatPercent, formatRubCompact, formatYears } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
-import { StatTile } from '../StatTile'
+import { StatTile } from '@/components/ui/StatTile'
 import { FLEET_LIMITS, robotsPerStation, type CalcRow } from './simulationModel'
 
 const s = ru.project.simulation

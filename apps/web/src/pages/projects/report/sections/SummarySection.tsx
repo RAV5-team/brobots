@@ -1,5 +1,5 @@
 import { ru } from '@/shared/i18n/ru'
-import { StatTile } from '../../steps/StatTile'
+import { StatTile } from '@/components/ui/StatTile'
 import { summaryLine, tiles } from '../../steps/economics/economicsView'
 import { abstractText, summaryRows, tcoLine, type ReportContext } from '../reportModel'
 import { FactTable, ReportSection } from '../ReportSection'

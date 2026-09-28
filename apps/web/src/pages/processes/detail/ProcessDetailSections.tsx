@@ -1,6 +1,7 @@
 import { ArrowRight } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Chip } from '@/components/ui/Chip'
+import { StatTile } from '@/components/ui/StatTile'
 import type { OperationClass, Process } from '@/domain'
 import { ru } from '@/shared/i18n/ru'
 import { rateUnit } from '../processesModel'
@@ -9,22 +10,6 @@ import { processRequirements, type Requirement, type RequirementGroupKey } from 
 
 const t = ru.processCard
 const GROUPS: readonly RequirementGroupKey[] = ['required', 'desirable', 'environment']
-
-interface FactProps {
-  readonly label: string
-  readonly value: string
-  readonly grow?: boolean
-}
-
-/** Плашка «подпись — значение» на утопленном фоне (15935:1393). */
-function Fact({ label, value, grow = false }: FactProps) {
-  return (
-    <div className={grow ? 'flex min-w-0 flex-1 flex-col gap-4 rounded-md bg-surface-sunken p-12' : 'flex shrink-0 flex-col gap-4 rounded-md bg-surface-sunken p-12'}>
-      <dt className="type-caption text-text-secondary">{label}</dt>
-      <dd className="type-heading text-text">{value}</dd>
-    </div>
-  )
-}
 
 interface AutomationSectionProps {
   readonly process: Process
@@ -39,10 +24,10 @@ export function AutomationSection({ process, operationClass, facilities }: Autom
     <Card aria-labelledby="automation-title">
       <h2 id="automation-title" className="type-overline text-text-muted">{t.automation.title}</h2>
       <dl className="flex items-stretch gap-8">
-        <Fact label={t.automation.carrier} value={capitalize(process.defaults.carrier ?? t.requirements.noUnit)} />
-        <Fact label={t.automation.operationClass} value={ru.processes.classOption(process.operationClass, operationClass?.name ?? '')} />
-        <Fact label={t.automation.kpi} value={rateUnit(process)} />
-        <Fact label={t.automation.facilities} value={facilities.join(', ')} grow />
+        <StatTile as="term" size="md" className="shrink-0" label={t.automation.carrier} value={capitalize(process.defaults.carrier ?? t.requirements.noUnit)} />
+        <StatTile as="term" size="md" className="shrink-0" label={t.automation.operationClass} value={ru.processes.classOption(process.operationClass, operationClass?.name ?? '')} />
+        <StatTile as="term" size="md" className="shrink-0" label={t.automation.kpi} value={rateUnit(process)} />
+        <StatTile as="term" size="md" className="min-w-0 flex-1" label={t.automation.facilities} value={facilities.join(', ')} />
       </dl>
       {segments.length > 0 && (
         <>

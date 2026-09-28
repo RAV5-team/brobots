@@ -9,6 +9,7 @@ import { CharacteristicRowShowcase, ChipListShowcase, CompareTableShowcase, Mult
 import { FormulaStatsShowcase, SectionNavShowcase, StatusBannerShowcase, TabNavShowcase, TextLinkShowcase } from './navigationAndStatusShowcases'
 import { FieldGridShowcase, HourGridShowcase, NumberStepperShowcase, StepperShowcase } from './projectFormShowcases'
 import { ChartsShowcase } from './chartShowcases'
+import { PageHeaderShowcase, StatTileShowcase, WellShowcase } from './tileShowcases'
 
 export interface Showcase {
   readonly slug: string
@@ -34,6 +35,9 @@ export const SHOWCASES: readonly Showcase[] = [
   { slug: 'chip-list', title: 'ChipList · MoreChip', Component: ChipListShowcase },
   { slug: 'badge', title: 'Badge · Pill', Component: BadgeShowcase },
   { slug: 'card', title: 'Card', Component: CardShowcase },
+  { slug: 'stat-tile', title: 'StatTile', Component: StatTileShowcase },
+  { slug: 'well', title: 'Well', Component: WellShowcase },
+  { slug: 'page-header', title: 'PageHeader', Component: PageHeaderShowcase },
   { slug: 'section-header', title: 'Section header', Component: SectionHeaderShowcase },
   { slug: 'table', title: 'Table', Component: TableShowcase },
   { slug: 'compare-table', title: 'CompareTable · FitCell', Component: CompareTableShowcase },
