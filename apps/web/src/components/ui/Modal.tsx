@@ -13,9 +13,9 @@ export type ModalSize = 'md' | 'form' | 'sm' | 'wide' | 'side'
 // side — боковая панель справа на всю высоту (03a, 16202:979): 560, левые углы 32; шапка px28 pt24 pb12,
 // тело прокручивается px28 pb20, подвал на `surface-muted` px28 pt16 pb24.
 const SIZES: Record<ModalSize, { readonly content: string; readonly header: string; readonly footer: string }> = {
-  md: { content: 'w-[620px] gap-16 p-28', header: 'gap-12', footer: 'pt-16' },
-  form: { content: 'w-[620px] gap-16 p-28', header: 'gap-12', footer: 'pt-16 pb-24' },
-  sm: { content: 'w-[560px] gap-20 p-32', header: 'gap-16', footer: 'pt-16 pb-24' },
+  md: { content: 'w-(--rav-modal-md-width) gap-16 p-28', header: 'gap-12', footer: 'pt-16' },
+  form: { content: 'w-(--rav-modal-md-width) gap-16 p-28', header: 'gap-12', footer: 'pt-16 pb-24' },
+  sm: { content: 'w-(--rav-modal-sm-width) gap-20 p-32', header: 'gap-16', footer: 'pt-16 pb-24' },
   wide: { content: 'w-(--rav-modal-wide-width) gap-20 p-32', header: 'gap-16', footer: '' },
   side: { content: 'w-(--rav-modal-side-width)', header: 'gap-12 px-28 pt-24 pb-12', footer: 'bg-surface-muted px-28 pt-16 pb-24' },
 }

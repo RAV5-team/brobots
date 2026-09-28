@@ -51,7 +51,7 @@ export function FileInput({ kind, label, file, onChange, onReject, disabled = fa
       className={clsx(
         'flex h-44 w-full items-center gap-8 rounded-full px-20 transition-colors',
         'has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-(--rav-focus-ring-color)',
-        invalid ? 'border-[1.5px] border-danger-border bg-danger-bg shadow-inset-sm' : 'bg-surface-muted shadow-inset-sm',
+        invalid ? 'border-(length:--rav-border-width-control) border-danger-border bg-danger-bg shadow-inset-sm' : 'bg-surface-muted shadow-inset-sm',
         disabled && 'cursor-not-allowed opacity-(--rav-disabled-opacity)',
       )}
     >

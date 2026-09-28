@@ -54,7 +54,7 @@ export function Select<T extends string>({
           // У фильтра подсказка — это его подпись («Класс операции», 15935:293): тем же цветом и весом, что выбранное значение.
           variant === 'field' && 'data-placeholder:font-normal data-placeholder:text-text-muted',
           TRIGGER[variant],
-          field?.invalid && 'border-[1.5px] border-danger-border bg-danger-bg',
+          field?.invalid && 'border-(length:--rav-border-width-control) border-danger-border bg-danger-bg',
         )}
       >
         <RadixSelect.Value placeholder={placeholder} />

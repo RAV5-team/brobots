@@ -130,7 +130,7 @@ function CatalogPanel({ query, onQueryChange, state, retry }: {
         <MergedButtonLink to={ROUTE_PATHS.adminCatalogNew} label={t.add} icon={Plus} />
       </div>
       {state.status === 'loading' && (
-        <SkeletonList rows={SKELETON_ROWS} rowClassName="h-64" />
+        <SkeletonList rows={SKELETON_ROWS} rowClassName="h-(--rav-admin-catalog-skeleton-height)" />
       )}
       {state.status === 'error' && <ErrorState title={t.error.title} message={t.error.message} onRetry={retry} />}
       {state.status === 'ready' && <CatalogResults rows={state.rows} query={query} />}

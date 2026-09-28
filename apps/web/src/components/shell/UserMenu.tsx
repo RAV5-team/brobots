@@ -47,7 +47,7 @@ export function UserMenu({ profile, dataVersion }: UserMenuProps) {
       {open && (
         <div
           id={panelId}
-          className="absolute bottom-[calc(100%-var(--rav-space-4))] left-8 z-10 w-[300px] rounded-xl bg-bg py-8 shadow-raised-lg"
+          className="absolute bottom-[calc(100%-var(--rav-space-4))] left-8 z-10 w-(--rav-user-menu-width) rounded-xl bg-bg py-8 shadow-raised-lg"
         >
           {profile.role === 'guest' ? (
             <GuestMenu onNavigate={close} />
