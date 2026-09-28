@@ -36,6 +36,16 @@ export function FormulaStatsShowcase() {
           { key: 'average', label: s.average, value: s.opsPerHour('86'), formula: s.averageFormula('2 000', '0,95', '22') },
         ]}
       />
+      <div className="w-[504px]">
+        <FormulaStats
+          layout="list"
+          label={s.label}
+          stats={[
+            { key: 'peak', label: s.peak, value: s.opsPerHour('136'), formula: s.peakFormula('2 000', '22', '1,5') },
+            { key: 'toRobots', label: s.toRobots, value: s.tripsPerHour('130'), formula: s.toRobotsFormula('136', '0,95') },
+          ]}
+        />
+      </div>
     </ShowcaseSection>
   )
 }

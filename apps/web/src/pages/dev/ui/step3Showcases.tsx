@@ -65,6 +65,8 @@ export function BadgeShowcase() {
         <Badge kind="formula" />
         <Badge kind="norm" />
         <Badge kind="exact" />
+        <Badge kind="task" />
+        <Badge kind="default" />
       </div>
       <div className="flex flex-wrap gap-8">
         <Badge variant="pill" kind="norm" className="w-(--rav-norms-pill-width)" />

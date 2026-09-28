@@ -78,14 +78,24 @@ interface KpiCardProps {
   readonly label: string
   readonly value: ReactNode
   readonly caption?: ReactNode
+  /** Слот «было»: «было 64,2 ₽» (выбранный вариант подбора, 03). */
+  readonly previous?: ReactNode
+  /** Слот изменения: «−20 %». */
+  readonly change?: ReactNode
 }
 
-/** Показатель дашборда: подпись, крупное значение, пояснение (экран 06, 15935:122). */
-export function KpiCard({ label, value, caption }: KpiCardProps) {
+/** Показатель: подпись, крупное значение, «было → изменение», пояснение (экран 06, 15935:122; 03 — выбранный вариант). */
+export function KpiCard({ label, value, caption, previous, change }: KpiCardProps) {
   return (
     <Card as="article" variant="tile">
       <h3 className="type-overline text-text-muted">{label}</h3>
       <p className="type-display-lg text-text">{value}</p>
+      {(previous !== undefined || change !== undefined) && (
+        <p className="flex flex-wrap items-baseline gap-x-8 type-caption text-text-secondary">
+          {previous}
+          {change !== undefined && <span className="font-semibold text-text">{change}</span>}
+        </p>
+      )}
       {caption && <p className="type-caption text-text-secondary">{caption}</p>}
     </Card>
   )

@@ -1,5 +1,6 @@
 import type { DataVersion, ProjectStep } from '@/domain'
 import type { PluralForms } from '@/shared/format'
+import { project } from './project'
 import { robotNew } from './robotNew'
 
 /**
@@ -866,6 +867,7 @@ export const ru = {
 
   /** Экран А1а «Каталог · загрузка»: опрос источников по запросу (PRD 6.2). */
   robotNew,
+  project,
 
   /** Статус значения характеристики (D-76): плашка в строке характеристики К-4, серые ячейки К-3. */
   characteristicStatus: { confirmed: 'подтверждено', estimate: 'оценка', missing: 'нет данных' },
@@ -1343,6 +1345,8 @@ export const ru = {
     formula: 'формула',
     norm: 'норматив',
     exact: 'точное значение',
+    task: 'из задачи',
+    default: 'по умолчанию',
   },
 
   entities: {
@@ -1472,6 +1476,15 @@ export const ru = {
 
   ui: {
     close: 'Закрыть',
+    stepper: {
+      /** Номер шага для чтения с экрана: «Шаг 1. Параметры, пройден». */
+      stepPrefix: (n: number) => `Шаг ${String(n)}.`,
+      done: ', пройден',
+    },
+    numberStepper: {
+      decrease: (label: string) => `Уменьшить: ${label}`,
+      increase: (label: string) => `Увеличить: ${label}`,
+    },
     chooseFiles: 'Выбрать файлы',
     chooseFile: 'Выбрать файл',
     replaceFile: 'Заменить',

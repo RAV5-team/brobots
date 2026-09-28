@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/Button'
 import { Dropzone } from '@/components/ui/Dropzone'
 import { Field } from '@/components/ui/Field'
 import { FileInput } from '@/components/ui/FileInput'
+import { FormulaStats } from '@/components/ui/FormulaStats'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
@@ -13,6 +14,8 @@ import { ShowcaseSection, StateGrid } from './StateGrid'
 const s = ru.dev.samples
 const r = ru.location.removeProcess
 const ignore = () => undefined
+const pm = ru.project.matching
+const vs = ru.processNew.volumeStats
 
 export function ModalShowcase() {
   return (
@@ -36,6 +39,26 @@ export function ModalShowcase() {
         trigger={<Button className="self-start">{s.openConfirm}</Button>}
         footer={<><Button className="px-20">{r.cancel}</Button><Button variant="danger" className="px-20">{r.confirm}</Button></>}
       />
+      <Modal
+        size="side"
+        title={pm.howCalculated}
+        description={pm.howCalculatedLead('AMR 800 · RaaS', ru.processNew.volumeStats.label)}
+        trigger={<Button className="self-start">{pm.howCalculated}</Button>}
+        footer={<><Button className="px-20">{pm.formulasAndSources}</Button><Button variant="primary" className="px-20">{pm.understood}</Button></>}
+      >
+        {Array.from({ length: 4 }, (_, i) => (
+          <FormulaStats
+            key={i}
+            layout="list"
+            label={pm.fleetStep}
+            stats={[
+              { key: 'peak', label: vs.peak, value: vs.opsPerHour('136'), formula: vs.peakFormula('2 000', '22', '1,5') },
+              { key: 'toRobots', label: vs.toRobots, value: vs.tripsPerHour('130'), formula: vs.toRobotsFormula('136', '0,95') },
+              { key: 'average', label: vs.average, value: vs.opsPerHour('86'), formula: vs.averageFormula('2 000', '0,95', '22') },
+            ]}
+          />
+        ))}
+      </Modal>
     </ShowcaseSection>
   )
 }

@@ -123,3 +123,17 @@ describe('formatFileSize', () => {
     expect(formatFileSize(10)).toBe('1 КБ')
   })
 })
+
+describe('signed — изменение со знаком (дельта состава, «было → стало»)', () => {
+  it('знак у ненулевого значения, минус типографский', () => {
+    expect(formatNumber(-2, 0, { signed: true })).toBe('−2')
+    expect(formatNumber(3, 0, { signed: true })).toBe('+3')
+    expect(formatNumber(0, 0, { signed: true })).toBe('0')
+    expect(formatPercent(-0.18, 0, { signed: true })).toBe('−18 %')
+  })
+
+  it('без signed — как раньше', () => {
+    expect(formatNumber(-2)).toBe('-2')
+    expect(formatPercent(0.95)).toBe('95 %')
+  })
+})

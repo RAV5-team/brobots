@@ -126,6 +126,8 @@
   --rav-sidebar-width: 240px;
   /* Окно A2 «Новый проект» (16429:2): ширина окна и колонки таблицы-радиогруппы. */
   --rav-modal-wide-width: 640px;
+  /* Боковая панель «Как рассчитано», «Параметры расчёта» (03a, 16202:490; 16202:979): вариант Modal side. */
+  --rav-modal-side-width: 560px;
   --rav-new-project-area-width: 69px;
   --rav-new-project-staff-width: 68px;
   --rav-new-project-labor-width: 104px;
