@@ -3,6 +3,8 @@ import type { Role } from './readyScreens'
 
 /** Дата «сегодня» в тестах — день сквозного примера PRD 11 (расчёт 26.09.2026). */
 export const FIXED_NOW = new Date('2026-09-26T12:00:00+03:00')
+/** pauseAt двигает часы только вперёд: ставим их чуть раньше FIXED_NOW. */
+const CLOCK_LEAD_MS = 1000
 
 /** Адрес с ролью: `?as=` работает в dev-сборке (D-24). */
 export function withRole(path: string, role: Role): string {
@@ -34,7 +36,10 @@ export async function openAs(page: Page, path: string, role: Role, options: Scre
     await page.clock.setFixedTime(FIXED_NOW)
     await page.goto(withRole(path, role))
   } else {
-    await page.clock.install({ time: FIXED_NOW })
+    // install() подменяет таймеры, но часы идут вместе с реальным временем; pauseAt останавливает их —
+    // дальше время двигает только runFor, и медленная машина не успевает «дожить» до следующего опроса.
+    await page.clock.install({ time: FIXED_NOW.getTime() - CLOCK_LEAD_MS })
+    await page.clock.pauseAt(FIXED_NOW)
     await page.goto(withRole(path, role))
     await page.clock.runFor(options.frozenAfterMs)
   }

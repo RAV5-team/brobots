@@ -20,3 +20,13 @@ test('гостю список проектов закрыт — редирект
   await expect(page).toHaveURL(/\/catalog(\?|$)/)
   expect(consoleErrors).toEqual([])
 })
+
+test('замороженные часы не идут сами: кадр опроса А1а не меняется, пока время не сдвинули', async ({ page, consoleErrors }) => {
+  await openAs(page, '/admin/catalog/import', 'admin', { busy: true, frozenAfterMs: 500 })
+  const firstFrame = page.getByText('Опрашиваем источники · 1 из 3')
+  await expect(firstFrame).toBeVisible()
+  // Реальное время — больше двух интервалов опроса (1,5 с): при идущих часах экран ушёл бы дальше.
+  await page.waitForTimeout(4000)
+  await expect(firstFrame).toBeVisible()
+  expect(consoleErrors).toEqual([])
+})
