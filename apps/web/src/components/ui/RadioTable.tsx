@@ -48,6 +48,11 @@ interface SingleProps<T extends string> extends CommonProps<T> {
   readonly onChange: (value: T) => void
   /** Enter на выбранной строке — основное действие окна («Продолжить», A2). */
   readonly onConfirm?: (value: T) => void
+  /**
+   * Только просмотр: `aria-readonly` на группе, выбор не меняется ни щелчком, ни стрелками, наведения нет.
+   * Строки не выключены — остаются в порядке Tab и не бледнеют; кнопки в `trailing` и `detail` (разбор балла) работают.
+   */
+  readonly readOnly?: boolean
 }
 
 /** Режим флажков: несколько строк («Сравнить» 2–4 варианта, 2.1). */
@@ -64,6 +69,13 @@ const cellClassFor = (columns: readonly RadioTableColumn[]) => (index: number) =
 
 const ROW_STATES =
   'not-data-disabled:cursor-pointer data-disabled:cursor-not-allowed data-disabled:opacity-(--rav-disabled-opacity)'
+const READ_ONLY_ROW_STATES = 'cursor-default data-disabled:opacity-(--rav-disabled-opacity)'
+
+const PLAIN_ROW = 'group flex w-full items-center gap-12 rounded-md border-b border-border p-12 text-left transition-colors last:border-b-0 data-[state=checked]:bg-surface-sunken'
+const PLAIN_ROW_STATES = clsx(
+  'not-data-disabled:cursor-pointer not-data-disabled:not-data-[state=checked]:hover:bg-surface-muted',
+  'data-disabled:cursor-not-allowed data-disabled:opacity-(--rav-disabled-opacity)',
+)
 
 function Header({ columns, trailingColumn }: { readonly columns: readonly RadioTableColumn[]; readonly trailingColumn: RadioTableColumn | undefined }) {
   const cellClass = cellClassFor(columns)
@@ -96,6 +108,8 @@ function Cells<T extends string>({ row, columns }: { readonly row: RadioTableRow
 interface RowShellProps {
   readonly selected: boolean
   readonly disabled: boolean
+  /** Подсветка при наведении — только у строки, которую можно выбрать. */
+  readonly hoverable: boolean
   readonly trailing: ReactNode
   readonly trailingColumn: RadioTableColumn | undefined
   readonly detail: ReactNode
@@ -103,12 +117,12 @@ interface RowShellProps {
 }
 
 /** Строка с колонкой `trailing` и раскрытием: подложка выбранной строки — общая для строки и раскрытия. */
-function RowShell({ selected, disabled, trailing, trailingColumn, detail, children }: RowShellProps) {
+function RowShell({ selected, disabled, hoverable, trailing, trailingColumn, detail, children }: RowShellProps) {
   return (
     <div
       className={clsx(
         'flex flex-col rounded-md border-b border-border transition-colors last:border-b-0',
-        selected ? 'bg-surface-sunken' : !disabled && 'hover:bg-surface-muted',
+        selected ? 'bg-surface-sunken' : hoverable && 'hover:bg-surface-muted',
       )}
     >
       <div className="flex items-center">
@@ -144,8 +158,11 @@ export function RadioTable<T extends string>(props: RadioTableProps<T>) {
   return <SingleTable {...props} extended={isExtended(props)} />
 }
 
-function SingleTable<T extends string>({ label, columns, rows, value, onChange, onConfirm, trailingColumn, extended }: SingleProps<T> & { readonly extended: boolean }) {
+function SingleTable<T extends string>({ label, columns, rows, value, onChange, onConfirm, readOnly = false, trailingColumn, extended }: SingleProps<T> & { readonly extended: boolean }) {
   const isArrowMove = useRef(false)
+  const select = (next: T) => {
+    if (!readOnly) onChange(next)
+  }
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     // Кнопки trailing и detail (и поповеры из них) лежат внутри группы: их клавиши — не выбор строки.
     const isOnRow = event.target instanceof Element && event.target.closest('[role="radio"]') !== null
@@ -164,7 +181,7 @@ function SingleTable<T extends string>({ label, columns, rows, value, onChange, 
       onFocus={() => {
         if (!isArrowMove.current) return
         isArrowMove.current = false
-        onChange(row.value)
+        select(row.value)
       }}
       className={className}
     >
@@ -185,33 +202,29 @@ function SingleTable<T extends string>({ label, columns, rows, value, onChange, 
       <Header columns={columns} trailingColumn={trailingColumn} />
       <RadixRadio.Root
         aria-label={label}
+        aria-readonly={readOnly || undefined}
         value={value ?? ''}
         onValueChange={(next: string) => {
           const row = optionValue(rows, next)
-          if (row !== undefined) onChange(row)
+          if (row !== undefined) select(row)
         }}
         onKeyDown={handleKeyDown}
         className="flex flex-col"
       >
         {rows.map((row) => {
-          if (!extended) {
-            return item(row, clsx(
-              'group flex w-full items-center gap-12 rounded-md border-b border-border p-12 text-left transition-colors last:border-b-0',
-              'not-data-disabled:cursor-pointer not-data-disabled:not-data-[state=checked]:hover:bg-surface-muted data-[state=checked]:bg-surface-sunken',
-              'data-disabled:cursor-not-allowed data-disabled:opacity-(--rav-disabled-opacity)',
-            ))
-          }
+          if (!extended) return item(row, clsx(PLAIN_ROW, readOnly ? READ_ONLY_ROW_STATES : PLAIN_ROW_STATES))
           const selected = row.value === value
           return (
             <RowShell
               key={row.value}
               selected={selected}
               disabled={row.disabled ?? false}
+              hoverable={!readOnly && !row.disabled}
               trailing={row.trailing}
               trailingColumn={trailingColumn}
               detail={detailOf(row, selected)}
             >
-              {item(row, clsx('group flex min-w-0 flex-1 items-center gap-12 rounded-md p-12 text-left', ROW_STATES))}
+              {item(row, clsx('group flex min-w-0 flex-1 items-center gap-12 rounded-md p-12 text-left', readOnly ? READ_ONLY_ROW_STATES : ROW_STATES))}
             </RowShell>
           )
         })}
@@ -233,6 +246,7 @@ function CheckTable<T extends string>({ label, columns, rows, values, onValuesCh
               key={row.value}
               selected={checked}
               disabled={row.disabled ?? false}
+              hoverable={!row.disabled}
               trailing={row.trailing}
               trailingColumn={trailingColumn}
               detail={detailOf(row, checked)}
