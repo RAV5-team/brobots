@@ -19,6 +19,7 @@ Required environment:
 Web build arguments are passed through from WEB_DEMO_MODE,
 VITE_DEMO_USER_EMAIL, VITE_DEMO_USER_PASSWORD, VITE_DEMO_ADMIN_EMAIL,
 VITE_DEMO_ADMIN_PASSWORD, and VITE_PUBLIC_SITE_URL. Demo mode defaults to false.
+ECONOMICS_PYTEST and SIMULATION_PYTEST can select separate pytest executables.
 USAGE
   exit 2
 }
@@ -45,6 +46,8 @@ done
 [[ "$YC_REGISTRY_ID" =~ ^[a-zA-Z0-9]+$ ]] || fail 'YC_REGISTRY_ID must contain only letters and digits'
 [[ "$TARGET_PLATFORM" =~ ^linux/(amd64|arm64)$ ]] || fail 'TARGET_PLATFORM must be linux/amd64 or linux/arm64'
 [[ "$TARGET_PLATFORM_VERIFIED" == true ]] || fail 'set TARGET_PLATFORM_VERIFIED=true only after verifying the target VM platform'
+economics_pytest=${ECONOMICS_PYTEST:-pytest}
+simulation_pytest=${SIMULATION_PYTEST:-pytest}
 
 command -v docker >/dev/null 2>&1 || fail 'docker command is unavailable'
 command -v yc >/dev/null 2>&1 || fail 'yc command is unavailable'
@@ -75,8 +78,8 @@ run_check "$REPO_ROOT/services/api" env TEST_DATABASE_URL="$TEST_DATABASE_URL" g
 run_check "$REPO_ROOT/services/api" go generate ./...
 run_check "$REPO_ROOT" git diff --exit-code -- packages/contracts/openapi services/api/internal/apispec
 run_check "$REPO_ROOT/services/economics" env POSTGRES_TEST_DATABASE_URL="$POSTGRES_TEST_DATABASE_URL" PYTHONPATH=src ruff check src tests
-run_check "$REPO_ROOT/services/economics" env POSTGRES_TEST_DATABASE_URL="$POSTGRES_TEST_DATABASE_URL" PYTHONPATH=src pytest -q
-run_check "$REPO_ROOT/services/simulation" env TEST_DATABASE_URL="$SIMULATION_TEST_DATABASE_URL" pytest
+run_check "$REPO_ROOT/services/economics" env POSTGRES_TEST_DATABASE_URL="$POSTGRES_TEST_DATABASE_URL" PYTHONPATH=src "$economics_pytest" -q
+run_check "$REPO_ROOT/services/simulation" env TEST_DATABASE_URL="$SIMULATION_TEST_DATABASE_URL" "$simulation_pytest"
 run_check "$REPO_ROOT/apps/web" npm ci
 run_check "$REPO_ROOT/apps/web" npm run lint
 run_check "$REPO_ROOT/apps/web" npm run typecheck

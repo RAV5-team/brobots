@@ -47,7 +47,8 @@ new_fixture() {
   export TEST_DATABASE_URL=postgres://127.0.0.1/api
   export POSTGRES_TEST_DATABASE_URL=postgresql://127.0.0.1/economics
   export SIMULATION_TEST_DATABASE_URL=postgresql://127.0.0.1/simulation
-  unset STUB_FAIL_TEST STUB_FAIL_BUILD STUB_DIRTY_GENERATE WEB_DEMO_MODE || true
+  unset STUB_FAIL_TEST STUB_FAIL_BUILD STUB_DIRTY_GENERATE WEB_DEMO_MODE \
+    ECONOMICS_PYTEST SIMULATION_PYTEST || true
 }
 
 write_stubs() {
@@ -75,7 +76,7 @@ if [[ "${STUB_DIRTY_GENERATE:-}" == true && "$*" == 'generate ./...' ]]; then
   touch generated-during-checks.go
 fi
 STUB
-  for tool in ruff pytest npm; do
+  for tool in ruff pytest npm pytest-economics pytest-simulation; do
     cat > "$FIXTURE/bin/$tool" <<'STUB'
 #!/usr/bin/env bash
 printf '%s %s\n' "${0##*/}" "$*" >> "$STUB_LOG"
@@ -130,6 +131,8 @@ printf 'PASS: failed image build stops the release\n'
 
 new_fixture successful-release
 export VITE_DEMO_USER_EMAIL=demo@example.invalid
+export ECONOMICS_PYTEST=pytest-economics
+export SIMULATION_PYTEST=pytest-simulation
 run_release > "$FIXTURE/output.log" 2>&1 || fail 'stubbed release unexpectedly failed'
 [[ $(rg -c '^docker buildx build' "$LOG") -eq 7 ]] || fail 'expected seven image builds'
 first_build=$(rg -n '^docker buildx build' "$LOG" | head -n 1 | cut -d: -f1)
@@ -138,6 +141,8 @@ last_check=$(rg -n '^(go |ruff |pytest |npm )' "$LOG" | tail -n 1 | cut -d: -f1)
 [[ $(rg -c "brobots-[a-z]+:${FIXTURE_SHA}" "$LOG") -eq 7 ]] || fail 'all images must use the full current SHA'
 rg -q 'VITE_DEMO_MODE=false' "$LOG" || fail 'demo mode did not default to false'
 rg -q 'VITE_DEMO_USER_EMAIL=demo@example.invalid' "$LOG" || fail 'web build argument was not preserved'
+rg -q '^pytest-economics -q$' "$LOG" || fail 'economics pytest override was not used'
+rg -q '^pytest-simulation[[:space:]]*$' "$LOG" || fail 'simulation pytest override was not used'
 rg -q 'infra/keycloak/Dockerfile.*--tag cr.yandex/registry123/brobots-keycloak:' "$LOG" || fail 'Keycloak image context or registry tag is incorrect'
 rg -q 'infra/nginx/Dockerfile.*infra/nginx' "$LOG" || fail 'gateway Dockerfile context is incorrect'
 rg -q 'infra/postgres/Dockerfile.*infra/postgres' "$LOG" || fail 'Postgres Dockerfile context is incorrect'

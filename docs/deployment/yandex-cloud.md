@@ -84,14 +84,18 @@ python3.12 -m venv "$HOME/.venvs/brobots-simulation"
 "$HOME/.venvs/brobots-simulation/bin/python" -m pip install \
   -r services/simulation/requirements-dev.txt
 export PATH="$HOME/.venvs/brobots-simulation/bin:$HOME/.venvs/brobots-economics/bin:$PATH"
+export ECONOMICS_PYTEST="$HOME/.venvs/brobots-economics/bin/pytest"
+export SIMULATION_PYTEST="$HOME/.venvs/brobots-simulation/bin/pytest"
 ruff --version
-pytest --version
+"$ECONOMICS_PYTEST" --version
+"$SIMULATION_PYTEST" --version
 ```
 
 Keep the simulation venv first in `PATH`: its `requirements-dev.txt` installs
 `pytest>=9.1`, while economics uses `pytest>=8.3,<9.0`. Ruff is installed by
-the economics development requirements. The release script invokes both
-commands by name from `PATH`.
+the economics development requirements and is invoked from `PATH`. The release
+script uses `ECONOMICS_PYTEST` and `SIMULATION_PYTEST` to run each service's
+pytest version.
 
 Install the Yandex Cloud CLI and authenticate the `yc` profile used to update
 the instance. Run `yc init` if the CLI profile is not configured. Confirm
