@@ -14,6 +14,10 @@ export { canAutoRefresh, DATA_SOURCE_REFRESH_PERIODS } from './dataSource'
 export type * from './facility'
 export { isSiteGroup, siteFields, siteParameterDefs, siteValuesFromParameters } from './siteCatalog'
 export type * from './handling'
+export { HANDLING_METHOD_CODES } from './handling'
+export {
+  isOperationClassCode, parseLocationId, parseLocationProcessId, parseProcessCode, parseProjectId, parseRobotId,
+} from './ids'
 export type * from './location'
 export type * from './locationDocument'
 export type * from './locationProcess'
@@ -41,6 +45,10 @@ export type * from './projectParams'
 export { SITE_GROUPS, paramsReadiness } from './projectParams'
 export type * from './projectSimulation'
 export { canProceedToEconomics } from './projectSimulation'
+export type * from './siteFit'
+export {
+  aisleFit, cargoFit, needsCheckCount, robotWidthM, siteFactsOf, siteFactsOfLocation, siteRequirementChecks, temperatureFit,
+} from './siteFit'
 export type * from './simulationTrace'
 export { countStates, positionsAt, traceDuration } from './simulationTrace'
 export {
@@ -51,3 +59,5 @@ export type * from './robot'
 export { isSameRobot, nextRobotId, specsCompleteness } from './robot'
 export * from './robotCharacteristics'
 export { ROLES, isRole, type Role } from './role'
+export type * from './verification'
+export { verificationOf } from './verification'

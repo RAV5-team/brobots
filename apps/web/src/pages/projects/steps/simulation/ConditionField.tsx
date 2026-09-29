@@ -10,7 +10,8 @@ interface NumberConditionProps {
   readonly label: string
   readonly unit: string
   readonly hint: string
-  readonly origin: ConditionOrigin
+  /** Метка источника; null — источник показывает карточка (3.2: метка только там, где он другой). */
+  readonly origin: ConditionOrigin | null
   /** Действующее значение, в хранимых единицах. */
   readonly value: number
   /** Ошибка, которую не проверить одним полем: смены не помещаются в сутки. */
@@ -22,7 +23,7 @@ interface NumberConditionProps {
 }
 
 /**
- * Числовое условие этапа 2: подпись с меткой источника, поле с единицей, подсказка или ошибка (05, 16197:1340).
+ * Числовое условие этапа 2: подпись с меткой источника, поле с единицей, подсказка или ошибка (3.2, 16325:158).
  * Верное число сохраняется сразу (D-21); неверное остаётся в поле с текстом исправления и не сохраняется.
  */
 export function NumberCondition({ spec, label, unit, hint, origin, value, crossError, disabled, onCommit, onValidity }: NumberConditionProps) {
@@ -36,7 +37,7 @@ export function NumberCondition({ spec, label, unit, hint, origin, value, crossE
       label={label}
       hint={hint || undefined}
       error={error}
-      badge={<Badge kind={origin} />}
+      badge={origin && <Badge kind={origin} />}
       unit={unit || undefined}
       value={text ?? toFieldText(spec, value)}
       invalid={error !== undefined}
@@ -55,17 +56,17 @@ export function NumberCondition({ spec, label, unit, hint, origin, value, crossE
 interface ChoiceConditionProps<T extends string> {
   readonly label: string
   readonly hint: string
-  readonly origin: ConditionOrigin
+  readonly origin: ConditionOrigin | null
   readonly options: readonly SelectOption<T>[]
   readonly value: T
   readonly disabled: boolean
   readonly onChange: (value: T) => void
 }
 
-/** Условие-выбор этапа 2: люди в проездах, ходовые паллеты, правила вердикта (16197:1450). */
+/** Условие-выбор этапа 2: люди в проездах, ходовые паллеты, правила вердикта (3.2, 16325:158). */
 export function ChoiceCondition<T extends string>({ label, hint, origin, options, value, disabled, onChange }: ChoiceConditionProps<T>) {
   return (
-    <Field label={label} hint={hint} badge={<Badge kind={origin} />}>
+    <Field label={label} hint={hint} badge={origin && <Badge kind={origin} />}>
       <Select options={options} value={value} disabled={disabled} onChange={onChange} />
     </Field>
   )

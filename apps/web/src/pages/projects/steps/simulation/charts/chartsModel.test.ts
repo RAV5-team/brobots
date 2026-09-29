@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { toSimulationRun } from '@/api/mappers/simulation'
 import type { HourlyStat } from '@/domain'
 import { SIMULATION_RUNS } from '@/mocks/fixtures/simulationRuns.generated'
-import { chartFleets, clockOf, hasViolation, hourViolations, hourlyRows, initialTime, timeSegments, tripShare } from './chartsModel'
+import { boardFleets, boardHourly, chartFleets, clockOf, fromShiftStart, hasViolation, hourViolations, hourlyRows, initialTime, timeSegments, tripShare } from './chartsModel'
 
 const run = (status: string) => {
   const dto = SIMULATION_RUNS.find((r) => r.status === status)
@@ -81,5 +81,34 @@ describe('часы плеера', () => {
     const r = run('confirmed')
     expect(initialTime(7, r.hourlyAfter, r, 23 * 3600)).toBe(3600)
     expect(initialTime(7, [], r, 23 * 3600)).toBe(0)
+  })
+})
+
+describe('доска 3.5: составы, часы от начала смены, таблица по составам', () => {
+  const targets = { onTimeTarget: 0.95, maxWaitMin: 10 }
+  const reduce = run('can_reduce')
+
+  it('второй состав — всегда «С изменениями»; первый — «Из подбора»', () => {
+    expect(boardFleets(reduce, reduce.from).map((f) => f.title)).toEqual(['Из подбора', 'С изменениями'])
+  })
+
+  it('часы — от начала первой смены: 07 … 06', () => {
+    const hours = fromShiftStart(reduce.hourlyBefore, 7)
+    expect(hours[0]?.hour).toBe(7)
+    expect(hours.at(-1)?.hour).toBe(6)
+    expect(hours).toHaveLength(reduce.hourlyBefore.length)
+  })
+
+  it('таблица: общая «Потребность», группы нагрузки и результата, строка на состав; требования — из условий', () => {
+    const table = boardHourly(boardFleets(reduce, reduce.from), targets, 7)
+    expect(table.columns[0]).toBe('07')
+    expect(table.groups.map((g) => g.metrics.map((m) => m.key))).toEqual([
+      ['utilization', 'idle', 'waitingCharger', 'charging'],
+      ['done', 'waitMean', 'onTime'],
+    ])
+    const onTime = table.groups[1]?.metrics[2]
+    expect(onTime?.requirement).toMatch(/^требование — от 95\s%$/u)
+    expect(onTime?.rows.map((r) => r.label)).toEqual(['Из подбора', 'С изменениями'])
+    expect(table.groups[1]?.metrics[1]?.requirement).toBe('требование — до 10 мин')
   })
 })

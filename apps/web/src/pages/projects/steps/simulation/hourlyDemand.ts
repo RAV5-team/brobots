@@ -52,6 +52,9 @@ export interface DemandHour {
   readonly hour: number
   /** Рейсов в час: приёмка + отгрузка. */
   readonly trips: number
+  /** Слагаемые `trips` — стопка графика 3.2 (приёмка снизу). */
+  readonly inbound: number
+  readonly outbound: number
   readonly isPeak: boolean
   readonly isWorking: boolean
 }
@@ -68,7 +71,7 @@ export interface DemandProfileInput {
   readonly manualShare: number
 }
 
-/** Потребность по часам от начала первой смены — для графика «Потребность по часам» (05, 16197:1599). */
+/** Потребность по часам от начала первой смены — для графика «Потребность по часам» (3.2, 16325:158). */
 export function demandProfile(input: DemandProfileInput): readonly DemandHour[] {
   const working = workingHours(input.startHour, input.shiftsPerDay, input.shiftHours)
   const robotShare = 1 - input.manualShare
@@ -77,6 +80,8 @@ export function demandProfile(input: DemandProfileInput): readonly DemandHour[] 
   return hoursFrom(input.startHour).map((hour) => ({
     hour,
     trips: (inbound.get(hour) ?? 0) + (outbound.get(hour) ?? 0),
+    inbound: inbound.get(hour) ?? 0,
+    outbound: outbound.get(hour) ?? 0,
     isPeak: working.includes(hour) && (input.peakHours.inbound.includes(hour) || input.peakHours.outbound.includes(hour)),
     isWorking: working.includes(hour),
   }))

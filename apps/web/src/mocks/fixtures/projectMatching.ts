@@ -19,6 +19,8 @@ const LABELS: Record<keyof typeof WEIGHTS, string> = {
   payback: 'Окупаемость', roi: 'ROI', tco_savings: 'TCO', budget_fit: 'CAPEX к бюджету', maturity: 'Зрелость решения',
   annual_effect: 'Эффект', fleet_utilization: 'Загрузка парка', data_quality: 'Полнота данных',
 }
+/** Веса и подписи — для полного разбора балла в `projectMatchingDetails.ts` (окно 2.1а). */
+export { WEIGHTS as SCORE_WEIGHTS, LABELS as SCORE_LABELS }
 const criteria = (contributions: Partial<Record<keyof typeof WEIGHTS, number>>): ApiSchemas['ScoreCriterion'][] =>
   (Object.keys(WEIGHTS) as (keyof typeof WEIGHTS)[]).map((code) => ({
     code, label: LABELS[code], weight: WEIGHTS[code], contribution: contributions[code] ?? null, missing: contributions[code] === undefined,

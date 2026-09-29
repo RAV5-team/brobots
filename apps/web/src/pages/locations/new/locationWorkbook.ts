@@ -151,7 +151,8 @@ function findEocd(bytes: Uint8Array): number {
 async function entryBytes(data: Uint8Array, method: number): Promise<Uint8Array> {
   if (method === 0) return data
   if (method !== 8) return new Uint8Array()
-  const copy = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
+  const copy = new ArrayBuffer(data.byteLength)
+  new Uint8Array(copy).set(data)
   const stream = new Blob([copy]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
   return new Uint8Array(await new Response(stream).arrayBuffer())
 }

@@ -1,14 +1,15 @@
 import { ArrowLeft, ArrowRight, RotateCcw } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button, ButtonLink } from '@/components/ui/Button'
-import { Card, CardTitle } from '@/components/ui/Card'
+import { Card } from '@/components/ui/Card'
 import { ProgressPanel } from '@/components/ui/ProgressPanel'
 import { EmptyState, ErrorState } from '@/components/ui/States'
 import type { SimulationRunProgress } from '@/services'
 import { SIMULATION_TIME_LIMIT_S } from '@/services/simulationRuns'
 import { formatNumber } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
-import { runLogLines, runPercent } from './runModel'
+import type { Fleet } from '@/domain'
+import { runPercent, runStatusLine } from './runModel'
 
 const t = ru.project.simulation.run
 const LIMIT = formatNumber(SIMULATION_TIME_LIMIT_S)
@@ -28,6 +29,8 @@ interface RunStageProps {
   readonly onStart: (() => void) | undefined
   readonly onStop: () => void
   readonly onConditions: () => void
+  /** Состав прогона и состав из подбора — для строки состояния; null — данные шага ещё не загрузились. */
+  readonly fleet: { readonly checked: Fleet; readonly fromMatching: Fleet } | null
 }
 
 function Actions({ children }: { readonly children: ReactNode }) {
@@ -61,7 +64,7 @@ function errorMessage(progress: Extract<SimulationRunProgress, { status: 'error'
 }
 
 /** Без прогона в этой сессии: выполненный прогон, пустое состояние с запуском или только просмотр. */
-function NoRun({ lastRunId, stale, readOnly, verdictTo, onStart, onConditions }: Omit<RunStageProps, 'progress' | 'onStop'>) {
+function NoRun({ lastRunId, stale, readOnly, verdictTo, onStart, onConditions }: Omit<RunStageProps, 'progress' | 'onStop' | 'fleet'>) {
   if (lastRunId && readOnly) {
     return <EmptyState title={t.saved.title(lastRunId)} description={t.saved.description} action={<VerdictLink to={verdictTo} />} />
   }
@@ -93,23 +96,26 @@ function NoRun({ lastRunId, stale, readOnly, verdictTo, onStart, onConditions }:
   )
 }
 
-function RunProgress({ progress, verdictTo, onStop, onConditions }: Pick<RunStageProps, 'verdictTo' | 'onStop' | 'onConditions'> & {
+function RunProgress({ progress, fleet, verdictTo, onStop, onConditions }: Pick<RunStageProps, 'fleet' | 'verdictTo' | 'onStop' | 'onConditions'> & {
   readonly progress: Exclude<SimulationRunProgress, { status: 'error' }>
 }) {
   const running = progress.status === 'running'
   return (
     <>
-      <ProgressPanel
-        variant="inverse"
-        headingLevel={2}
-        title={running ? t.running : t.done}
-        meta={t.seconds(formatNumber(progress.elapsedS))}
-        label={t.progressLabel(LIMIT)}
-        value={runPercent(progress, SIMULATION_TIME_LIMIT_S)}
-        log={runLogLines(progress, t.queued)}
-        busy={running}
-      />
-      <Explain />
+      {/* data-run-status — готовность для эталона: ждать атрибут, а не заголовок или время. */}
+      <Card as="div" padding={28} gap={20} data-run-status={progress.status}>
+        {/* Секунды «1 с» справа от заголовка ждут `meta` у ProgressPanel sunken (сейчас только у inverse). */}
+        <ProgressPanel
+          headingLevel={2}
+          title={running ? t.running : t.done}
+          label={t.progressLabel(LIMIT)}
+          value={runPercent(progress, SIMULATION_TIME_LIMIT_S)}
+          busy={running}
+        >
+          {fleet && runStatusLine(progress.status, fleet.checked, fleet.fromMatching)}
+        </ProgressPanel>
+        <Explain />
+      </Card>
       <Actions>
         {running
           ? <Button onClick={onStop}>{t.stop}</Button>
@@ -119,23 +125,25 @@ function RunProgress({ progress, verdictTo, onStop, onConditions }: Pick<RunStag
   )
 }
 
+/** Пояснение под плашкой прогона (16405:339): как моделируются сутки и сколько это длится. */
 function Explain() {
-  return (
-    <Card as="section" padding={20} gap={8} elevation="md" aria-labelledby="simulation-run-explain">
-      <CardTitle as="h2" id="simulation-run-explain">{t.explain.title}</CardTitle>
-      <p className="type-body text-text-secondary">{t.explain.text(LIMIT)}</p>
-    </Card>
-  )
+  return <p className="type-caption text-text-secondary">{t.explain}</p>
 }
 
 /**
- * Этап 3 «Прогон» (PRD 11.4; экран 06, 16197:1700; D-103): тёмная карточка с журналом строками и секундами,
- * `aria-busy` во время прогона. По завершении — итог и «Смотреть вердикт»; этап 4 уже записан в черновик.
+ * Этап 3 «Моделирование» (3.3, 16325:167; PRD 11.4; D-103): светлая карточка — плашка прогона с полосой и строкой
+ * состояния, под ней пояснение; `aria-busy` во время прогона. По завершении — итог и «Смотреть вердикт» (автопереход
+ * к вердикту с доски ждёт решения 10); этап 4 уже записан в черновик.
  */
 export function RunStage(props: RunStageProps) {
   const { progress, onStart, onConditions } = props
   if (progress === null) {
-    return <><NoRun {...props} /><Explain /></>
+    return (
+      <>
+        <NoRun {...props} />
+        <Explain />
+      </>
+    )
   }
   if (progress.status === 'error') {
     return (
@@ -145,5 +153,5 @@ export function RunStage(props: RunStageProps) {
       </>
     )
   }
-  return <RunProgress progress={progress} verdictTo={props.verdictTo} onStop={props.onStop} onConditions={onConditions} />
+  return <RunProgress progress={progress} fleet={props.fleet} verdictTo={props.verdictTo} onStop={props.onStop} onConditions={onConditions} />
 }

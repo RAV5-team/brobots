@@ -77,7 +77,7 @@ describe('router', () => {
     expect(screen.getByRole('link', { name: 'Процессы локации' })).toHaveAttribute('aria-current', 'page')
   })
 
-  it('renders the new robot card А2 on the static /admin/catalog/new, not /admin/catalog/:robotId', async () => {
+  it('renders the new robot card А2 on /admin/catalog/new', async () => {
     renderAt('/admin/catalog/new?as=admin')
     expect(await screen.findByRole('heading', { level: 1, name: 'Новый робот' })).toBeInTheDocument()
   })

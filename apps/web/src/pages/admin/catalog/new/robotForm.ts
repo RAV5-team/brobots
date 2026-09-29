@@ -9,8 +9,9 @@ import type {
   RobotReadiness,
   RobotSpecs,
 } from '@/domain'
-import { isSameRobot } from '@/domain'
+import { isOperationClassCode, isSameRobot } from '@/domain'
 import { formatCount, pluralize } from '@/shared/format'
+import { isArrayOf, isObject, isString } from '@/shared/guards'
 import { ru } from '@/shared/i18n/ru'
 
 const t = ru.robotNew
@@ -220,10 +221,9 @@ export function solutionTypeOptions(catalog: readonly Robot[]): readonly Solutio
   return [...pairs].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label, 'ru'))
 }
 
-/** Черновик из браузера той же версии формы: строки на месте, классы — массив. */
+/** Черновик из браузера той же версии формы: строки на месте, классы — массив кодов `OP-…`. */
 export function isRobotForm(value: unknown): value is RobotForm {
-  if (typeof value !== 'object' || value === null) return false
-  const v = value as Partial<Record<RobotFormKey, unknown>>
+  if (!isObject(value)) return false
   const keys = Object.keys(EMPTY_ROBOT_FORM) as RobotFormKey[]
-  return keys.every((key) => (key === 'classes' ? Array.isArray(v.classes) : typeof v[key] === 'string'))
+  return keys.every((key) => (key === 'classes' ? isArrayOf(value.classes, isOperationClassCode) : isString(value[key])))
 }

@@ -1,5 +1,6 @@
 import { isSiteGroup, SITE_GROUPS, type FacilityParameter, type FacilityTypeCode } from '@/domain'
 import { formatNumber, parseDecimal } from '@/shared/format'
+import { isArrayOf, isBoolean, isObject, isOneOf, isString } from '@/shared/guards'
 import { ru } from '@/shared/i18n/ru'
 
 /** Секции формы в порядке навигации (PRD 10.2). */
@@ -65,8 +66,8 @@ export interface Range {
 }
 
 /**
- * Годовая текучесть персонала (PRD 10.2): на форме — допущение 0, процесс наследует из профиля (PRD 9).
- * Код есть у склада в справочнике типа объекта (`role: turnover`), как у аэропорта и медучреждения.
+ * Годовая текучесть: в датасете склада её нет (PRD 10.2) — принимаем 0 и помечаем допущением.
+ * Код — свой, в духе кодов датасета: сохраняется в профиль, чтобы допущение увидел список локаций (PRD 15 · №45).
  */
 const TURNOVER_CODE = 'wh_annual_turnover'
 export const ASSUMED_TURNOVER = 0
@@ -146,6 +147,21 @@ export interface ProfileText {
   readonly address: string
 }
 
+/** Числовые поля формы по ключам, а не через Object.fromEntries: новое поле без значения не соберётся. */
+export const numericValues = (text: (key: NumericKey) => string): NumericValues => ({
+  totalArea: text('totalArea'),
+  activeArea: text('activeArea'),
+  floors: text('floors'),
+  shifts: text('shifts'),
+  workingDays: text('workingDays'),
+  shiftHours: text('shiftHours'),
+  peakFactor: text('peakFactor'),
+  staffTotal: text('staffTotal'),
+  pickerProductivity: text('pickerProductivity'),
+  workTimeLoss: text('workTimeLoss'),
+  turnover: text('turnover'),
+})
+
 const COVERED_CODES: ReadonlySet<string> = new Set([
   ...NUMERIC_KEYS.map((key) => NUMERIC_SPECS[key].code),
   ...STAFF_PRESETS.flatMap((preset) => (preset.salaryCode === null ? [preset.headcountCode] : [preset.headcountCode, preset.salaryCode])),
@@ -190,9 +206,7 @@ const extraText = (parameter: FacilityParameter): string => {
 
 /** Форма на значениях датасета склада — демо-профиль, как на 09а (D-31); тексты — из макета. */
 export function buildInitialForm(params: ParameterIndex, profile: ProfileText): LocationForm {
-  const numeric = Object.fromEntries(
-    NUMERIC_KEYS.map((key) => [key, key === 'turnover' ? String(ASSUMED_TURNOVER) : baseText(params, NUMERIC_SPECS[key].code)]),
-  ) as unknown as NumericValues
+  const numeric = numericValues((key) => (key === 'turnover' ? String(ASSUMED_TURNOVER) : baseText(params, NUMERIC_SPECS[key].code)))
   const extras = Object.fromEntries(extraFields(params).map((parameter) => [parameter.code, extraText(parameter)]))
   return { facilityType: 'warehouse', ...profile, ...numeric, staff: presetStaffRows(params), extras }
 }
@@ -210,17 +224,18 @@ export function updateStaffRow(staff: readonly StaffGroupRow[], key: string, pat
 
 export const removeStaffRow = (staff: readonly StaffGroupRow[], key: string): readonly StaffGroupRow[] => staff.filter((r) => r.key !== key)
 
-/** Черновик из браузера годится, если у него форма той же версии. */
+const isStaffGroupRow = (value: unknown): value is StaffGroupRow =>
+  isObject(value) && [value.key, value.role, value.headcount, value.salary].every(isString) && isBoolean(value.preset)
+
+/** Черновик из браузера годится, если у него форма той же версии: все поля и строки групп нужного вида. */
 export function isLocationForm(value: unknown): value is LocationForm {
-  if (typeof value !== 'object' || value === null) return false
-  const v = value as Partial<LocationForm>
   return (
-    typeof v.facilityType === 'string' &&
-    FACILITY_CHOICES.includes(v.facilityType) &&
-    typeof v.name === 'string' &&
-    Array.isArray(v.staff) &&
-    NUMERIC_KEYS.every((key) => typeof v[key] === 'string') &&
-    typeof v.extras === 'object' && v.extras !== null
+    isObject(value) &&
+    isOneOf(FACILITY_CHOICES, value.facilityType) &&
+    [value.name, value.city, value.address].every(isString) &&
+    isArrayOf(value.staff, isStaffGroupRow) &&
+    NUMERIC_KEYS.every((key) => isString(value[key])) &&
+    isObject(value.extras) && Object.values(value.extras).every(isString)
   )
 }
 

@@ -134,4 +134,9 @@ describe('isLocationForm', () => {
     expect(isLocationForm({ ...initial, facilityType: 'factory' })).toBe(false)
     expect(isLocationForm({ name: 'x' })).toBe(false)
   })
+
+  it('rejects a draft with a malformed staff row', () => {
+    expect(isLocationForm({ ...initial, staff: [{ key: 'custom-1', role: 'Кладовщики', headcount: 3 }] })).toBe(false)
+    expect(isLocationForm({ ...initial, staff: ['Кладовщики'] })).toBe(false)
+  })
 })

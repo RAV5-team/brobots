@@ -1,3 +1,4 @@
+import { useId, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Dropzone } from '@/components/ui/Dropzone'
 import { Field } from '@/components/ui/Field'
@@ -6,6 +7,10 @@ import { FormulaStats } from '@/components/ui/FormulaStats'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
+import { Chip } from '@/components/ui/Chip'
+import { CharacteristicRow } from '@/components/ui/CharacteristicRow'
+import { Segmented } from '@/components/ui/Segmented'
+import { TabPanel, Tabs, type TabItem } from '@/components/ui/Tabs'
 import { EmptyState, ErrorState, Skeleton, SkeletonList } from '@/components/ui/States'
 import { ru } from '@/shared/i18n/ru'
 import { stateProps, type DemoState } from './demoState'
@@ -59,7 +64,61 @@ export function ModalShowcase() {
           />
         ))}
       </Modal>
+      <DetailModalDemo />
+      <Modal
+        size="detail"
+        columns={3}
+        title="Сравнение вариантов"
+        description="3 варианта · одинаковые объём, горизонт и границы затрат"
+        trigger={<Button className="self-start">Сравнение · 3 колонки (detail, 820)</Button>}
+      >
+        <dl>
+          {Array.from({ length: 16 }, (_, i) => (
+            <CharacteristicRow key={i} variant="plain" label={`Показатель ${String(i + 1)}`} value="6,1 млн ₽ · 7,3 млн ₽ · 11,5 млн ₽" />
+          ))}
+        </dl>
+      </Modal>
     </ShowcaseSection>
+  )
+}
+
+type DetailTab = 'overview' | 'tech' | 'economics'
+const DETAIL_TABS: readonly TabItem<DetailTab>[] = [
+  { value: 'overview', label: 'Обзор' },
+  { value: 'tech', label: 'Технические' },
+  { value: 'economics', label: 'Экономика' },
+]
+
+/** Окно решения 2.1а (16666:10): плашка у заголовка, в шапке — подпись, Segmented и вкладки; прокручивается тело. */
+function DetailModalDemo() {
+  const tabsId = useId()
+  const [tab, setTab] = useState<DetailTab>('tech')
+  const [mode, setMode] = useState<'buy' | 'raas'>('raas')
+  return (
+    <Modal
+      size="detail"
+      title="AMR 800"
+      titleAside={<Chip tone="inverse">Место 1 в рейтинге · балл 0,91</Chip>}
+      headerExtra={(
+        <>
+          <div className="flex items-center gap-16">
+            <p className="flex-1 type-body text-text-secondary">Морос · AMR · 18 роботов · CAPEX 6,1 млн ₽</p>
+            <Segmented label="Способ приобретения" fit="content" options={[{ value: 'buy', label: 'Покупка' }, { value: 'raas', label: 'RaaS' }]} value={mode} onChange={setMode} />
+          </div>
+          <Tabs id={tabsId} label="Разделы решения" items={DETAIL_TABS} value={tab} onChange={setTab} />
+        </>
+      )}
+      trigger={<Button className="self-start">Окно решения (detail, 640)</Button>}
+      footer={<><Button className="px-20">Добавить к сравнению</Button><Button variant="primary" className="px-20">Выбрать этот вариант</Button></>}
+    >
+      <TabPanel tabsId={tabsId} value={tab}>
+        <dl>
+          {Array.from({ length: 12 }, (_, i) => (
+            <CharacteristicRow key={i} variant="stacked" label="Грузоподъёмность" value="800 кг" verification={i % 3 === 0 ? 'analog' : 'confirmed'} source="Технический паспорт" date="2026-03-01" />
+          ))}
+        </dl>
+      </TabPanel>
+    </Modal>
   )
 }
 

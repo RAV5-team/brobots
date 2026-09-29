@@ -36,6 +36,7 @@ export function ChipShowcase() {
             <Chip tone="inverse">{s.needsConfirmation}</Chip>
             <Chip tone="success" checked>{s.readyToCalculate}</Chip>
             <Chip tone="accent">{ru.dataSources.status.confirmed}</Chip>
+            <Chip tone="danger">Блокирует подбор</Chip>
           </div>
           <span className="type-caption font-medium text-text-secondary">md · 32</span>
           <div className="flex flex-wrap gap-8">
@@ -67,6 +68,15 @@ export function BadgeShowcase() {
         <Badge kind="exact" />
         <Badge kind="task" />
         <Badge kind="default" />
+        <Badge kind="outOfScope" />
+      </div>
+      {/* Статусы проверки характеристик решения (2.1а, 16830:10): «требует проверки» — красная обводка. */}
+      <div className="flex flex-wrap gap-8">
+        <Badge kind="confirmed" />
+        <Badge kind="analog" />
+        <Badge kind="estimate" />
+        <Badge kind="pending" />
+        <Badge kind="needsCheck" />
       </div>
       <div className="flex flex-wrap gap-8">
         <Badge variant="pill" kind="norm" className="w-(--rav-norms-pill-width)" />

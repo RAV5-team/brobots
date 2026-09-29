@@ -144,6 +144,11 @@ describe('isRobotForm (черновик из браузера)', () => {
     expect(isRobotForm({ name: 'x' })).toBe(false)
     expect(isRobotForm(null)).toBe(false)
   })
+
+  it('rejects classes that are not operation class codes', () => {
+    expect(isRobotForm({ ...FILLED, classes: ['OP-01', 1] })).toBe(false)
+    expect(isRobotForm({ ...FILLED, classes: ['Перемещение'] })).toBe(false)
+  })
 })
 
 describe('classChipHint', () => {

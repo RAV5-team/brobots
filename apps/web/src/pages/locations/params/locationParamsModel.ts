@@ -8,20 +8,11 @@ import {
   STAFF_PRESETS,
   buildInitialForm,
   extraFields,
+  numericValues,
   type LocationForm,
-  type NumericValues,
   type ParameterIndex,
   type StaffGroupRow,
 } from '../new/locationForm'
-import { siteFields } from '@/domain'
-import { siteParametersOf, siteValuesFromLocation, type SiteValues } from './siteProfileFields'
-
-/** Ссылки шага 1 («Профиль», «заполнить в профиле»): 17а сразу в правке, а не в просмотре D-41. */
-export const EDIT_LOCATION_STATE = { edit: true } as const
-
-export function isEditLocationState(state: unknown): boolean {
-  return typeof state === 'object' && state !== null && (state as { edit?: unknown }).edit === true
-}
 
 /** Значение профиля строкой формы; нет в профиле — база датасета (domain: Location.parameters). */
 function valueText(location: Location, params: ParameterIndex, code: string | null): string {
@@ -59,16 +50,14 @@ function staffFromParameters(location: Location, params: ParameterIndex): readon
 
 /**
  * Форма вкладки «Параметры объекта» из сохранённой локации (PRD 10.3: те же секции, что у формы 14).
- * Текучесть из профиля; нет в профиле — принятый 0, как на форме 14 (допущение).
+ * Текучести нет ни в профиле, ни в датасете — принятый 0, как на форме 14 (допущение).
  */
 export function formFromLocation(location: Location, params: ParameterIndex): LocationForm {
   const base = buildInitialForm(params, { name: location.name, city: location.city, address: location.address })
-  const numeric = Object.fromEntries(
-    NUMERIC_KEYS.map((key) => {
-      const text = valueText(location, params, NUMERIC_SPECS[key].code)
-      return [key, key === 'turnover' && text === '' ? String(ASSUMED_TURNOVER) : text]
-    }),
-  ) as unknown as NumericValues
+  const numeric = numericValues((key) => {
+    const text = valueText(location, params, NUMERIC_SPECS[key].code)
+    return key === 'turnover' && text === '' ? String(ASSUMED_TURNOVER) : text
+  })
   const staff = location.staffGroups.length > 0 ? staffFromGroups(location) : staffFromParameters(location, params)
   const extras = Object.fromEntries(extraFields(params).map((field) => {
     const own = location.parameters[field.code]?.value
@@ -92,16 +81,11 @@ function keepSource(code: string, next: ParameterValue, location: Location): Par
 }
 
 /**
- * Локация для `updateLocation`. Параметры вне формы (мощность, WMS, CAPEX…) остаются как были;
+ * Локация для `updateLocation`. Параметры вне формы (проходы, покрытие, мощность…) остаются как были;
  * очищенное необязательное поле удаляется из профиля. Бюджет и горизонт не меняются — они в параметрах проекта.
  * У аэропорта и медучреждения разделов нет (D-36) — меняется только «Основное».
  */
-export function toLocationUpdate(
-  form: LocationForm,
-  params: ParameterIndex,
-  location: Location,
-  site: SiteValues = siteValuesFromLocation(location, [...params.values()]),
-): NewLocation {
+export function toLocationUpdate(form: LocationForm, params: ParameterIndex, location: Location): NewLocation {
   const basics = { name: form.name.trim(), city: form.city.trim(), address: form.address.trim() }
   const kept: NewLocation = {
     name: location.name,
@@ -115,11 +99,8 @@ export function toLocationUpdate(
   }
   if (location.facilityType !== 'warehouse') return { ...kept, ...basics }
 
-  const catalog = [...params.values()]
-  const siteCodes = new Set(siteFields(catalog).map((field) => field.code))
   const fromForm = toNewLocation(form, params)
-  const outside = Object.entries(location.parameters).filter(([code]) => !FORM_CODES.has(code) && !siteCodes.has(code))
-  const edited = Object.entries({ ...fromForm.parameters, ...siteParametersOf(site, catalog) })
-    .map(([code, value]): [string, ParameterValue] => [code, keepSource(code, value, location)])
+  const outside = Object.entries(location.parameters).filter(([code]) => !FORM_CODES.has(code))
+  const edited = Object.entries(fromForm.parameters).map(([code, value]): [string, ParameterValue] => [code, keepSource(code, value, location)])
   return { ...kept, ...basics, parameters: Object.fromEntries([...outside, ...edited]), staffGroups: fromForm.staffGroups }
 }

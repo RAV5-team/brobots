@@ -104,6 +104,17 @@ function nextId(ids: readonly string[]): ProjectId {
 
 const now = (): string => new Date().toISOString()
 
+/** Статус после создания черновика и сохранения оценки известен заранее — проверяем его, а не приводим тип. */
+function asDraft(project: Project): DraftProject {
+  if (project.status !== 'draft') throw new Error(`Проект ${project.id}: ожидался черновик, статус «${project.status}»`)
+  return project
+}
+
+function asSaved(project: Project): SavedProject {
+  if (project.status !== 'saved') throw new Error(`Проект ${project.id}: ожидалась сохранённая оценка, статус «${project.status}»`)
+  return project
+}
+
 type RunDto = SimulationSchemas['SimulationRun']
 
 /** Прогоны симуляции грузятся при первом обращении: в основной бандл кабинета они не входят. */
@@ -111,6 +122,13 @@ let runsLoading: Promise<readonly RunDto[]> | null = null
 const loadRuns = (): Promise<readonly RunDto[]> => {
   runsLoading ??= import('@/mocks/fixtures/simulationRuns.generated').then((module) => module.SIMULATION_RUNS)
   return runsLoading
+}
+
+/** Поля окна 2.1а (цена, условия RaaS, оборудование, разбор балла) — тоже при первом обращении. */
+let detailsLoading: Promise<typeof import('./variantDetails')> | null = null
+const loadVariantDetails = (): Promise<typeof import('./variantDetails')> => {
+  detailsLoading ??= import('./variantDetails')
+  return detailsLoading
 }
 
 /** Прогон, который мок «насчитает» для состава: у кого проверенный состав совпал, иначе — основной (confirmed). */
@@ -181,10 +199,15 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
     if (!evaluation) throw new NotFoundError('Подбор для этого проекта ещё не рассчитан')
     return evaluation
   }
-  const matchingOf = (stored: StoredProject): MatchingEvaluation => ({
-    ...toMatchingEvaluation(evaluationOf(stored), CALC_DEFAULTS_BY_PROCESS[stored.dto.task?.id ?? ''] ?? null),
-    stale: stored.local.inputs.stale.matching,
-  })
+  const matchingOf = async (stored: StoredProject): Promise<MatchingEvaluation> => {
+    const processId = stored.dto.task?.id ?? ''
+    const evaluation: MatchingEvaluation = {
+      ...toMatchingEvaluation(evaluationOf(stored), CALC_DEFAULTS_BY_PROCESS[processId] ?? null),
+      stale: stored.local.inputs.stale.matching,
+    }
+    const { withVariantDetails } = await loadVariantDetails()
+    return withVariantDetails(evaluation, processId)
+  }
   /** Ошибки — отказом промиса, как у настоящего запроса. */
   const attempt = <T>(action: () => T): Promise<T> => {
     try {
@@ -212,7 +235,7 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
         ...(solutionId ? { pinnedSolutionId: solutionId } : {}),
       }
       put(id, { dto, local: { step: 'params', inputs: emptyInputs(at), result: null } })
-      return toDomain(find(id)) as DraftProject
+      return asDraft(toDomain(find(id)))
     }),
 
     updateInputs: (id, patch) => attempt(() => {
@@ -248,16 +271,16 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
       return toDomain(find(id))
     }),
 
-    getMatching: (id) => attempt(() => matchingOf(find(id))),
+    getMatching: async (id) => respond(await matchingOf(find(id)), options),
 
-    evaluateMatching: (id) => attempt(() => {
+    evaluateMatching: async (id) => {
       const stored = editable(id)
       evaluationOf(stored)
       // Мок не пересчитывает: числа рейтинга из фикстуры, снимается только пометка «устарело» (api-contract.md, №11).
       const at = now()
       put(id, { dto: { ...stored.dto, updatedAt: at }, local: { ...stored.local, inputs: markFresh(stored.local.inputs, 'matching', at) } })
-      return matchingOf(find(id))
-    }),
+      return respond(await matchingOf(find(id)), options)
+    },
 
     startSimulation: async (id, request) => {
       editable(id)
@@ -339,7 +362,7 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
           result: { capexRub: scenario.capexRub, opexRubPerYear: scenario.opexRubPerYear, paybackYears: scenario.paybackYears, annualEffectRub: scenario.annualEffectRub },
         },
       })
-      return toDomain(find(id)) as SavedProject
+      return asSaved(toDomain(find(id)))
     }),
   }
 }

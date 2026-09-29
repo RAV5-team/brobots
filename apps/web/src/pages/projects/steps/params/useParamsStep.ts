@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AssumptionOverride, LocationProcessId, Project, ProjectParamsSnapshot } from '@/domain'
 import { useServices } from '@/services/useServices'
 import { ru } from '@/shared/i18n/ru'
-import { withOverride, type AssumptionCode } from './paramsModel'
 
 const t = ru.project.params.save
 
@@ -11,7 +10,7 @@ export type SnapshotState =
   | { readonly status: 'error' }
   | { readonly status: 'ready'; readonly snapshot: ProjectParamsSnapshot }
 
-/** Решения шага 1: процесс и уточнённые допущения. У гостя и сохранённой оценки живут только на странице. */
+/** Решения шага 1: процесс; уточнения допущений — из проекта, на шаге 1 они только отображаются (доска 16325). У гостя и сохранённой оценки выбор живёт только на странице. */
 interface ParamsDraft {
   readonly processId: LocationProcessId | null
   readonly overrides: readonly AssumptionOverride[]
@@ -26,7 +25,6 @@ export interface ParamsStepState {
   readonly savedAt: string | null
   readonly saveError: string | null
   readonly selectProcess: (id: LocationProcessId) => void
-  readonly refine: (code: AssumptionCode, next: AssumptionOverride | null) => void
 }
 
 /**
@@ -84,11 +82,5 @@ export function useParamsStep(initial: Project, canSave: boolean): ParamsStepSta
     persist(() => services.projects.selectProcess(initial.id, processId), t.processFailed)
   }, [persist, services, initial.id])
 
-  const refine = useCallback((code: AssumptionCode, next: AssumptionOverride | null) => {
-    const overrides = withOverride(draft.overrides, code, next)
-    setDraft({ ...draft, overrides })
-    persist(() => services.projects.updateInputs(initial.id, { params: { assumptions: overrides } }), t.failed)
-  }, [draft, persist, services, initial.id])
-
-  return { snapshot, retry, project, draft, savedAt, saveError, selectProcess, refine }
+  return { snapshot, retry, project, draft, savedAt, saveError, selectProcess }
 }

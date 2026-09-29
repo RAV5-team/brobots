@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { projectOpenPath } from '@/app/routePaths'
 import { canOpenStep, type Location, type Project, type ProjectId, type ProjectStep } from '@/domain'
-import { NotFoundError } from '@/services/errors'
+import { NotFoundError, requireId } from '@/services/errors'
 import { useServices } from '@/services/useServices'
 
 export type ProjectStepState =
@@ -17,7 +17,7 @@ export type ProjectStepState =
  * следующий шаг записывает CTA через `openStep`; закрытый шаг по URL — перенаправление, неизвестный проект —
  * «не найден», сбой — «Повторить» (D-07).
  */
-export function useProjectStep(projectId: ProjectId, step: ProjectStep): { readonly state: ProjectStepState; readonly retry: () => void } {
+export function useProjectStep(rawProjectId: ProjectId | null, step: ProjectStep): { readonly state: ProjectStepState; readonly retry: () => void } {
   const services = useServices()
   const [state, setState] = useState<ProjectStepState>({ status: 'loading' })
   const [attempt, setAttempt] = useState(0)
@@ -25,6 +25,7 @@ export function useProjectStep(projectId: ProjectId, step: ProjectStep): { reado
   useEffect(() => {
     let cancelled = false
     const load = async (): Promise<ProjectStepState> => {
+      const projectId = requireId(rawProjectId, 'project')
       const project = await services.projects.getProject(projectId)
       if (!canOpenStep(project, step)) return { status: 'redirect', to: projectOpenPath(project) }
       const [opened, location] = await Promise.all([
@@ -45,7 +46,7 @@ export function useProjectStep(projectId: ProjectId, step: ProjectStep): { reado
         setState({ status: 'error' })
       })
     return () => { cancelled = true }
-  }, [services, projectId, step, attempt])
+  }, [services, rawProjectId, step, attempt])
 
   const retry = useCallback(() => {
     setState({ status: 'loading' })

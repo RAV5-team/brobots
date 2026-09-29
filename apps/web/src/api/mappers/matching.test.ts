@@ -82,6 +82,40 @@ describe('toMatchingEvaluation', () => {
     expect(mapped.counts).toEqual({ total: 3, passed: 1, needsVerification: 1, excluded: 1, manual: 0 })
   })
 
+  it('поля окна 2.1а, которые отдаёт API: ограничения, пояснение, предложение, шаги расчёта', () => {
+    const withDetails = structuredClone(evaluation)
+    const candidate = withDetails.candidates?.[1]
+    if (!candidate?.match || !candidate.results?.[0]) throw new Error('нет кандидата AMR 800')
+    candidate.match.risks = ['specs_unconfirmed']
+    candidate.match.summary = 'Класс операции и способ совпадают с процессом'
+    candidate.match.offerId = 'OF-0008-01'
+    candidate.results[0].trace = [{
+      code: 'robot_count', label: 'Роботов', formula: '⌈130 ÷ 8,6⌉', value: 18, unit: 'шт.', source: 'derived',
+      inputs: [{ name: 'пик', value: 130 }, { name: 'интерпретация', text: 'с запасом' }],
+    }]
+    const variant = toMatchingEvaluation(withDetails).variants[0]
+    expect(variant).toMatchObject({ limitations: ['specs_unconfirmed'], summary: 'Класс операции и способ совпадают с процессом', offerId: 'OF-0008-01' })
+    expect(variant?.calcTrace).toEqual([{
+      code: 'robot_count', label: 'Роботов', formula: '⌈130 ÷ 8,6⌉', value: 18, unit: 'шт.', text: null, source: 'derived',
+      inputs: [{ name: 'пик', value: 130, text: null }, { name: 'интерпретация', value: null, text: 'с запасом' }],
+    }])
+  })
+
+  it('чего API не отдал, того нет в варианте: поля 2.1а необязательные', () => {
+    const variant = mapped.variants[0]
+    for (const key of ['limitations', 'summary', 'offerId', 'calcTrace', 'priceOffer', 'raasTerms']) {
+      expect(variant).not.toHaveProperty(key)
+    }
+  })
+
+  it('неизвестный источник шага расчёта — ошибка контракта', () => {
+    const broken = structuredClone(evaluation)
+    const result = broken.candidates?.[1]?.results?.[0]
+    if (!result) throw new Error('нет результата')
+    result.trace = [{ code: 'x', source: 'guess' as 'task' }]
+    expect(() => toMatchingEvaluation(broken)).toThrow('TraceItem.source')
+  })
+
   it('нет числа роботов у результата — ошибка контракта с указанием места', () => {
     const broken = structuredClone(evaluation)
     delete broken.candidates?.[0]?.results?.[0]?.robotCount

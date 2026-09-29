@@ -74,11 +74,25 @@ export function CardTitle({ children, as: Heading = 'h3', id }: CardTitleProps) 
   return <Heading id={id} className="type-overline text-text-muted">{children}</Heading>
 }
 
-/** Строка «подпись — значение» внутри <dl>. */
-export function CardStat({ label, value }: { readonly label: ReactNode; readonly value: ReactNode }) {
+interface CardStatProps {
+  readonly label: ReactNode
+  readonly value: ReactNode
+  /** Пояснение под подписью: «+ 6 зарядных станций, 4 точки Wi-Fi», «в рамках бюджета 80 млн ₽» (rail шага 2, 16325:101). */
+  readonly caption?: ReactNode
+}
+
+/** Строка «подпись — значение» внутри <dl>; с `caption` — пояснение второй строкой под подписью. */
+export function CardStat({ label, value, caption }: CardStatProps) {
   return (
     <div className="flex items-start gap-8 py-8">
-      <dt className="flex-1 type-body text-text-secondary">{label}</dt>
+      {caption === undefined
+        ? <dt className="flex-1 type-body text-text-secondary">{label}</dt>
+        : (
+            <dt className="flex flex-1 flex-col gap-4 type-body text-text-secondary">
+              {label}
+              <span className="type-caption">{caption}</span>
+            </dt>
+          )}
       <dd className="type-body font-semibold whitespace-nowrap text-text">{value}</dd>
     </div>
   )

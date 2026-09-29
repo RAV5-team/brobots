@@ -1,8 +1,8 @@
-import { ArrowLeft } from 'lucide-react'
-import { useEffect, type ReactNode } from 'react'
-import { useSearchParams } from 'react-router'
+import { useEffect, type ComponentProps, type ReactNode } from 'react'
+import { useNavigate, useSearchParams } from 'react-router'
 import { projectStepPath } from '@/app/routePaths'
 import { ButtonLink } from '@/components/ui/Button'
+import { Chip } from '@/components/ui/Chip'
 import { StatusBanner } from '@/components/ui/StatusBanner'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
 import { Stepper } from '@/components/ui/Stepper'
@@ -14,12 +14,11 @@ import { useModelNorms } from '@/shared/norms/useModelNorms'
 import { ProjectStepLayout } from '../ProjectStepLayout'
 import { demandOf } from '../matching/howCalculatedModel'
 import { findVariant } from '../matching/matchingModel'
-import { useAdvanceStep } from '../useAdvanceStep'
 import { ConditionsStage } from './ConditionsStage'
 import { RunStage } from './RunStage'
 import { ChartsStage } from './charts/ChartsStage'
 import { CONDITION_DEFAULTS, conditionBases } from './conditionsModel'
-import { ScopeStage } from './ScopeStage'
+import { ScopeRail, ScopeStage } from './ScopeStage'
 import {
   calcRows,
   fleetToStore,
@@ -35,6 +34,8 @@ import { VerdictStage } from './VerdictStage'
 import type { ProjectStepProps } from '../stepProps'
 
 const t = ru.project.simulation
+
+type RunFleet = ComponentProps<typeof RunStage>['fleet']
 
 /** Адрес этапа с сохранением остальных параметров (`?as=` в dev-сборке); вкладка вердикта — только у этапа 4. */
 function withStage(params: URLSearchParams, stage: SimulationStage): URLSearchParams {
@@ -53,8 +54,8 @@ function withTab(params: URLSearchParams, tab: VerdictTab): URLSearchParams {
 }
 
 function saveNoteOf(state: SimulationStepState, isGuest: boolean, readOnly: boolean): { readonly text: string; readonly isError: boolean } | null {
-  if (isGuest) return { text: t.save.guest, isError: false }
-  if (readOnly) return { text: t.save.readOnly, isError: false }
+  // Гостю и сохранённой оценке статус заменяет каркас: демо-плашка и «только просмотр».
+  if (isGuest || readOnly) return null
   if (state.saveError) return { text: state.saveError, isError: true }
   if (state.savedAt) return { text: t.save.saved(formatTime(state.savedAt)), isError: false }
   return null
@@ -74,12 +75,11 @@ function StaleRunNotice({ runId }: { readonly runId: string }) {
  */
 export function SimulationStep({ project: initial, locationName, isGuest }: ProjectStepProps) {
   const readOnly = isReadOnly(initial)
-  const persist = !isGuest && !readOnly
-  const state = useSimulationStep(initial, persist)
-  const advance = useAdvanceStep(initial.id, persist)
+  const state = useSimulationStep(initial, !isGuest && !readOnly)
   const norms = useModelNorms()
   const { project, inputs, load } = state
   const [params, setParams] = useSearchParams()
+  const navigate = useNavigate()
   const requested = params.get('stage')
   const fallback: SimulationStage = state.run?.status === 'running' ? 'run' : inputs?.stage ?? 'scope'
   const stage: SimulationStage = isSimulationStage(requested) ? requested : fallback
@@ -96,19 +96,21 @@ export function SimulationStep({ project: initial, locationName, isGuest }: Proj
     setParams((current) => withStage(current, next))
   }
 
-  const stages = SIMULATION_STAGES.map((s) => {
-    const stepState = stageState(s, stage, inputs)
-    return {
-      key: s,
-      label: t.stages[s],
-      state: stepState,
-      ...(isStageLinkable(s) ? { to: `?${withStage(params, s).toString()}` } : {}),
-    }
-  })
+  const stages = (labels: Readonly<Record<SimulationStage, string>>) => SIMULATION_STAGES.map((s) => ({
+    key: s,
+    label: labels[s],
+    state: stageState(s, stage, inputs),
+    ...(isStageLinkable(s) ? { to: `?${withStage(params, s).toString()}` } : {}),
+  }))
   const saveNote = saveNoteOf(state, isGuest, readOnly)
 
-  const layout = (title: string, body: ReactNode, lead?: string) => (
+  /**
+   * Каркас доски 16325 (3.1, 16325:149): статус сохранения вверху справа, этапы капсулой над содержанием, правая колонка.
+   * Вкладка графиков (07a) переходит на него экраном 3.5. Гостю и сохранённой оценке статус заменяет каркас (демо-плашка, «только просмотр»).
+   */
+  const boardLayout = (title: string, body: ReactNode, lead?: string, rail?: ReactNode) => (
     <ProjectStepLayout
+      layout="board"
       project={project}
       locationName={locationName}
       step="simulation"
@@ -116,20 +118,28 @@ export function SimulationStep({ project: initial, locationName, isGuest }: Proj
       title={title}
       overline={t.overline(SIMULATION_STAGES.indexOf(stage) + 1, SIMULATION_STAGES.length)}
       lead={lead}
-      aboveTitle={<Stepper variant="segments" label={t.stagesNav} steps={stages} />}
-      actions={<ButtonLink to={projectStepPath(project.id, 'matching')}><ArrowLeft aria-hidden size={16} />{t.back}</ButtonLink>}
+      status={saveNote && (
+        <Chip tone={saveNote.isError ? 'danger' : 'muted'} size="md">
+          <span role={saveNote.isError ? 'alert' : 'status'}>{saveNote.text}</span>
+        </Chip>
+      )}
+      stages={<Stepper variant="capsule" label={t.stagesNav} steps={stages(t.boardStages)} />}
+      rail={rail}
     >
       {state.stale && inputs?.runId && <StaleRunNotice runId={inputs.runId} />}
       {body}
-      {saveNote && <p role={saveNote.isError ? 'alert' : 'status'} className={saveNote.isError ? 'type-caption text-danger' : 'type-caption text-text-secondary'}>{saveNote.text}</p>}
+      {/* На доске дисклеймера нет — PRD 11.4 требует его на каждом этапе (D-101). */}
       <p className="type-caption text-text-muted">{t.disclaimer}</p>
     </ProjectStepLayout>
   )
 
+  // Все этапы и обе вкладки вердикта — на каркасе доски во всех состояниях (загрузка, ошибка, нет варианта).
+  const layout = (title: string, body: ReactNode, lead?: string) => boardLayout(title, body, lead)
+
   const heading = { scope: t.scope, conditions: t.conditions, run: t.run, verdict: t.verdict }[stage]
 
   // Идущий прогон не ждёт загрузки данных шага: они нужны только для нового запуска.
-  const runStage = (onStart: (() => void) | undefined) => layout(heading.title, (
+  const runStage = (onStart: (() => void) | undefined, fleet: RunFleet | null) => layout(heading.title, (
     <RunStage
       progress={state.run}
       lastRunId={inputs?.runId ?? null}
@@ -142,9 +152,10 @@ export function SimulationStep({ project: initial, locationName, isGuest }: Proj
         openStage('conditions')
       }}
       onConditions={() => { openStage('conditions') }}
+      fleet={fleet}
     />
   ), heading.lead)
-  if (stage === 'run' && state.run !== null && load.status !== 'ready') return runStage(undefined)
+  if (stage === 'run' && state.run !== null && load.status !== 'ready') return runStage(undefined, null)
   if (load.status === 'loading') return layout(heading.title, <div aria-busy="true"><Skeleton className="h-(--rav-location-card-height)" /></div>, heading.lead)
   if (load.status === 'error') return layout(heading.title, <ErrorState title={t.loadError.title} message={t.loadError.message} onRetry={state.retry} />, heading.lead)
 
@@ -169,19 +180,15 @@ export function SimulationStep({ project: initial, locationName, isGuest }: Proj
     state.startRun(request)
     openStage('run')
   }
-  if (stage === 'run') return runStage(readOnly ? undefined : run)
+  if (stage === 'run') return runStage(readOnly ? undefined : run, { checked: fleet, fromMatching })
   if (stage === 'verdict') {
     const v = t.verdict
     const tab: VerdictTab = params.get('tab') === 'charts' ? 'charts' : 'verdict'
     const tabs = (['verdict', 'charts'] as const).map((key) => ({ to: `?${withTab(params, key).toString()}`, label: v.tabs[key] }))
-    // У вкладки графиков свой заголовок и подзаголовок (07a, 16198:75).
-    const tabHeading = tab === 'charts' ? t.charts : v
-    const verdictLayout = (body: ReactNode) => layout(tabHeading.title, (
-      <>
-        <TabNav label={v.tabsLabel} items={tabs} activeTo={`?${withTab(params, tab).toString()}`} />
-        {body}
-      </>
-    ), tabHeading.lead)
+    // Заголовок вкладок общий, у графиков — свой подзаголовок (3.5, 17040:33).
+    const tabHeading = { title: v.title, lead: tab === 'charts' ? t.charts.lead : v.lead }
+    const tabNav = <TabNav label={v.tabsLabel} items={tabs} activeTo={`?${withTab(params, tab).toString()}`} />
+    const verdictLayout = (body: ReactNode, rail?: ReactNode) => boardLayout(tabHeading.title, <>{tabNav}{body}</>, tabHeading.lead, rail)
     const runLoad = verdictRun.load
     if (runLoad.status === 'none') {
       return verdictLayout(
@@ -204,7 +211,7 @@ export function SimulationStep({ project: initial, locationName, isGuest }: Proj
       onVerdict: state.setVerdict,
       onAccept: async () => {
         await state.commitVerdict()
-        await advance.go('economics')
+        await navigate(projectStepPath(project.id, 'economics'))
       },
       onRerun: (next: Fleet) => {
         state.setFleet(fleetToStore(next, fromMatching))
@@ -219,15 +226,23 @@ export function SimulationStep({ project: initial, locationName, isGuest }: Proj
         onTimeTarget: inputs?.conditions.onTimeTarget ?? CONDITION_DEFAULTS.onTimeTarget,
         maxWaitMin: inputs?.conditions.maxWaitMin ?? CONDITION_DEFAULTS.maxWaitMin,
       }
-      return verdictLayout(<ChartsStage {...verdictProps} targets={targets} />)
+      const startHour = inputs?.conditions.firstShiftStartHour ?? CONDITION_DEFAULTS.firstShiftStartHour
+      return verdictLayout(<ChartsStage run={runLoad.run} fromMatching={fromMatching} targets={targets} startHour={startHour} />)
     }
-    return verdictLayout(<VerdictStage {...verdictProps} />)
+    return (
+      <VerdictStage
+        {...verdictProps}
+        calibration={inputs?.calibration ?? null}
+        onCalibration={state.setCalibration}
+        layout={verdictLayout}
+      />
+    )
   }
   if (stage === 'conditions') {
     const calcHours = evaluation.calcDefaults?.workHoursPerDay ?? demand?.hours ?? 24
     const base = conditionBases({ snapshot, project, robot, calcHours, tolerance: norms.simulationTolerance }, project.inputs.params.assumptions)
     if (!base) return layout(heading.title, <ErrorState title={t.loadError.title} message={t.loadError.message} onRetry={state.retry} />, heading.lead)
-    return layout(heading.title, (
+    return (
       <ConditionsStage
         bases={base.bases}
         handlingName={base.handlingName}
@@ -235,22 +250,22 @@ export function SimulationStep({ project: initial, locationName, isGuest }: Proj
         calcPeak={demand?.perHour ?? null}
         canEdit={!readOnly}
         onChange={state.setConditions}
-        onBack={() => { openStage('scope') }}
         onRun={run}
+        layout={(body, rail) => boardLayout(heading.title, body, heading.lead, rail)}
       />
-    ), heading.lead)
+    )
   }
 
-  return layout(t.scope.title, (
+  return boardLayout(t.scope.title, (
     <ScopeStage
       variant={variant}
       calc={calcRows(variant, demand, evaluation.calcDefaults)}
-      tolerance={inputs?.conditions.tolerance ?? norms.simulationTolerance}
       fleet={fleet}
       fromMatching={fromMatching}
       canEdit={!readOnly}
       onFleet={(next) => { state.setFleet(fleetToStore(next, fromMatching)) }}
-      onNext={() => { openStage('conditions') }}
     />
-  ), t.scope.lead)
+  ), t.scope.lead, (
+    <ScopeRail tolerance={inputs?.conditions.tolerance ?? norms.simulationTolerance} onNext={() => { openStage('conditions') }} />
+  ))
 }

@@ -10,6 +10,12 @@ export class NotFoundError extends Error {
   override readonly name = 'NotFoundError'
 }
 
+/** Id из адреса не прошёл `parse*Id` — для экрана это то же «не найдено», что и неизвестный id. */
+export function requireId<T extends string>(id: T | null, entity: 'project' | 'location' | 'locationProcess' | 'process'): T {
+  if (id === null) throw new NotFoundError(`Неверный идентификатор в адресе: ${entity}`)
+  return id
+}
+
 /** Почта или пароль не подошли. Текст для пользователя берёт экран. */
 export class InvalidCredentialsError extends Error {
   override readonly name = 'InvalidCredentialsError'

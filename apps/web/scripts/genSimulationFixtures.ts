@@ -166,6 +166,48 @@ function kpis(rows: readonly HourlyRow[], b: Behaviour, onTimeWorst: number): Si
   }
 }
 
+/**
+ * Нормативы расчёта подбора LP-01 — база поправок методики (3.4 «Уточнить методику»): загрузка 0,75 и
+ * производительность 8,6 рейса/ч — «Параметры расчёта» (D-101, не 0,80 и 8,76 с макета), цикл 312 с — расчёт подбора,
+ * длина рейса 100 м — процесс LP-01. Держать в согласии с src/mocks/fixtures/projectMatching.ts (проверяет тест).
+ */
+export const CALC_BASE = { util: 0.75, routeLengthM: 100, cycleS: 312, tripsPerHour: 8.6 } as const
+/** Допуск прогона: отклонение коэффициента больше него значимо (simcore/adjustments.py). */
+const TOLERANCE = 0.1
+
+/** Измерено на модели (синтетика; у подтверждённого состава — как на макете 3.4, 16325:176). */
+interface Measured {
+  readonly util: number
+  /** Груженый и порожний пробег, м: длина рейса — их среднее. */
+  readonly loadedM: number
+  readonly emptyM: number
+  readonly cycleS: number
+  readonly tripsPerHour: number
+}
+
+const MEASURED_OK: Measured = { util: 0.9, loadedM: 92, emptyM: 80, cycleS: 288, tripsPerHour: 8.5 }
+
+/**
+ * Поправки методики — четыре коэффициента, как на макете 3.4 (в движке ещё состав парка и скорость, n_avail).
+ * Форма и правило значимости — simcore/adjustments.py: калибровка, по умолчанию не выбрана.
+ */
+function adjustments(m: Measured): SimulationSchemas['Adjustment'][] {
+  const item = (code: string, label: string, unit: string, note: string, base: number, simulated: number): SimulationSchemas['Adjustment'] => {
+    const delta = round((simulated - base) / base, 4)
+    return {
+      code, group: 'coefficient', label, base, simulated, unit, apply: 'calibration', note,
+      delta_rel: delta, significant: Math.abs(delta) > TOLERANCE, source: 'simulation', default_selected: false,
+    }
+  }
+  const route = (m.loadedM + m.emptyM) / 2
+  return [
+    item('n_util', 'Коэффициент загрузки робота', 'коэф.', 'Доля полезной работы во времени, когда робот не простаивает без заявок и не в ремонте.', CALC_BASE.util, m.util),
+    item('route_len_m', 'Длина рейса в одну сторону', 'м', `Среднее груженого (${String(m.loadedM)} м) и порожнего (${String(m.emptyM)} м) пробега на схеме.`, CALC_BASE.routeLengthM, route),
+    item('cycle_s', 'Время цикла', 'с', 'Полезное время на один рейс.', CALC_BASE.cycleS, m.cycleS),
+    item('eff_prod', 'Эффективная производительность робота', 'рейс/ч', 'Циклов в час × загрузка × готовность.', CALC_BASE.tripsPerHour, m.tripsPerHour),
+  ]
+}
+
 interface Scenario {
   readonly id: string
   readonly status: Run['status']
@@ -177,6 +219,7 @@ interface Scenario {
   readonly lines: readonly string[]
   readonly justification: readonly string[]
   readonly diagnosis: readonly string[]
+  readonly measured: Measured
 }
 
 const F18: Fleet = { robots: 18, chargers: 6 }
@@ -192,6 +235,7 @@ const SCENARIOS: readonly Scenario[] = [
     lines: ['Пиковый час: 130 рейсов при потребности 130', 'Все паллеты забраны в срок: 98,4 % в худший день', 'Зарядка успевает: очереди к станциям нет'],
     justification: ['16 роботов не выдерживают рост объёма на 10 %'],
     diagnosis: ['Самый тяжёлый час — 17:00: совпадают отгрузка и подзарядка'],
+    measured: MEASURED_OK,
   },
   {
     id: 'SIM-0926-02', status: 'can_reduce', before: confirmedBehaviour,
@@ -201,6 +245,7 @@ const SCENARIOS: readonly Scenario[] = [
     lines: ['Пиковый час: 130 рейсов при потребности 130', 'Все паллеты забраны в срок в каждом дне', 'Минус 3 робота — поток не вывозится'],
     justification: ['16 роботов выдерживают рост объёма на 10 %', 'Экономия 2 роботов и 1 станции'],
     diagnosis: ['Самый тяжёлый час — 17:00: совпадают отгрузка и подзарядка'],
+    measured: MEASURED_OK,
   },
   {
     id: 'SIM-0926-03', status: 'needs_additions',
@@ -210,6 +255,7 @@ const SCENARIOS: readonly Scenario[] = [
     lines: ['В пик 122 рейса из 130 — 94,0 % потребности', 'В срок 82,4 % паллет, в худший день 77,5 %', 'С 18 роботами поток вывозится'],
     justification: [],
     diagnosis: ['Не хватает роботов в часы приёмки 08–11'],
+    measured: MEASURED_OK,
   },
   {
     id: 'SIM-0926-04', status: 'layout_bottleneck',
@@ -220,6 +266,8 @@ const SCENARIOS: readonly Scenario[] = [
     lines: ['В пик 112 рейсов из 130', 'Роботы стоят в проездах у ворот 18 % времени'],
     justification: [],
     diagnosis: ['Проезд у ворот приёмки 1–6 — одна полоса на 18 роботов'],
+    // Роботы стоят в проездах: цикл длиннее, производительность ниже расчётной.
+    measured: { util: 0.9, loadedM: 92, emptyM: 80, cycleS: 372, tripsPerHour: 7.2 },
   },
   {
     id: 'SIM-0926-05', status: 'not_achievable',
@@ -230,6 +278,8 @@ const SCENARIOS: readonly Scenario[] = [
     lines: ['В пик 95 рейсов из 130', 'Цикл рейса дольше расчётного вдвое'],
     justification: [],
     diagnosis: ['Проверьте длину маршрута и скорость робота с паллетой'],
+    // «Цикл рейса дольше расчётного вдвое».
+    measured: { util: 0.9, loadedM: 150, emptyM: 130, cycleS: 624, tripsPerHour: 4.3 },
   },
 ]
 
@@ -278,7 +328,7 @@ function buildRun(s: Scenario, demand: readonly number[], seed: number): Run {
       peak_out: Array.from({ length: 24 }, (_, h) => h >= 16 && h <= 18),
       calc_peak_trips_h: PEAK_TRIPS,
     },
-    adjusted_input_set: { items: [] },
+    adjusted_input_set: { items: adjustments(s.measured) },
     warnings: [],
     timing: { total_s: 12, runs: 5, per_run_s: 2.4, configs: changed ? 2 : 1 },
   }

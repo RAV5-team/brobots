@@ -1,9 +1,11 @@
 import { ArrowRight, SlidersHorizontal } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { useNavigate } from 'react-router'
+import { projectStepPath } from '@/app/routePaths'
 import { Button } from '@/components/ui/Button'
-import { Card, CardStat, CardTitle } from '@/components/ui/Card'
 import { MergedButton } from '@/components/ui/MergedButton'
-import type { Project, RankedVariant } from '@/domain'
-import { formatCount, formatDate, formatRubCompact, formatYears } from '@/shared/format'
+import type { Project } from '@/domain'
+import { formatCount, formatDate } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 
 const t = ru.project.matching
@@ -11,70 +13,39 @@ const r = t.rail
 
 interface MatchingRailProps {
   readonly project: Project
-  readonly selected: RankedVariant | null
+  /** Рекомендация системы (16828:3); null — рейтинг пуст. */
+  readonly recommendation: ReactNode
+  /** «Выбрано: AMR 800 · RaaS · 18 роботов · 6 зарядных станций» (PRD 11.3, «Переход к симуляции»); null — не выбран. */
+  readonly selection: string | null
   readonly stale: boolean
-  /** Параметры площадки без данных: «Уточните в первую очередь». */
-  readonly siteChecks: readonly string[]
   /** Сколько «Параметров расчёта» изменено; null — панели нет (исходных значений нет или только просмотр). */
   readonly changedParams: number | null
   readonly onOpenParams: () => void
-  readonly saveNote: { readonly text: string; readonly isError: boolean } | null
-  readonly proceeding: boolean
-  readonly proceedError: string | null
-  readonly onProceed: () => void
 }
 
-/** Правая колонка шага 2 (16197:1025): выбранный вариант, что уточнить, «Перейти к симуляции», параметры и версии. */
-export function MatchingRail({
-  project, selected, stale, siteChecks, changedParams, onOpenParams, saveNote, proceeding, proceedError, onProceed,
-}: MatchingRailProps) {
-  const canProceed = selected !== null && !stale
+/**
+ * Правая колонка шага 2 (16828:2): рекомендация системы, «Перейти к симуляции» с пояснением, «Изменить параметры расчёта»
+ * (нет в макете, PRD 11.3 — D-97) и версии данных.
+ */
+export function MatchingRail({ project, recommendation, selection, stale, changedParams, onOpenParams }: MatchingRailProps) {
+  const hasSelection = selection !== null
+  const navigate = useNavigate()
+  const handoff = !hasSelection ? r.noneHint : stale ? r.staleBlocked : r.handoff
   return (
     <>
-      <Card padding={20} gap={8} as="section" aria-labelledby="matching-selected">
-        <CardTitle as="h2" id="matching-selected">{r.overline}</CardTitle>
-        {selected
-          ? (
-              <>
-                <p className="type-title-md text-text">{t.variantName(selected.solutionName, t.acquisition[selected.acquisition])}</p>
-                <dl className="flex flex-col">
-                  <CardStat label={r.payback} value={selected.paybackYears === null ? t.ranking.notPaying : formatYears(selected.paybackYears)} />
-                  <CardStat label={r.capex} value={formatRubCompact(selected.capexRub, { fractionDigits: 1 })} />
-                  <CardStat label={r.effect} value={formatRubCompact(selected.annualEffectRub, { perYear: true, fractionDigits: 1 })} />
-                  <CardStat label={r.robots} value={r.robotsValue(selected.robots, selected.stations)} />
-                </dl>
-              </>
-            )
-          : (
-              <>
-                <p className="type-title-md text-text">{r.none}</p>
-                <p className="type-caption text-text-secondary">{r.noneHint}</p>
-              </>
-            )}
-      </Card>
-      {siteChecks.length > 0 && (
-        <Card padding={20} gap={12} as="section" aria-labelledby="matching-checks">
-          <CardTitle as="h2" id="matching-checks">{r.checksTitle}</CardTitle>
-          <ol className="flex list-inside list-decimal flex-col gap-8 type-body font-semibold text-text">
-            {siteChecks.map((label) => (
-              <li key={label}>
-                {label.charAt(0).toLocaleUpperCase('ru') + label.slice(1)}
-                <span className="block pl-16 type-caption font-normal text-text-secondary">{r.checkCaption}</span>
-              </li>
-            ))}
-          </ol>
-        </Card>
-      )}
+      {recommendation}
       <MergedButton
         block
         label={r.toSimulation}
         icon={ArrowRight}
-        disabled={!canProceed || proceeding}
+        disabled={!hasSelection || stale}
         aria-describedby="matching-handoff"
-        onClick={onProceed}
+        onClick={() => { void navigate(projectStepPath(project.id, 'simulation')) }}
       />
-      {proceedError && <p role="alert" className="type-caption text-danger">{proceedError}</p>}
-      <p id="matching-handoff" className="type-caption text-text-secondary">{stale && selected ? r.staleBlocked : r.handoff}</p>
+      <div id="matching-handoff" className="flex flex-col gap-4 type-caption text-text-secondary">
+        {selection && <p className="font-semibold text-text">{r.selected(selection)}</p>}
+        <p>{handoff}</p>
+      </div>
       {changedParams !== null && (
         <div className="flex flex-col gap-4">
           <Button aria-describedby={changedParams > 0 ? 'matching-params-changed' : undefined} onClick={onOpenParams}>
@@ -89,11 +60,6 @@ export function MatchingRail({
       <p className="type-caption text-text-secondary">
         {ru.project.params.readiness.versions(formatDate(project.versions.snapshotAt), project.versions.catalog, project.versions.model)}
       </p>
-      {saveNote && (
-        <p role={saveNote.isError ? 'alert' : 'status'} className={saveNote.isError ? 'type-caption text-danger' : 'type-caption text-text-secondary'}>
-          {saveNote.text}
-        </p>
-      )}
     </>
   )
 }

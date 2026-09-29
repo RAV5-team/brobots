@@ -44,12 +44,17 @@ const renderAt = (path: string, services: Services = createMockServices({ latenc
 afterEach(() => { sessionStorage.clear() })
 
 describe('ProjectStepPage — каркас шага проекта', () => {
-  it('открывает шаг демо-проекта: заголовок шага, крошки с локацией, степпер', async () => {
+  it('открывает шаг демо-проекта: заголовок шага и степпер (каркас доски 16325, шаг 2)', async () => {
     renderAt('/projects/PJ-DEMO/matching?as=user')
-    expect(await screen.findByRole('heading', { level: 1, name: 'Подбор решения под процесс' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'РЦ Химки' })).toHaveAttribute('href', '/locations/LOC-01')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Подбор решений' })).toBeInTheDocument()
     expect(screen.getByRole('navigation', { name: 'Шаги проекта' })).toBeInTheDocument()
     expect(document.title).toBe('Подбор решения · Демо-проект · РЦ Химки · RAV5')
+  })
+
+  it('крошки с локацией — на старом каркасе (шаг 4)', async () => {
+    renderAt('/projects/PJ-DEMO/economics?as=user')
+    expect(await screen.findByRole('link', { name: 'РЦ Химки' })).toHaveAttribute('href', '/locations/LOC-01')
+    expect(screen.getByRole('navigation', { name: 'Шаги проекта' })).toBeInTheDocument()
   })
 
   it('закрытый шаг черновика — перенаправление на шаг, где остановились', async () => {
@@ -83,24 +88,12 @@ describe('ProjectStepPage — каркас шага проекта', () => {
     expect(screen.getByRole('link', { name: 'К списку проектов' })).toHaveAttribute('href', '/projects')
   })
 
-  it('новый черновик: «Подобрать решения» записывает шаг и открывает подбор', async () => {
+  it('id чужого вида в адресе — «не найден» без запроса к сервису', async () => {
     const services = createMockServices({ latencyMs: 0 })
-    const draft = await services.projects.createDraft({ name: 'Новый', locationId: 'LOC-01', locationProcessId: 'LP-01' })
-    renderAt(`/projects/${draft.id}/params?as=user`, services)
-    fireEvent.click(await screen.findByRole('button', { name: 'Подобрать решения' }))
-    expect(await screen.findByRole('heading', { level: 1, name: 'Подбор решения под процесс' })).toBeInTheDocument()
-    expect(await services.projects.getProject(draft.id)).toMatchObject({ status: 'draft', step: 'matching' })
-  })
-
-  it('с подбора CTA открывает симуляцию', async () => {
-    const services = createMockServices({ latencyMs: 0 })
-    const draft = await services.projects.createDraft({ name: 'Новый', locationId: 'LOC-01', locationProcessId: 'LP-01' })
-    await services.projects.openStep(draft.id, 'matching')
-    await services.projects.updateInputs(draft.id, { matching: { selection: { solutionId: 'RB-0008', acquisition: 'raas' } } })
-    renderAt(`/projects/${draft.id}/matching?as=user`, services)
-    fireEvent.click(await screen.findByRole('button', { name: 'Перейти к симуляции' }))
-    expect(await screen.findByRole('heading', { level: 1, name: 'Проверяем решение из подбора' })).toBeInTheDocument()
-    expect(await services.projects.getProject(draft.id)).toMatchObject({ step: 'simulation' })
+    const getProject = vi.spyOn(services.projects, 'getProject')
+    renderAt('/projects/LOC-01/params?as=user', services)
+    expect(await screen.findByRole('heading', { name: 'Проект не найден' })).toBeInTheDocument()
+    expect(getProject).not.toHaveBeenCalled()
   })
 
   it('ошибка загрузки — «Повторить» загружает снова', async () => {

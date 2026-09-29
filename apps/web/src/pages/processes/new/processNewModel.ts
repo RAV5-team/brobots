@@ -8,7 +8,7 @@ import type { CheckRow } from './ProcessCheckRail'
 
 const t = ru.processNew
 
-export function classOptions(classes: readonly OperationClass[]): readonly SelectOption<string>[] {
+export function classOptions(classes: readonly OperationClass[]): readonly SelectOption<OperationClassCode>[] {
   return classes.map((c) => ({ value: c.code, label: t.classOption(c.code, c.name) }))
 }
 

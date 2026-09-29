@@ -50,18 +50,24 @@ describe('locationSheet', () => {
     expect(fromComma.ok && fromComma.form.name).toBe('РЦ Подольск')
 
     const win = cp1251('Код параметра;Группа;Параметр;Ед. изм.;Значение\r\nloc_name;;;;РЦ Казань\r\n')
-    const fromWin = await applyLocationFile(initial, params, new File([win], 'шаблон.csv'))
+    const fromWin = await applyLocationFile(initial, params, new File([bytesOf(win)], 'шаблон.csv'))
     expect(fromWin.ok && fromWin.form.name).toBe('РЦ Казань')
   })
 
   it('reads a workbook Excel saved as xlsx', async () => {
-    const file = new File([workbookWithName('РЦ Тула')], 'шаблон.xlsx')
+    const file = new File([bytesOf(workbookWithName('РЦ Тула'))], 'шаблон.xlsx')
     const applied = await applyLocationFile(initial, params, file)
     expect(applied.ok && applied.form.name).toBe('РЦ Тула')
   })
 })
 
 /** «Код параметра» и «Значение» лежат в кодировке, которой Excel пересохраняет CSV на русской Windows. */
+function bytesOf(bytes: Uint8Array): ArrayBuffer {
+  const copy = new ArrayBuffer(bytes.byteLength)
+  new Uint8Array(copy).set(bytes)
+  return copy
+}
+
 function cp1251(text: string): Uint8Array {
   const bytes = [...text].map((char) => {
     const code = char.charCodeAt(0)

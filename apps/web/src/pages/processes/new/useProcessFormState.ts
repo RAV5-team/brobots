@@ -4,16 +4,9 @@ import { clearDraft, readDraft, useDraftAutosave } from '@/shared/dom/useDraftAu
 import { formatNumber } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { validateForm, type FormErrors } from './processCalc'
-import { NUMERIC_SPECS, SECTION_IDS, type NumericKey, type ProcessForm, type SectionId } from './processForm'
+import { isProcessForm, NUMERIC_SPECS, SECTION_IDS, type NumericKey, type ProcessForm, type SectionId } from './processForm'
 
 const t = ru.processNew
-
-/** Черновик из браузера годится, если у него форма той же версии: класс, список групп, способы. */
-function isProcessForm(value: unknown): value is ProcessForm {
-  if (typeof value !== 'object' || value === null) return false
-  const v = value as Partial<ProcessForm>
-  return typeof v.operationClass === 'string' && Array.isArray(v.staff) && Array.isArray(v.handling) && typeof v.dailyVolume === 'string'
-}
 
 /** Секция первой ошибки — туда ведём после неудачной проверки. */
 function firstErrorSection(errors: FormErrors): SectionId {

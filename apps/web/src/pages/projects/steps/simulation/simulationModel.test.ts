@@ -3,7 +3,7 @@ import { toMatchingEvaluation } from '@/api/mappers/matching'
 import type { SimulationInputs } from '@/domain'
 import { CALC_DEFAULTS_LP01, EVALUATION_LP01 } from '@/mocks/fixtures/projectMatching'
 import { findVariant } from '../matching/matchingModel'
-import { calcRows, fleetToStore, furthestStage, matchingFleet, stageState } from './simulationModel'
+import { calcRows, fleetToStore, furthestStage, matchingFleet, parseFleetField, stageState } from './simulationModel'
 
 const evaluation = toMatchingEvaluation(EVALUATION_LP01, CALC_DEFAULTS_LP01)
 const amrRaas = findVariant(evaluation, 'RB-0008', 'raas')
@@ -49,24 +49,41 @@ describe('состав для проверки (PRD 11.4)', () => {
   })
 })
 
-describe('«Как рассчитал подбор» — числа подбора, как в 03a (D-100, PRD 15 · №109)', () => {
+describe('«Расчёт подбора» — числа подбора, как в 03a (D-100, PRD 15 · №109); пояснение в подписи (16325:149)', () => {
   const rows = calcRows(amrRaas, demand, CALC_DEFAULTS_LP01)
-  const value = (key: string) => rows.find((r) => r.key === key)?.value
+  const row = (key: string) => rows.find((r) => r.key === key)
 
   it('потребность 130 паллет/ч, цикл 312 с, производительность 8,6', () => {
-    expect(value('peak')).toBe('130 паллет/ч')
-    expect(value('cycle')).toMatch(/^312 с · /)
-    expect(value('productivity')).toMatch(/^8,6 рейса\/ч · 3 600 ÷ 312 × загрузка 0,75 ≈ 8,65/)
+    expect(row('peak')?.value).toBe('130 паллет/ч')
+    expect(row('cycle')).toMatchObject({ label: 'Цикл рейса (туда и обратно, погрузка и выгрузка)', value: '312 с' })
+    expect(row('productivity')?.value).toBe('8,6 рейса/ч')
+    expect(row('productivity')?.label).toMatch(/\(3 600 ÷ 312 × загрузка 0,75 ≈ 8,65\)$/)
   })
 
   it('парк 18 роботов: 15,1 без резерва; станций 6 — 1 на 3 робота', () => {
-    expect(value('fleet')).toMatch(/^18\sроботов · 15,1 без резерва/u)
-    expect(value('stations')).toBe('6 · 1 на 3 робота')
+    expect(row('fleet')?.value).toMatch(/^18\sроботов$/u)
+    expect(row('fleet')?.label).toMatch(/^Парк \(15,1 без резерва/)
+    expect(row('stations')).toMatchObject({ label: 'Зарядных станций (1 на 3 робота)', value: '6' })
   })
 
   it('без потребности — «нет данных», парк без формулы', () => {
     const bare = calcRows(amrRaas, null, CALC_DEFAULTS_LP01)
     expect(bare.find((r) => r.key === 'peak')?.value).toMatch(/нет данных/)
-    expect(bare.find((r) => r.key === 'fleet')?.value).toMatch(/^18\sроботов$/u)
+    expect(bare.find((r) => r.key === 'fleet')?.label).toBe('Парк')
+  })
+})
+
+describe('поле состава 3.1 — целое число в границах D-101', () => {
+  it('принимает целое в границах', () => {
+    expect(parseFleetField('robots', '24')).toEqual({ ok: true, value: 24 })
+    expect(parseFleetField('stations', ' 50 ')).toEqual({ ok: true, value: 50 })
+  })
+
+  it('дробь, пусто и выход за границы — текст исправления', () => {
+    const error = { ok: false, error: 'Введите целое число от 1 до 100' }
+    expect(parseFleetField('robots', '18,5')).toEqual(error)
+    expect(parseFleetField('robots', '')).toEqual(error)
+    expect(parseFleetField('robots', '0')).toEqual(error)
+    expect(parseFleetField('stations', '51')).toEqual({ ok: false, error: 'Введите целое число от 1 до 50' })
   })
 })
