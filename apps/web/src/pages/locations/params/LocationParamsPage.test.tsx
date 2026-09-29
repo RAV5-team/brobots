@@ -32,20 +32,25 @@ describe('LocationParamsPage (экран 17а)', () => {
     expect(tabs.getByRole('link', { name: 'Параметры объекта' })).toHaveAttribute('aria-current', 'page')
   })
 
-  it('shows the four form sections read-only with the saved values', async () => {
+  it('shows the form sections and the site conditions section read-only with the saved values (16005:291)', async () => {
     renderPage()
     await screen.findByRole('heading', { level: 1, name: 'РЦ Химки' })
-    for (const title of [
-      '1. Основное', '2. Площадь и этажность', '3. Режим работы', '4. Персонал',
-      '5. Проходы и высота', '6. Покрытие пола', '7. Маршруты и планировка',
-      '8. Условия эксплуатации', '9. Связь и зарядная инфраструктура',
-    ]) {
-      expect(screen.getByRole('heading', { name: title })).toBeInTheDocument()
+    for (const title of ['1. Основное', '2. Площадь и этажность', '3. Режим работы', '4. Персонал', '5. Условия площадки для роботов']) {
+      expect(screen.getByRole('heading', { level: 2, name: title })).toBeInTheDocument()
     }
+    // Группы подбора PRD 10.5 — подгруппы секции 5, а не отдельные секции.
+    for (const group of ['Проходы и высота', 'Покрытие пола', 'Маршруты и планировка', 'Условия эксплуатации', 'Связь и зарядная инфраструктура']) {
+      expect(screen.getByRole('heading', { level: 3, name: group })).toBeInTheDocument()
+    }
+    expect(screen.getByText('необязательно')).toBeInTheDocument()
+    const nav = screen.getByRole('navigation', { name: 'Разделы профиля' })
+    expect(within(nav).getAllByRole('link').map((item) => item.textContent)).toEqual([
+      'Основное', 'Площадь и этажность', 'Режим', 'Персонал', 'Условия площадки',
+    ])
     expect(nameInput()).toHaveValue('РЦ Химки')
     expect(nameInput()).toBeDisabled()
     expect(saveButton()).toBeDisabled()
-    expect(screen.getByText(/Проходы, покрытие, маршруты, среда и связь/)).toBeInTheDocument()
+    expect(screen.getByText(/Покрытие пола и другие условия для роботов — в блоке 5/)).toBeInTheDocument()
   })
 
   it('computes the readiness panel from the profile: 9 / 9, one assumption', async () => {
@@ -168,9 +173,8 @@ describe('LocationParamsPage (экран 17а)', () => {
     fireEvent.change(aisle, { target: { value: '2,8' } })
     fireEvent.click(saveButton())
     await screen.findByText(/Изменения сохранены/)
-    await expect(services.locations.getLocation('LOC-02')).resolves.toMatchObject({
-      parameters: expect.objectContaining({ site_aisle_min_m: { value: 2.8, source: 'user' } }),
-    })
+    const saved = await services.locations.getLocation('LOC-02')
+    expect(saved.parameters.site_aisle_min_m).toEqual({ value: 2.8, source: 'user' })
   })
 
   it('shows «не найдена» for an unknown location', async () => {

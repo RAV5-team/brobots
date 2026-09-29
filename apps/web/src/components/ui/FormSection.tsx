@@ -8,6 +8,8 @@ interface FormSectionProps {
   readonly id: string
   readonly title: string
   readonly description?: string | undefined
+  /** Плашка за заголовком секции (SectionHeader `badge`). */
+  readonly badge?: ReactNode
   readonly children: ReactNode
 }
 
@@ -15,11 +17,11 @@ interface FormSectionProps {
  * Секция длинной формы: выпуклая панель 28 / 20 с заголовком (components.md: FormSection; 09а 15935:1008, 14 15950:1975).
  * Цель якоря SectionNav: фокусируется при переходе и не прячется под липкой навигацией.
  */
-export function FormSection({ id, title, description, children }: FormSectionProps) {
+export function FormSection({ id, title, description, badge, children }: FormSectionProps) {
   const headingId = `${id}-heading`
   return (
     <Card id={id} padding={28} gap={20} aria-labelledby={headingId} tabIndex={-1} className="scroll-mt-(--rav-form-nav-offset) outline-none">
-      <SectionHeader id={headingId} title={title} description={description} />
+      <SectionHeader id={headingId} title={title} description={description} badge={badge} />
       {children}
     </Card>
   )

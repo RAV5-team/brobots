@@ -30,7 +30,7 @@ export function siteValuesFromLocation(location: Location, parameters: readonly 
   return Object.fromEntries(siteFields(parameters).map((field) => {
     const raw = location.parameters[field.code]?.value
     if (raw === undefined) return [field.code, '']
-    return [field.code, typeof raw === 'number' ? formatNumber(raw, 3) : String(raw)]
+    return [field.code, typeof raw === 'number' ? formatNumber(raw, 3) : raw]
   }))
 }
 

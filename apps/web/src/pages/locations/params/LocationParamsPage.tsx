@@ -1,27 +1,35 @@
-import { useEffect, useRef, useState, type SyntheticEvent } from 'react'
-import { useParams } from 'react-router'
+import { useEffect, useMemo, useRef, useState, type SyntheticEvent } from 'react'
+import { useLocation, useParams } from 'react-router'
 import { ROUTE_PATHS } from '@/app/routePaths'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import { SectionNav } from '@/components/ui/SectionNav'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
-import { parseLocationId } from '@/domain'
+import { parseLocationId, type Role } from '@/domain'
 import { useServices } from '@/services/useServices'
 import { useRole } from '@/shared/auth/useRole'
+import { downloadText } from '@/shared/dom/download'
 import { useActiveSection } from '@/shared/dom/useActiveSection'
 import { formatNumber, formatTime } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { LocationHeader } from '../detail/LocationHeader'
 import { errorSection, readiness, validateLocation } from '../new/locationCheck'
+import { applyLocationFile, locationSheetCsv } from '../new/locationSheet'
 import { SECTION_IDS, fieldDomId, type LocationForm } from '../new/locationForm'
 import { AreaSection, BasicsSection, OtherTypeNotice, ScheduleSection, type LocationSectionProps } from '../new/LocationSections'
 import { ProfileReadinessRail } from '../new/ProfileReadinessRail'
 import { StaffSection } from '../new/StaffSection'
-import { formFromLocation, toLocationUpdate } from './locationParamsModel'
+import { formFromLocation, isEditLocationState, toLocationUpdate } from './locationParamsModel'
+import { SITE_SECTION_ID, SiteSection } from './SiteSection'
+import { siteFieldErrors, siteFieldId, siteSectionOf, siteValuesFromLocation, type SiteValues } from './siteProfileFields'
 import { useLocationParams, type LocationParamsData } from './useLocationParams'
 
 const t = ru.location
 const tf = ru.locationNew
-const ALL_NAV_ITEMS = SECTION_IDS.map((id) => ({ id, label: tf.nav[id] }))
+const PARAMS_SECTION_IDS = [...SECTION_IDS, SITE_SECTION_ID] as const
+const ALL_NAV_ITEMS = [
+  ...SECTION_IDS.map((id) => ({ id, label: tf.nav[id] })),
+  { id: SITE_SECTION_ID, label: t.params.site.nav },
+]
 const BASICS_ONLY = ALL_NAV_ITEMS.filter((item) => item.id === 'basics')
 
 function LocationParamsSkeleton() {
@@ -37,9 +45,14 @@ function LocationParamsSkeleton() {
 }
 
 /** Перейти к полю: прокрутить к его секции и поставить фокус в само поле. */
-function focusField(key: string, select: (id: string) => void) {
-  select(errorSection(key))
-  document.getElementById(fieldDomId(key))?.focus({ preventScroll: true })
+function focusField(key: string, select: (id: string) => void, parameters: LocationParamsData['params']) {
+  const site = siteSectionOf(key, [...parameters.values()])
+  select(site ? SITE_SECTION_ID : errorSection(key, parameters))
+  document.getElementById(site ? siteFieldId(key) : fieldDomId(key))?.focus({ preventScroll: true })
+}
+
+function hashCode(hash: string): string {
+  return hash.startsWith('#') ? hash.slice(1) : hash
 }
 
 interface ParamsFormProps {
@@ -56,46 +69,91 @@ interface ParamsFormProps {
  */
 function ParamsForm({ data, editing, onSaved, status }: ParamsFormProps) {
   const services = useServices()
+  const { hash } = useLocation()
   const { location, params } = data
   const [form, setForm] = useState<LocationForm>(() => formFromLocation(location, params))
+  const catalog = useMemo(() => [...params.values()], [params])
+  const [site, setSite] = useState<SiteValues>(() => siteValuesFromLocation(location, catalog))
   const [showRequired, setShowRequired] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const [importStatus, setImportStatus] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const isWarehouse = location.facilityType === 'warehouse'
-  const { activeId, select } = useActiveSection(isWarehouse ? SECTION_IDS : ['basics'])
+  const { activeId, select } = useActiveSection(isWarehouse ? PARAMS_SECTION_IDS : ['basics'])
   const wasEditing = useRef(editing)
 
-  // «Изменить» переводит фокус в первое поле: клавиатура продолжает с формы, а не с шапки.
+  // «Изменить» — в название; ссылка с шага 1 (`#site_*`) — в это поле.
   useEffect(() => {
-    if (editing && !wasEditing.current) document.getElementById(fieldDomId('name'))?.focus()
-    wasEditing.current = editing
-  }, [editing])
+    if (!editing) {
+      wasEditing.current = false
+      return
+    }
+    const target = hashCode(hash)
+    const group = siteSectionOf(target, catalog)
+    const id = group ? siteFieldId(target) : !wasEditing.current ? fieldDomId('name') : null
+    if (group) select(SITE_SECTION_ID)
+    if (id) {
+      // Селекты площадки монтируются вместе с fieldset — фокус после кадра, иначе его перехватывают.
+      requestAnimationFrame(() => {
+        const el = document.getElementById(id)
+        el?.scrollIntoView({ block: 'center' })
+        el?.focus({ preventScroll: true })
+      })
+    }
+    wasEditing.current = true
+  }, [catalog, editing, hash, select])
 
-  const errors = validateLocation(form, params, { showRequired })
-  const ready = readiness(form, errors, params)
+  const formErrors = validateLocation(form, params, { showRequired })
+  const siteErrors = siteFieldErrors(site, catalog)
+  const errors = { ...formErrors, ...siteErrors }
+  const ready = readiness(form, formErrors, params)
   const update = (patch: Partial<LocationForm>) => { setForm((prev) => ({ ...prev, ...patch })) }
   const sectionProps: LocationSectionProps = { form, errors, update, params }
   const goToFirstError = () => {
     const [first] = Object.keys(errors)
-    if (first) focusField(first, select)
+    if (first) focusField(first, select, params)
+  }
+  const sheetForm = (): LocationForm => ({ ...form, extras: { ...form.extras, ...site } })
+  const downloadTemplate = () => { downloadText(tf.rail.excelFileName, locationSheetCsv(sheetForm(), params)) }
+  const importTemplate = (file: File) => {
+    void applyLocationFile(sheetForm(), params, file).then((result) => {
+      if (!result.ok) {
+        setImportStatus(null)
+        setMessage(tf.rail.excelBadFile)
+        return
+      }
+      setForm({ ...result.form, facilityType: form.facilityType })
+      setSite((prev) => ({
+        ...prev,
+        ...Object.fromEntries(Object.keys(prev).map((code) => [code, result.form.extras[code] ?? prev[code] ?? ''])),
+      }))
+      setMessage(null)
+      const count = formatNumber(result.applied)
+      const sample = result.unknown.slice(0, 3).join(', ')
+      setImportStatus(sample === '' ? tf.rail.excelImported(count) : tf.rail.excelUnknown(count, sample))
+    }).catch((error: unknown) => {
+      console.error('Не удалось прочитать шаблон локации', error)
+      setImportStatus(null)
+      setMessage(tf.rail.excelReadFailed)
+    })
   }
 
   const submit = async (event: SyntheticEvent) => {
     event.preventDefault()
     if (!editing) return
-    const found = validateLocation(form, params, { showRequired: true })
+    const found = { ...validateLocation(form, params, { showRequired: true }), ...siteFieldErrors(site, catalog) }
     setShowRequired(true)
     const keys = Object.keys(found)
     const [first] = keys
     if (first) {
       setMessage(tf.errors.summary(formatNumber(keys.length)))
-      focusField(first, select)
+      focusField(first, select, params)
       return
     }
     setMessage(null)
     setSaving(true)
     try {
-      await services.locations.updateLocation(location.id, toLocationUpdate(form, params, location))
+      await services.locations.updateLocation(location.id, toLocationUpdate(form, params, location, site))
       await onSaved()
     } catch (error) {
       console.error('Не удалось сохранить параметры локации', error)
@@ -117,6 +175,12 @@ function ParamsForm({ data, editing, onSaved, status }: ParamsFormProps) {
               <AreaSection {...sectionProps} description={t.params.areaDescription} />
               <ScheduleSection {...sectionProps} />
               <StaffSection {...sectionProps} />
+              <SiteSection
+                parameters={catalog}
+                values={site}
+                errors={siteErrors}
+                onChange={(code, value) => { setSite((prev) => ({ ...prev, [code]: value })) }}
+              />
             </>
           ) : (
             <OtherTypeNotice facilityType={form.facilityType} copy={t.params.otherType} />
@@ -129,8 +193,10 @@ function ParamsForm({ data, editing, onSaved, status }: ParamsFormProps) {
           saveBlock={null}
           saving={saving}
           message={message}
-          status={editing ? null : status}
+          status={editing ? importStatus : status}
           onGoToError={goToFirstError}
+          onDownloadTemplate={downloadTemplate}
+          onImportTemplate={importTemplate}
           dimmed={!editing}
         />
       </fieldset>
@@ -142,14 +208,31 @@ function ParamsForm({ data, editing, onSaved, status }: ParamsFormProps) {
  * Экран 17а «Локации · параметры объекта» (16005:291; PRD 10.3, 10.5): шапка локации, вкладки и профиль площадки
  * в режиме просмотра с «Изменить» (D-41). Гость только смотрит: своих локаций и сохранения у него нет (D-14).
  */
+function wantsEdit(role: Role, hash: string, navState: unknown): boolean {
+  const code = hashCode(hash)
+  return role !== 'guest' && (code.startsWith('site_') || code.startsWith('wh_') || isEditLocationState(navState))
+}
+
 export function LocationParamsPage() {
   const locationId = parseLocationId(useParams().locationId)
+  const route = useLocation()
+  const hash = route.hash
+  const navState: unknown = route.state
   const role = useRole()
   const { state, retry, refresh } = useLocationParams(locationId)
-  const [editing, setEditing] = useState(false)
+  const [editing, setEditing] = useState(() => wantsEdit(role, hash, navState))
   // Сеанс правки: «Отменить изменения» и сохранение пересоздают форму со значениями локации.
   const [session, setSession] = useState(0)
   const [status, setStatus] = useState<string | null>(null)
+  const [seen, setSeen] = useState({ locationId, hash, navState, role })
+
+  // С шага 1: `#site_*` или state.edit включают правку — при смене адреса, во время рендера, а не в эффекте.
+  // После «Сохранить» тот же hash не открывает её снова: адрес не менялся.
+  if (seen.locationId !== locationId || seen.hash !== hash || seen.navState !== navState || seen.role !== role) {
+    setSeen({ locationId, hash, navState, role })
+    if (wantsEdit(role, hash, navState)) setEditing(true)
+    else if (seen.locationId !== locationId) setEditing(false)
+  }
 
   if (state.status === 'loading') return <LocationParamsSkeleton />
   if (state.status === 'error') return <ErrorState title={t.error.title} message={t.error.message} onRetry={retry} />
