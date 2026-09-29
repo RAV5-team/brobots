@@ -64,6 +64,8 @@ export interface ProcessCard {
 
 export const ASSUMPTION_CODES = ['route_length_m', 'operator_time_share_pct', 'peak_factor', 'width_margin_m'] as const
 export type AssumptionCode = (typeof ASSUMPTION_CODES)[number]
+/** Допущения, которые берутся из справочника нормативов А5 (`width_margin_m`), — счётчик «Нормативы» (доска 16325). */
+const NORM_CODES: readonly AssumptionCode[] = ['width_margin_m']
 
 /** Единица допущения; factor — безразмерный коэффициент: число показывается без подписи. */
 export type AssumptionUnit = 'm' | 'percent' | 'factor'
@@ -383,6 +385,7 @@ export function paramsView(snapshot: ProjectParamsSnapshot, selectedId: Location
   const assumptions = assumptionRows(selected, snapshot, overrides)
   const missing = labelled(missingOf(selected, snapshot), snapshot)
   const assumptionsCount = assumptions.filter((a) => a.override?.kind !== 'fact').length
+  const normsCount = assumptions.filter((a) => a.override?.kind !== 'fact' && NORM_CODES.includes(a.code)).length
   return {
     cards,
     selected,
@@ -390,7 +393,7 @@ export function paramsView(snapshot: ProjectParamsSnapshot, selectedId: Location
     siteGroups: siteGroups(snapshot, selected),
     assumptions,
     missing,
-    readiness: paramsReadiness(missing, assumptionsCount),
+    readiness: paramsReadiness(missing, assumptionsCount, normsCount),
   }
 }
 

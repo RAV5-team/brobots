@@ -10,6 +10,11 @@ describe('paramsReadiness — правила готовности к подбо�
     expect(readiness.siteChecks.map((m) => m.code)).toEqual(['site_floor_load_tm2', 'site_wifi_coverage'])
   })
 
+  it('нормативы считаются отдельно от допущений и не меняют их счётчик; не переданы — 0', () => {
+    expect(paramsReadiness([], 4, 1)).toMatchObject({ assumptionsCount: 4, normsCount: 1 })
+    expect(paramsReadiness([], 4).normsCount).toBe(0)
+  })
+
   it('нет оклада — подбор выполним, экономия труда не рассчитается', () => {
     const readiness = paramsReadiness([{ code: 'salary', scope: 'process', impact: 'no_labor_saving' }], 2)
     expect(readiness.canMatch).toBe(true)

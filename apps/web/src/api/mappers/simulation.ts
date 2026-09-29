@@ -1,4 +1,4 @@
-import type { HourlyStat, SimulationJob, SimulationRun, SimulationVerdict } from '@/domain'
+import type { HourlyStat, SimulationAdjustment, SimulationJob, SimulationRun, SimulationVerdict } from '@/domain'
 import { ContractError, oneOf, optional, type SimulationSchemas } from '../contract'
 
 type RunDto = SimulationSchemas['SimulationRun']
@@ -27,6 +27,22 @@ function toHourly(row: SimulationSchemas['HourlyRow']): HourlyStat {
     utilization: row.util,
     backlogMax: row.backlog_max,
     chargersBusy: row.chargers_busy,
+  }
+}
+
+function toAdjustment(dto: SimulationSchemas['Adjustment']): SimulationAdjustment {
+  return {
+    code: dto.code,
+    group: oneOf(dto.group, ['fleet', 'coefficient'], 'Adjustment.group'),
+    label: dto.label,
+    base: dto.base,
+    simulated: dto.simulated,
+    unit: dto.unit,
+    apply: oneOf(dto.apply, ['override', 'calibration'], 'Adjustment.apply'),
+    note: dto.note,
+    deltaRel: dto.delta_rel,
+    significant: dto.significant,
+    defaultSelected: dto.default_selected,
   }
 }
 
@@ -70,6 +86,7 @@ export function toSimulationRun(dto: RunDto): SimulationRun {
     hourlyBefore: dto.hourly_before.map(toHourly),
     hourlyAfter: dto.hourly_after.map(toHourly),
     warnings: dto.warnings,
+    adjustments: dto.adjusted_input_set.items.map(toAdjustment),
   }
 }
 

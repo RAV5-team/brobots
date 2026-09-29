@@ -1,6 +1,7 @@
 import type {
   AcquisitionModel,
   CalcParams,
+  CalcTraceStep,
   CostItem,
   ExcludedSolution,
   MatchBaseline,
@@ -63,6 +64,31 @@ function toCostItem(dto: ApiSchemas['CostItem']): CostItem {
   }
 }
 
+const TRACE_SOURCES: readonly NonNullable<CalcTraceStep['source']>[] = ['task', 'location', 'robot', 'norm', 'derived']
+
+function toTraceStep(dto: ApiSchemas['TraceItem']): CalcTraceStep {
+  return {
+    code: required(dto, 'code', 'TraceItem'),
+    label: dto.label ?? '',
+    formula: optional(dto.formula),
+    value: optional(dto.value),
+    unit: optional(dto.unit),
+    text: optional(dto.text),
+    source: dto.source ? oneOf(dto.source, TRACE_SOURCES, 'TraceItem.source') : null,
+    inputs: (dto.inputs ?? []).map((input) => ({ name: input.name ?? '', value: optional(input.value), text: optional(input.text) })),
+  }
+}
+
+/** Поля окна 2.1а, которые API уже отдаёт: ограничения, пояснение, предложение, шаги расчёта. Нет в ответе — поля нет. */
+function detailsOf(match: ApiSchemas['Candidate'] | undefined, dto: CalcResult): Pick<RankedVariant, 'limitations' | 'summary' | 'offerId' | 'calcTrace'> {
+  return {
+    ...(match?.risks ? { limitations: match.risks } : {}),
+    ...(match?.summary ? { summary: match.summary } : {}),
+    ...(match?.offerId ? { offerId: match.offerId } : {}),
+    ...(dto.trace ? { calcTrace: dto.trace.map(toTraceStep) } : {}),
+  }
+}
+
 function raasMonthly(dto: CalcResult, acquisition: AcquisitionModel): number | null {
   if (acquisition !== 'raas') return null
   const fee = dto.details?.opexItems?.find((item) => item.code === RAAS_FEE_ITEM)?.amountRub
@@ -98,6 +124,7 @@ function toVariant(candidate: EvaluatedCandidate, dto: CalcResult, status: Varia
     opexItems: (dto.details?.opexItems ?? []).map(toCostItem),
     warnings: dto.warnings ?? [],
     checks: (candidate.match?.checks ?? []).map(toCheck),
+    ...detailsOf(candidate.match, dto),
   }
 }
 

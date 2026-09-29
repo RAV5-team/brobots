@@ -32,7 +32,7 @@ describe('paramsView — шаг 1 «Параметры проекта» (PRD 11.
   it('на демо-локации без данных нагрузка на пол и Wi-Fi: подбор выполним, 4 допущения', () => {
     const v = view('LP-01')
     expect(v.missing.map((m) => m.label)).toEqual(['нагрузка на пол', 'Wi-Fi'])
-    expect(v.readiness).toMatchObject({ canMatch: true, assumptionsCount: 4, missingCount: 2 })
+    expect(v.readiness).toMatchObject({ canMatch: true, assumptionsCount: 4, missingCount: 2, normsCount: 1 })
     expect(v.assumptions.map((a) => [a.code, a.value])).toEqual([
       ['route_length_m', 100], ['operator_time_share_pct', 100], ['peak_factor', 1.5], ['width_margin_m', 0.6],
     ])

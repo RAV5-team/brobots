@@ -1,4 +1,8 @@
 import {
+  aisleFit,
+  cargoFit,
+  robotWidthM,
+  siteFactsOfLocation,
   type Characteristic,
   type CompareEntry,
   type LaunchItem,
@@ -43,41 +47,31 @@ function fromCharacteristic(c: Characteristic): CompareValue {
   return text(c.value, c.status === 'confirmed' ? 'default' : 'unconfirmed')
 }
 
-const MM_IN_M = 1000
-const PALLET_MASS = 'wh_pallet_mass'
-const RACK_AISLE = 'wh_rack_aisle_width'
-
-const numericParameter = (location: Location, code: string): number | null => {
-  const value = location.parameters[code]?.value
-  return typeof value === 'number' ? value : null
-}
-
 /**
  * Проверка площадки для блока «Соответствие» (PRD 7.6 — та же, что в подборе): груз — масса паллеты против
  * грузоподъёмности, проходы — ширина робота против прохода с запасом. Температуры и допустимой нагрузки на пол
- * в профиле склада нет — «?» (D-75).
+ * в профиле склада нет — «?» (D-75). Правило — `domain/siteFit.ts`, общее с окном 2.1а проекта (D-99).
+ * `widthMarginM` — норматив А5 `width_margin_m`: ширина робота + запас ≤ проход (правило карточки А2, PRD 6.3, D-75).
  */
-/** `widthMarginM` — норматив А5 `width_margin_m`: ширина робота + запас ≤ проход (правило карточки А2, PRD 6.3, D-75). */
 export function siteFit(robot: Robot, location: Location, widthMarginM: number): Record<'cargo' | 'aisles' | 'temperature' | 'floorLoad', CompareValue> {
-  const mass = numericParameter(location, PALLET_MASS)
+  const site = siteFactsOfLocation(location)
+  const mass = site.unitMassKg
   const payload = robot.specs.payloadKg
-  const cargo: CompareValue = mass === null || payload === undefined
-    ? { kind: 'fit', status: 'unknown', text: t.fit.cargoUnknown }
-    : mass <= payload
-      ? { kind: 'fit', status: 'fit', text: t.fit.cargoOk(formatNumber(mass), formatNumber(payload)) }
-      : { kind: 'fit', status: 'misfit', text: t.fit.cargoTooHeavy(formatNumber(mass), formatNumber(payload)) }
+  const cargoStatus = cargoFit(mass, payload)
+  const cargoText = mass === null || payload === undefined
+    ? t.fit.cargoUnknown
+    : cargoStatus === 'fit' ? t.fit.cargoOk(formatNumber(mass), formatNumber(payload)) : t.fit.cargoTooHeavy(formatNumber(mass), formatNumber(payload))
 
-  const aisle = numericParameter(location, RACK_AISLE)
-  const width = robot.specs.widthMm === undefined ? null : robot.specs.widthMm / MM_IN_M
-  const aisles: CompareValue = aisle === null || width === null
-    ? { kind: 'fit', status: 'unknown', text: t.fit.aisleUnknown }
-    : width <= aisle - widthMarginM
-      ? { kind: 'fit', status: 'fit', text: t.fit.aisleOk(formatNumber(aisle, 1), formatNumber(width, 2)) }
-      : { kind: 'fit', status: 'misfit', text: t.fit.aisleTooNarrow(formatNumber(aisle, 1), formatNumber(width, 2)) }
+  const aisle = site.aisleWidthM
+  const width = robotWidthM(robot.specs)
+  const aisleStatus = aisleFit(aisle, width, widthMarginM)
+  const aisleText = aisle === null || width === null
+    ? t.fit.aisleUnknown
+    : aisleStatus === 'fit' ? t.fit.aisleOk(formatNumber(aisle, 1), formatNumber(width, 2)) : t.fit.aisleTooNarrow(formatNumber(aisle, 1), formatNumber(width, 2))
 
   return {
-    cargo,
-    aisles,
+    cargo: { kind: 'fit', status: cargoStatus, text: cargoText },
+    aisles: { kind: 'fit', status: aisleStatus, text: aisleText },
     temperature: { kind: 'fit', status: 'unknown', text: t.fit.temperatureUnknown },
     floorLoad: { kind: 'fit', status: 'unknown', text: t.fit.floorLoadUnknown },
   }
