@@ -1,5 +1,5 @@
 # Container Optimized Image deployment specification.
-# Render IMAGE_TAG and GHCR_OWNER before passing this file to `yc compute
+# Render YC_REGISTRY_ID and IMAGE_TAG before passing this file to `yc compute
 # instance update-container --docker-compose-file`. Runtime configuration is
 # supplied by root-only env files already present on the VM.
 version: "3.7"
@@ -19,7 +19,7 @@ services:
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
-    image: ghcr.io/${GHCR_OWNER:?}/brobots-postgres:${IMAGE_TAG:?}
+    image: cr.yandex/${YC_REGISTRY_ID:?}/brobots-postgres:${IMAGE_TAG:?}
     env_file: /etc/brobots/postgres.env
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -35,7 +35,7 @@ services:
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
-    image: ghcr.io/${GHCR_OWNER:?}/brobots-keycloak:${IMAGE_TAG:?}
+    image: cr.yandex/${YC_REGISTRY_ID:?}/brobots-keycloak:${IMAGE_TAG:?}
     command: ["start", "--optimized", "--import-realm"]
     env_file: /etc/brobots/keycloak.env
     networks: [edge, internal]
@@ -55,7 +55,7 @@ services:
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
-    image: ghcr.io/${GHCR_OWNER:?}/brobots-gateway:${IMAGE_TAG:?}
+    image: cr.yandex/${YC_REGISTRY_ID:?}/brobots-gateway:${IMAGE_TAG:?}
     env_file: /etc/brobots/gateway.env
     ports: ["80:80", "443:443"]
     volumes:
@@ -72,7 +72,7 @@ services:
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
-    image: ghcr.io/${GHCR_OWNER:?}/brobots-api:${IMAGE_TAG:?}
+    image: cr.yandex/${YC_REGISTRY_ID:?}/brobots-api:${IMAGE_TAG:?}
     env_file: /etc/brobots/api.env
     networks: [edge, internal]
     depends_on:
@@ -84,7 +84,7 @@ services:
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
-    image: ghcr.io/${GHCR_OWNER:?}/brobots-simulation:${IMAGE_TAG:?}
+    image: cr.yandex/${YC_REGISTRY_ID:?}/brobots-simulation:${IMAGE_TAG:?}
     command: ["alembic", "upgrade", "head"]
     env_file: /etc/brobots/simulation.env
     networks: [internal]
@@ -96,7 +96,7 @@ services:
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
-    image: ghcr.io/${GHCR_OWNER:?}/brobots-simulation:${IMAGE_TAG:?}
+    image: cr.yandex/${YC_REGISTRY_ID:?}/brobots-simulation:${IMAGE_TAG:?}
     env_file: /etc/brobots/simulation.env
     networks: [edge, internal]
     depends_on:
@@ -107,7 +107,7 @@ services:
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
-    image: ghcr.io/${GHCR_OWNER:?}/brobots-economics:${IMAGE_TAG:?}
+    image: cr.yandex/${YC_REGISTRY_ID:?}/brobots-economics:${IMAGE_TAG:?}
     command: ["alembic", "upgrade", "head"]
     env_file: /etc/brobots/economics.env
     networks: [internal]
@@ -119,7 +119,7 @@ services:
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
-    image: ghcr.io/${GHCR_OWNER:?}/brobots-economics:${IMAGE_TAG:?}
+    image: cr.yandex/${YC_REGISTRY_ID:?}/brobots-economics:${IMAGE_TAG:?}
     env_file: /etc/brobots/economics.env
     networks: [internal]
     depends_on:
@@ -130,5 +130,5 @@ services:
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
-    image: ghcr.io/${GHCR_OWNER:?}/brobots-web:${IMAGE_TAG:?}
+    image: cr.yandex/${YC_REGISTRY_ID:?}/brobots-web:${IMAGE_TAG:?}
     networks: [edge]

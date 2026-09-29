@@ -89,7 +89,7 @@ export function ProgressPanel({ title, label, value, variant = 'sunken', meta, l
           {meta && <p className="type-title-md font-medium text-on-inverse tabular-nums">{meta}</p>}
         </div>
         <Progress label={label} value={value} track="inverse" />
-        {log && log.length > 0 && <LogList lines={log} label={logLabel} />}
+        {log && log.length > 0 && <LogList lines={log} {...(logLabel !== undefined ? { label: logLabel } : {})} />}
         {children && <p className="type-body text-text-disabled">{children}</p>}
       </section>
     )
@@ -101,7 +101,7 @@ export function ProgressPanel({ title, label, value, variant = 'sunken', meta, l
         {meta && <p className="type-body text-text-secondary tabular-nums">{meta}</p>}
       </div>
       <Progress label={label} value={value} track="strong" />
-      {log && log.length > 0 && <StepList lines={log} label={logLabel} />}
+      {log && log.length > 0 && <StepList lines={log} {...(logLabel !== undefined ? { label: logLabel } : {})} />}
       {children && <p className="type-body text-text-secondary">{children}</p>}
     </section>
   )

@@ -27,5 +27,5 @@ RUN /opt/keycloak/bin/kc.sh build
 
 FROM quay.io/keycloak/keycloak:26.7.1
 COPY --from=builder /opt/keycloak/ /opt/keycloak/
-COPY realm-rav5.json /opt/keycloak/data/import/realm-rav5.json
+COPY infra/keycloak/realm-rav5.json /opt/keycloak/data/import/realm-rav5.json
 ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]

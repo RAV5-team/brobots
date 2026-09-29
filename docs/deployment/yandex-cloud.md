@@ -2,16 +2,16 @@
 
 This runbook deploys the Brobots public demo to one Yandex Compute Cloud
 Container Optimized Image (COI) virtual machine. Docker Compose defines the
-runtime services; GitHub Actions builds and publishes images to private GHCR,
-then a manually started deployment workflow updates the VM.
+runtime services. Local scripts build and publish images to Yandex Container
+Registry, then manually update the VM while retaining SHA-based rollback.
 
 [TOC]
 
 ## Deployment status
 
 The demo VM, static IP, firewall group, snapshot schedule, deployment service
-account, and GitHub workload identity federation are provisioned. Required
-GitHub repository variables and VM runtime configuration are in place.
+account, and GitHub workload identity federation are provisioned. The local
+manual release path does not use GitHub repository variables or federation.
 
 ## Architecture
 
@@ -21,10 +21,10 @@ and the Keycloak admin CIDR restriction. PostgreSQL, API, simulation, economics,
 Keycloak, and the web app have no host-published ports. The demo database is
 disposable and contains synthetic/demo data only.
 
-The deployment workflow uses GitHub OIDC workload identity federation (WIF)
-to obtain a short-lived Yandex IAM token. The VM uses a root-owned Docker login
-with a GHCR token that has only `read:packages`; workflow credentials are not
-copied to the VM. Runtime values live in root-only files under `/etc/brobots`
+The local operator's authenticated `yc` profile publishes images using
+`container-registry.images.pusher`. The VM's attached service account pulls
+images using `container-registry.images.puller`; no registry password is
+stored on the VM. Runtime values live in root-only files under `/etc/brobots`
 and never in the Compose specification or VM metadata.
 
 ## Provisioned Yandex Cloud resources
@@ -39,58 +39,97 @@ zone `ru-central1-a`.
 | Security group | `brobots-coi` (`enpr7dj462i48lkh07ih`) | TCP 22 from `136.152.214.145/32`; TCP 80 and 443 from `0.0.0.0/0` |
 | Network and subnet | `enp3dtos894gk9ghbv4m`, `e9b9bsgsdksc15u9c9t3` | Existing network and subnet reused |
 | Snapshot schedule | `brobots-daily-7d` (`fd837bgckei9e4l5i3p1`) | Daily boot-disk snapshots, seven-day retention |
-| Deployment service account | `brobots-github-deploy` (`ajeucl63c33umdud1tv5`) | `compute.editor` on this instance only |
-| GitHub federation | `brobots-github` (`ajes12h0pr61dm6tel1p`) | GitHub Actions issuer, audience `https://github.com/RAV5-team` |
-| Federated credential | `ajeboii3b7evc90h3u5i` | Subject `repo:RAV5-team/brobots:environment:production` |
+| Deployment service account | `brobots-github-deploy` (`ajeucl63c33umdud1tv5`) | Provisioned with `compute.editor` on this instance; not used by the local manual process |
+| GitHub federation | `brobots-github` (`ajes12h0pr61dm6tel1p`) | Provisioned WIF pool; unused by the local manual process |
+| Federated credential | `ajeboii3b7evc90h3u5i` | Provisioned for `repo:RAV5-team/brobots:environment:production`; unused by the local manual process |
+| Container Registry | `brobots` (`crprb9kftitj4diu2jru`) | Active in folder `b1gralifrlhh1ata3enc`; publisher/puller bindings remain to be verified |
 
 The VM accepts key-only SSH from the operator's current public IPv4 CIDR. The
 generated private key is in the ignored repository path
 `.deployment/keys/yc-brobots-ed25519`; keep it private and back it up securely.
 If the operator's public IP changes, update the SSH ingress rule before the
 next connection. The instance update operation used by deployment is
-`yc compute instance update-container --docker-compose-file`.
+`yc compute instance update-container --docker-compose-file`. The operator
+identity must also be able to read and wait for the resulting Compute
+operation. The minimum role for operation polling has not been verified; test
+`yc operation get` and `yc operation wait` with the deployment identity before
+relying on it. The known `compute.editor` instance binding does not prove
+operation polling access.
 
 Certbot 5.8.0 is installed, the short-lived IP certificate is active, and the
 renewal timer is enabled. A dry-run renewal succeeded. The VM currently runs
 only the COI bootstrap placeholder; the application Compose stack has not been
 deployed.
 
-## Configure GitHub
+## Prepare local publishing and deployment
 
-Set these repository variables for the provisioned resources:
+Use a local Docker engine on macOS, such as OrbStack or Docker Desktop. Start
+the engine and confirm that the active Docker context reaches it with
+`docker info`. Install or enable Docker Buildx and confirm `docker buildx
+version` succeeds. The release script also runs `docker buildx inspect
+--bootstrap` and requires the builder to advertise the verified VM platform.
+OrbStack's Docker socket must be accessible to the current user.
 
-| Variable | Value |
-| --- | --- |
-| `YC_INSTANCE_ID` | `fhmig77p6hrqum1j7hg0` |
-| `YC_SERVICE_ACCOUNT_ID` | `ajeucl63c33umdud1tv5` |
-| `YC_FOLDER_ID` | `b1gralifrlhh1ata3enc` |
-| `YC_CLOUD_ID` | `b1g5n0nr3hp6dagcl2cv` |
-| `PUBLIC_URL` | `https://93.77.188.244` |
-| `WEB_DEMO_MODE` | `false` until disposable demo credentials are configured |
-| `WEB_DEMO_USER_EMAIL` | Public demo user's email when demo mode is enabled |
-| `WEB_DEMO_USER_PASSWORD` | Public demo user's password when demo mode is enabled |
-| `WEB_DEMO_ADMIN_EMAIL` | Public demo admin email when demo mode is enabled |
-| `WEB_DEMO_ADMIN_PASSWORD` | Public demo admin password when demo mode is enabled |
+Install Python 3.12 and `jq`. On macOS with Homebrew, install `jq` if needed
+with `brew install jq`, then confirm `jq --version` succeeds. Create separate
+virtual environments from the repository's development requirements so the
+economics Ruff version and simulation pytest version both remain available:
 
-Demo credentials are embedded in browser-delivered JavaScript when demo mode is
-enabled, so use disposable accounts with synthetic data. Do not treat these
-values as secrets.
+```bash
+mkdir -p "$HOME/.venvs"
+python3.12 -m venv "$HOME/.venvs/brobots-economics"
+python3.12 -m venv "$HOME/.venvs/brobots-simulation"
+"$HOME/.venvs/brobots-economics/bin/python" -m pip install \
+  -r services/economics/requirements-dev.txt
+"$HOME/.venvs/brobots-simulation/bin/python" -m pip install \
+  -r services/simulation/requirements-dev.txt
+export PATH="$HOME/.venvs/brobots-simulation/bin:$HOME/.venvs/brobots-economics/bin:$PATH"
+ruff --version
+pytest --version
+```
 
-Protect the GitHub `production` environment with required reviewers if the
-repository plan supports it. Deployment is manual: start the `deploy.yml`
-workflow from `main` and supply the full 40-character image commit SHA. The
-workflow rejects other refs and refuses deployment until the integration
-prerequisite variable is explicitly set to `true`.
+Keep the simulation venv first in `PATH`: its `requirements-dev.txt` installs
+`pytest>=9.1`, while economics uses `pytest>=8.3,<9.0`. Ruff is installed by
+the economics development requirements. The release script invokes both
+commands by name from `PATH`.
 
-Protect `main` with required status checks for the API, economics, and
-`release-images` workflows. The release workflow runs the service checks,
-verifies generated OpenAPI contracts, validates the COI Compose file, then
-builds and publishes the complete image set. Do not let a merge bypass these
-checks.
+Install the Yandex Cloud CLI and authenticate the `yc` profile used to update
+the instance. Run `yc init` if the CLI profile is not configured. Confirm
+`yc iam create-token >/dev/null` and `yc container registry list` work in that
+profile.
+Find the intended registry in the deployment folder:
 
-The `release-images.yml` workflow tests the services and, on `main`, publishes
-all runtime images with the source commit SHA as the tag. Pull requests build
-the images without publishing them.
+```bash
+yc container registry list --folder-id b1gralifrlhh1ata3enc
+yc container registry get <registry-id>
+```
+
+Use the active `brobots` registry (`crprb9kftitj4diu2jru`) in that folder. It
+was created on 2026-09-29 and verified `ACTIVE`. Grant the local operator identity
+`container-registry.images.pusher` on the registry and the VM's attached
+service account `container-registry.images.puller` on the registry. Check the
+Compute update and operation-read permissions using the same identity that
+will run the local deployment. See [Yandex Container Registry roles](https://yandex.cloud/en/docs/container-registry/security/),
+[Compute IAM roles](https://yandex.cloud/en/docs/compute/security/), and
+[Yandex CLI operation wait](https://yandex.cloud/en/docs/cli/cli-ref/operation/cli-ref/wait).
+
+`yc container registry configure-docker` configures local Docker
+authentication for Yandex Container Registry. The release script invokes this
+command after checking the selected registry. Do not copy local credentials to
+the VM; the attached service account supplies its registry pull identity.
+
+Before publishing, verify the instance's target platform and test operation
+polling with the deployment identity. `yc compute instance update-container`
+returns a Compute operation; `yc operation get <operation-id>` inspects it and
+`yc operation wait <operation-id>` waits for completion. The update command
+and operation polling are separate permission checks. The known `compute.editor`
+binding is scoped to the VM; no minimum operation-poll role is asserted here.
+If either read or wait fails, resolve the identity's access before deploying.
+
+The existing GitHub federation pool, credential, and deployment service
+account remain provisioned resources. The local release and deploy commands do
+not use GitHub Actions, GitHub repository variables, WIF, or the provisioned
+GitHub federated identity.
 
 ## Prepare the VM
 
@@ -190,18 +229,6 @@ ECONOMIC_SERVICE_ENV=production
 URL-encode reserved characters in database passwords used inside URLs. Apply
 `chown root:root` and `chmod 0600` to every file after creation.
 
-Create a GitHub classic personal access token with `read:packages` for the
-repository owner. Log in to GHCR on the VM as root; do not put this token into
-the Compose file or instance metadata:
-
-```bash
-sudo docker login ghcr.io --username <github-user> --password-stdin
-```
-
-Paste the token to standard input when prompted. Docker stores credentials in
-`/root/.docker/config.json`; keep that file readable by root only and rotate
-the token when the operator account changes.
-
 ## Obtain the initial TLS certificate
 
 Before starting the Compose stack, install Certbot 5.4 or later on the COI host
@@ -243,31 +270,156 @@ The systemd service runs `certbot renew` twice a day. The deploy hook reloads
 Nginx only after a successful renewal. Confirm the certificate is renewed
 automatically before relying on it for public access.
 
-## Deploy and operate
+## Release, deploy, verify, and roll back
 
-Start the `deploy.yml` workflow from `main`, select the `production`
-environment, and enter a commit SHA produced by `release-images.yml`. The
-workflow verifies the SHA format, renders `docker-compose.coi.yml` with
-immutable image references, authenticates to Yandex Cloud using GitHub OIDC,
-and updates the selected VM.
+Run these commands from a clean checkout on the Mac with Docker/Buildx and an
+authenticated `yc` profile. The release script requires test database URLs
+and a verified target platform. Its web build defaults `WEB_DEMO_MODE` to
+`false`; configure optional `VITE_*` values only when using disposable demo
+accounts. Demo credentials are embedded in browser-delivered JavaScript when
+demo mode is enabled, so do not use real credentials.
 
-COI updates modified containers and leaves unchanged containers running. A
-one-VM rollout may briefly interrupt requests. Keep the previous working SHA
-available for rollback. To roll back, run the deploy workflow with that SHA.
+Use registry ID `crprb9kftitj4diu2jru`. Keep the full commit SHA used for
+publication; rollback deploys a previously published full SHA using the same
+deploy command.
 
-Useful operator checks on the VM:
+### Ordered operator commands
 
-```bash
-sudo docker ps
-sudo docker logs --tail 200 rav5-gateway
-sudo docker exec rav5-gateway nginx -t
-curl --fail https://<public-ip>/healthz
-```
+1. Configure deployment values and test database URLs. `TARGET_PLATFORM` must
+   match the VM platform verified by the operator. Do not set
+   `TARGET_PLATFORM_VERIFIED=true` until that check is complete.
 
-Confirm that `https://<public-ip>/` serves the web application and
-`https://<public-ip>/auth/realms/rav5/.well-known/openid-configuration`
-returns the Keycloak realm metadata. Confirm that ports 8000, 8765, 5432, and
-8002 are not reachable from outside the VM.
+   ```bash
+   export YC_REGISTRY_ID='crprb9kftitj4diu2jru'
+   export YC_INSTANCE_ID='fhmig77p6hrqum1j7hg0'
+   export YC_FOLDER_ID='b1gralifrlhh1ata3enc'
+   export YC_CLOUD_ID='b1g5n0nr3hp6dagcl2cv'
+   export PUBLIC_URL='https://93.77.188.244'
+   export TARGET_PLATFORM='<verified-linux-platform>'
+   export TARGET_PLATFORM_VERIFIED='false'
+   export TEST_DATABASE_URL='<api-test-postgres-url>'
+   export POSTGRES_TEST_DATABASE_URL='<economics-test-postgres-url>'
+   export SIMULATION_TEST_DATABASE_URL='<simulation-test-postgres-url>'
+   export WEB_DEMO_MODE='false'
+   ```
+
+   For demo mode, set `WEB_DEMO_MODE=true` and provide any needed
+   `VITE_DEMO_USER_EMAIL`, `VITE_DEMO_USER_PASSWORD`,
+   `VITE_DEMO_ADMIN_EMAIL`, `VITE_DEMO_ADMIN_PASSWORD`, and
+   `VITE_PUBLIC_SITE_URL`. These build arguments are included in browser code;
+   use disposable demo accounts only.
+
+2. Check local prerequisites, registry access, and the instance platform. The
+   registry ID must resolve, and the release script checks registry access,
+   Docker, Buildx, and platform support before running service checks.
+
+   ```bash
+   docker info
+   docker buildx version
+   jq --version
+   yc iam create-token >/dev/null
+   yc container registry list --folder-id "$YC_FOLDER_ID"
+   yc container registry get "$YC_REGISTRY_ID"
+   yc container registry configure-docker
+   yc compute instance get "$YC_INSTANCE_ID" --folder-id "$YC_FOLDER_ID"
+   ```
+
+   Read the VM guest architecture over the same SSH path used for deployment
+   and map it to the Buildx platform:
+
+   ```bash
+   VM_ARCH=$(ssh -i .deployment/keys/yc-brobots-ed25519 \
+     yc-user@93.77.188.244 uname -m)
+   case "$VM_ARCH" in
+     x86_64) export TARGET_PLATFORM='linux/amd64' ;;
+     aarch64) export TARGET_PLATFORM='linux/arm64' ;;
+     *) printf 'Unsupported VM architecture: %s\n' "$VM_ARCH" >&2; exit 1 ;;
+   esac
+   ```
+
+   The command maps `x86_64` to `linux/amd64` and `aarch64` to `linux/arm64`.
+   For any other output, stop and resolve the platform before release. If SSH
+   uses `YC_SSH_USER` or `YC_SSH_KEY` overrides, use those same values for
+   this check. Confirm the selected Buildx builder advertises the mapped
+   platform:
+
+   ```bash
+   docker buildx inspect --bootstrap
+   ```
+
+   ```bash
+   export TARGET_PLATFORM_VERIFIED='true'
+   ```
+
+   To verify operation access in advance, use an operation ID created by this
+   identity:
+
+   ```bash
+   yc operation get <operation-id>
+   yc operation wait <operation-id>
+   ```
+
+   The minimum operation polling role is unknown; verify both commands.
+   `compute.editor` is the known instance update binding and does not prove
+   operation polling access.
+
+3. Release all seven images from a clean current commit. The script refuses a
+   dirty checkout or any SHA other than the current commit SHA.
+
+   ```bash
+   RELEASE_SHA=$(git rev-parse HEAD)
+   infra/deploy/release-yandex-images.sh "$RELEASE_SHA"
+   ```
+
+   Success ends with `Published all seven images for <sha> to cr.yandex/<id>`.
+   The script runs service checks, then builds and pushes each image with the
+   same full SHA. Do not report publication as successful unless it exits zero.
+
+4. Deploy that SHA to the COI VM. The command renders and validates the COI
+   Compose file, starts `yc compute instance update-container` asynchronously,
+   waits for its operation, then checks public health and SSH-visible running
+   image tags.
+
+   ```bash
+   infra/deploy/deploy-yandex-images.sh "$RELEASE_SHA"
+   ```
+
+   A successful command prints `Deployment verified for SHA <sha>`. It fails
+   if operation polling fails, public health endpoints fail, or running image
+   tags do not match the requested registry and SHA.
+
+5. Verify the public application endpoints and keep private service ports
+   unreachable from outside the VM:
+
+   ```bash
+   curl --fail "$PUBLIC_URL/healthz"
+   curl --fail "$PUBLIC_URL/"
+   curl --fail "$PUBLIC_URL/auth/realms/rav5/.well-known/openid-configuration"
+   ```
+
+   The deploy script also verifies seven running images over SSH. Useful
+   operator checks on the VM:
+
+   ```bash
+   sudo docker ps
+   sudo docker logs --tail 200 rav5-gateway
+   sudo docker exec rav5-gateway nginx -t
+   ```
+
+6. Roll back by using the same deploy command with a retained SHA whose images
+   remain in the registry:
+
+   ```bash
+   infra/deploy/deploy-yandex-images.sh '<previous-full-commit-sha>'
+   ```
+
+   Wait for `Deployment verified for SHA <previous-full-commit-sha>` and
+   repeat the public health checks. Keep earlier image tags until the new
+   release has been verified.
+
+COI updates modify containers and leave unchanged containers running. A
+one-VM rollout may briefly interrupt requests. Confirm that ports 8000, 8765,
+5432, and 8002 are not reachable from outside the VM.
 
 ## Backups and restore
 
@@ -286,6 +438,8 @@ service migration containers recreate the schemas on first start.
 ## See also
 
 - [Yandex Cloud VM update](https://yandex.cloud/en/docs/compute/tutorials/vm-update)
-- [Yandex Cloud workload identity federation](https://yandex.cloud/en/docs/iam/concepts/workload-identity)
-- [GitHub Actions environments](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments)
-- [GitHub Container Registry authentication](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
+- [Yandex Container Registry roles](https://yandex.cloud/en/docs/container-registry/security/)
+- [Yandex Compute IAM roles](https://yandex.cloud/en/docs/compute/security/)
+- [Yandex CLI operation modes](https://yandex.cloud/en/docs/cli/concepts/mode)
+- [Yandex CLI operation wait](https://yandex.cloud/en/docs/cli/cli-ref/operation/cli-ref/wait)
+- [Yandex Compute instance update-container](https://yandex.cloud/en/docs/compute/cli-ref/instance/update-container)
