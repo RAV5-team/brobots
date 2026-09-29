@@ -36,6 +36,6 @@ export function apiProcesses(http: HttpClient, reference: Reference): Partial<Pr
     // Списка требований в API нет (PRD 9.3, D-33): у «Перемещения паллет» — макет, у остальных — из полей процесса.
     getRequirements: async (code) => requirementsOf(await processByCode(code)),
     // Пример «Перемещение паллет · кросс-докинг» — текст макета, не ресурс API. Форма стартует без него.
-    getDemoText: async () => ({ name: '', carrier: '', route: '' }),
+    getDemoText: () => Promise.resolve({ name: '', carrier: '', route: '' }),
   }
 }

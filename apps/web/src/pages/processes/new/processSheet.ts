@@ -207,7 +207,7 @@ function numericRow(key: NumericKey, value: string): string[] {
     formatNumber(spec.min, 3),
     formatNumber(spec.max, 3),
     spec.required === true ? YES : NO,
-    'hint' in field ? field.hint ?? '' : '',
+    'hint' in field ? field.hint : '',
   ]
 }
 

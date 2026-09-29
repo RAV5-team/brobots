@@ -39,7 +39,7 @@ describe('LocationNewPage (экран 14)', () => {
     renderPage('?as=user')
     expect(await screen.findByRole('heading', { level: 1, name: 'Новая локация' })).toBeInTheDocument()
     const nav = screen.getByRole('navigation', { name: 'Разделы формы' })
-    expect(within(nav).getAllByRole('link').map((l) => l.textContent)?.slice(0, 4)).toEqual(['Основное', 'Площадь и этажность', 'Режим', 'Персонал'])
+    expect(within(nav).getAllByRole('link').map((l) => l.textContent).slice(0, 4)).toEqual(['Основное', 'Площадь и этажность', 'Режим', 'Персонал'])
     expect(screen.getByRole('heading', { level: 2, name: '1. Основное' })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: /Объём приёмки/ })).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 2, name: /Проходы и высота/ })).toBeInTheDocument()

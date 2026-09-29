@@ -40,7 +40,7 @@ interface ProgressPanelProps {
 const MARK = { done: '✓', current: '•', queued: '·' } as const
 
 /** Журнал на светлой плашке (3.3, 17385:2606): галочка — сделано, точка — сейчас, «·» — в очереди. */
-function StepList({ lines, label }: { readonly lines: readonly ProgressLogLine[]; readonly label?: string }) {
+function StepList({ lines, label }: { readonly lines: readonly ProgressLogLine[]; readonly label?: string | undefined }) {
   return (
     <ol aria-label={label} className="flex flex-col gap-8 type-body">
       {lines.map((line, i) => (
@@ -57,7 +57,7 @@ function StepList({ lines, label }: { readonly lines: readonly ProgressLogLine[]
   )
 }
 
-function LogList({ lines, label }: { readonly lines: readonly ProgressLogLine[]; readonly label?: string }) {
+function LogList({ lines, label }: { readonly lines: readonly ProgressLogLine[]; readonly label?: string | undefined }) {
   return (
     <ol aria-label={label} aria-live="polite" className="flex flex-col gap-10 bg-inverse-well type-body text-bg">
       {lines.map((line, i) => (
