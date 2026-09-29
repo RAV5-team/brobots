@@ -132,6 +132,12 @@ func (q Q) SolutionIDByCode(ctx context.Context, code string) (uuid.UUID, bool, 
 	return id, err == nil, err
 }
 
+// SetSolutionPhotoIfEmpty writes a catalog photo path when the card has none yet.
+func (q Q) SetSolutionPhotoIfEmpty(ctx context.Context, id uuid.UUID, photoURL string) error {
+	_, err := q.db.Exec(ctx, `UPDATE solution SET photo_url = $2 WHERE id = $1 AND (photo_url IS NULL OR photo_url = '')`, id, photoURL)
+	return err
+}
+
 func (q Q) attachSolutionChildren(ctx context.Context, list []domain.Solution) error {
 	if len(list) == 0 {
 		return nil

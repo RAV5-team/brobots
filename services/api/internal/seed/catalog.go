@@ -287,14 +287,19 @@ func loadCatalog(ctx context.Context, q store.Q, sources map[string]uuid.UUID) (
 		if isDemo {
 			code = sr.Code
 		}
-		if _, found, err := q.SolutionIDByCode(ctx, code); err != nil {
+		// Фото карточки — PNG из каталога организатора, имя файла совпадает с id строки CSV.
+		photoURL := "/catalog/" + id + ".png"
+		if existingID, found, err := q.SolutionIDByCode(ctx, code); err != nil {
 			return inserted, err
 		} else if found {
+			if err := q.SetSolutionPhotoIfEmpty(ctx, existingID, photoURL); err != nil {
+				return inserted, fmt.Errorf("solution %s photo: %w", code, err)
+			}
 			continue
 		}
 		sol := domain.Solution{ID: seedID("solution", code), Code: code, Kind: "robot", Name: first.Name,
 			Manufacturer: guillemets(first.Company), OrganizerIDs: []string{id}, IsActive: true,
-			SourceID: domain.Ptr(sources["catalog_v4"]), OrganizerScenarios: []string{}, AcquisitionModels: []string{"purchase", "raas"}}
+			PhotoURL: &photoURL, SourceID: domain.Ptr(sources["catalog_v4"]), OrganizerScenarios: []string{}, AcquisitionModels: []string{"purchase", "raas"}}
 		if first.Class == "software" {
 			sol.Kind = "software"
 			sol.CostType = domain.Ptr("capex")
