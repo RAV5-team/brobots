@@ -191,3 +191,48 @@ describe('RadioTable — колонка trailing, раскрытие, тон, ф
     expect(radio.parentElement).toHaveAttribute('role', 'radiogroup')
   })
 })
+
+describe('RadioTable — только просмотр (readOnly)', () => {
+  const renderReadOnly = (onChange = vi.fn(), onScore = vi.fn()) => {
+    render(
+      <RadioTable
+        readOnly
+        label="Рейтинг"
+        columns={COLUMNS}
+        trailingColumn={TRAILING}
+        value="a"
+        onChange={onChange}
+        rows={rows({ a: { trailing: <button type="button" onClick={onScore}>0,91</button>, detail: <button type="button">Разбор балла</button> } })}
+      />,
+    )
+    return { onChange, onScore }
+  }
+
+  it('группа — aria-readonly, строки не выключены', () => {
+    renderReadOnly()
+    expect(screen.getByRole('radiogroup', { name: 'Рейтинг' })).toHaveAttribute('aria-readonly', 'true')
+    for (const radio of screen.getAllByRole('radio')) expect(radio).toBeEnabled()
+  })
+
+  it('щелчок и стрелки выбор не меняют', () => {
+    const { onChange } = renderReadOnly()
+    fireEvent.click(screen.getByRole('radio', { name: 'Вариант b' }))
+    const first = screen.getByRole('radio', { name: 'Вариант a' })
+    first.focus()
+    fireEvent.keyDown(first, { key: 'ArrowDown' })
+    expect(onChange).not.toHaveBeenCalled()
+    expect(first).toBeChecked()
+  })
+
+  it('кнопки в trailing и detail доступны', () => {
+    const { onScore } = renderReadOnly()
+    fireEvent.click(screen.getByRole('button', { name: '0,91' }))
+    expect(onScore).toHaveBeenCalledOnce()
+    expect(screen.getByRole('button', { name: 'Разбор балла' })).toBeEnabled()
+  })
+
+  it('без readOnly aria-readonly нет', () => {
+    render(<RadioTable label="Локации" columns={COLUMNS} value="a" onChange={vi.fn()} rows={rows()} />)
+    expect(screen.getByRole('radiogroup')).not.toHaveAttribute('aria-readonly')
+  })
+})

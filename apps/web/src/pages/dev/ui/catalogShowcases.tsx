@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { Chip } from '@/components/ui/Chip'
 import { CharacteristicRow } from '@/components/ui/CharacteristicRow'
 import { ChipList } from '@/components/ui/ChipList'
@@ -199,6 +199,8 @@ export function RadioTableShowcase() {
       </div>
       <h3 className="type-overline text-text-muted">trailing · detail · danger (рейтинг 2.1, 16325:101)</h3>
       <RankingDemo />
+      <h3 className="type-overline text-text-muted">readOnly (только просмотр): выбор не меняется, разбор балла открывается</h3>
+      <RankingDemo readOnly />
       <h3 className="type-overline text-text-muted">selection=multiple (сравнить 2–4 варианта)</h3>
       <CompareSelectDemo />
     </ShowcaseSection>
@@ -220,15 +222,17 @@ const nameCell = (name: string, caption: string) => (
   <span className="flex flex-col gap-4"><span className="type-body font-semibold text-text">{name}</span><span className="type-caption text-text-secondary">{caption}</span></span>
 )
 
-function RankingDemo() {
+function RankingDemo({ readOnly = false }: { readonly readOnly?: boolean }) {
   const [value, setValue] = useState<string | null>('amr')
   const [why, setWhy] = useState<string | null>(null)
+  const idPrefix = useId()
   return (
     <div className="w-(--rav-modal-wide-width)">
       <RadioTable
         label="Рейтинг вариантов"
         columns={RANKING_COLUMNS}
         trailingColumn={SCORE_COLUMN}
+        readOnly={readOnly}
         value={value}
         onChange={setValue}
         rows={RANKING.map((r) => ({
@@ -242,12 +246,12 @@ function RankingDemo() {
               tone={r.id === value ? 'selected' : 'default'}
               label={`Из чего складывается балл ${r.name}`}
               expanded={why === r.id}
-              controls={`why-${r.id}`}
+              controls={`${idPrefix}-why-${r.id}`}
               onClick={() => { setWhy(why === r.id ? null : r.id) }}
             />
           ),
           expanded: why === r.id || r.id === value,
-          detail: <p id={`why-${r.id}`} className="type-caption text-text-secondary">{`Из чего складывается балл ${r.score ?? '—'} · окупаемость 0,30 · ROI 0,15`}</p>,
+          detail: <p id={`${idPrefix}-why-${r.id}`} className="type-caption text-text-secondary">{`Из чего складывается балл ${r.score ?? '—'} · окупаемость 0,30 · ROI 0,15`}</p>,
         }))}
       />
     </div>
