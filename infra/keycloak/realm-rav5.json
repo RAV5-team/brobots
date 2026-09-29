@@ -44,7 +44,7 @@
       "serviceAccountsEnabled": false,
       "rootUrl": "${PUBLIC_URL}",
       "baseUrl": "${PUBLIC_URL}/",
-      "redirectUris": ["${PUBLIC_URL}/*"],
+      "redirectUris": ["${PUBLIC_URL}/*", "http://localhost:5173/*"],
       "webOrigins": ["+"],
       "attributes": {
         "pkce.code.challenge.method": "S256",
