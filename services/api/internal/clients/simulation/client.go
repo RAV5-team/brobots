@@ -107,7 +107,7 @@ func (c *Client) do(ctx context.Context, token, method, path string, body any, h
 	}
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrUnavailable, err)
+		return nil, fmt.Errorf("%w: %w", ErrUnavailable, err)
 	}
 	return resp, nil
 }
@@ -117,32 +117,32 @@ func check(resp *http.Response) error {
 	if resp.StatusCode < 300 {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var problem struct {
 		Error  string       `json:"error"`
 		Errors []FieldError `json:"errors"`
 	}
 	_ = json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&problem)
-	switch {
-	case resp.StatusCode == http.StatusNotFound:
+	switch resp.StatusCode {
+	case http.StatusNotFound:
 		return ErrNotFound
-	case resp.StatusCode == http.StatusTooManyRequests:
+	case http.StatusTooManyRequests:
 		return &BusyError{Message: problem.Error}
-	case resp.StatusCode == http.StatusUnprocessableEntity:
+	case http.StatusUnprocessableEntity:
 		return &RejectedError{Message: problem.Error, Errors: problem.Errors}
-	case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
+	case http.StatusUnauthorized, http.StatusForbidden:
 		return fmt.Errorf("%w: access denied (%d): %s", ErrUnavailable, resp.StatusCode, problem.Error)
 	}
 	return fmt.Errorf("%w: status %d: %s", ErrUnavailable, resp.StatusCode, problem.Error)
 }
 
 func decode(resp *http.Response, dst any) error {
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if err := check(resp); err != nil {
 		return err
 	}
 	if err := json.NewDecoder(resp.Body).Decode(dst); err != nil {
-		return fmt.Errorf("%w: unreadable answer: %v", ErrUnavailable, err)
+		return fmt.Errorf("%w: unreadable answer: %w", ErrUnavailable, err)
 	}
 	return nil
 }
