@@ -8,6 +8,8 @@ export interface NavItem {
   readonly key: NavKey
   readonly label: string
   readonly to: string
+  /** Раздел ещё не готов: пункт виден, но серый и без перехода. */
+  readonly disabled?: boolean
 }
 
 const item = (key: NavKey, label: string, to: string): NavItem => ({ key, label, to })
@@ -18,7 +20,8 @@ const CABINET: readonly NavItem[] = [
   item('processes', ru.nav.processes, ROUTE_PATHS.processes),
   item('locations', ru.nav.locations, ROUTE_PATHS.locations),
   item('catalog', ru.nav.catalog, ROUTE_PATHS.catalog),
-  item('integrations', ru.nav.integrations, ROUTE_PATHS.integrations),
+  // Раздел «Интеграции» не готов: в меню виден, но закрыт.
+  { ...item('integrations', ru.nav.integrations, ROUTE_PATHS.integrations), disabled: true },
 ]
 
 /** Пункты левого меню по роли: кабинет (PRD 5.1), + «Администрирование» у админа, меню гостя (ролевая модель, §3). */

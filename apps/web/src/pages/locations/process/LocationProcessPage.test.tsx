@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes, useParams } from 'react-router'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Services } from '@/services'
+import { ForbiddenError } from '@/services/errors'
 import { createMockServices } from '@/services/mock'
 import { ServicesProvider } from '@/services/ServicesProvider'
 import { RoleProvider } from '@/shared/auth/RoleProvider'
@@ -87,6 +88,33 @@ describe('LocationProcessPage (экран 16)', () => {
     expect(screen.getByRole('button', { name: /Сохранить на локации/ })).toBeDisabled()
     expect(screen.queryByText(/Черновик сохранён/)).not.toBeInTheDocument()
     expect(localStorage.getItem('rav5.draft.location-process.v1.LP-01')).toBeNull()
+  })
+
+  it('keeps a demo location read-only for a signed-in user and says why (ролевая модель, §4)', async () => {
+    const base = createMockServices({ latencyMs: 0 })
+    const services: Services = {
+      ...base,
+      locations: { ...base.locations, getLocation: async (id) => ({ ...(await base.locations.getLocation(id)), isDemo: true }) },
+    }
+    renderPage(undefined, services)
+    await screen.findByRole('heading', { level: 1 })
+    expect(screen.getByRole('button', { name: /Сохранить на локации/ })).toBeDisabled()
+    expect(screen.getByText(/Демо-локация только для просмотра/)).toBeInTheDocument()
+    expect(screen.queryByText(/войдите в рабочий кабинет/)).not.toBeInTheDocument()
+    expect(localStorage.getItem('rav5.draft.location-process.v1.LP-01')).toBeNull()
+  })
+
+  it('shows the service refusal text instead of «повторите через минуту»', async () => {
+    const base = createMockServices({ latencyMs: 0 })
+    const refusal = 'Демо-локация только для просмотра. Создайте свою из типового объекта, чтобы менять данные'
+    const services: Services = {
+      ...base,
+      locations: { ...base.locations, updateLocationProcess: () => Promise.reject(new ForbiddenError(refusal, 'demo_read_only')) },
+    }
+    renderPage(undefined, services)
+    await screen.findByRole('heading', { level: 1 })
+    fireEvent.click(screen.getByRole('button', { name: /Сохранить на локации/ }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(refusal)
   })
 
   it('reports a process of another location as not found', async () => {

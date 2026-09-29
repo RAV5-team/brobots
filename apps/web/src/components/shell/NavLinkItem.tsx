@@ -1,6 +1,7 @@
 import { Link } from 'react-router'
 import { Bridge } from '@/components/ui/MergedButton'
 import { formatNumber } from '@/shared/format'
+import { ru } from '@/shared/i18n/ru'
 import type { NavItem } from './navigation'
 
 interface NavLinkItemProps {
@@ -12,6 +13,19 @@ interface NavLinkItemProps {
 /** Пункт левого меню: обычный, активный (чёрная капсула) или активный со счётчиком — капсула + круг с перемычкой. */
 export function NavLinkItem({ item, count, active }: NavLinkItemProps) {
   const current = active ? 'page' : undefined
+
+  if (item.disabled === true) {
+    return (
+      <span
+        aria-disabled="true"
+        title={ru.nav.soonHint}
+        className="flex cursor-not-allowed items-center justify-between rounded-md p-12 type-body font-medium text-text-disabled"
+      >
+        {item.label}
+        <span className="type-caption">{ru.nav.soon}</span>
+      </span>
+    )
+  }
 
   if (!active) {
     return (

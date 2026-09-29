@@ -6,6 +6,10 @@ describe('navItemsFor (PRD 5.1, 5.3; D-01)', () => {
     expect(navItemsFor('user').map((i) => i.key)).toEqual(['dashboard', 'projects', 'processes', 'locations', 'catalog', 'integrations'])
   })
 
+  it('keeps «Интеграции» in the menu but closed until the section is ready', () => {
+    expect(navItemsFor('user').filter((i) => i.disabled === true).map((i) => i.key)).toEqual(['integrations'])
+  })
+
   it('adds administration for the admin', () => {
     expect(navItemsFor('admin').map((i) => i.key).at(-1)).toBe('admin')
   })
