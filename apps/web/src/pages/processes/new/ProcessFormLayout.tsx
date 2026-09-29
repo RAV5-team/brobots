@@ -28,6 +28,8 @@ interface ProcessFormLayoutProps {
   readonly lead: string
   readonly state: ProcessFormState
   readonly canSave: boolean
+  /** Сохранение закрыто не из-за гостя (демо-локация): пояснение в панели вместо плашки демо-режима. */
+  readonly lockedNote?: string | null
   readonly hints: Readonly<Partial<Record<NumericKey, string>>>
   readonly classOptions: readonly SelectOption<OperationClassCode>[]
   readonly categoryOptions: readonly SelectOption<string>[]
@@ -41,7 +43,7 @@ interface ProcessFormLayoutProps {
  * Каркас формы процесса: шапка с «←» и плашкой черновика, пять секций с липкой навигацией и правая панель (D-31).
  * Один на шаблон 09а и копию на локации 16 — PRD 10.4: «состав формы полностью совпадает».
  */
-export function ProcessFormLayout({ back, title, lead, state, canSave, hints, rail, ...options }: ProcessFormLayoutProps) {
+export function ProcessFormLayout({ back, title, lead, state, canSave, lockedNote = null, hints, rail, ...options }: ProcessFormLayoutProps) {
   const { form, errors, update, savedAt, activeId, select, submit, saving, message, status, applyImported, rejectImported } = state
   const sectionProps = { form, errors, update, hints }
   const catalog: ProcessSheetCatalog = {
@@ -71,7 +73,7 @@ export function ProcessFormLayout({ back, title, lead, state, canSave, hints, ra
         <TextLink to={back.to} icon={ArrowLeft}>{back.label}</TextLink>
         {canSave
           ? savedAt && <Chip tone="muted" size="md"><span role="status">{t.draftSaved(formatTime(savedAt.toISOString()))}</span></Chip>
-          : <DemoBanner />}
+          : lockedNote === null && <DemoBanner />}
       </div>
       <PageHeader title={title} lead={lead} gap={8} />
       <div className="flex items-start gap-24">
@@ -96,6 +98,7 @@ export function ProcessFormLayout({ back, title, lead, state, canSave, hints, ra
           copy={rail.copy}
           rows={rail.rows}
           canSave={canSave}
+          lockedNote={lockedNote}
           saving={saving}
           message={message}
           status={status}

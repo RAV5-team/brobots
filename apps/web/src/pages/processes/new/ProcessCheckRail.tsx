@@ -20,6 +20,8 @@ interface ProcessCheckRailProps {
   readonly copy: CheckRailCopy
   readonly rows: readonly CheckRow[]
   readonly canSave: boolean
+  /** Почему сохранение закрыто, если не гость: например, демо-локация. */
+  readonly lockedNote?: string | null
   readonly saving: boolean
   /** Сводка ошибок проверки или сбоя сохранения — объявляется скринридеру. */
   readonly message: string | null
@@ -34,7 +36,7 @@ interface ProcessCheckRailProps {
  * Правая панель проверки и действия формы процесса (PRD 9.2, 10.4; 15935:1254, 15953:5569). Липкая: кнопку сохранения
  * видно без прокрутки на всей высоте формы (D-04, D-31). Шаблон Excel — тот же лист, что у локации: меняется столбец «Значение».
  */
-export function ProcessCheckRail({ copy, rows, canSave, saving, message, status = null, onDownloadTemplate, onImportTemplate }: ProcessCheckRailProps) {
+export function ProcessCheckRail({ copy, rows, canSave, lockedNote = null, saving, message, status = null, onDownloadTemplate, onImportTemplate }: ProcessCheckRailProps) {
   return (
     <FormRail
       label={copy.title}
@@ -49,7 +51,7 @@ export function ProcessCheckRail({ copy, rows, canSave, saving, message, status 
       )}
       message={message}
       status={status}
-      submit={{ label: saving ? t.saving : copy.save, disabled: !canSave || saving, note: canSave ? null : t.guestSave }}
+      submit={{ label: saving ? t.saving : copy.save, disabled: !canSave || saving, note: canSave ? null : lockedNote ?? t.guestSave }}
       excel={{
         importLabel: t.importExcel,
         templateLabel: t.downloadTemplate,

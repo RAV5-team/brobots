@@ -2,11 +2,18 @@ import { useState, type SyntheticEvent } from 'react'
 import { useActiveSection } from '@/shared/dom/useActiveSection'
 import { clearDraft, readDraft, useDraftAutosave } from '@/shared/dom/useDraftAutosave'
 import { formatNumber } from '@/shared/format'
+import { ConflictError, ForbiddenError, ValidationError } from '@/services/errors'
 import { ru } from '@/shared/i18n/ru'
 import { validateForm, type FormErrors } from './processCalc'
 import { isProcessForm, NUMERIC_SPECS, SECTION_IDS, type NumericKey, type ProcessForm, type SectionId } from './processForm'
 
 const t = ru.processNew
+
+/** Отказ сервиса со своим текстом (403, 409, 422) показываем как есть: «повторите через минуту» тут не поможет. */
+function saveErrorMessage(error: unknown): string {
+  const explained = error instanceof ForbiddenError || error instanceof ConflictError || error instanceof ValidationError
+  return explained && error.message !== '' ? error.message : t.errors.saveFailed
+}
 
 /** Секция первой ошибки — туда ведём после неудачной проверки. */
 function firstErrorSection(errors: FormErrors): SectionId {
@@ -73,7 +80,7 @@ export function useProcessFormState({ draftKey, initialForm, canSave, acceptDraf
       clearDraft(draftKey)
     } catch (error) {
       console.error('Не удалось сохранить процесс', error)
-      setMessage(t.errors.saveFailed)
+      setMessage(saveErrorMessage(error))
       setSaving(false)
     }
   }

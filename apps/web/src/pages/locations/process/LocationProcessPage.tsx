@@ -31,7 +31,7 @@ function LocationProcessSkeleton() {
 }
 
 /** Форма копии: значения шаблона с профилем, поверх — переопределения площадки; сохраняются только отличия. */
-function LocationProcessForm({ data, canSave }: { readonly data: LocationProcessData; readonly canSave: boolean }) {
+function LocationProcessForm({ data, canSave, lockedNote }: { readonly data: LocationProcessData; readonly canSave: boolean; readonly lockedNote: string | null }) {
   const services = useServices()
   // Начисления на ФОТ, если в профиле их нет, — норматив А5 `payroll_tax_ratio`.
   const { payrollTaxRatio } = useModelNorms()
@@ -68,6 +68,7 @@ function LocationProcessForm({ data, canSave }: { readonly data: LocationProcess
         lead={t.lead(location.name)}
         state={state}
         canSave={canSave}
+        lockedNote={lockedNote}
         hints={hints}
         classOptions={classOptions(data.operationClasses)}
         classLocked
@@ -92,7 +93,7 @@ function LocationProcessForm({ data, canSave }: { readonly data: LocationProcess
 /**
  * Экран 16 «Локации · процесс на локации» (PRD 10.4; 15950:3096) — форма 09а над копией шаблона.
  * Сохранение меняет только эту копию: шаблон в справочнике и другие локации не меняются (D-11).
- * Гость видит форму без сохранения и черновика (D-14).
+ * Гость видит форму без сохранения и черновика (D-14); демо-локация только для просмотра у всех ролей (ролевая модель, §4).
  */
 export function LocationProcessPage() {
   const params = useParams()
@@ -111,5 +112,7 @@ export function LocationProcessPage() {
       />
     )
   }
-  return <LocationProcessForm data={state} canSave={role !== 'guest'} />
+  const isGuest = role === 'guest'
+  const isDemo = state.location.isDemo === true
+  return <LocationProcessForm data={state} canSave={!isGuest && !isDemo} lockedNote={!isGuest && isDemo ? t.rail.demoReadOnly : null} />
 }
