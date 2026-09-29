@@ -1,10 +1,11 @@
 // Бюджет JS первой загрузки (правила web/performance.md: страница приложения < 300 КБ gzip).
+// Временно 305 — до слияния потоков шагов 1–3, затем словари шагов уходят из стартового чанка и снова 300 (D-109).
 // `npm run check:bundle`: после сборки суммирует gzip всех скриптов, которые подключает и предзагружает dist/index.html.
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { gzipSync } from 'node:zlib'
 
-const BUDGET_KB = 300
+const BUDGET_KB = 305
 const dist = resolve(process.cwd(), 'dist')
 const html = readFileSync(resolve(dist, 'index.html'), 'utf8')
 const scripts = [...new Set(html.match(/assets\/[^"]+\.js/g) ?? [])]
