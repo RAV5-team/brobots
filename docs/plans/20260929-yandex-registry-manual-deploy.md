@@ -4,7 +4,9 @@
 
 Replace the GHCR-based release path for your local checkout with a repeatable local release and manual deployment process. Build and validate the images locally, push them to Yandex Container Registry using an immutable commit SHA, and update the existing COI VM with `yc`. Preserve SHA-based rollback.
 
-The plan fixes the two build failures from the latest release run: the web TypeScript errors and the Keycloak Docker build-context mismatch.
+The implementation fixes the earlier web TypeScript and Keycloak Docker
+build-context failures and adds the local Yandex release and manual deployment
+workflow.
 
 ## Context
 
@@ -32,15 +34,18 @@ Do not store a long-lived registry password on the VM. Use the local `yc` Docker
 
 - [x] Omit the `label` prop when `logLabel` is undefined, or adjust the prop type to explicitly accept `undefined`.
 - [x] Align Keycloak’s Dockerfile paths with a repository-root build context, including the realm import file under `infra/keycloak/`.
-- [ ] Run web lint, typecheck, tests, and production build.
-- [ ] Build the Keycloak image with the repository root as context.
+- [x] Run web lint, typecheck, tests, and production build.
+- [x] Build the Keycloak image with the repository root as context.
 
-**Verification note:** Web lint and typecheck passed after installing
-dependencies. `npm test` ran 2,324 tests and reported 18 failures, 2,302
-passes, and 4 skips. A separate `locationCheck.ts` type error was corrected;
-`npm run typecheck` then passed. The image build did not run because the
-release gate stopped at the failing web tests. The Keycloak Docker build was
-not reached.
+**Verification note:** The first full web run found 18 failures. One test
+looked for a missing-value navigation control while its containing process
+status popover was closed; after opening the popover, the test also needed to
+wait for the deferred row reveal and `scrollIntoView` call. Two location page
+assertions expected stale fixture values. The other 15 failures correctly
+flagged user-facing Russian strings outside the shared translation catalog;
+those strings were centralized, while two documented internal matching tokens
+were explicitly exempted. Web lint, typecheck, production build, and the full
+suite now pass: 2,321 passed, 4 skipped.
 
 ### Task 2: Point the COI Compose spec at Yandex Container Registry
 
@@ -71,16 +76,16 @@ not reached.
 missing configuration, a dirty checkout, a failed Go test, failed image builds,
 test ordering, seven full-SHA image tags, Dockerfile contexts, and web build
 arguments, including separate pytest executables for the economics and
-simulation environments. A real release attempt passed Go formatting, vet,
+simulation environments. The complete release run passed Go formatting, vet,
 race, and integration checks; economics Ruff and 119 tests; simulation's 679
-tests; web lint and typecheck. The web suite reported 18 failures, 2,302
-passes, and 4 skips, so the release stopped before any image build or push.
-OrbStack, Buildx, authenticated registry read access, and the VM target platform
+tests; and web lint, typecheck, production build, and 2,321 tests (4 skipped).
+OrbStack, Buildx, authenticated registry access, and the VM target platform
 were verified. The VM uses `standard-v3`, an Intel platform mapped to
 `linux/amd64` by [Yandex's platform documentation](
 https://yandex.cloud/en/docs/compute/concepts/vm-platforms).
-The documented SSH key is absent; registry push permission and Compute
-operation polling access remain unverified.
+All seven images were pushed successfully, confirming publisher access. The
+documented SSH key is absent; VM pull access and Compute operation polling
+access remain unverified.
 
 ### Task 4: Add a manual COI deploy and rollback command
 
@@ -124,14 +129,14 @@ deployment scripts and documents the known instance, folder, cloud, public
 URL, and script environment variables. Registry `brobots`
 (`crprb9kftitj4diu2jru`) was created in the deployment folder and verified
 `ACTIVE`; authenticated registry read access, Docker, and Buildx now work.
-Registry push/pull IAM bindings and Compute operation polling permissions
-remain to be verified.
+Image publication confirmed publisher access. VM pull access and Compute
+operation polling permissions remain to be verified.
 
 ### Task 6: Verify acceptance criteria
 
-- [ ] Run the full local service checks and all seven `linux/amd64` image
+- [x] Run the full local service checks and all seven `linux/amd64` image
       builds.
-- [ ] Confirm each image is present in Yandex Container Registry under the
+- [x] Confirm each image is present in Yandex Container Registry under the
       same SHA.
 - [x] Confirm the rendered COI Compose spec references only the confirmed
       registry ID and requested full SHA.
@@ -146,18 +151,23 @@ created and verified `ACTIVE`. A standalone Docker Compose render using that
 registry ID and the full current SHA produced nine Yandex image references
 sharing that SHA, with no GHCR references or unresolved deployment variables,
 and restored all eight `/etc/brobots` env-file paths. Registry image presence
-and live VM SHA verification were not performed; no images were published and
-no deployment was attempted. Go, economics, and simulation checks passed. Web
-lint and typecheck passed, but 18 of 2,324 web tests failed (2,302 passed, 4
-skipped), so the release gate stopped before all seven `linux/amd64` builds.
-The registry's push permission remains unverified.
+was verified for all seven repositories: `brobots-api`, `brobots-simulation`,
+`brobots-economics`, `brobots-web`, `brobots-keycloak`, `brobots-gateway`, and
+`brobots-postgres`. Each carries tag
+`ada1b300f5931747f63630e2e05dd28add3bfdf1`. Full service checks passed and all
+seven `linux/amd64` images were built and pushed. Publisher access is confirmed
+by the successful push. No VM deployment was attempted; live VM SHA
+verification, VM pull access, and Compute operation polling access remain
+unverified. The web production bundle's main JavaScript chunk is 323.67 KB
+gzip, above the documented 300 KB target, and needs separate performance
+follow-up.
 
 ## Post-Completion Manual Checklist
 
 - [x] Repair OrbStack/Docker socket access and install Buildx on the Mac.
 - [x] Use the active `brobots` registry (`crprb9kftitj4diu2jru`) in the
       deployment folder.
-- Grant your Yandex identity `container-registry.images.pusher` on the registry.
+- [x] Verify publisher access by pushing all seven release images.
 - Grant the VM’s attached service account `container-registry.images.puller` on the registry.
 - Confirm your deployment identity can update the instance and read the resulting Compute operation.
 - Run the operator comment’s publish, deploy, verification, and—if needed—rollback commands.
@@ -177,8 +187,8 @@ The registry's push permission remains unverified.
 
 ## Risks & Assumptions
 
-- **RISK-001:** The web suite has 18 failures, so the release gate stops before
-  image builds or publication.
+- **RISK-001:** The production web bundle's main JavaScript chunk is 323.67 KB
+  gzip, above the documented 300 KB target.
 - **RISK-002:** The Mac is `arm64`; the VM uses Intel `standard-v3`, so builds
   must target `linux/amd64`.
 - **RISK-003:** The current GitHub deploy identity cannot poll the update operation. Manual deployment must verify operation-read permissions for the identity used with `yc`.
