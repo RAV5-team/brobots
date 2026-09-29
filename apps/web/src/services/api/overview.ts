@@ -6,21 +6,22 @@ import { PAGE_LIMIT } from './reference'
 
 const SOURCE = 'ФЦ БАС'
 
+const MISSING = 'нет в API'
+
 /** Версии данных для блока «Версия данных» кабинета (ТЗ 3.1.5) — `GET /versions` и нормативы. */
-export function apiSession(http: HttpClient, fallback: SessionService): Partial<SessionService> {
+export function apiSession(http: HttpClient): Partial<SessionService> {
   return {
     getDataVersion: async () => {
-      const [versions, norms, base] = await Promise.all([
+      const [versions, norms] = await Promise.all([
         http.get<ApiSchemas['VersionList']>('/versions').then((v) => v.items ?? []),
         http.get<ApiSchemas['NormSet']>('/norms'),
-        fallback.getDataVersion(),
       ])
       const catalog = versions.find((v) => v.scope === 'catalog')
       return {
         source: SOURCE,
-        catalog: catalog?.version == null ? base.catalog : `v${String(catalog.version)}`,
-        model: norms.version == null ? base.model : String(norms.version),
-        snapshotDate: catalog?.updatedAt?.slice(0, 10) ?? base.snapshotDate,
+        catalog: catalog?.version == null ? MISSING : `v${String(catalog.version)}`,
+        model: norms.version == null ? MISSING : String(norms.version),
+        snapshotDate: catalog?.updatedAt?.slice(0, 10) ?? MISSING,
       }
     },
   }

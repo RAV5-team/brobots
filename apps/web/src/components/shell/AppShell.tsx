@@ -1,9 +1,23 @@
+import { useSyncExternalStore } from 'react'
 import { Outlet, useLocation } from 'react-router'
 import { NewProjectDialog } from '@/pages/projects/new/NewProjectDialog'
+import { apiGaps, subscribeApiGaps } from '@/services/api/missing'
+import { SERVICES_MODE } from '@/shared/config/api'
 import { useRole } from '@/shared/auth/useRole'
 import { activeNavKey } from './navigation'
 import { Sidebar } from './Sidebar'
 import { useShellData } from './useShellData'
+
+/** Список вызовов, которые экран сделал, а services/api их не отдаёт. */
+function ApiGapBanner() {
+  const gaps = useSyncExternalStore(subscribeApiGaps, apiGaps, apiGaps)
+  if (SERVICES_MODE !== 'api' || gaps.length === 0) return null
+  return (
+    <p role="status" className="type-body-sm rounded-xl border border-danger-border bg-danger-bg px-16 py-12 text-text">
+      Эти вызовы фронт больше не заполняет моками — в API их нет: {gaps.join(', ')}
+    </p>
+  )
+}
 
 /** Каркас кабинета: меню на всю высоту окна и область контента (D-01, D-04; экран 06). */
 export function AppShell() {
@@ -15,6 +29,7 @@ export function AppShell() {
     <div className="flex min-h-screen">
       <Sidebar role={role} activeKey={activeNavKey(pathname)} counts={counts} profile={profile} dataVersion={dataVersion} />
       <main className="flex min-w-0 flex-1 flex-col gap-16 px-24 pt-24 pb-32">
+        <ApiGapBanner />
         <Outlet />
       </main>
       {/* Окно A2 поверх любой страницы кабинета; у гостя его нет (D-84). */}

@@ -13,13 +13,14 @@ export function profileOf(user: AuthUser): Profile {
   return { role: user.role, name: user.name, initials: initialsOf(user.name), email: user.email, organization: null }
 }
 
+const GUEST_PROFILE: Profile = { role: 'guest', name: 'Гость', initials: 'Г', email: null, organization: null }
+
 /**
  * Вход через Keycloak: signIn уводит на страницу входа (почта — подсказкой), профиль — из токена.
- * Гость и версии данных — как у запасной реализации.
+ * Гость — пустой профиль, без демо-имени из фикстур.
  */
 export function oidcSession(fallback: SessionService, auth: { readonly currentUser: () => AuthUser | null; readonly login: (hint?: string) => Promise<void> } = { currentUser, login }): SessionService {
   return {
-    ...fallback,
     signIn: async ({ email }) => {
       await auth.login(email.trim() || undefined)
       // Браузер уже уходит на страницу Keycloak: промис не завершается, форма остаётся в состоянии «Входим…».
@@ -27,8 +28,9 @@ export function oidcSession(fallback: SessionService, auth: { readonly currentUs
     },
     getProfile: (role) => {
       const user = auth.currentUser()
-      return user && role !== 'guest' ? Promise.resolve(profileOf(user)) : fallback.getProfile(role)
+      return Promise.resolve(user && role !== 'guest' ? profileOf(user) : GUEST_PROFILE)
     },
+    getDataVersion: () => fallback.getDataVersion(),
   }
 }
 

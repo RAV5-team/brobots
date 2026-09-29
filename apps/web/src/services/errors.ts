@@ -73,6 +73,14 @@ export class UnauthorizedError extends Error {
   override readonly name = 'UnauthorizedError'
 }
 
+/** Метод экрана ещё не реализован в services/api. Раньше на его месте отвечали фикстуры. */
+export class MissingApiError extends Error {
+  override readonly name = 'MissingApiError'
+  constructor(readonly service: string, readonly method: string) {
+    super(`В API нет ${service}.${method}`)
+  }
+}
+
 /** Зависимость сервиса не ответила (503): калькуляция или симуляция. Повторить позже. */
 export class UnavailableError extends Error {
   override readonly name = 'UnavailableError'
