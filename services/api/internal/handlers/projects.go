@@ -214,7 +214,7 @@ func (a *API) passTraces(w http.ResponseWriter, r *http.Request, resp *http.Resp
 		a.fail(w, r, err)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	if enc := resp.Header.Get("Content-Encoding"); enc != "" {
 		w.Header().Set("Content-Encoding", enc)
