@@ -9,7 +9,7 @@ import { SIMULATION_TIME_LIMIT_S } from '@/services/simulationRuns'
 import { formatNumber } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import type { Fleet } from '@/domain'
-import { runPercent, runStatusLine } from './runModel'
+import { runPercent, runSteps } from './runModel'
 
 const t = ru.project.simulation.run
 const LIMIT = formatNumber(SIMULATION_TIME_LIMIT_S)
@@ -104,16 +104,16 @@ function RunProgress({ progress, fleet, verdictTo, onStop, onConditions }: Pick<
     <>
       {/* data-run-status — готовность для эталона: ждать атрибут, а не заголовок или время. */}
       <Card as="div" padding={28} gap={20} data-run-status={progress.status}>
-        {/* Секунды «1 с» справа от заголовка ждут `meta` у ProgressPanel sunken (сейчас только у inverse). */}
         <ProgressPanel
           headingLevel={2}
           title={running ? t.running : t.done}
           label={t.progressLabel(LIMIT)}
           value={runPercent(progress, SIMULATION_TIME_LIMIT_S)}
+          meta={t.seconds(formatNumber(progress.elapsedS))}
+          log={runSteps(progress, fleet?.checked ?? null, fleet?.fromMatching ?? null)}
+          logLabel={t.log}
           busy={running}
-        >
-          {fleet && runStatusLine(progress.status, fleet.checked, fleet.fromMatching)}
-        </ProgressPanel>
+        />
         <Explain />
       </Card>
       <Actions>
@@ -131,9 +131,9 @@ function Explain() {
 }
 
 /**
- * Этап 3 «Моделирование» (3.3, 16325:167; PRD 11.4; D-103): светлая карточка — плашка прогона с полосой и строкой
- * состояния, под ней пояснение; `aria-busy` во время прогона. По завершении — итог и «Смотреть вердикт» (автопереход
- * к вердикту с доски ждёт решения 10); этап 4 уже записан в черновик.
+ * Этап 3 «Моделирование» (3.3, 16325:167; PRD 11.4; D-103): светлая карточка — плашка прогона с полосой,
+ * секундами и журналом шагов, под ней пояснение; `aria-busy` во время прогона. По завершении — итог и «Смотреть
+ * вердикт» (автопереход к вердикту с доски ждёт решения 10); этап 4 уже записан в черновик.
  */
 export function RunStage(props: RunStageProps) {
   const { progress, onStart, onConditions } = props
