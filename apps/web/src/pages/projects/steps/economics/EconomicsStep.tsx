@@ -192,7 +192,7 @@ function EconomicsBody({ data, state, locationName, isGuest, view }: ReadyProps)
  */
 export function EconomicsStep({ project: initial, locationName, isGuest }: ProjectStepProps) {
   const readOnly = isReadOnly(initial)
-  const state = useEconomicsStep(initial, !isGuest && !readOnly)
+  const state = useEconomicsStep(initial, !readOnly)
   const { project, load, selected } = state
   const [params, setParams] = useSearchParams()
   const view = parseAcquisition(params.get(VIEW_PARAM)) ?? selected

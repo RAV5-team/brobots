@@ -15,7 +15,8 @@ const MIN_TOKEN_VALIDITY_S = 30
 export interface AuthUser {
   readonly name: string
   readonly email: string | null
-  readonly role: Exclude<Role, 'guest'>
+  /** guest — учётке не назначена ни user, ни admin: вход есть, прав нет (ролевая модель, §1). */
+  readonly role: Role
 }
 
 interface TokenClaims {
@@ -32,9 +33,14 @@ export function parseRealmUrl(url: string): { readonly url: string; readonly rea
   return { url: match[1], realm: match[2] }
 }
 
-/** Роль платформы по ролям realm (PRD 4): admin важнее user; вошедший без ролей — пользователь. */
+/**
+ * Роль платформы по ролям realm (PRD 4): admin важнее user. Учётка без этих ролей — гость: сервис не даст ей писать
+ * (403), так что кабинет ей не показывается (ролевая модель, §1).
+ */
 export function roleFromClaims(claims: TokenClaims): AuthUser['role'] {
-  return claims.realm_access?.roles?.includes('admin') ? 'admin' : 'user'
+  const roles = claims.realm_access?.roles ?? []
+  if (roles.includes('admin')) return 'admin'
+  return roles.includes('user') ? 'user' : 'guest'
 }
 
 export function userFromClaims(claims: TokenClaims): AuthUser {

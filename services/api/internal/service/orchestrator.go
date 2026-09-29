@@ -87,18 +87,9 @@ func (s *Service) Evaluate(ctx context.Context, id uuid.UUID, body []byte) (Eval
 	if err != nil {
 		return Evaluation{}, err
 	}
-	resp, err := s.calc.Calculate(ctx, req)
-	switch {
-	case errors.Is(err, calc.ErrRejected):
-		return Evaluation{}, domain.Unavailable("calculation_rejected",
-			"Сервис расчёта экономики отклонил входные данные проекта. Подбор сохранён — проверьте параметры задачи и нормативы", err)
-	case err != nil:
-		return Evaluation{}, domain.Unavailable("calculation_unavailable",
-			"Сервис расчёта экономики не ответил. Подбор сохранён — повторите расчёт позже", err)
-	}
-	results, err := completeResults(req, resp)
+	resp, results, err := s.calculate(ctx, req, "Подбор сохранён — ")
 	if err != nil {
-		return Evaluation{}, domain.Unavailable("calculation_invalid", "Сервис расчёта экономики вернул ответ не по контракту", err)
+		return Evaluation{}, err
 	}
 	cr := store.CalcRunRecord{ID: req.RunID, ProjectID: rec.ID, MatchRunID: *run.ID, ModelVersion: resp.ModelVersion,
 		RankingVersion: resp.RankingVersion, CatalogVersion: run.CatalogVersion, InputsVersion: rec.InputsVersion,
@@ -121,6 +112,24 @@ func (s *Service) Evaluate(ctx context.Context, id uuid.UUID, body []byte) (Eval
 		return Evaluation{}, err
 	}
 	return s.evaluation(ctx, s.st.Q(), rec, cr, run, &resp.ModelVersion)
+}
+
+// calculate calls the calculator and checks its answer; saved tells the user what was kept when it fails.
+func (s *Service) calculate(ctx context.Context, req calc.Request, saved string) (calc.Response, []calc.Result, error) {
+	resp, err := s.calc.Calculate(ctx, req)
+	switch {
+	case errors.Is(err, calc.ErrRejected):
+		return resp, nil, domain.Unavailable("calculation_rejected",
+			"Сервис расчёта экономики отклонил входные данные проекта. "+saved+"проверьте параметры задачи и нормативы", err)
+	case err != nil:
+		return resp, nil, domain.Unavailable("calculation_unavailable",
+			"Сервис расчёта экономики не ответил. "+saved+"повторите расчёт позже", err)
+	}
+	results, err := completeResults(req, resp)
+	if err != nil {
+		return resp, nil, domain.Unavailable("calculation_invalid", "Сервис расчёта экономики вернул ответ не по контракту", err)
+	}
+	return resp, results, nil
 }
 
 // putCalcOverrides replaces the «Параметры расчёта» of a draft; a change makes the calculation stale.
@@ -203,6 +212,12 @@ func (s *Service) evaluation(ctx context.Context, q store.Q, rec store.ProjectRe
 	if err != nil {
 		return Evaluation{}, err
 	}
+	return evaluationOf(rec, cr, run, results, current), nil
+}
+
+// evaluationOf builds the answer of a calculation from its results, stored or computed in the preview.
+func evaluationOf(rec store.ProjectRecord, cr store.CalcRunRecord, run matching.Run, results []store.CalcResult,
+	current *string) Evaluation {
 	bySolution := map[uuid.UUID][]store.CalcResult{}
 	for _, r := range results {
 		bySolution[r.SolutionID] = append(bySolution[r.SolutionID], r)
@@ -239,7 +254,7 @@ func (s *Service) evaluation(ctx context.Context, q store.Q, rec store.ProjectRe
 		ev.Candidates = append(ev.Candidates, ec)
 	}
 	slices.SortStableFunc(ev.Candidates, func(a, b EvaluatedCandidate) int { return bestRank(a) - bestRank(b) })
-	return ev, nil
+	return ev
 }
 
 // bestRank orders candidates for the screen: ranked by place, then calculated without a place,

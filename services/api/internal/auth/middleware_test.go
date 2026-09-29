@@ -64,6 +64,8 @@ func TestMiddlewareAccess(t *testing.T) {
 		{"user route without token", onlyUser, "", 401, ""},
 		{"user route with user", onlyUser, user, 200, alice},
 		{"user route with service token", onlyUser, service, 403, ""},
+		{"user route with a token without roles", onlyUser, "Bearer " + iss.User(t, "bob"), 403, ""},
+		{"user route with admin", onlyUser, admin, 200, root},
 		{"admin route without token", onlyAdmin, "", 401, ""},
 		{"admin route with user", onlyAdmin, user, 403, ""},
 		{"admin route with admin", onlyAdmin, admin, 200, root},

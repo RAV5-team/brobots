@@ -19,7 +19,8 @@ export function useShellData(role: Role): ShellData {
   useEffect(() => {
     let cancelled = false
     Promise.all([
-      services.projects.listProjects(),
+      // Гостю — демо-проекты организатора, вошедшему — свои (ролевая модель, §3).
+      services.projects.listProjects({ demo: role === 'guest' }),
       services.processes.listProcesses(),
       services.locations.listLocations(),
       services.catalog.listRobots(),

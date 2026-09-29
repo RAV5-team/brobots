@@ -26,7 +26,7 @@ paths:
       tags:
       - system
       summary: Readiness Check
-      description: 'Reports readiness: the snapshot database answers.'
+      description: 'Reports readiness: the Keycloak keys are loaded, the DB answers.'
       operationId: readiness_check_readyz_get
       responses:
         '200':
@@ -63,14 +63,27 @@ paths:
       tags:
       - evaluations
       summary: Create Evaluation
-      description: Calculates, persists, and returns one evaluation snapshot.
+      description: 'Calculates, persists, and returns one evaluation snapshot.
+
+
+        dry_run calculates without saving: the guest preview of a demo project
+
+        keeps nothing (roles model §5).'
       operationId: create_evaluation_api_v1_evaluations_post
+      parameters:
+      - name: dry_run
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Dry Run
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/EvaluationRequestDto-Input'
-        required: true
       responses:
         '201':
           description: Successful Response

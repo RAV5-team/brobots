@@ -48,6 +48,19 @@ func Forbidden(code, message string) error {
 	return &ForbiddenError{Code: code, Message: message}
 }
 
+// TooManyError reports a shared resource the caller has to wait for, such as the guest simulation slots.
+type TooManyError struct {
+	Code    string
+	Message string
+}
+
+func (e *TooManyError) Error() string { return e.Message }
+
+// TooMany builds a TooManyError with a user-facing Russian message.
+func TooMany(code, message string) error {
+	return &TooManyError{Code: code, Message: message}
+}
+
 // UnavailableError reports a dependency that did not answer, such as the economics service.
 type UnavailableError struct {
 	Code    string

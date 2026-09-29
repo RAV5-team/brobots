@@ -86,8 +86,8 @@ class Services:
     """Сценарии и порты, которые обслуживает HTTP API.
 
     Attributes:
-        submit: Ставит проверку в очередь от имени владельца (sub или None
-            для гостя), возвращает номер задания.
+        submit: Ставит проверку в очередь от имени владельца (sub),
+            возвращает номер задания.
         preview: Потребность по часам без имитации.
         reader: Чтение заданий и прогонов.
         health: Готовность хранилища.
@@ -97,6 +97,8 @@ class Services:
             пути (INTERNAL_CALLER_AZP).
         dev_principal: Пользователь запросов без токена в dev-режиме; None —
             режим выключен. TODO(dev-auth): удалить вместе с dev-режимом.
+        submit_guest: Ставит задание за гостя демо-проекта с лимитом мест;
+            None — гостевые задания не принимаются.
     """
 
     submit: Callable[[Mapping[str, Any], str | None], str]
@@ -106,6 +108,7 @@ class Services:
     verifier: ports.TokenVerifier | None
     internal_caller_azp: str = "rav5-api-internal"
     dev_principal: models.Principal | None = None
+    submit_guest: Callable[[Mapping[str, Any]], str] | None = None
 
 
 class ApiError(Exception):
@@ -243,11 +246,6 @@ def _meta() -> dict:
     }
 
 
-def _viewer(caller: models.Principal | None) -> str | None:
-    """От чьего имени читать: sub пользователя или None для гостя."""
-    return caller.sub if caller else None
-
-
 def _require_id(value: str, message: str) -> None:
     if not _ID.match(value):
         raise ApiError(404, message)
@@ -302,21 +300,13 @@ def _add_simulations(app: fastapi.APIRouter) -> None:
             raise ApiError(422, str(e), e.errors) from e
 
     @app.post("/api/simulations")
-    def start(
-        services: Deps, data: Body, caller: auth.OptionalUser
-    ) -> JsonResponse:
+    def start(services: Deps, data: Body, caller: auth.User) -> JsonResponse:
         """Проверяет вход и ставит задание в очередь; ответ 202 с job_id."""
         try:
-            job_id = services.submit(data, _viewer(caller))
+            job_id = services.submit(data, caller.sub)
         except errors.InvalidSubmissionError as e:
             raise ApiError(422, str(e), e.errors) from e
-        return JsonResponse(
-            {
-                "job_id": job_id,
-                "status_url": f"/api/simulations/jobs/{job_id}",
-            },
-            202,
-        )
+        return _accepted(job_id, "/api/simulations")
 
     @app.get("/api/simulations/jobs")
     def no_job() -> JsonResponse:
@@ -324,48 +314,101 @@ def _add_simulations(app: fastapi.APIRouter) -> None:
         raise ApiError(404, "Задание не найдено.")
 
     @app.get("/api/simulations/jobs/{job_id}")
-    def get_job(
-        services: Deps, job_id: str, caller: auth.OptionalUser
-    ) -> JsonResponse:
+    def get_job(services: Deps, job_id: str, caller: auth.User) -> JsonResponse:
         """Ход задания и, когда готово, его прогоны."""
-        _require_id(job_id, "Задание не найдено.")
-        job = services.reader.get_job(job_id, viewer=_viewer(caller))
-        if job is None:
-            raise ApiError(404, "Задание не найдено.")
-        return JsonResponse(presenters.job_body(job))
+        return _job(services, job_id, caller.sub)
 
     @app.get("/api/simulations/{simulation_id}")
     def get_run(
-        services: Deps, simulation_id: str, caller: auth.OptionalUser
+        services: Deps, simulation_id: str, caller: auth.User
     ) -> JsonResponse:
         """Прогон целиком."""
-        _require_id(simulation_id, "not found")
-        run = services.reader.get_run(simulation_id, viewer=_viewer(caller))
-        if run is None:
-            raise ApiError(404, "Прогон не найден.")
-        return JsonResponse(run)
+        return _run(services, simulation_id, caller.sub)
 
     @app.get("/api/simulations/{simulation_id}/traces")
     def get_traces(
         services: Deps,
         simulation_id: str,
         request: fastapi.Request,
-        caller: auth.OptionalUser,
+        caller: auth.User,
     ) -> responses.Response:
         """2D-трассы прогона: gzip, если клиент его принимает."""
-        _require_id(simulation_id, "not found")
-        traces_gz = services.reader.get_traces_gz(
-            simulation_id, viewer=_viewer(caller)
-        )
-        if traces_gz is None:
-            raise ApiError(404, "Прогон не найден.")
-        headers = {"Vary": "Accept-Encoding"}
-        if accepts_gzip(request.headers.get("accept-encoding")):
-            headers["Content-Encoding"] = "gzip"
-            return responses.Response(traces_gz, 200, headers, _JSON)
-        return responses.Response(
-            gzip.decompress(traces_gz), 200, headers, _JSON
-        )
+        return _traces(services, simulation_id, request, caller.sub)
+
+
+def _add_internal(app: fastapi.APIRouter) -> None:
+    """Гостевые задания демо-проектов: их ставит и читает только api.
+
+    Гость анонимен, поэтому api ходит сюда своим сервисным токеном, а задания
+    получают владельца GUEST_OWNER: их не видят пользовательские пути, а
+    чистка удаляет их по сроку хранения.
+    """
+
+    @app.post("/internal/simulations")
+    def start_guest(services: Deps, data: Body) -> JsonResponse:
+        """Ставит гостевое задание; 429 — гостевые места заняты."""
+        if services.submit_guest is None:
+            raise ApiError(503, "Гостевые симуляции не настроены.")
+        try:
+            job_id = services.submit_guest(data)
+        except errors.GuestLimitError as e:
+            raise ApiError(429, str(e)) from e
+        except errors.InvalidSubmissionError as e:
+            raise ApiError(422, str(e), e.errors) from e
+        return _accepted(job_id, "/internal/simulations")
+
+    @app.get("/internal/simulations/jobs/{job_id}")
+    def get_guest_job(services: Deps, job_id: str) -> JsonResponse:
+        return _job(services, job_id, models.GUEST_OWNER)
+
+    @app.get("/internal/simulations/{simulation_id}")
+    def get_guest_run(services: Deps, simulation_id: str) -> JsonResponse:
+        return _run(services, simulation_id, models.GUEST_OWNER)
+
+    @app.get("/internal/simulations/{simulation_id}/traces")
+    def get_guest_traces(
+        services: Deps, simulation_id: str, request: fastapi.Request
+    ) -> responses.Response:
+        return _traces(services, simulation_id, request, models.GUEST_OWNER)
+
+
+def _accepted(job_id: str, prefix: str) -> JsonResponse:
+    return JsonResponse(
+        {"job_id": job_id, "status_url": f"{prefix}/jobs/{job_id}"}, 202
+    )
+
+
+def _job(services: Services, job_id: str, viewer: str) -> JsonResponse:
+    _require_id(job_id, "Задание не найдено.")
+    job = services.reader.get_job(job_id, viewer=viewer)
+    if job is None:
+        raise ApiError(404, "Задание не найдено.")
+    return JsonResponse(presenters.job_body(job))
+
+
+def _run(services: Services, simulation_id: str, viewer: str) -> JsonResponse:
+    _require_id(simulation_id, "not found")
+    run = services.reader.get_run(simulation_id, viewer=viewer)
+    if run is None:
+        raise ApiError(404, "Прогон не найден.")
+    return JsonResponse(run)
+
+
+def _traces(
+    services: Services,
+    simulation_id: str,
+    request: fastapi.Request,
+    viewer: str,
+) -> responses.Response:
+    _require_id(simulation_id, "not found")
+    traces_gz = services.reader.get_traces_gz(simulation_id, viewer=viewer)
+    if traces_gz is None:
+        raise ApiError(404, "Прогон не найден.")
+    headers = {"Vary": "Accept-Encoding"}
+    if accepts_gzip(request.headers.get("accept-encoding")):
+        headers["Content-Encoding"] = "gzip"
+        return responses.Response(traces_gz, 200, headers, _JSON)
+    return responses.Response(gzip.decompress(traces_gz), 200, headers, _JSON)
 
 
 def _add_error_handlers(app: fastapi.FastAPI) -> None:
@@ -446,10 +489,17 @@ def create_app(
     _no_store(app)
     _add_public(app)
     # Проверка токена раньше чтения тела: без доступа тело не читается.
-    guarded = fastapi.APIRouter(
+    reference = fastapi.APIRouter(
         dependencies=[fastapi.Depends(auth.optional_user)]
     )
-    _add_reference(guarded)
-    _add_simulations(guarded)
-    app.include_router(guarded)
+    _add_reference(reference)
+    app.include_router(reference)
+    users = fastapi.APIRouter(dependencies=[fastapi.Depends(auth.require_user)])
+    _add_simulations(users)
+    app.include_router(users)
+    internal = fastapi.APIRouter(
+        dependencies=[fastapi.Depends(auth.require_service)]
+    )
+    _add_internal(internal)
+    app.include_router(internal)
     return app

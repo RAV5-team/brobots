@@ -8,6 +8,7 @@ import (
 
 	"github.com/brobots/api/internal/matching"
 	"github.com/brobots/api/internal/service"
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
@@ -173,6 +174,42 @@ func (a *API) simulationTraces(w http.ResponseWriter, r *http.Request) {
 	}
 	gzip := strings.Contains(r.Header.Get("Accept-Encoding"), "gzip")
 	resp, err := a.svc.SimulationTraces(r.Context(), id, gzip)
+	a.passTraces(w, r, resp, err)
+}
+
+// preview recalculates a demo project for a guest; nothing is saved.
+func (a *API) preview(w http.ResponseWriter, r *http.Request) {
+	a.withIDBody(w, r, func(id uuid.UUID, b []byte) (any, error) { return a.svc.Preview(r.Context(), id, b) }, http.StatusOK)
+}
+
+func (a *API) startPreviewSimulation(w http.ResponseWriter, r *http.Request) {
+	a.withIDBody(w, r, func(id uuid.UUID, b []byte) (any, error) {
+		return a.svc.StartPreviewSimulation(r.Context(), id, b)
+	}, http.StatusCreated)
+}
+
+func (a *API) getPreviewSimulation(w http.ResponseWriter, r *http.Request) {
+	v, err := a.svc.GetPreviewSimulation(r.Context(), chi.URLParam(r, "jobId"))
+	a.respond(w, r, http.StatusOK, v, err)
+}
+
+func (a *API) previewSimulationResult(w http.ResponseWriter, r *http.Request) {
+	body, err := a.svc.PreviewSimulationResult(r.Context(), chi.URLParam(r, "jobId"))
+	if err != nil {
+		a.fail(w, r, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_, _ = w.Write(body)
+}
+
+func (a *API) previewSimulationTraces(w http.ResponseWriter, r *http.Request) {
+	gzip := strings.Contains(r.Header.Get("Accept-Encoding"), "gzip")
+	resp, err := a.svc.PreviewSimulationTraces(r.Context(), chi.URLParam(r, "jobId"), gzip)
+	a.passTraces(w, r, resp, err)
+}
+
+func (a *API) passTraces(w http.ResponseWriter, r *http.Request, resp *http.Response, err error) {
 	if err != nil {
 		a.fail(w, r, err)
 		return

@@ -11,6 +11,7 @@ from application import process_job
 from simcore import inputs
 
 _HEARTBEAT_S = 10.0
+_OWNER = "owner-sub"
 
 
 class _Harness:
@@ -33,7 +34,9 @@ class _Harness:
     def queue(self, n_scenarios: int = 1) -> str:
         job_id = "f" * 32
         scenarios = [{"name": f"S{i}"} for i in range(n_scenarios)]
-        self.store.create_job(job_id, {"task": {}}, scenarios, "sim-test")
+        self.store.create_job(
+            job_id, {"task": {}}, scenarios, "sim-test", owner_sub=_OWNER
+        )
         return job_id
 
 
@@ -54,7 +57,7 @@ def test_success_stores_runs_in_scenario_order_with_fresh_ids():
     assert request == {"task": {}}
     assert [t.scenario["name"] for t in tasks] == ["S0", "S1"]
     assert parallelism == 1
-    job = h.store.get_job(job_id)
+    job = h.store.get_job(job_id, viewer=_OWNER)
     assert job.status == "done"
     assert job.workers == 1
     assert job.simulation_ids == (f"{1:032x}", f"{2:032x}")
@@ -88,7 +91,7 @@ def test_request_error_fails_the_job_with_field_errors():
 
     h.executor.run_once()
 
-    job = h.store.get_job(job_id)
+    job = h.store.get_job(job_id, viewer=_OWNER)
     assert job.status == "error"
     assert list(job.errors) == bad
     assert h.store.detail(job_id) is None
@@ -102,7 +105,7 @@ def test_scenario_failure_fails_the_job_with_detail(caplog):
     with caplog.at_level(logging.ERROR):
         h.executor.run_once()
 
-    job = h.store.get_job(job_id)
+    job = h.store.get_job(job_id, viewer=_OWNER)
     assert job.status == "error"
     assert job.error == "RuntimeError: упал"
     assert job.errors is None
@@ -120,7 +123,7 @@ def test_new_lines_are_sent_at_once():
     h.executor.run_once()
 
     assert sent == [(), (["шаг 1"],), (["шаг 2"],)]
-    assert h.store.get_job(job_id).log == ("шаг 1", "шаг 2")
+    assert h.store.get_job(job_id, viewer=_OWNER).log == ("шаг 1", "шаг 2")
 
 
 def test_quiet_ticks_send_no_heartbeat_until_due():
@@ -151,8 +154,8 @@ def test_failed_heartbeat_aborts_without_saving():
 
     h.executor.run_once()
 
-    assert h.store.get_job(job_id).status == "running"
-    assert not h.store.get_job(job_id).runs
+    assert h.store.get_job(job_id, viewer=_OWNER).status == "running"
+    assert not h.store.get_job(job_id, viewer=_OWNER).runs
 
 
 def test_release_mid_run_requeues_and_saves_nothing():
@@ -166,7 +169,7 @@ def test_release_mid_run_requeues_and_saves_nothing():
 
     h.executor.run_once()
 
-    assert h.store.get_job(job_id).status == "queued"
+    assert h.store.get_job(job_id, viewer=_OWNER).status == "queued"
     assert h.store.attempts(job_id) == 0
 
 
@@ -204,7 +207,7 @@ def test_released_executor_claims_nothing_more():
 
     assert not h.executor.run_once()
 
-    assert h.store.get_job(job_id).status == "queued"
+    assert h.store.get_job(job_id, viewer=_OWNER).status == "queued"
 
 
 def test_job_claimed_while_releasing_goes_back_to_the_queue():
@@ -223,7 +226,7 @@ def test_job_claimed_while_releasing_goes_back_to_the_queue():
     assert h.executor.run_once()
 
     assert not h.runner.calls
-    assert h.store.get_job(job_id).status == "queued"
+    assert h.store.get_job(job_id, viewer=_OWNER).status == "queued"
     assert h.store.attempts(job_id) == 0
 
 
@@ -235,7 +238,7 @@ def test_requeue_stale_uses_the_attempt_limit():
 
     assert h.executor.requeue_stale(stale_after_s=50) == 1
 
-    assert h.store.get_job(job_id).status == "queued"
+    assert h.store.get_job(job_id, viewer=_OWNER).status == "queued"
     assert process_job.MAX_ATTEMPTS == 2
 
 
@@ -247,4 +250,4 @@ def test_requeue_stale_fails_a_job_out_of_attempts():
         h.clock.advance(100)
         h.executor.requeue_stale(stale_after_s=50)
 
-    assert h.store.get_job(job_id).status == "error"
+    assert h.store.get_job(job_id, viewer=_OWNER).status == "error"

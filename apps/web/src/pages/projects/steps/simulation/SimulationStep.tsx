@@ -76,8 +76,8 @@ function StaleRunNotice({ runId }: { readonly runId: string }) {
  */
 export function SimulationStep({ project: initial, locationName, isGuest }: ProjectStepProps) {
   const readOnly = isReadOnly(initial)
-  const advance = useAdvanceStep(initial.id, !isGuest && !readOnly)
-  const state = useSimulationStep(initial, !isGuest && !readOnly)
+  const advance = useAdvanceStep(initial.id, !readOnly)
+  const state = useSimulationStep(initial, !readOnly)
   const norms = useModelNorms()
   const { project, inputs, load } = state
   const [params, setParams] = useSearchParams()

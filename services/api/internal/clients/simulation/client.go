@@ -22,6 +22,11 @@ var ErrUnavailable = errors.New("simulation service unavailable")
 // ErrNotFound is a job or a run the service does not know (or does not show to this caller).
 var ErrNotFound = errors.New("simulation not found")
 
+// BusyError is a 429: the service runs as many guest jobs as it allows; Message is the service's text.
+type BusyError struct{ Message string }
+
+func (e *BusyError) Error() string { return "simulation is busy: " + e.Message }
+
 // FieldError is one invalid field of the request, as the service reports it.
 type FieldError struct {
 	Field   string `json:"field"`
@@ -49,16 +54,32 @@ type Job struct {
 
 // Client calls services/simulation.
 type Client struct {
-	base string
-	http *http.Client
+	base   string
+	prefix string // /api/simulations for users, /internal/simulations for the guest runs of api
+	http   *http.Client
 }
 
-// New builds a client; timeout bounds every call.
+const (
+	userPrefix     = "/api/simulations"
+	internalPrefix = "/internal/simulations"
+)
+
+// New builds a client of the user paths: every call passes the caller's token; timeout bounds every call.
 func New(baseURL string, timeout time.Duration) *Client {
-	// Traces are passed through gzipped: the transport must not decompress them.
+	return &Client{base: baseURL, prefix: userPrefix, http: &http.Client{Timeout: timeout, Transport: plainTransport()}}
+}
+
+// NewInternal builds a client of the internal paths for guest runs: api calls as itself, the token argument of the
+// calls is ignored and auth adds the service token (it wraps the transport it is given).
+func NewInternal(baseURL string, timeout time.Duration, auth func(http.RoundTripper) http.RoundTripper) *Client {
+	return &Client{base: baseURL, prefix: internalPrefix, http: &http.Client{Timeout: timeout, Transport: auth(plainTransport())}}
+}
+
+// plainTransport passes traces through gzipped: it must not decompress them.
+func plainTransport() http.RoundTripper {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.DisableCompression = true
-	return &Client{base: baseURL, http: &http.Client{Timeout: timeout, Transport: transport}}
+	return transport
 }
 
 func (c *Client) do(ctx context.Context, token, method, path string, body any, header http.Header) (*http.Response, error) {
@@ -81,7 +102,7 @@ func (c *Client) do(ctx context.Context, token, method, path string, body any, h
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	if token != "" {
+	if token != "" && c.prefix == userPrefix {
 		req.Header.Set("Authorization", token)
 	}
 	resp, err := c.http.Do(req)
@@ -105,6 +126,8 @@ func check(resp *http.Response) error {
 	switch {
 	case resp.StatusCode == http.StatusNotFound:
 		return ErrNotFound
+	case resp.StatusCode == http.StatusTooManyRequests:
+		return &BusyError{Message: problem.Error}
 	case resp.StatusCode == http.StatusUnprocessableEntity:
 		return &RejectedError{Message: problem.Error, Errors: problem.Errors}
 	case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
@@ -126,7 +149,7 @@ func decode(resp *http.Response, dst any) error {
 
 // Submit queues a simulation (POST /api/simulations); the request follows the simulation contract.
 func (c *Client) Submit(ctx context.Context, token string, request any) (string, error) {
-	resp, err := c.do(ctx, token, http.MethodPost, "/api/simulations", request, nil)
+	resp, err := c.do(ctx, token, http.MethodPost, c.prefix, request, nil)
 	if err != nil {
 		return "", err
 	}
@@ -145,7 +168,7 @@ func (c *Client) Submit(ctx context.Context, token string, request any) (string,
 // Job returns the progress of a job.
 func (c *Client) Job(ctx context.Context, token, jobID string) (Job, error) {
 	var job Job
-	resp, err := c.do(ctx, token, http.MethodGet, "/api/simulations/jobs/"+url.PathEscape(jobID), nil, nil)
+	resp, err := c.do(ctx, token, http.MethodGet, c.prefix+"/jobs/"+url.PathEscape(jobID), nil, nil)
 	if err != nil {
 		return job, err
 	}
@@ -155,7 +178,7 @@ func (c *Client) Job(ctx context.Context, token, jobID string) (Job, error) {
 // Run returns a finished run as the service stores it (SimulationRun of services/simulation/docs/openapi.json).
 func (c *Client) Run(ctx context.Context, token, simulationID string) (json.RawMessage, error) {
 	var run json.RawMessage
-	resp, err := c.do(ctx, token, http.MethodGet, "/api/simulations/"+url.PathEscape(simulationID), nil, nil)
+	resp, err := c.do(ctx, token, http.MethodGet, c.prefix+"/"+url.PathEscape(simulationID), nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +191,7 @@ func (c *Client) Traces(ctx context.Context, token, simulationID string, gzip bo
 	if gzip {
 		header.Set("Accept-Encoding", "gzip")
 	}
-	resp, err := c.do(ctx, token, http.MethodGet, "/api/simulations/"+url.PathEscape(simulationID)+"/traces", nil, header)
+	resp, err := c.do(ctx, token, http.MethodGet, c.prefix+"/"+url.PathEscape(simulationID)+"/traces", nil, header)
 	if err != nil {
 		return nil, err
 	}

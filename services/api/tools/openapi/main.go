@@ -126,6 +126,9 @@ type (
 	idPath struct {
 		ID string `path:"id" format:"uuid"`
 	}
+	jobPath struct {
+		JobID string `path:"jobId" pattern:"^[0-9a-f]{32}$"`
+	}
 	capPath struct {
 		ID    string `path:"id" format:"uuid"`
 		CapID string `path:"capId" format:"uuid"`
@@ -241,7 +244,7 @@ func Operations() []op {
 		{http.MethodPatch, "/api/v1/work-types/{id}", "work-types", "Изменить класс операции", "JSON merge patch: переданные поля заменяются, null очищает. Связи идут по id — переименование их не ломает.", new(idPath), new(service.WorkTypeInput), new(domain.WorkType), 200, withBodyNF},
 		{http.MethodDelete, "/api/v1/work-types/{id}", "work-types", "Скрыть класс операции", "Класс не удаляется: роботы и процессы продолжают на него ссылаться.", new(idPath), nil, nil, 204, notFound},
 
-		{http.MethodGet, "/api/v1/data-sources", "data-sources", "Источники данных", "Экран A6.", nil, nil, new(DataSourceList), 200, nil},
+		{http.MethodGet, "/api/v1/data-sources", "data-sources", "Источники данных", "Экран A6. Только администратор.", nil, nil, new(DataSourceList), 200, nil},
 		{http.MethodPost, "/api/v1/data-sources", "data-sources", "Добавить источник", "Экраны A7/A7б. Загрузка файла и проверка ссылки — вне рамок сервиса.", nil, new(service.DataSourceInput), new(domain.DataSource), 201, withBody},
 		{http.MethodGet, "/api/v1/data-sources/{id}", "data-sources", "Источник данных", "", new(idPath), nil, new(domain.DataSource), 200, notFound},
 		{http.MethodPatch, "/api/v1/data-sources/{id}", "data-sources", "Изменить источник", "JSON merge patch.", new(idPath), new(service.DataSourceInput), new(domain.DataSource), 200, withBodyNF},
@@ -308,7 +311,12 @@ func Operations() []op {
 		{http.MethodPut, "/api/v1/projects/{id}/selection", "orchestrator", "Выбрать робота", "Только из результатов последнего актуального расчёта. Поля робота копируются в snapshot.robot из входа расчёта. solutionId: null снимает выбор.", new(idPath), new(service.SelectionInput), new(domain.Project), 200, withBodyNF},
 		{http.MethodPost, "/api/v1/projects/{id}/save", "orchestrator", "Сохранить проект", "draft → saved: закрепляет снимок с выбранным роботом, расчёт и версию ядра. Нужен выбор по актуальному расчёту.", new(idPath), nil, new(domain.Project), 200, []int{404, 409}},
 		{http.MethodPost, "/api/v1/projects/{id}/reopen", "orchestrator", "Открыть проект для изменений", "saved → draft. Сохранённые расчёты остаются в истории.", new(idPath), nil, new(domain.Project), 200, notFound},
-		{http.MethodPost, "/api/v1/projects/{id}/simulation-runs", "simulation", "Запустить симуляцию выбранной конфигурации", "Шаг «Симуляция» (PRD 11.4): вход собирается из снимка проекта, выбранного робота и его расчёта; fleet — состав этапа 1 (пусто — из расчёта), conditions — условия этапа 2. Прогон ставится в очередь services/simulation от имени вызывающего. Гость запускает прогон и на демо-проекте. 409 — вариант не выбран или проект сохранён, 422 — симуляция не приняла вход, 503 — сервис симуляции не ответил.", new(idPath), new(service.SimulationRunInput), new(service.SimulationRun), 201, []int{404, 409, 422, 503}},
+		{http.MethodPost, "/api/v1/projects/{id}/simulation-runs", "simulation", "Запустить симуляцию выбранной конфигурации", "Шаг «Симуляция» (PRD 11.4): вход собирается из снимка проекта, выбранного робота и его расчёта; fleet — состав этапа 1 (пусто — из расчёта), conditions — условия этапа 2. Прогон ставится в очередь services/simulation от имени автора проекта; гость проверяет демо-проект через preview. 409 — вариант не выбран или проект сохранён, 422 — симуляция не приняла вход, 503 — сервис симуляции не ответил.", new(idPath), new(service.SimulationRunInput), new(service.SimulationRun), 201, []int{404, 409, 422, 503}},
+		{http.MethodPost, "/api/v1/projects/{id}/preview", "preview", "Расчёт демо-проекта без сохранения", "Гость (роли §5): подбор и расчёт парка и экономики демо-проекта с условиями задачи taskConditions и «Параметрами расчёта» calcOverrides из тела; пусто — как в проекте. Ничего не сохраняется: ни в api, ни в сервисе экономики; идентификаторы в ответе одноразовые. Ответ — как у evaluate. 403 — проект не демо.", new(idPath), new(service.PreviewInput), new(service.Evaluation), 200, []int{403, 404, 422, 503}},
+		{http.MethodPost, "/api/v1/projects/{id}/preview/simulation-runs", "preview", "Симуляция демо-проекта без сохранения", "Гость (роли §5): api пересчитывает демо-проект как в preview, берёт вариант solutionId + acquisitionModel и ставит задание в services/simulation от своего имени. В api ничего не сохраняется, задание удаляется в services/simulation через 24 ч. 409 — вариант не посчитан на этих условиях, 429 — демо-симуляций сейчас много.", new(idPath), new(service.PreviewSimulationInput), new(service.PreviewSimulationRun), 201, []int{403, 404, 409, 422, 429, 503}},
+		{http.MethodGet, "/api/v1/preview/simulation-runs/{jobId}", "preview", "Ход демо-симуляции", "Задание знают по его id: журнал строками и секунды; done — есть simulationId.", new(jobPath), nil, new(service.PreviewSimulationRun), 200, []int{404, 503}},
+		{http.MethodGet, "/api/v1/preview/simulation-runs/{jobId}/result", "preview", "Результат демо-симуляции", "SimulationRun services/simulation как есть.", new(jobPath), nil, new(map[string]any), 200, []int{404, 409, 503}},
+		{http.MethodGet, "/api/v1/preview/simulation-runs/{jobId}/traces", "preview", "2D-трассы демо-симуляции", "Как у /simulation-runs/{id}/traces.", new(jobPath), nil, new([]map[string]any), 200, []int{404, 409, 503}},
 		{http.MethodGet, "/api/v1/simulation-runs/{id}", "simulation", "Ход прогона симуляции", "Опрашивает задание services/simulation, пока оно в очереди или идёт: журнал строками и секунды. done — есть simulationId, результат и трассы. stale — параметры проекта изменились после запуска.", new(idPath), nil, new(service.SimulationRun), 200, []int{404, 503}},
 		{http.MethodDelete, "/api/v1/simulation-runs/{id}", "simulation", "Остановить прогон", "services/simulation не отменяет задание: api помечает прогон cancelled и не читает его результат. 409 — прогон уже завершён.", new(idPath), nil, nil, 204, []int{404, 409}},
 		{http.MethodGet, "/api/v1/simulation-runs/{id}/result", "simulation", "Результат прогона", "SimulationRun services/simulation как есть: вердикт, состав было → стало, KPI, загрузка по часам, поправки (services/simulation/docs/openapi.json).", new(idPath), nil, new(map[string]any), 200, []int{404, 409, 503}},
@@ -337,10 +345,12 @@ func AccessOf(method, path string) Access {
 	switch {
 	case !strings.HasPrefix(path, "/api/v1/"):
 		return Public
+	case strings.HasPrefix(path, "/api/v1/data-sources"):
+		return Admin // the source registry is part of the admin section, reading too (roles model §4)
+	case strings.Contains(path, "/preview"):
+		return Guest // a guest recalculates a demo project without saving (roles model §5): the service allows demo only
 	case method == http.MethodGet:
 		return Guest
-	case strings.HasSuffix(path, "/simulation-runs") || strings.HasPrefix(path, "/api/v1/simulation-runs"):
-		return Guest // a guest checks a demo project too (D-14): reading the project is enough
 	case strings.HasPrefix(path, "/api/v1/processes"):
 		return User // reference processes need admin, own ones their author: checked by the service
 	}

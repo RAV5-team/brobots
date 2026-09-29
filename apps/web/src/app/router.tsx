@@ -24,6 +24,7 @@ import { ProcessNewPage } from '@/pages/processes/new/ProcessNewPage'
 import { ProjectsPage } from '@/pages/projects/ProjectsPage'
 import { ScreenStub } from '@/pages/_stub/ScreenStub'
 import { RootLayout } from './RootLayout'
+import { RouteGuard } from './RouteGuard'
 import type { ProjectStep } from '@/domain'
 import type { ProjectStepComponent } from '@/pages/projects/steps/stepProps'
 import { DEV_PATHS, PROJECT_STEP_PATHS, ROUTE_PATHS, type RoutePath } from './routePaths'
@@ -61,6 +62,12 @@ const projectStepRoutes: RouteObject[] = (Object.entries(PROJECT_STEP_PATHS) as 
 
 const stubRoute = (path: RoutePath): RouteObject => ({ path, element: <ScreenStub route={path} /> })
 
+const DEV_ROUTES: RouteObject[] = [
+  { path: DEV_PATHS.screens, lazy: async () => ({ Component: (await import('@/pages/dev/ScreensIndex')).ScreensIndex }) },
+  { path: DEV_PATHS.tokens, lazy: async () => ({ Component: (await import('@/pages/dev/TokensShowcase')).TokensShowcase }) },
+  { path: DEV_PATHS.ui, lazy: async () => ({ Component: (await import('@/pages/dev/ui/UiShowcase')).UiShowcase }) },
+]
+
 // Пока экраны не реализованы, каждый маршрут отдаёт заглушку со списком своих экранов.
 export const routes: RouteObject[] = [
   {
@@ -69,41 +76,44 @@ export const routes: RouteObject[] = [
       {
         element: <AppShell />,
         children: [
-          { path: ROUTE_PATHS.dashboard, element: <DashboardPage /> },
-          { path: ROUTE_PATHS.projects, element: <ProjectsPage /> },
-          ...projectStepRoutes,
-          { path: ROUTE_PATHS.catalog, element: <CatalogPage /> },
-          { path: ROUTE_PATHS.catalogCompare, element: <ComparePage /> },
-          { path: ROUTE_PATHS.catalogItem, element: <CatalogItemPage /> },
-          { path: ROUTE_PATHS.processes, element: <ProcessesPage /> },
-          { path: ROUTE_PATHS.processNew, element: <ProcessNewPage /> },
-          { path: ROUTE_PATHS.process, element: <ProcessDetailPage /> },
-          { path: ROUTE_PATHS.adminCatalog, element: <AdminCatalogPage /> },
-          { path: ROUTE_PATHS.adminCatalogImport, element: <AdminCatalogImportPage /> },
-          { path: ROUTE_PATHS.adminCatalogNew, element: <RobotNewPage /> },
-          { path: ROUTE_PATHS.adminNorms, element: <NormsPage /> },
-          { path: ROUTE_PATHS.adminSources, element: <DataSourcesPage /> },
-          { path: ROUTE_PATHS.adminOperationClasses, element: <OperationClassesPage /> },
-          { path: ROUTE_PATHS.locations, element: <LocationsPage /> },
-          { path: ROUTE_PATHS.locationNew, element: <LocationNewPage /> },
-          { path: ROUTE_PATHS.location, element: <LocationPage /> },
-          { path: ROUTE_PATHS.locationProcesses, element: <LocationPage /> },
-          { path: ROUTE_PATHS.locationProcess, element: <LocationProcessPage /> },
-          { path: ROUTE_PATHS.locationParams, element: <LocationParamsPage /> },
-          { path: ROUTE_PATHS.locationDocuments, element: <LocationDocumentsPage /> },
-          ...Object.values(ROUTE_PATHS)
-            .filter((p) => !OUTSIDE_SHELL.includes(p) && !IMPLEMENTED.includes(p))
-            .map(stubRoute),
-          { path: '*', element: <NotFound /> },
+          {
+            element: <RouteGuard />,
+            children: [
+              { path: ROUTE_PATHS.dashboard, element: <DashboardPage /> },
+              { path: ROUTE_PATHS.projects, element: <ProjectsPage /> },
+              ...projectStepRoutes,
+              { path: ROUTE_PATHS.catalog, element: <CatalogPage /> },
+              { path: ROUTE_PATHS.catalogCompare, element: <ComparePage /> },
+              { path: ROUTE_PATHS.catalogItem, element: <CatalogItemPage /> },
+              { path: ROUTE_PATHS.processes, element: <ProcessesPage /> },
+              { path: ROUTE_PATHS.processNew, element: <ProcessNewPage /> },
+              { path: ROUTE_PATHS.process, element: <ProcessDetailPage /> },
+              { path: ROUTE_PATHS.adminCatalog, element: <AdminCatalogPage /> },
+              { path: ROUTE_PATHS.adminCatalogImport, element: <AdminCatalogImportPage /> },
+              { path: ROUTE_PATHS.adminCatalogNew, element: <RobotNewPage /> },
+              { path: ROUTE_PATHS.adminNorms, element: <NormsPage /> },
+              { path: ROUTE_PATHS.adminSources, element: <DataSourcesPage /> },
+              { path: ROUTE_PATHS.adminOperationClasses, element: <OperationClassesPage /> },
+              { path: ROUTE_PATHS.locations, element: <LocationsPage /> },
+              { path: ROUTE_PATHS.locationNew, element: <LocationNewPage /> },
+              { path: ROUTE_PATHS.location, element: <LocationPage /> },
+              { path: ROUTE_PATHS.locationProcesses, element: <LocationPage /> },
+              { path: ROUTE_PATHS.locationProcess, element: <LocationProcessPage /> },
+              { path: ROUTE_PATHS.locationParams, element: <LocationParamsPage /> },
+              { path: ROUTE_PATHS.locationDocuments, element: <LocationDocumentsPage /> },
+              ...Object.values(ROUTE_PATHS)
+                .filter((p) => !OUTSIDE_SHELL.includes(p) && !IMPLEMENTED.includes(p))
+                .map(stubRoute),
+              { path: '*', element: <NotFound /> },
+            ],
+          },
         ],
       },
       { path: ROUTE_PATHS.login, element: <LoginPage /> },
       // Отчёт 09 — лист для печати без меню кабинета (D-107); грузится по требованию, как шаги проекта.
       { path: ROUTE_PATHS.projectReport, lazy: async () => ({ Component: (await import('@/pages/projects/report/ReportPage')).ReportPage }) },
-      // Служебные страницы грузятся по требованию: в основной бандл кабинета они не входят (бюджет 300 КБ gzip).
-      { path: DEV_PATHS.screens, lazy: async () => ({ Component: (await import('@/pages/dev/ScreensIndex')).ScreensIndex }) },
-      { path: DEV_PATHS.tokens, lazy: async () => ({ Component: (await import('@/pages/dev/TokensShowcase')).TokensShowcase }) },
-      { path: DEV_PATHS.ui, lazy: async () => ({ Component: (await import('@/pages/dev/ui/UiShowcase')).UiShowcase }) },
+      // Служебные страницы — только в dev-режиме: в сборку для стенда они не попадают. Грузятся по требованию.
+      ...(import.meta.env.DEV ? DEV_ROUTES : []),
     ],
   },
 ]

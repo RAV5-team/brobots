@@ -34,7 +34,7 @@ describe('apiProcesses.getRequirements', () => {
       name: 'Свой процесс',
       defaults: { unitMassKg: 800, routeLengthM: 40 },
     } as ApiSchemas['Process']],
-  } as Reference)
+  } as unknown as Reference)
 
   it('derives location requirements from the process fields', async () => {
     const requirements = await processes.getRequirements?.('PR-0099')

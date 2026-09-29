@@ -45,6 +45,8 @@ type Request struct {
 	Candidates        []Candidate    `json:"candidates"`
 	// Defaults are the snapshot values before the user's «Параметры расчёта» were applied; nil in runs made before them.
 	Defaults *Defaults `json:"defaults,omitempty"`
+	// DryRun asks for figures only: the calculator keeps no snapshot (the guest preview writes nothing).
+	DryRun bool `json:"-"`
 }
 
 // Defaults keep the values of the «Параметры расчёта» fields as the snapshot and the catalog gave them.

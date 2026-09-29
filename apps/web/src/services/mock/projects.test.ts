@@ -29,7 +29,7 @@ describe('мок проектов', () => {
     const projects = service()
     const edited = await projects.updateInputs('PJ-DEMO', { params: { assumptions: [{ code: 'route_length_m', value: 86, kind: 'fact' }] } })
     expect(edited.inputs.stale).toEqual({ matching: true, simulation: true })
-    expect(edited.step).toBe('params')
+    expect(edited.status === 'draft' && edited.step).toBe('params')
     expect((await projects.getProject('PJ-DEMO')).inputs.stale.matching).toBe(true)
     await expect(projects.updateInputs('PJ-01', { economics: { scenario: 'purchase' } })).rejects.toBeInstanceOf(ConflictError)
   })
@@ -55,7 +55,7 @@ describe('мок проектов', () => {
   it('«Параметры расчёта» сжимают дальний шаг до подбора', async () => {
     const projects = service()
     const edited = await projects.updateInputs('PJ-DEMO', { matching: { calcParams: { workHoursPerDay: 20 } } })
-    expect(edited.step).toBe('matching')
+    expect(edited.status === 'draft' && edited.step).toBe('matching')
     expect(edited.inputs.stale.matching).toBe(true)
   })
 

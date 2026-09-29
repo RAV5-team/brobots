@@ -47,9 +47,13 @@ function ProcessDetail({ data, isGuest }: { readonly data: ProcessDetailData; re
           <p className="type-body text-text">{process.description}</p>
         </div>
         <div className="flex w-(--rav-form-rail-width) shrink-0 flex-col items-end gap-8">
-          {/* D-33: формы правки шаблона ещё нет — действие видно, но недоступно с объяснением. */}
-          <MergedButton label={t.edit} icon={ArrowRight} disabled aria-describedby="edit-note" />
-          <p id="edit-note" className="type-caption text-right text-text-muted">{t.editSoon}</p>
+          {/* D-33: формы правки шаблона ещё нет — действие видно, но недоступно с объяснением. Гостю правки нет вовсе. */}
+          {!isGuest && (
+            <>
+              <MergedButton label={t.edit} icon={ArrowRight} disabled aria-describedby="edit-note" />
+              <p id="edit-note" className="type-caption text-right text-text-muted">{t.editSoon}</p>
+            </>
+          )}
         </div>
       </header>
       <div className="flex items-start gap-16">

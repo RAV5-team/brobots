@@ -60,8 +60,16 @@ func TestAccessRules(t *testing.T) {
 	if o := accessOf(ctxOf["alice"]).owner(); o == nil || *o != alice {
 		t.Errorf("new record owner = %v, want alice", o)
 	}
-	if accessOf(ctxOf["system"]).owner() != nil || accessOf(ctxOf["admin"]).newProcessOwner() != nil {
-		t.Error("seed data and admin processes must have no owner")
+	if accessOf(ctxOf["system"]).owner() != nil {
+		t.Error("seed processes must have no owner: they are the shared reference")
+	}
+	if o := accessOf(ctxOf["admin"]).owner(); o == nil {
+		t.Error("a process the admin creates must be the admin's own, not a reference one")
+	}
+	for who, want := range map[string]bool{"guest": false, "alice": false, "admin": true, "system": true} {
+		if got := accessOf(ctxOf[who]).seesHidden(); got != want {
+			t.Errorf("%s sees hidden reference records = %v, want %v", who, got, want)
+		}
 	}
 }
 

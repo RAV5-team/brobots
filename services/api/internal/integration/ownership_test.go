@@ -154,10 +154,14 @@ func TestOwnership(t *testing.T) {
 
 		alice.do(t, http.MethodPatch, "/api/v1/processes/"+palletProc, map[string]any{"name": "Чужое"}, 403, nil)
 		alice.do(t, http.MethodDelete, "/api/v1/processes/"+palletProc, nil, 403, nil)
+		// The admin manages the reference processes, but a copy the admin makes is the admin's own, not published.
+		var adminCopy named
+		admin.do(t, http.MethodPost, "/api/v1/processes/"+palletProc+"/duplicate", nil, 201, &adminCopy)
+		bob.do(t, http.MethodGet, "/api/v1/processes/"+adminCopy.ID, nil, 404, nil)
 		var ref named
-		admin.do(t, http.MethodPost, "/api/v1/processes/"+palletProc+"/duplicate", nil, 201, &ref)
-		bob.do(t, http.MethodGet, "/api/v1/processes/"+ref.ID, nil, 200, nil)
-		admin.do(t, http.MethodPatch, "/api/v1/processes/"+ref.ID, map[string]any{"name": "Справочный"}, 200, nil)
+		admin.do(t, http.MethodGet, "/api/v1/processes/"+palletProc, nil, 200, &ref)
+		admin.do(t, http.MethodPatch, "/api/v1/processes/"+palletProc, map[string]any{"name": "Справочный"}, 200, nil)
+		admin.do(t, http.MethodPatch, "/api/v1/processes/"+palletProc, map[string]any{"name": ref.Name}, 200, nil)
 	})
 
 	t.Run("owner deletes own data", func(t *testing.T) {

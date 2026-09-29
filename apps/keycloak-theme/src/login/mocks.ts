@@ -40,7 +40,7 @@ export function mockFromSearch(search: string): KcContext {
       pageId,
       overrides: {
         properties,
-        login: { username: 'user@example.com' },
+        login: { username: 'demo@rav5.ru' },
         messagesPerField: {
           existsError: (...fields: string[]) => fields.includes('username') || fields.includes('password'),
           getFirstError: () => 'Неверное имя пользователя или пароль.',

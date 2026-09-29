@@ -36,7 +36,8 @@ function LocationSkeleton() {
 
 interface ProcessesTabProps {
   readonly data: LocationDetailData
-  readonly isGuest: boolean
+  /** Гость или демо-локация (ролевая модель, §4): процессы не добавляются и не снимаются. */
+  readonly readOnly: boolean
   /** Привязать копию шаблона к локации (окно 15а) и перечитать вкладку. */
   readonly onAddTemplate: (code: ProcessCode) => Promise<void>
   /** Снять копию с локации (окно 17в) и перечитать вкладку. */
@@ -126,7 +127,7 @@ function NoProcesses({ actions, onOpenPicker }: NoProcessesProps) {
 }
 
 /** Вкладка «Процессы локации» (PRD 10.4): карточки площадки или пустое состояние, окно 15а. */
-function ProcessesTab({ data, isGuest, onAddTemplate, onRemoveProcess }: ProcessesTabProps) {
+function ProcessesTab({ data, readOnly, onAddTemplate, onRemoveProcess }: ProcessesTabProps) {
   const [isPickerOpen, setPickerOpen] = useState(false)
   const [removeTarget, setRemoveTarget] = useState<RemoveTarget | null>(null)
   const [removedName, setRemovedName] = useState<string | null>(null)
@@ -144,14 +145,14 @@ function ProcessesTab({ data, isGuest, onAddTemplate, onRemoveProcess }: Process
   const views = locationProcessViews(data)
   const openPicker = () => { setPickerOpen(true) }
   // Гостю — без добавления и создания: своих локаций и сохранения у него нет (D-14, D-30).
-  const actions = !isGuest && <TabActions onOpenPicker={openPicker} />
+  const actions = !readOnly && <TabActions onOpenPicker={openPicker} />
 
   return (
     <>
       {views.length === 0
-        ? <NoProcesses actions={actions} onOpenPicker={isGuest ? null : openPicker} />
-        : <ProcessList data={data} views={views} actions={actions} onRemove={isGuest ? null : openRemove} />}
-      {!isGuest && (
+        ? <NoProcesses actions={actions} onOpenPicker={readOnly ? null : openPicker} />
+        : <ProcessList data={data} views={views} actions={actions} onRemove={readOnly ? null : openRemove} />}
+      {!readOnly && (
         <TemplatePickerModal
           open={isPickerOpen}
           onOpenChange={setPickerOpen}
@@ -161,8 +162,8 @@ function ProcessesTab({ data, isGuest, onAddTemplate, onRemoveProcess }: Process
         />
       )}
       {/* Карточка исчезает молча — скринридеру говорим, что удалено. */}
-      {!isGuest && <p role="status" className="sr-only">{removedName && t.removeProcess.removed(removedName)}</p>}
-      {!isGuest && (
+      {!readOnly && <p role="status" className="sr-only">{removedName && t.removeProcess.removed(removedName)}</p>}
+      {!readOnly && (
         <RemoveProcessDialog
           target={removeTarget}
           locationName={data.location.name}
@@ -219,7 +220,7 @@ export function LocationPage() {
     <article className="flex flex-col gap-16" aria-labelledby="location-title">
       <title>{t.documentTitle(state.location.name)}</title>
       <LocationHeader location={state.location} summary={state.summary} facilityTypeName={state.facilityTypeName} isGuest={isGuest} activeTab="processes" />
-      <ProcessesTab data={state} isGuest={isGuest} onAddTemplate={addTemplate} onRemoveProcess={removeProcess} />
+      <ProcessesTab data={state} readOnly={isGuest || state.location.isDemo === true} onAddTemplate={addTemplate} onRemoveProcess={removeProcess} />
     </article>
   )
 }

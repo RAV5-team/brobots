@@ -6,6 +6,7 @@ import { formatRubMillions } from '@/shared/format/money'
 import { ru } from '@/shared/i18n/ru'
 import { entryName, type CatalogEntry } from '../catalogModel'
 import { useNewProjectLink } from '@/components/newProject/useNewProjectLink'
+import { useRole } from '@/shared/auth/useRole'
 import { checkOnSiteContext, typeLabelOf } from './comparePaths'
 
 const t = ru.catalog.comparePage
@@ -17,6 +18,7 @@ interface CompareColumnHeadProps {
 
 /** Шапка колонки К-3 (16642:2503): тип, «×», название, производитель, цена, УГТ и «Проверить на объекте» (D-57). */
 export function CompareColumnHead({ entry, onRemove }: CompareColumnHeadProps) {
+  const isGuest = useRole() === 'guest'
   const newProjectLink = useNewProjectLink()
   const name = entryName(entry)
   const maker = entry.kind === 'robot' ? entry.robot.manufacturer : entry.item.supplier
@@ -35,7 +37,8 @@ export function CompareColumnHead({ entry, onRemove }: CompareColumnHeadProps) {
       <p className="type-caption text-text-secondary">{maker}</p>
       <p className="type-title-lg text-text">{price}</p>
       {trl !== null && <p className="px-12 py-4 type-caption font-medium text-text">{t.trl(trl)}</p>}
-      <ButtonLink to={newProjectLink(checkOnSiteContext(entry))} aria-haspopup="dialog" aria-label={t.checkOnSiteLabel(name)} className="mt-auto w-full">{t.checkOnSite}</ButtonLink>
+      {/* Гостю окна нового проекта нет (ролевая модель, §4). */}
+      {!isGuest && <ButtonLink to={newProjectLink(checkOnSiteContext(entry))} aria-haspopup="dialog" aria-label={t.checkOnSiteLabel(name)} className="mt-auto w-full">{t.checkOnSite}</ButtonLink>}
     </div>
   )
 }

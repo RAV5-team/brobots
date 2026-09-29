@@ -1,16 +1,25 @@
 """FastAPI application factory and transport-level middleware."""
 
+import contextlib
 import logging
-from collections.abc import Awaitable, Callable
+import threading
+from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 from starlette.concurrency import run_in_threadpool
 
+from economic_service.adapters.http.auth import (
+    JwksTokenVerifier,
+    ServiceAuth,
+    ServiceAuthError,
+    TokenVerifier,
+    require_service,
+)
 from economic_service.adapters.http.schemas import (
     ErrorResponseDto,
     EvaluationRequestDto,
@@ -39,20 +48,27 @@ LOGGER = logging.getLogger(__name__)
 REQUEST_ID_HEADER = "X-Request-ID"
 
 ReadinessProbe = Callable[[], None]
+# Without the token check the service may run only here: elsewhere any caller
+# would read every evaluation.
+_UNAUTHENTICATED_ENVIRONMENTS = frozenset({"development", "test"})
 
 
 def create_app(
     settings: AppSettings | None = None,
     evaluation_service: EvaluationApplicationService | None = None,
     readiness_probe: ReadinessProbe | None = None,
+    token_verifier: TokenVerifier | None = None,
 ) -> FastAPI:
     """Creates the FastAPI application for the configured environment.
 
     Without an injected service the app wires PostgreSQL and checks it in
-    /readyz; an injected service is checked only by readiness_probe.
+    /readyz; an injected service is checked only by readiness_probe. The API
+    accepts only the service token of api when OIDC is configured or a
+    token_verifier is given (docs/keycloak/middleware.md).
     """
 
     resolved_settings = settings or AppSettings.from_environment()
+    service_auth = _service_auth(resolved_settings, token_verifier)
     configure_logging(resolved_settings.log_level)
     service = evaluation_service
     probe = readiness_probe
@@ -67,9 +83,26 @@ def create_app(
         description=(
             "Economic calculation service for RAV5 robotics assessments."
         ),
+        lifespan=_preload_keys(service_auth),
     )
     application.state.settings = resolved_settings
     application.state.evaluation_service = service
+    application.state.service_auth = service_auth
+    api_access = [Depends(require_service)]
+
+    @application.exception_handler(ServiceAuthError)
+    async def service_auth_error(
+        request: Request,
+        error: ServiceAuthError,
+    ) -> JSONResponse:
+        """Answers a rejected caller in the {"code", "message"} form."""
+
+        del request
+        return JSONResponse(
+            status_code=error.status,
+            content={"code": error.code, "message": error.message},
+            headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
+        )
 
     @application.get("/", include_in_schema=False)
     async def manual_workbench() -> FileResponse:
@@ -134,8 +167,13 @@ def create_app(
         },
     )
     async def readiness_check() -> dict[str, str]:
-        """Reports readiness: the snapshot database answers."""
+        """Reports readiness: the Keycloak keys are loaded, the DB answers."""
 
+        if service_auth is not None and not service_auth.verifier.is_ready():
+            raise HTTPException(
+                status_code=503,
+                detail="The Keycloak keys are not loaded yet.",
+            )
         if probe is not None:
             try:
                 await run_in_threadpool(probe)
@@ -151,6 +189,7 @@ def create_app(
         "/api/v1/model-version",
         response_model=ModelVersionDto,
         tags=["evaluations"],
+        dependencies=api_access,
     )
     async def model_version() -> ModelVersionDto:
         """Returns the calculation and ranking versions served now."""
@@ -177,18 +216,24 @@ def create_app(
             },
         },
         tags=["evaluations"],
+        dependencies=api_access,
     )
     async def create_evaluation(
         payload: EvaluationRequestDto,
+        dry_run: bool = False,
     ) -> EvaluationSnapshotDto:
-        """Calculates, persists, and returns one evaluation snapshot."""
+        """Calculates, persists, and returns one evaluation snapshot.
+
+        dry_run calculates without saving: the guest preview of a demo project
+        keeps nothing (roles model §5).
+        """
 
         if not is_supported_calculation_version(payload.model_version):
             raise ModelVersionError(
                 "Requested calculation model version is unavailable: "
                 f"{payload.model_version}."
             )
-        snapshot = service.evaluate(payload.to_domain())
+        snapshot = service.evaluate(payload.to_domain(), persist=not dry_run)
         return EvaluationSnapshotDto.from_domain(snapshot)
 
     @application.get(
@@ -201,6 +246,7 @@ def create_app(
             },
         },
         tags=["evaluations"],
+        dependencies=api_access,
     )
     async def get_evaluation(evaluation_id: str) -> EvaluationSnapshotDto:
         """Returns the latest immutable snapshot for an evaluation."""
@@ -214,6 +260,56 @@ def create_app(
         return EvaluationSnapshotDto.from_domain(snapshot)
 
     return application
+
+
+def _service_auth(
+    settings: AppSettings, verifier: TokenVerifier | None
+) -> ServiceAuth | None:
+    """The token check of the API; None only in development and test."""
+
+    if verifier is None and settings.auth_enabled:
+        verifier = JwksTokenVerifier.from_url(
+            settings.oidc_issuer,
+            settings.oidc_audience,
+            settings.oidc_jwks_url,
+        )
+    if verifier is not None:
+        return ServiceAuth(verifier, settings.internal_caller_azp)
+    if settings.environment not in _UNAUTHENTICATED_ENVIRONMENTS:
+        raise RuntimeError(
+            "OIDC_ISSUER is not set: the economics API would be open to any "
+            f"caller in the {settings.environment!r} environment"
+        )
+    LOGGER.warning(
+        "OIDC_ISSUER is not set: the economics API accepts calls without a "
+        "token (%s only)",
+        settings.environment,
+    )
+    return None
+
+
+def _preload_keys(auth: ServiceAuth | None):
+    """Loads the Keycloak keys in the background until they are available."""
+
+    @contextlib.asynccontextmanager
+    async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+        del application
+        stop = threading.Event()
+        preload = (
+            getattr(auth.verifier, "preload_until_ready", None)
+            if auth
+            else None
+        )
+        if preload is not None:
+            threading.Thread(
+                target=preload, args=(stop,), name="jwks-preload", daemon=True
+            ).start()
+        try:
+            yield
+        finally:
+            stop.set()
+
+    return lifespan
 
 
 def _default_evaluation_service(

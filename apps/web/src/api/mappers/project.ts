@@ -54,6 +54,7 @@ export function toProject(dto: ApiSchemas['Project'], local: ProjectLocalState):
     },
     inputs: local.inputs,
     updatedAt: required(dto, 'updatedAt', ENTITY),
+    isDemo: dto.isDemo === true,
   }
   const status = oneOf(required(dto, 'status', ENTITY), ['draft', 'saved'], `${ENTITY}.status`)
 

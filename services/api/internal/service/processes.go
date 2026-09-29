@@ -35,6 +35,9 @@ func (s *Service) ListProcesses(ctx context.Context, f ProcessQuery) ([]domain.P
 		if a.process(p, false) != nil {
 			continue
 		}
+		if !p.IsActive && p.OwnerID == nil && !a.seesHidden() { // a hidden reference process is admin data
+			continue
+		}
 		if f.Q != "" && !containsFold(p.Name+" "+p.WorkType.Code+" "+p.WorkType.Name+" "+domain.Deref(p.Description), f.Q) {
 			continue
 		}
@@ -159,9 +162,10 @@ func (s *Service) CreateProcess(ctx context.Context, body []byte) (domain.Proces
 	return s.saveProcess(ctx, s.newProcess(ctx, &in), in, true)
 }
 
-// newProcess starts a process of the caller: the admin adds reference processes, a user own ones.
+// newProcess starts a process of the caller: the seed adds reference processes, a signed-in caller (the admin too)
+// own ones. The admin role changes existing reference processes but does not publish its own to everyone.
 func (s *Service) newProcess(ctx context.Context, in *ProcessInput) domain.Process {
-	owner := accessOf(ctx).newProcessOwner()
+	owner := accessOf(ctx).owner()
 	if owner != nil {
 		in.IsCustom = true
 	}

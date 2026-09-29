@@ -18,7 +18,8 @@ export function useDashboard(role: Role): { readonly state: DashboardState; read
     let cancelled = false
     Promise.all([
       services.locations.listLocations(),
-      services.projects.listProjects(),
+      // Гостю — демо-данные организатора (ролевая модель, §3).
+      services.projects.listProjects({ demo: role === 'guest' }),
       services.dashboard.getInputs(),
       services.session.getProfile(role),
       services.session.getDataVersion(),

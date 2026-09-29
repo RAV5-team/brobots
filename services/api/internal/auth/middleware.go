@@ -106,15 +106,10 @@ func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 	})
 }
 
-// RequireUser admits only an authenticated user; it runs after Authenticate.
+// RequireUser admits only an authenticated caller with the realm role user; it runs after Authenticate.
+// A valid token without the role (an account nobody granted a role) is 403, not a user.
 func RequireUser(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if _, ok := FromContext(r.Context()); !ok {
-			unauthorized(w)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
+	return RequireRole(RoleUser)(next)
 }
 
 // RequireRole admits only a user with the realm role; it runs after Authenticate.

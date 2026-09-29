@@ -27,6 +27,8 @@ interface ProcessBlockProps {
   readonly onReveal: (item: MissingItem) => void
   /** «Всё раскрыто» (16992:10): группы раскрывает `groups`, здесь — разбор нагрузки. */
   readonly expanded?: boolean
+  /** Ссылка «Изменить процесс в профиле»; гостю её нет — демо-данные не правятся (ролевая модель, §5). */
+  readonly canEditProfile?: boolean
 }
 
 interface GroupsProps {
@@ -35,9 +37,10 @@ interface GroupsProps {
   readonly snapshot: ProjectParamsSnapshot
   readonly groups: GroupReveal
   readonly expanded: boolean
+  readonly canEditProfile: boolean
 }
 
-function GroupBody({ group, entry, view, snapshot, expanded }: { readonly group: RowGroup } & Omit<GroupsProps, 'groups'>) {
+function GroupBody({ group, entry, view, snapshot, expanded }: { readonly group: RowGroup } & Omit<GroupsProps, 'groups' | 'canEditProfile'>) {
   const title = t.groupTitles[group.key] ?? group.title
   if (group.key === 'workers') return <WorkersTable entry={entry} snapshot={snapshot} assumptions={view.assumptions} />
   if (group.key !== 'load') return <ParamRows label={title} rows={group.rows} />
@@ -55,7 +58,7 @@ function GroupBody({ group, entry, view, snapshot, expanded }: { readonly group:
 /** Группа «Маршрут» у процесса без маршрута (упаковка, 17009:1010): вместо строк — пояснение. */
 const NO_ROUTE_KEY = processGroupKey('route')
 
-function ProcessGroups({ entry, view, snapshot, groups, expanded }: GroupsProps) {
+function ProcessGroups({ entry, view, snapshot, groups, expanded, canEditProfile }: GroupsProps) {
   const keys = [...view.groups.map((g) => processGroupKey(g.key)), ...(view.routeApplies ? [] : [NO_ROUTE_KEY])]
   const allOpen = keys.every((key) => groups.isOpen(key))
   const profile = generatePath(ROUTE_PATHS.locationProcess, { locationId: snapshot.location.id, locationProcessId: entry.locationProcess.id })
@@ -96,14 +99,14 @@ function ProcessGroups({ entry, view, snapshot, groups, expanded }: GroupsProps)
       <div className="flex justify-end gap-12">
         {/* Дополнительных параметров процесса в данных нет (ждёт D-91): кнопка раскрывает все группы. */}
         <Button onClick={() => { groups.setMany(keys, !allOpen) }}>{allOpen ? t.process.collapseParams : t.process.allParams}</Button>
-        <ButtonLink to={profile}>{t.process.editProcess}</ButtonLink>
+        {canEditProfile && <ButtonLink to={profile}>{t.process.editProcess}</ButtonLink>}
       </div>
     </Card>
   )
 }
 
 /** Блок 1 «Выбор процесса» (16969:35): процессы локации таблицей-радиогруппой, у выбранного — группы значений. */
-export function ProcessBlock({ view, snapshot, onSelect, readOnly, groups, onReveal, expanded = false }: ProcessBlockProps) {
+export function ProcessBlock({ view, snapshot, onSelect, readOnly, groups, onReveal, expanded = false, canEditProfile = true }: ProcessBlockProps) {
   const [collapsed, setCollapsed] = useState(false)
   const selectedId = view.selected?.locationProcess.id ?? null
   const select = (id: LocationProcessId) => {
@@ -143,7 +146,7 @@ export function ProcessBlock({ view, snapshot, onSelect, readOnly, groups, onRev
         </span>
       ),
       expanded: open,
-      ...(selected && view.selected ? { detail: <ProcessGroups entry={view.selected} view={view} snapshot={snapshot} groups={groups} expanded={expanded} /> } : {}),
+      ...(selected && view.selected ? { detail: <ProcessGroups entry={view.selected} view={view} snapshot={snapshot} groups={groups} expanded={expanded} canEditProfile={canEditProfile} /> } : {}),
     }
   })
 

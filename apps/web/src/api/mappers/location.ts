@@ -57,6 +57,7 @@ export function locationFromApi(dto: ApiSchemas['Location'], parameters: Readonl
     parameters,
     staffGroups: (dto.staffGroups ?? []).map((g) => ({ role: g.roleName ?? '', headcount: g.headcount ?? 0, salaryGrossMonthRub: optional(g.salaryGrossMonthRub) })),
     updatedAt: required(dto, 'updatedAt', entity),
+    isDemo: dto.isDemo === true,
   }
 }
 

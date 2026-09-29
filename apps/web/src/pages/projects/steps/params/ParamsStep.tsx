@@ -30,12 +30,13 @@ function groupOfAnchor(view: ParamsView, anchor: string): string | null {
 
 /**
  * Шаг 1 «Параметры проекта» (доска 16325, экран 1.1 16969:10; PRD 11.2). Значения процесса и площадки — только чтение
- * из снимка; менять можно процесс. Гость — без сохранения (D-14), сохранённая оценка — только просмотр (D-17).
+ * из снимка; менять можно процесс. Гость проходит демо-проект без сохранения: процесс закреплён, решения — в браузере
+ * (D-14, ролевая модель §5); сохранённая оценка — только просмотр (D-17).
  */
 export function ParamsStep({ project: initial, locationName, isGuest }: ProjectStepProps) {
   const readOnly = isReadOnly(initial)
-  const advance = useAdvanceStep(initial.id, !isGuest && !readOnly)
-  const state = useParamsStep(initial, !isGuest && !readOnly)
+  const advance = useAdvanceStep(initial.id, !readOnly)
+  const state = useParamsStep(initial, !readOnly)
   // «Всё раскрыто» (16992:10) — состояние навигации из сценария /dev/screens.
   const navState: unknown = useLocation().state
   const expandedState = isParamsExpandedState(navState) ? navState : null
@@ -78,7 +79,7 @@ export function ParamsStep({ project: initial, locationName, isGuest }: ProjectS
 
   return layout(
     <>
-      <ProcessBlock view={view} snapshot={snapshot} onSelect={state.selectProcess} readOnly={readOnly} groups={groups} onReveal={reveal} expanded={expandedState?.breakdown ?? false} />
+      <ProcessBlock view={view} snapshot={snapshot} onSelect={state.selectProcess} readOnly={readOnly || isGuest} groups={groups} onReveal={reveal} expanded={expandedState?.breakdown ?? false} canEditProfile={!isGuest} />
       <SiteBlock groups={view.siteGroups} location={snapshot.location} reveal={groups} showAllInitially={expandedState?.siteAll ?? false} ownScheduleHours={view.ownScheduleHours} />
       {view.selected && <AssumptionsBlock rows={view.assumptions} snapshotAt={project.versions.snapshotAt} />}
     </>,

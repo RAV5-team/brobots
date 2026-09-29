@@ -46,6 +46,7 @@ func (a *API) fail(w http.ResponseWriter, r *http.Request, err error) {
 	var ce *domain.ConflictError
 	var fe *domain.ForbiddenError
 	var ue *domain.UnavailableError
+	var tm *domain.TooManyError
 	switch {
 	case errors.As(err, &ve):
 		writeProblem(w, Problem{Type: "https://rav5.local/problems/validation", Title: "Ошибка в данных", Status: http.StatusUnprocessableEntity,
@@ -59,6 +60,9 @@ func (a *API) fail(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.As(err, &ce):
 		writeProblem(w, Problem{Type: "https://rav5.local/problems/conflict", Title: "Конфликт", Status: http.StatusConflict,
 			Detail: ce.Message, Code: ce.Code})
+	case errors.As(err, &tm):
+		writeProblem(w, Problem{Type: "https://rav5.local/problems/too-many-requests", Title: "Слишком много запросов",
+			Status: http.StatusTooManyRequests, Detail: tm.Message, Code: tm.Code})
 	case errors.As(err, &ue):
 		a.log.WarnContext(r.Context(), "dependency unavailable", slog.String("path", r.URL.Path), slog.Any("error", err))
 		writeProblem(w, Problem{Type: "https://rav5.local/problems/unavailable", Title: "Сервис недоступен", Status: http.StatusServiceUnavailable,

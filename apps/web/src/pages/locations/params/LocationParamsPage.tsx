@@ -256,7 +256,9 @@ export function LocationParamsPage() {
     setStatus(t.params.saved(formatTime(new Date().toISOString())))
     closeEditing()
   }
-  const action = isGuest ? null : editing
+  // Демо-локация только для просмотра у всех ролей (ролевая модель, §4): «Изменить» нет.
+  const readOnly = isGuest || state.location.isDemo === true
+  const action = readOnly ? null : editing
     ? <Button onClick={closeEditing}>{t.params.cancel}</Button>
     : <Button aria-label={t.params.editLabel} onClick={() => { setStatus(null); setEditing(true) }}>{t.params.edit}</Button>
 

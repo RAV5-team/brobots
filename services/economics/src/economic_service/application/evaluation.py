@@ -39,8 +39,13 @@ class EvaluationApplicationService:
         default_factory=ScoringUseCase.ranking_v1
     )
 
-    def evaluate(self, request: EvaluationRequest) -> EvaluationSnapshot:
-        """Calculates and saves a new immutable evaluation revision."""
+    def evaluate(
+        self, request: EvaluationRequest, persist: bool = True
+    ) -> EvaluationSnapshot:
+        """Calculates and saves a new immutable evaluation revision.
+
+        persist=False returns the snapshot without saving it (dry run).
+        """
 
         self.scorer.validate_request(request)
         calculated = self.calculator.calculate(request)
@@ -53,7 +58,9 @@ class EvaluationApplicationService:
             candidates=calculated.candidates,
             ranking=ranking,
         )
-        previous = self.repository.get(request.evaluation_id)
+        previous = (
+            self.repository.get(request.evaluation_id) if persist else None
+        )
         snapshot = EvaluationSnapshot(
             evaluation_id=request.evaluation_id,
             project_id=request.project_id,
@@ -64,7 +71,8 @@ class EvaluationApplicationService:
                 previous.evaluation_id if previous is not None else None
             ),
         )
-        self.repository.save(snapshot)
+        if persist:
+            self.repository.save(snapshot)
         return snapshot
 
     def get(self, evaluation_id: str) -> EvaluationSnapshot | None:

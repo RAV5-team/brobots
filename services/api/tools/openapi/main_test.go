@@ -86,7 +86,8 @@ func TestRouterEnforcesAccess(t *testing.T) {
 	}
 	id := "00000000-0000-0000-0000-000000000001"
 	for _, o := range Operations() {
-		path := strings.NewReplacer("{id}", id, "{capId}", id, "{solutionId}", id, "{code}", "warehouse").Replace(o.path)
+		path := strings.NewReplacer("{id}", id, "{capId}", id, "{solutionId}", id, "{code}", "warehouse",
+			"{jobId}", "0123456789abcdef0123456789abcdef").Replace(o.path)
 		access := AccessOf(o.method, o.path)
 		for who, token := range tokens {
 			status := call(router, o.method, path, token)

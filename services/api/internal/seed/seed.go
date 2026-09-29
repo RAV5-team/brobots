@@ -172,7 +172,12 @@ func Load(ctx context.Context, st *store.Store, calculator calc.Calculator, log 
 	if err != nil {
 		return err
 	}
+	readied, err := readyDemoProjects(ctx, svc, log)
+	if err != nil {
+		return err
+	}
 	log.Info("seed loaded", slog.Bool("catalog", freshCatalog), slog.Int("processes", newProcesses),
-		slog.Int("locations", newLocations), slog.Duration("duration", time.Since(started)))
+		slog.Int("locations", newLocations), slog.Int("demo_projects_readied", readied),
+		slog.Duration("duration", time.Since(started)))
 	return nil
 }

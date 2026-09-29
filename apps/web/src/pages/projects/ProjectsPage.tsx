@@ -1,5 +1,4 @@
-import { Navigate, useSearchParams } from 'react-router'
-import { ROUTE_PATHS } from '@/app/routePaths'
+import { useSearchParams } from 'react-router'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -8,6 +7,7 @@ import { Segmented } from '@/components/ui/Segmented'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
 import { useRole } from '@/shared/auth/useRole'
 import { ru } from '@/shared/i18n/ru'
+import { DemoProjectsList } from './DemoProjectsList'
 import { ProjectsTable } from './ProjectsTable'
 import {
   EMPTY_FILTER,
@@ -70,21 +70,24 @@ function ProjectsContent({ data }: { readonly data: ProjectsData }) {
   )
 }
 
-/** Экран A1 «Проекты» (PRD 11.1; 16325:14). Пользователь и администратор; гостя — в каталог (D-82). */
+/**
+ * Экран A1 «Проекты» (PRD 11.1; 16325:14): пользователь и администратор видят свои проекты, гость — «Демо-проекты»
+ * организатора (ролевая модель, §3).
+ */
 export function ProjectsPage() {
-  const role = useRole()
-  const { state, retry } = useProjects()
-
-  // У гостя «Демо-проекты» — свой список, он ждёт скрытую секцию Figma (D-82).
-  if (role === 'guest') return <Navigate to={ROUTE_PATHS.catalog} replace />
+  const isGuest = useRole() === 'guest'
+  const { state, retry } = useProjects(isGuest)
+  const header = isGuest ? t.demo : t
 
   return (
     <>
-      <PageHeader title={t.title} lead={t.lead} />
+      <PageHeader title={header.title} lead={header.lead} />
 
       {state.status === 'loading' && <Skeleton className="h-(--rav-location-card-height)" />}
       {state.status === 'error' && <ErrorState title={t.error.title} message={t.error.message} onRetry={retry} />}
-      {state.status === 'ready' && <ProjectsContent data={state} />}
+      {state.status === 'ready' && (isGuest
+        ? <DemoProjectsList projects={state.projects} locations={state.locations} />
+        : <ProjectsContent data={state} />)}
     </>
   )
 }

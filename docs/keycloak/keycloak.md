@@ -58,8 +58,8 @@ docker compose up -d --build     # http://localhost/auth/
 
 | Кто | Логин | Пароль (`.env`) | Где |
 | --- | --- | --- | --- |
-| Пользователь | `user@example.com` | `DEMO_USER_PASSWORD` | realm `rav5` |
-| Администратор платформы | `admin@example.com` | `DEMO_ADMIN_PASSWORD` | realm `rav5` |
+| Пользователь | `demo@rav5.ru` | `DEMO_USER_PASSWORD` | realm `rav5` |
+| Администратор платформы | `admin@rav5.ru` | `DEMO_ADMIN_PASSWORD` | realm `rav5` |
 | Администратор Keycloak | `KC_ADMIN_USERNAME` | `KC_ADMIN_PASSWORD` | master-realm, `/auth/admin/` |
 
 Администратор платформы и администратор Keycloak — разные учётки в разных realm.
@@ -76,7 +76,7 @@ docker compose up -d --build     # http://localhost/auth/
 
 ## Keycloak
 
-- Realm `rav5`, локаль `ru` по умолчанию, регистрация открыта (email = логин), сброс пароля
+- Realm `rav5`, локаль `ru` по умолчанию, самостоятельной регистрации нет — учётки выдают по приглашению (email = логин), сброс пароля
   и подтверждение email выключены (в демо нет SMTP), защита от перебора включена,
   политика паролей `length(8) and notUsername`.
 - Роли realm: `user` (входит в default-роль — её получает и каждый зарегистрированный),
@@ -182,11 +182,11 @@ docker compose up -d --build     # http://localhost/auth/
 | T4 | вход через форму на русском по PKCE, userinfo; неверный пароль отклонён |
 | T7 | access token: `iss`, `aud` (`rav5-api`, `rav5-sim`), роль `user` без `admin`, 5 минут; ID token без `aud rav5-api` |
 | T8 | у администратора платформы роли `user` + `admin` |
-| T5 | самостоятельная регистрация, новый пользователь получает `user` |
+| T5 | самостоятельной регистрации нет: ни ссылки на странице входа, ни формы по `/registrations` |
 | T14 | client credentials через шлюз и по внутреннему адресу: `iss` публичный, роль `service`; неверный секрет — 401 |
 | T17 | DCR 404, health 404, пути вне `/auth` 404; в stand админка вне allowlist — 403 |
 | T21 | пароли в БД — хэши (argon2) |
-| T23 | ни один пароль или секрет из `.env` нет в HTML страниц входа и регистрации, кроме явно заданных `DEMO_PLATES_*` |
+| T23 | ни один пароль или секрет из `.env` нет в HTML страницы входа, кроме явно заданных `DEMO_PLATES_*` |
 | T20 | после выхода refresh token недействителен |
 | T22 | stand: 301 на https, HSTS |
 | T18 | `--restart`: после перезапуска Keycloak шлюз работает без перезапуска, токен и сессия действуют |

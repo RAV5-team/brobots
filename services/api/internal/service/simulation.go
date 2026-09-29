@@ -138,7 +138,8 @@ func (s *Service) StartSimulation(ctx context.Context, projectID uuid.UUID, body
 		return SimulationRun{}, err
 	}
 	q := s.st.Q()
-	rec, err := s.visibleProject(ctx, q, projectID, false)
+	// Only the author runs a simulation of the project; a guest checks a demo project through the preview.
+	rec, err := s.visibleProject(ctx, q, projectID, true)
 	if err != nil {
 		return SimulationRun{}, err
 	}
@@ -152,28 +153,12 @@ func (s *Service) StartSimulation(ctx context.Context, projectID uuid.UUID, body
 	if err != nil {
 		return SimulationRun{}, err
 	}
-	fleet := Fleet{Robots: domain.Deref(result.RobotCount), Stations: domain.Deref(result.ChargerCount)}
-	if in.Fleet != nil {
-		fleet = *in.Fleet
-	}
-	var v domain.Validator
-	v.Range("fleet.robots", "Роботов", domain.Ptr(float64(fleet.Robots)), domain.Ptr(1.0), domain.Ptr(500.0), "")
-	v.Range("fleet.stations", "Зарядных станций", domain.Ptr(float64(fleet.Stations)), domain.Ptr(0.0), domain.Ptr(500.0), "")
-	if err := v.Err(); err != nil {
-		return SimulationRun{}, err
-	}
-	norms, err := s.projectNorms(ctx, q, rec)
+	job, err := s.simulationJob(ctx, q, rec, result, in)
 	if err != nil {
 		return SimulationRun{}, err
 	}
-	roles, err := s.locationRoles(ctx, q, rec.Snapshot)
-	if err != nil {
-		return SimulationRun{}, err
-	}
-	request, assumptions := simulationRequest(simInput{snap: rec.Snapshot, cycleS: result.Details.CycleTimeS, norms: norms,
-		roles: roles, fleet: fleet, conditions: in.Conditions, projectName: rec.Name})
-
-	jobID, err := sim.Submit(ctx, bearerOf(ctx), request)
+	fleet, assumptions := job.fleet, job.assumptions
+	jobID, err := sim.Submit(ctx, bearerOf(ctx), job.request)
 	if err != nil {
 		return SimulationRun{}, simulationError(err)
 	}
@@ -188,6 +173,40 @@ func (s *Service) StartSimulation(ctx context.Context, projectID uuid.UUID, body
 		return SimulationRun{}, err
 	}
 	return simulationRunOf(run, rec, nil), nil
+}
+
+// simulationJob is the input of services/simulation for the configuration of a calculation result.
+type simulationJob struct {
+	request     any
+	fleet       Fleet
+	assumptions []string
+}
+
+// simulationJob builds the simulation input of the project for the calculated result; rec.Snapshot.Robot is the
+// robot of that result.
+func (s *Service) simulationJob(ctx context.Context, q store.Q, rec store.ProjectRecord, result store.CalcResult,
+	in SimulationRunInput) (simulationJob, error) {
+	fleet := Fleet{Robots: domain.Deref(result.RobotCount), Stations: domain.Deref(result.ChargerCount)}
+	if in.Fleet != nil {
+		fleet = *in.Fleet
+	}
+	var v domain.Validator
+	v.Range("fleet.robots", "Роботов", domain.Ptr(float64(fleet.Robots)), domain.Ptr(1.0), domain.Ptr(500.0), "")
+	v.Range("fleet.stations", "Зарядных станций", domain.Ptr(float64(fleet.Stations)), domain.Ptr(0.0), domain.Ptr(500.0), "")
+	if err := v.Err(); err != nil {
+		return simulationJob{}, err
+	}
+	norms, err := s.projectNorms(ctx, q, rec)
+	if err != nil {
+		return simulationJob{}, err
+	}
+	roles, err := s.locationRoles(ctx, q, rec.Snapshot)
+	if err != nil {
+		return simulationJob{}, err
+	}
+	request, assumptions := simulationRequest(simInput{snap: rec.Snapshot, cycleS: result.Details.CycleTimeS, norms: norms,
+		roles: roles, fleet: fleet, conditions: in.Conditions, projectName: rec.Name})
+	return simulationJob{request: request, fleet: fleet, assumptions: assumptions}, nil
 }
 
 // GetSimulation returns a run; a queued or running one is polled in services/simulation.
@@ -271,11 +290,14 @@ func (s *Service) finishedSimulation(ctx context.Context, id uuid.UUID) (string,
 	return domain.Deref(run.SimulationID), sim, err
 }
 
-// visibleSimulation loads a run through its project: a run of a hidden project is not found.
+// visibleSimulation loads a run of the caller: a run someone else started, or a run of a hidden project, is not found.
 func (s *Service) visibleSimulation(ctx context.Context, q store.Q, id uuid.UUID) (store.SimulationRunRecord, store.ProjectRecord, error) {
 	run, err := q.GetSimulationRun(ctx, id)
 	if err != nil {
 		return run, store.ProjectRecord{}, err
+	}
+	if !accessOf(ctx).owns(run.OwnerID) {
+		return run, store.ProjectRecord{}, domain.NotFound("simulation_run", id.String())
 	}
 	rec, err := s.visibleProject(ctx, q, run.ProjectID, false)
 	if err != nil {
@@ -320,6 +342,7 @@ func (s *Service) locationRoles(ctx context.Context, q store.Q, snap domain.Proj
 
 func simulationError(err error) error {
 	var rejected *simulation.RejectedError
+	var busy *simulation.BusyError
 	switch {
 	case err == nil:
 		return nil
@@ -334,6 +357,8 @@ func simulationError(err error) error {
 		return &domain.ValidationError{Errors: fields}
 	case errors.Is(err, simulation.ErrNotFound):
 		return domain.NotFound("simulation_run", "service")
+	case errors.As(err, &busy):
+		return domain.TooMany("simulation_busy", "Демо-симуляций сейчас много — повторите через минуту")
 	}
 	return simulationUnavailable(err)
 }
@@ -414,7 +439,7 @@ func simulationRequest(in simInput) (map[string]any, []string) {
 		"autonomy_h":      orAssume(spec.AutonomyH, assumedAutonomyH, "Автономность, ч"),
 		"charge_time_min": orAssume(spec.ChargeTimeMin, assumedChargeMin, "Время зарядки, мин"),
 		"t_load_s":        load, "t_unload_s": unload,
-		"width_mm":        orAssume(width, assumedWidthMm, "Ширина робота, мм"),
+		"width_mm": orAssume(width, assumedWidthMm, "Ширина робота, мм"),
 	}
 
 	params, derived := in.snap.Task.Params, in.snap.Task.Derived
@@ -462,8 +487,8 @@ func simulationRequest(in simInput) (map[string]any, []string) {
 	volume := domain.Deref(params.DailyVolume)
 	task := map[string]any{
 		"shift_start_h": defaultShiftStart, "shifts": int(shifts),
-		"shift_h":      int(math.Min(math.Max(math.Round(hours/shifts), 1), 24)),
-		"in_per_day":   volume / 2, "out_per_day": volume / 2,
+		"shift_h":    int(math.Min(math.Max(math.Round(hours/shifts), 1), 24)),
+		"in_per_day": volume / 2, "out_per_day": volume / 2,
 		"manual_share": math.Min(math.Max(1-domain.Deref(params.AutomationShare), 0), maxManualShare),
 	}
 	if params.PeakFactor != nil {
