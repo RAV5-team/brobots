@@ -3,9 +3,9 @@
 Три бэкенд-сервиса, фронтенд и Postgres. Контейнеризация — Dockerfile на каждый
 сервис плюс Docker Compose на весь контур.
 
-Go API, simulation и internal-only economics service входят в Compose-контур; оркестратор api считает экономику через economics.
-Экономическая модель использует отдельную PostgreSQL базу; проектный workflow
-пока не вызывает её автоматически.
+Go API, simulation и internal-only economics service входят в Compose-контур.
+Оркестратор вызывает economics при расчёте проекта; создание или редактирование
+проекта само по себе расчёт не запускает. У economics отдельная база PostgreSQL.
 
 ## Структура
 
@@ -131,19 +131,19 @@ docker compose up -d --build
   проверка токенов в сервисах — [docs/keycloak/middleware.md](docs/keycloak/middleware.md),
   команды — `make help`.
 
-## Что дальше
+## Текущий статус
 
-Оставшиеся этапы интеграции:
-
-1. **`apps/web`** — отсутствует `package.json`. Скаффолдинг:
-   `npm create vite@latest apps/web -- --template react-ts`, затем
-   `npm install` (нужен закоммиченный `package-lock.json` — его ждёт `npm ci`)
-   и прокси `/api` → `http://api:8000` в `server.proxy` внутри `vite.config.ts`.
-2. ~~**`services/api`**~~ — готов: локации, задачи, проекты, каталог, классы
-   операций и подбор. Запуск, контракт и карта экранов — [docs/api](docs/api/README.md).
-3. ~~**`services/simulation`**~~ — готов, см. [services/simulation/README.md](services/simulation/README.md).
-4. ~~**`services/economics`**~~ — развёртывается отдельно во внутренней сети.
-   Автоматический вызов из Go API и интерфейса остаётся следующим этапом.
+- **`apps/web`** — Vite, React и TypeScript приложение с API-режимом
+  (`VITE_SERVICES=api`). Методы без поддержки на API сообщают о недостающем
+  вызове вместо подстановки фиктивных данных.
+- **`services/api`** — локации, задачи, проекты, каталог, подбор и вызовы
+  economics. Запуск и контракт описаны в [документации API](docs/api/README.md).
+- **`services/simulation`** — сервис прогонов и воркеров; см.
+  [README сервиса симуляции](services/simulation/README.md).
+- **`services/economics`** — внутренний сервис расчётов в Compose. Текущие
+  ограничения исторической интеграции записаны в
+  [снимке от 28.09.2026](docs/integration-followups.md); это не текущий список
+  задач.
 
 CI for economics runs lint, unit/API, and PostgreSQL integration tests on
 Python 3.12, then builds test and runtime container stages. PostgreSQL tests
