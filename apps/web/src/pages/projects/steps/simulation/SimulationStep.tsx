@@ -18,7 +18,7 @@ import { findVariant } from '../matching/matchingModel'
 import { ConditionsStage } from './ConditionsStage'
 import { RunStage } from './RunStage'
 import { ChartsStage } from './charts/ChartsStage'
-import { CONDITION_DEFAULTS, conditionBases } from './conditionsModel'
+import { CONDITION_DEFAULTS, conditionBases, effectiveConditions } from './conditionsModel'
 import { ScopeRail, ScopeStage } from './ScopeStage'
 import {
   calcRows,
@@ -176,7 +176,12 @@ export function SimulationStep({ project: initial, locationName, isGuest }: Proj
   const { demand } = demandOf(snapshot, evaluation, project)
   const fromMatching = matchingFleet(variant)
   const fleet = inputs?.fleet ?? fromMatching
-  const request: SimulationRequest = { fleet, conditions: inputs?.conditions ?? {} }
+  // На форме уже стоят значения задачи и пики по умолчанию. В прогон уходит то же самое: пустые поля сервис
+  // заменяет своим расписанием (по 3 ч пика в каждой смене), и оно не сходится с тем, что на экране.
+  const calcHours = evaluation.calcDefaults?.workHoursPerDay ?? demand?.hours ?? 24
+  const base = conditionBases({ snapshot, project, robot, calcHours, tolerance: norms.simulationTolerance }, project.inputs.params.assumptions)
+  const conditions = base ? effectiveConditions(base.bases, inputs?.conditions ?? {}) : (inputs?.conditions ?? {})
+  const request: SimulationRequest = { fleet, conditions }
   const run = () => {
     state.startRun(request)
     openStage('run')
@@ -216,7 +221,7 @@ export function SimulationStep({ project: initial, locationName, isGuest }: Proj
       },
       onRerun: (next: Fleet) => {
         state.setFleet(fleetToStore(next, fromMatching))
-        state.startRun({ fleet: next, conditions: inputs?.conditions ?? {} })
+        state.startRun({ fleet: next, conditions })
         openStage('run')
       },
       conditionsTo: `?${withStage(params, 'conditions').toString()}`,
@@ -240,8 +245,6 @@ export function SimulationStep({ project: initial, locationName, isGuest }: Proj
     )
   }
   if (stage === 'conditions') {
-    const calcHours = evaluation.calcDefaults?.workHoursPerDay ?? demand?.hours ?? 24
-    const base = conditionBases({ snapshot, project, robot, calcHours, tolerance: norms.simulationTolerance }, project.inputs.params.assumptions)
     if (!base) return layout(heading.title, <ErrorState title={t.loadError.title} message={t.loadError.message} onRetry={state.retry} />, heading.lead)
     return (
       <ConditionsStage

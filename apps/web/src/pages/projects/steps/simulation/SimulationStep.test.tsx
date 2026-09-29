@@ -203,7 +203,14 @@ describe('Шаг 3 «Симуляция», этап 3 «Моделировани
     const start = vi.spyOn(services.projects, 'startSimulation')
     renderAt('/projects/PJ-DEMO/simulation?as=user&stage=conditions', services)
     fireEvent.click(await screen.findByRole('button', { name: 'Запустить симуляцию' }))
-    expect(start).toHaveBeenCalledWith('PJ-DEMO', { fleet: { robots: 18, stations: 6 }, conditions: {} })
+    expect(start).toHaveBeenCalledWith('PJ-DEMO', expect.objectContaining({
+      fleet: { robots: 18, stations: 6 },
+      conditions: expect.objectContaining({
+        shiftsPerDay: 2,
+        shiftHours: 11,
+        peakHours: { inbound: [7, 8, 9, 10, 17, 18, 19], outbound: [7, 8, 9, 10, 17, 18, 19] },
+      }),
+    }))
     expect(await screen.findByRole('heading', { level: 1, name: 'Моделирование рабочих суток' })).toBeInTheDocument()
     expect(within(stages()).getByText('3. Моделирование').closest('[aria-current]')).toHaveAttribute('aria-current', 'step')
     expect(runCard()).toHaveAttribute('aria-busy', 'true')
