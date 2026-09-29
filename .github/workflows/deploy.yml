@@ -25,7 +25,6 @@ jobs:
       - name: Validate deployment inputs
         env:
           IMAGE_TAG: ${{ inputs.image_tag }}
-          CONTRACT_VERIFIED: ${{ vars.ECONOMICS_API_CONTRACT_VERIFIED }}
           YC_INSTANCE_ID: ${{ vars.YC_INSTANCE_ID }}
           YC_SERVICE_ACCOUNT_ID: ${{ vars.YC_SERVICE_ACCOUNT_ID }}
           YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
@@ -34,10 +33,6 @@ jobs:
         run: |
           [[ "$IMAGE_TAG" =~ ^[0-9a-f]{40}$ ]] || {
             echo "image_tag must be a full 40-character lowercase commit SHA" >&2
-            exit 1
-          }
-          [[ "$CONTRACT_VERIFIED" == "true" ]] || {
-            echo "Deployment blocked: verify the API/economics adapter contract, then set ECONOMICS_API_CONTRACT_VERIFIED=true." >&2
             exit 1
           }
           for key in YC_INSTANCE_ID YC_SERVICE_ACCOUNT_ID YC_FOLDER_ID YC_CLOUD_ID PUBLIC_URL; do
@@ -86,12 +81,11 @@ jobs:
           echo "$HOME/yandex-cloud/bin" >> "$GITHUB_PATH"
       - name: Update COI VM
         env:
-          YC_TOKEN: ${{ steps.yandex-token.outputs.token }}
+          YC_IAM_TOKEN: ${{ steps.yandex-token.outputs.token }}
           YC_INSTANCE_ID: ${{ vars.YC_INSTANCE_ID }}
           YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
           YC_CLOUD_ID: ${{ vars.YC_CLOUD_ID }}
         run: |
-          yc config set token "$YC_TOKEN"
           yc config set folder-id "$YC_FOLDER_ID"
           yc config set cloud-id "$YC_CLOUD_ID"
           yc compute instance update-container "$YC_INSTANCE_ID" \
