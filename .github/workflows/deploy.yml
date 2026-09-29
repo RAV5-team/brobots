@@ -1,0 +1,115 @@
+name: deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Full commit SHA published by release-images.yml
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate deployment inputs
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          CONTRACT_VERIFIED: ${{ vars.ECONOMICS_API_CONTRACT_VERIFIED }}
+          YC_INSTANCE_ID: ${{ vars.YC_INSTANCE_ID }}
+          YC_SERVICE_ACCOUNT_ID: ${{ vars.YC_SERVICE_ACCOUNT_ID }}
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
+          YC_CLOUD_ID: ${{ vars.YC_CLOUD_ID }}
+          PUBLIC_URL: ${{ vars.PUBLIC_URL }}
+        run: |
+          [[ "$IMAGE_TAG" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "image_tag must be a full 40-character lowercase commit SHA" >&2
+            exit 1
+          }
+          [[ "$CONTRACT_VERIFIED" == "true" ]] || {
+            echo "Deployment blocked: verify the API/economics adapter contract, then set ECONOMICS_API_CONTRACT_VERIFIED=true." >&2
+            exit 1
+          }
+          for key in YC_INSTANCE_ID YC_SERVICE_ACCOUNT_ID YC_FOLDER_ID YC_CLOUD_ID PUBLIC_URL; do
+            [[ -n "${!key:-}" ]] || { echo "Missing repository variable: $key" >&2; exit 1; }
+          done
+      - name: Require a successful main release run for this SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          runs=$(gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/release-images.yml/runs?head_sha=${IMAGE_TAG}" \
+            --jq ".workflow_runs[] | select(.head_sha == \"${IMAGE_TAG}\" and .event == \"push\" and .conclusion == \"success\") | .id")
+          [[ -n "$runs" ]] || {
+            echo "No successful main release-images run found for ${IMAGE_TAG}" >&2
+            exit 1
+          }
+      - name: Render COI Compose specification
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          GHCR_OWNER: ${{ github.repository_owner }}
+        run: |
+          GHCR_OWNER="${GHCR_OWNER,,}"
+          export IMAGE_TAG GHCR_OWNER
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          compose = Path("docker-compose.coi.yml").read_text()
+          compose = compose.replace("${GHCR_OWNER:?}", os.environ["GHCR_OWNER"])
+          compose = compose.replace("${IMAGE_TAG:?}", os.environ["IMAGE_TAG"])
+          if "${GHCR_OWNER" in compose or "${IMAGE_TAG" in compose:
+              raise SystemExit("unrendered image reference remains in Compose spec")
+          Path(os.environ["RUNNER_TEMP"], "docker-compose.coi.yml").write_text(compose)
+          PY
+      - name: Get Yandex Cloud IAM token using GitHub OIDC
+        id: yandex-token
+        uses: docker://ghcr.io/yc-actions/yc-iam-token-fed:1.0.0
+        with:
+          yc-sa-id: ${{ vars.YC_SERVICE_ACCOUNT_ID }}
+      - name: Install Yandex Cloud CLI
+        run: |
+          curl --fail --silent --show-error --location \
+            https://storage.yandexcloud.net/yandexcloud-yc/install.sh \
+            | bash -s -- -a
+          echo "$HOME/yandex-cloud/bin" >> "$GITHUB_PATH"
+      - name: Update COI VM
+        env:
+          YC_TOKEN: ${{ steps.yandex-token.outputs.token }}
+          YC_INSTANCE_ID: ${{ vars.YC_INSTANCE_ID }}
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
+          YC_CLOUD_ID: ${{ vars.YC_CLOUD_ID }}
+        run: |
+          yc config set token "$YC_TOKEN"
+          yc config set folder-id "$YC_FOLDER_ID"
+          yc config set cloud-id "$YC_CLOUD_ID"
+          yc compute instance update-container "$YC_INSTANCE_ID" \
+            --docker-compose-file="$RUNNER_TEMP/docker-compose.coi.yml"
+      - name: Smoke test public endpoints
+        env:
+          PUBLIC_URL: ${{ vars.PUBLIC_URL }}
+        run: |
+          [[ -n "$PUBLIC_URL" ]] || { echo "Missing repository variable: PUBLIC_URL" >&2; exit 1; }
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error "$PUBLIC_URL/healthz" >/dev/null \
+              && curl --fail --silent --show-error "$PUBLIC_URL/" >/dev/null \
+              && curl --fail --silent --show-error \
+                "$PUBLIC_URL/auth/realms/rav5/.well-known/openid-configuration" \
+                >/dev/null; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Public health smoke test failed after 5 minutes" >&2
+          exit 1

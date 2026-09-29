@@ -1,6 +1,8 @@
-# Профиль stand: https://${PUBLIC_HOST}. TLS терминируется здесь, HSTS включается
+# COI profile: https://${PUBLIC_HOST}. TLS terminates here; HSTS is enabled
 # автоматически через map $scheme $hsts.
 include /etc/nginx/snippets/http-common.conf;
+
+upstream web { zone web 64k; server web:80 resolve; }
 
 server {
     listen 80 default_server;
@@ -16,8 +18,8 @@ server {
     http2 on;
     server_name ${PUBLIC_HOST};
 
-    ssl_certificate     /etc/nginx/certs/fullchain.pem;
-    ssl_certificate_key /etc/nginx/certs/privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/${PUBLIC_HOST}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${PUBLIC_HOST}/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_session_cache shared:SSL:10m;
 
@@ -37,5 +39,15 @@ server {
     }
 
     include /etc/nginx/snippets/keycloak.conf;
-    location / { return 404; }
+
+    location / {
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_read_timeout 300s;
+        add_header Strict-Transport-Security $hsts always;
+        proxy_pass http://web;
+    }
 }

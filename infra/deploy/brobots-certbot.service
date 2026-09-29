@@ -1,0 +1,7 @@
+[Unit]
+Description=Renew the Brobots public TLS certificate
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/certbot renew --deploy-hook /usr/local/sbin/brobots-renewed
