@@ -80,7 +80,7 @@ function Players({ run, pairs }: { readonly run: SimulationRun; readonly pairs: 
   return (
     <>
       <div className="flex flex-wrap items-center gap-16">
-        <span className="flex min-w-72 flex-col">
+        <span className="flex flex-col">
           <span role="timer" aria-label={t.timeline} className="type-title-md text-text tabular-nums">{now.label}</span>
           <span className="type-caption text-text-secondary">{current && isPeakHour(current, run) ? t.peakHour : ' '}</span>
         </span>

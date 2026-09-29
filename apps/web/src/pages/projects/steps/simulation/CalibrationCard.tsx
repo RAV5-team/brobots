@@ -9,7 +9,7 @@ import { ru } from '@/shared/i18n/ru'
 const t = ru.project.simulation.verdict.calibration
 
 /** Безразмерный коэффициент подписывается без единицы: «Коэффициент загрузки робота». */
-const UNITLESS = new Set(['коэф.', ''])
+const UNITLESS = new Set([t.unitless, ''])
 const DIGITS = 2
 
 const labelOf = (a: SimulationAdjustment): string => (UNITLESS.has(a.unit) ? a.label : t.withUnit(a.label, a.unit))
