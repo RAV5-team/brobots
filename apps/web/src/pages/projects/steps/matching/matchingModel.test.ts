@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { toMatchingEvaluation } from '@/api/mappers/matching'
 import { CALC_DEFAULTS_LP01, EVALUATION_LP01 } from '@/mocks/fixtures/projectMatching'
-import { ROBOTS } from '@/mocks/fixtures/robots'
-import { HANDLING_METHODS } from '@/mocks/fixtures/operationClasses'
-import { compareGroups } from './compareModel'
+import { withVariantDetails } from '@/services/mock/variantDetails'
 import {
+  barPercent,
+  brandOf,
+  breakdownOf,
   calcFields,
   conditionValue,
   contributionsText,
@@ -12,9 +13,9 @@ import {
   manualEntries,
   parseCalcField,
   rankingRows,
+  shortReasonsText,
   recommendedVariant,
   scenariosOf,
-  toggleKey,
   topContributions,
   variantKey,
   type CalcFieldSpec,
@@ -29,16 +30,16 @@ const spec = (key: CalcFieldSpec['key']) => {
 
 describe('рейтинг подбора (PRD 11.3)', () => {
   it('8 вариантов по баллу; рекомендация — первое место', () => {
-    const rows = rankingRows(evaluation.variants, { filter: 'all', query: '', sort: 'score' })
+    const rows = rankingRows(evaluation.variants, { filter: 'all', sort: 'score' })
     expect(rows.map((v) => v.rank)).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
     expect(rows[0] && variantKey(rows[0])).toBe('RB-0008:raas')
     expect(recommendedVariant(evaluation)).toBe(rows[0])
   })
 
-  it('фильтр по способу приобретения, поиск по производителю, сортировка по окупаемости — «не окупается» в конце', () => {
-    expect(rankingRows(evaluation.variants, { filter: 'raas', query: '', sort: 'score' })).toHaveLength(4)
-    expect(rankingRows(evaluation.variants, { filter: 'all', query: 'ронави', sort: 'score' })).toHaveLength(4)
-    const byPayback = rankingRows(evaluation.variants, { filter: 'all', query: '', sort: 'payback' })
+  it('фильтр по способу приобретения, сортировка по окупаемости — «не окупается» в конце', () => {
+    expect(rankingRows(evaluation.variants, { filter: 'raas', sort: 'score' })).toHaveLength(4)
+    expect(rankingRows(evaluation.variants, { filter: 'all', sort: 'capex' })[0]?.capexRub).toBe(6_100_000)
+    const byPayback = rankingRows(evaluation.variants, { filter: 'all', sort: 'payback' })
     expect(byPayback[0]?.paybackYears).toBe(0.7)
     expect(byPayback.at(-1)?.paybackYears).toBeNull()
   })
@@ -47,6 +48,30 @@ describe('рейтинг подбора (PRD 11.3)', () => {
     const amr = recommendedVariant(evaluation)
     expect(topContributions(amr?.criteria ?? []).map((c) => c.code)).toEqual(['payback', 'roi', 'tco_savings'])
     expect(contributionsText(topContributions(amr?.criteria ?? []))).toBe('окупаемость 0,30 + ROI 0,15 + TCO 0,10')
+  })
+
+  it('строка рейтинга: бренд без организационно-правовой формы (16742:40)', () => {
+    expect(brandOf('ООО «Морос»')).toBe('Морос')
+    expect(brandOf('АО «Когнитив Пилот»')).toBe('Когнитив Пилот')
+    expect(brandOf('Ronavi')).toBe('Ronavi')
+  })
+
+  it('разбор балла: полоса — вклад как доля веса, у всех 8 вариантов сумма вкладов = балл', () => {
+    expect(barPercent({ code: 'x', label: 'x', weight: 0.1, contribution: 0.09 })).toBeCloseTo(90)
+    expect(barPercent({ code: 'x', label: 'x', weight: 0.1, contribution: 0.15 })).toBe(100)
+    expect(barPercent({ code: 'x', label: 'x', weight: 0.1, contribution: null })).toBe(0)
+    for (const v of withVariantDetails(evaluation, 'LP-01').variants) {
+      const criteria = breakdownOf(v)
+      expect(criteria).toHaveLength(8)
+      expect(criteria.slice(2, 4).map((c) => c.code)).toEqual(['budget_fit', 'tco_savings'])
+      expect(criteria.reduce((sum, c) => sum + (c.contribution ?? 0), 0)).toBeCloseTo(v.score ?? 0, 2)
+    }
+  })
+
+  it('причина исключения коротко: «фактическое вместо требуемого»', () => {
+    const sd = evaluation.excluded.find((e) => e.solutionId === 'RB-0004')
+    if (!sd) throw new Error('Ronavi SD')
+    expect(shortReasonsText(sd)).toBe('класс операции OP-08 Адресная доставка вместо OP-01 Перемещение грузов; грузоподъёмность 10 кг вместо ≥ 800 кг')
   })
 
   it('условия: знак сравнения у грузоподъёмности и ширины, список способов через «/»', () => {
@@ -65,26 +90,9 @@ describe('рейтинг подбора (PRD 11.3)', () => {
   })
 })
 
-describe('сравнение и ручное добавление', () => {
-  it('не больше лимита; повторная отметка снимает', () => {
-    expect(toggleKey(['a', 'b'], 'c', 3)).toEqual(['a', 'b', 'c'])
-    expect(toggleKey(['a', 'b', 'c'], 'd', 3)).toBeNull()
-    expect(toggleKey(['a', 'b'], 'a', 3)).toEqual(['b'])
-  })
-
-  it('добавленные вручную — в порядке добавления; нарушенное условие — красная ячейка', () => {
-    const manual = manualEntries(evaluation.excluded, ['RB-0021', 'RB-0004'])
-    expect(manual.map((m) => m.solutionName)).toEqual(['MARK 2 SE', 'Ronavi SD'])
-    const sd = manual[1]
-    if (!sd) throw new Error('Ronavi SD не добавлен')
-    const groups = compareGroups(
-      [{ key: sd.solutionId, name: sd.solutionName, variant: null, robot: ROBOTS.find((r) => r.id === sd.solutionId) ?? null, violations: sd.reasons }],
-      { handlingMethods: HANDLING_METHODS, siteUnchecked: 2 },
-    )
-    const cell = (group: string, row: string) => groups.find((g) => g.key === group)?.rows.find((r) => r.key === row)?.cells[0]
-    expect(cell('economics', 'capex')?.content).toBe('не рассчитано')
-    expect(cell('technical', 'payload')?.tone).toBe('misfit')
-    expect(cell('data', 'siteChecks')?.tone).toBe('unknown')
+describe('ручное добавление', () => {
+  it('добавленные вручную — в порядке добавления', () => {
+    expect(manualEntries(evaluation.excluded, ['RB-0021', 'RB-0004']).map((m) => m.solutionName)).toEqual(['MARK 2 SE', 'Ronavi SD'])
   })
 })
 

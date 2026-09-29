@@ -1,7 +1,7 @@
 // Данные окна 2.1а «Подробнее о решении» (доска 16325, 2.1а1–2.1а5) для расчёта подбора LP-01.
 // Полей нет в API (`Evaluation`) — фронтовая фикстура, вопросы — docs/api-contract.md, №16–18. Правится вручную.
 // Подгружается моком лениво (`services/mock/variantDetails.ts`): в стартовый бандл не входит.
-// Разбор балла — у всех 8 вариантов (с макета 2.1, 16325:92), остальное — только у AMR 800 (оба способа).
+// Разбор балла (`criteria`) дополняет ответ API у всех 8 вариантов (с макета 2.1, 16325:92); остальное — только у AMR 800.
 // У остальных вариантов этих полей нет — экран покажет «нет данных». Отступления от макета — README.md.
 import type { AcquisitionModel, RankedVariant, ScoreContribution, SolutionCheck } from '@/domain'
 import { CALC_DEFAULTS_LP01, SCORE_LABELS, SCORE_WEIGHTS } from './projectMatching'
@@ -11,7 +11,7 @@ type ScoreCode = keyof typeof SCORE_WEIGHTS
 /** Поля варианта, которых нет в ответе API. */
 export type VariantDetails = Pick<
   RankedVariant,
-  'scoreBreakdown' | 'reasons' | 'priceOffer' | 'ownership' | 'netEffectItems' | 'raasTerms' | 'auxEquipment' | 'effectiveProductivity'
+  'criteria' | 'fits' | 'priceOffer' | 'ownership' | 'netEffectItems' | 'raasTerms' | 'auxEquipment' | 'effectiveProductivity'
 >
 
 /** Ключ варианта: решение × способ приобретения. */
@@ -38,18 +38,12 @@ const breakdown = (
 const check = (code: string, label: string, status: SolutionCheck['status'], message: string | null = null): SolutionCheck =>
   ({ code, label, status, message })
 
-/** «Почему подходит» — условия отбора, «Недостающие данные» — параметры площадки без данных (D-99: у РЦ Химки их 2). */
-const AMR800_REASONS: NonNullable<RankedVariant['reasons']> = {
-  fits: [
-    check('work_type', 'Класс операции OP-01 и способ «платформа» совпадают с процессом', 'pass'),
-    check('payload', 'Грузоподъёмность 800 кг покрывает среднюю массу паллеты', 'pass'),
-    check('environment', 'Работает в помещении при +5…+25 °C', 'pass'),
-  ],
-  missing: [
-    check('site_floor_load_tm2', 'Нагрузка на пол', 'unknown', 'нет данных в профиле площадки'),
-    check('site_wifi_coverage', 'Покрытие Wi-Fi', 'unknown', 'нет данных в профиле площадки'),
-  ],
-}
+/** «Почему подходит» — пройденные условия отбора. Недостающие данные площадки не дублируются: считает экран (D-99). */
+const AMR800_FITS: NonNullable<RankedVariant['fits']> = [
+  check('work_type', 'Класс операции OP-01 и способ «платформа» совпадают с процессом', 'pass'),
+  check('payload', 'Грузоподъёмность 800 кг покрывает среднюю массу паллеты', 'pass'),
+  check('environment', 'Работает в помещении при +5…+25 °C', 'pass'),
+]
 
 /** Цена расчёта подбора (2 244 тыс. ₽), а не каталога (1,80 млн ₽) — PRD 15 · №107. */
 const AMR800_PRICE: NonNullable<RankedVariant['priceOffer']> = {
@@ -85,8 +79,8 @@ const FORKLIFTS = { code: 'other.forklifts', kind: 'other', label: 'Иные э�
 const newCosts = (amountRub: number) => ({ code: 'new_costs.robots', kind: 'new_costs', label: 'Новые расходы на роботов', amountRub: -amountRub }) as const
 
 const AMR800_RAAS: VariantDetails = {
-  scoreBreakdown: breakdown(0.3, 0.15, 0.1, 0.1, 0.09, 0.05, 0.03, 0.09),
-  reasons: AMR800_REASONS,
+  criteria: breakdown(0.3, 0.15, 0.1, 0.1, 0.09, 0.05, 0.03, 0.09),
+  fits: AMR800_FITS,
   priceOffer: AMR800_PRICE,
   // ПО, обслуживание и замена АКБ входят в тариф RaaS — отдельно не считаются.
   ownership: { softwareOneOffRub: null, softwareRubPerYear: null, implementationRub: IMPLEMENTATION, serviceRubPerYear: null, serviceLifeYears: SERVICE_LIFE },
@@ -103,8 +97,9 @@ const AMR800_RAAS: VariantDetails = {
     contractMonths: 36,
     renewal: null,
     buyout: null,
+    renewalAssumption: 'после 36 мес. принято продление по тому же тарифу',
     indexationPerYear: 0.05,
-    assumptions: ['после 36 мес. — продление по тому же тарифу', 'индексация 5 % в год'],
+    indexationAssumed: true,
     source: 'Расчётный сценарий команды — не предложение производителя',
   },
   auxEquipment: AMR800_EQUIPMENT,
@@ -112,8 +107,8 @@ const AMR800_RAAS: VariantDetails = {
 }
 
 const AMR800_PURCHASE: VariantDetails = {
-  scoreBreakdown: breakdown(0.19, 0.08, 0.06, 0.09, 0.1, 0.15, 0.03, 0.02),
-  reasons: AMR800_REASONS,
+  criteria: breakdown(0.19, 0.08, 0.06, 0.09, 0.1, 0.15, 0.03, 0.02),
+  fits: AMR800_FITS,
   priceOffer: AMR800_PRICE,
   ownership: {
     softwareOneOffRub: 0.9 * M,
@@ -131,12 +126,12 @@ const AMR800_PURCHASE: VariantDetails = {
 export const VARIANT_DETAILS_LP01: Readonly<Record<string, VariantDetails>> = {
   [variantKey('RB-0008', 'raas')]: AMR800_RAAS,
   [variantKey('RB-0008', 'purchase')]: AMR800_PURCHASE,
-  [variantKey('RB-0001', 'raas')]: { scoreBreakdown: breakdown(0.27, 0.12, 0.1, 0.09, 0.09, 0.05, 0.04, 0.02) },
-  [variantKey('RB-0005', 'raas')]: { scoreBreakdown: breakdown(0.27, 0.11, 0.1, 0.08, 0.08, 0.05, 0.03, 0.01) },
-  [variantKey('RB-0001', 'purchase')]: { scoreBreakdown: breakdown(0.14, 0.06, 0.06, 0.08, 0.09, 0.14, 0.04, 0.02) },
-  [variantKey('RB-0005', 'purchase')]: { scoreBreakdown: breakdown(0.13, 0.05, 0.05, 0.08, 0.08, 0.14, 0.03, 0.01) },
-  [variantKey('RB-0013', 'purchase')]: { scoreBreakdown: breakdown(0.03, 0, 0, 0, 0.07, 0.15, 0.05, 0.03) },
-  [variantKey('RB-0013', 'raas')]: { scoreBreakdown: breakdown(0, 0, 0.1, 0.01, 0.07, 0, 0.05, 0.03) },
+  [variantKey('RB-0001', 'raas')]: { criteria: breakdown(0.27, 0.12, 0.1, 0.09, 0.09, 0.05, 0.04, 0.02) },
+  [variantKey('RB-0005', 'raas')]: { criteria: breakdown(0.27, 0.11, 0.1, 0.08, 0.08, 0.05, 0.03, 0.01) },
+  [variantKey('RB-0001', 'purchase')]: { criteria: breakdown(0.14, 0.06, 0.06, 0.08, 0.09, 0.14, 0.04, 0.02) },
+  [variantKey('RB-0005', 'purchase')]: { criteria: breakdown(0.13, 0.05, 0.05, 0.08, 0.08, 0.14, 0.03, 0.01) },
+  [variantKey('RB-0013', 'purchase')]: { criteria: breakdown(0.03, 0, 0, 0, 0.07, 0.15, 0.05, 0.03) },
+  [variantKey('RB-0013', 'raas')]: { criteria: breakdown(0, 0, 0.1, 0.01, 0.07, 0, 0.05, 0.03) },
 }
 
 /** Поля окна 2.1а по процессам локаций — как `EVALUATIONS_BY_PROCESS`. */

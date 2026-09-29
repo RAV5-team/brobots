@@ -23,32 +23,28 @@ describe('поля окна 2.1а (projectMatchingDetails.ts)', () => {
   it('каждая запись — вариант рейтинга LP-01, у каждого варианта есть разбор балла', () => {
     const keys = new Set(base.variants.map((v) => variantKey(v.solutionId, v.acquisition)))
     expect(Object.keys(VARIANT_DETAILS_LP01).filter((key) => !keys.has(key))).toEqual([])
-    expect(evaluation.variants.filter((v) => !v.scoreBreakdown)).toEqual([])
+    expect(evaluation.variants.filter((v) => v.criteria.some((c) => c.contribution === null))).toEqual([])
   })
 
   it('сумма вкладов равна баллу фикстуры у всех 8 вариантов (D-13, PRD 15 · №20)', () => {
     for (const v of evaluation.variants) {
-      const contributions = (v.scoreBreakdown ?? []).map((c) => c.contribution ?? Number.NaN)
+      const contributions = v.criteria.map((c) => c.contribution ?? Number.NaN)
       expect(sum(contributions), `${v.solutionName} · ${v.acquisition}`).toBeCloseTo(v.score ?? Number.NaN, 5)
     }
   })
 
-  it('разбор — те же 8 критериев и веса, что в рейтинге; у AMR 800 · RaaS совпадает с `criteria`', () => {
-    const raas = variant('RB-0008', 'raas')
-    expect(raas.scoreBreakdown).toEqual(raas.criteria)
+  it('разбор — те же 8 критериев, веса и порядок, что в ответе API; у AMR 800 · RaaS совпадает с ответом API', () => {
+    const fromApi = base.variants.find((v) => v.solutionId === 'RB-0008' && v.acquisition === 'raas')
+    expect(variant('RB-0008', 'raas').criteria).toEqual(fromApi?.criteria)
     for (const v of evaluation.variants) {
-      expect(v.scoreBreakdown?.map((c) => [c.code, c.weight])).toEqual(raas.criteria.map((c) => [c.code, c.weight]))
-      expect(v.scoreBreakdown?.every((c) => c.contribution !== null && c.contribution >= 0)).toBe(true)
+      expect(v.criteria.map((c) => [c.code, c.weight])).toEqual(fromApi?.criteria.map((c) => [c.code, c.weight]))
+      expect(v.criteria.every((c) => c.contribution !== null && c.contribution >= 0)).toBe(true)
     }
-  })
-
-  it('рейтинг 03 не меняется: `criteria` остаются из ответа API', () => {
-    expect(evaluation.variants.map((v) => v.criteria)).toEqual(base.variants.map((v) => v.criteria))
   })
 
   it('цена, условия, оборудование — только у AMR 800; у остальных экран покажет «нет данных»', () => {
     const others = evaluation.variants.filter((v) => v.solutionId !== 'RB-0008')
-    for (const key of ['priceOffer', 'raasTerms', 'auxEquipment', 'ownership', 'netEffectItems', 'reasons', 'effectiveProductivity'] as const) {
+    for (const key of ['priceOffer', 'raasTerms', 'auxEquipment', 'ownership', 'netEffectItems', 'fits', 'effectiveProductivity'] as const) {
       expect(others.filter((v) => key in v).map((v) => v.solutionName), key).toEqual([])
       expect(AMR800[1]?.[key] !== undefined || key === 'raasTerms', key).toBe(true)
     }
@@ -99,7 +95,9 @@ describe('поля окна 2.1а (projectMatchingDetails.ts)', () => {
     const margin = NORMS.find((n) => n.code === 'width_margin_m')?.value
     if (!himki || !amr || typeof margin !== 'number') throw new Error('нет РЦ Химки, AMR 800 или норматива')
     const checks = siteRequirementChecks(amr.specs, siteFactsOf(himki, SITE_VALUES['LOC-01'] ?? {}), margin)
-    for (const v of AMR800) expect(v.reasons?.missing).toHaveLength(needsCheckCount(checks))
+    // Недостающие данные не хранятся в варианте: их 2 — нагрузка на пол и Wi-Fi, как в правой колонке 2.1.
+    expect(needsCheckCount(checks)).toBe(2)
+    for (const v of AMR800) expect(v.fits?.every((c) => c.status === 'pass')).toBe(true)
     expect(checks.filter((c) => c.status === 'misfit')).toEqual([])
   })
 

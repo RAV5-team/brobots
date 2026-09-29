@@ -44,12 +44,17 @@ const renderAt = (path: string, services: Services = createMockServices({ latenc
 afterEach(() => { sessionStorage.clear() })
 
 describe('ProjectStepPage — каркас шага проекта', () => {
-  it('открывает шаг демо-проекта: заголовок шага, крошки с локацией, степпер', async () => {
+  it('открывает шаг демо-проекта: заголовок шага и степпер (каркас доски 16325, шаг 2)', async () => {
     renderAt('/projects/PJ-DEMO/matching?as=user')
-    expect(await screen.findByRole('heading', { level: 1, name: 'Подбор решения под процесс' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'РЦ Химки' })).toHaveAttribute('href', '/locations/LOC-01')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Подбор решений' })).toBeInTheDocument()
     expect(screen.getByRole('navigation', { name: 'Шаги проекта' })).toBeInTheDocument()
     expect(document.title).toBe('Подбор решения · Демо-проект · РЦ Химки · RAV5')
+  })
+
+  it('крошки с локацией — на старом каркасе (шаг 4)', async () => {
+    renderAt('/projects/PJ-DEMO/economics?as=user')
+    expect(await screen.findByRole('link', { name: 'РЦ Химки' })).toHaveAttribute('href', '/locations/LOC-01')
+    expect(screen.getByRole('navigation', { name: 'Шаги проекта' })).toBeInTheDocument()
   })
 
   it('закрытый шаг черновика — перенаправление на шаг, где остановились', async () => {

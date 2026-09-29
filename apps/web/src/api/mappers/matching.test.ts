@@ -103,7 +103,7 @@ describe('toMatchingEvaluation', () => {
 
   it('чего API не отдал, того нет в варианте: поля 2.1а необязательные', () => {
     const variant = mapped.variants[0]
-    for (const key of ['limitations', 'summary', 'offerId', 'calcTrace', 'priceOffer', 'raasTerms', 'scoreBreakdown']) {
+    for (const key of ['limitations', 'summary', 'offerId', 'calcTrace', 'priceOffer', 'raasTerms']) {
       expect(variant).not.toHaveProperty(key)
     }
   })
