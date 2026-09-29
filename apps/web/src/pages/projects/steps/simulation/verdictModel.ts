@@ -6,11 +6,10 @@ import {
   type RunKpis,
   type SimulationRun,
 } from '@/domain'
-import { formatCount, formatNumber, formatPercent, formatRubCompact, formatRubMillionsDelta, formatYears, pluralize, type PluralForms } from '@/shared/format'
+import { formatNumber, formatPercent, formatRubCompact, formatYears } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 
 const t = ru.project.simulation.verdict
-const plural = ru.plural
 
 export const sameFleet = (a: Fleet, b: Fleet): boolean => a.robots === b.robots && a.stations === b.stations
 
@@ -47,26 +46,8 @@ export function verdictAction(run: SimulationRun, plan: Fleet, acceptRisk: boole
 /** Риск можно принять только у «нужно докупить»: прежний состав не вывозит поток (PRD 11.4). */
 export const canAcceptRisk = (run: SimulationRun): boolean => run.verdict === 'need_more'
 
-const signed = (n: number): string => formatNumber(n, 0, { signed: true })
-
-/** Плашка плана: «Экономия 2 роботов и 1 станции», «Докупка 3 роботов», «Без изменений» — от проверенного состава. */
-export function planChangeLabel(from: Fleet, plan: Fleet): string {
-  const dr = plan.robots - from.robots
-  const ds = plan.stations - from.stations
-  if (dr === 0 && ds === 0) return t.plan.noChange
-  if (dr <= 0 && ds <= 0 || dr >= 0 && ds >= 0) {
-    const parts = [
-      dr === 0 ? null : formatCount(Math.abs(dr), plural.robotsOf),
-      ds === 0 ? null : formatCount(Math.abs(ds), plural.stationsOf),
-    ].filter((p): p is string => p !== null).join(t.plan.and)
-    return dr < 0 || ds < 0 ? t.plan.saving(parts) : t.plan.purchase(parts)
-  }
-  const part = (delta: number, forms: PluralForms): string => `${signed(delta)}\u00a0${pluralize(Math.abs(delta), forms)}`
-  return t.plan.mixed(`${part(dr, plural.robots)}${t.plan.and}${part(ds, plural.stations)}`)
-}
-
-/** Дельта строки плана: «−2», «+3»; без изменения — не показывается. */
-export const planDelta = (value: number, base: number): string | undefined => (value === base ? undefined : signed(value - base))
+/** Дельта плана к проверенному составу: «+1», «−2»; без изменения — null (чип «без изменений», 3.4). */
+export const planDelta = (value: number, base: number): string | null => (value === base ? null : formatNumber(value - base, 0, { signed: true }))
 
 /** Статьи, которые растут с числом роботов и станций (D-104); остальные — на объект целиком. */
 const PER_ROBOT = new Set(['capex.equipment', 'opex.annual_raas_cost', 'opex.annual_energy_cost', 'opex.annual_service_cost'])
@@ -74,6 +55,8 @@ const PER_STATION = new Set(['capex.charging'])
 
 export interface EconomicsPreview {
   readonly capexRub: number
+  /** OPEX роботов в год: статьи на робота (платёж RaaS, энергия, сервис) по составу плана (3.4). */
+  readonly robotOpexRub: number
   readonly annualEffectRub: number
   /** null — не окупается. */
   readonly paybackYears: number | null
@@ -95,48 +78,55 @@ export function previewEconomics(variant: RankedVariant, fleet: Fleet): Economic
   const robotRatio = fleet.robots / variant.robots
   const stationRatio = variant.stations ? fleet.stations / variant.stations : 1
   const capexRub = variant.capexRub + scaled(variant.capexItems, PER_ROBOT, robotRatio) + scaled(variant.capexItems, PER_STATION, stationRatio)
-  const annualEffectRub = variant.annualEffectRub - scaled(variant.opexItems, PER_ROBOT, robotRatio)
+  const opexGrowth = scaled(variant.opexItems, PER_ROBOT, robotRatio)
+  const annualEffectRub = variant.annualEffectRub - opexGrowth
+  const robotOpexRub = variant.opexItems.filter((item) => PER_ROBOT.has(item.code)).reduce((sum, item) => sum + item.amountRub, 0) + opexGrowth
   return {
     capexRub,
+    robotOpexRub,
     annualEffectRub,
     paybackYears: annualEffectRub > 0 ? capexRub / annualEffectRub : null,
     utilization: variant.fleetUtilization === null ? null : Math.min(1, variant.fleetUtilization / robotRatio),
   }
 }
 
+/** Изменение к подбору: «+4 %», «−4 %»; `worse` — для склада хуже (CAPEX, OPEX и окупаемость растут, эффект падает). */
+export interface EconomicsChange {
+  readonly text: string
+  readonly worse: boolean
+}
+
 export interface EconomicsRow {
-  readonly key: 'capex' | 'effect' | 'payback' | 'utilization'
+  readonly key: 'capex' | 'opex' | 'effect' | 'payback'
   readonly label: string
   readonly from: string
   readonly to: string
-  readonly delta: string
+  /** null — значение не изменилось или его нет. */
+  readonly change: EconomicsChange | null
 }
 
 const rub = (value: number): string => formatRubCompact(value, { fractionDigits: 1 })
 const years = (value: number | null): string => (value === null ? t.economics.noPayback : formatYears(value))
-const signedYears = (a: number | null, b: number | null): string => {
-  if (a === null || b === null) return '—'
-  return formatNumber(b - a, 1, { signed: true })
+
+/** Относительное изменение со знаком, до целого процента (3.4: «+4 %»); меньше полупроцента — изменения нет. */
+function change(from: number | null, to: number | null, higherIsWorse: boolean): EconomicsChange | null {
+  if (from === null || to === null || from === 0) return null
+  const share = (to - from) / Math.abs(from)
+  if (Math.abs(share) < 0.005) return null
+  return { text: formatPercent(share, 0, { signed: true }), worse: higherIsWorse ? share > 0 : share < 0 }
 }
 
-/** Строки таблицы «из подбора → с изменениями». */
+/** «Экономика, предварительно» (3.4, 16414:3663): из подбора → с изменениями и изменение в процентах. */
 export function economicsRows(variant: RankedVariant, plan: Fleet): readonly EconomicsRow[] {
   const from = previewEconomics(variant, { robots: variant.robots, stations: variant.stations ?? plan.stations })
   const to = previewEconomics(variant, plan)
   const r = t.economics.rows
-  const rows: EconomicsRow[] = [
-    { key: 'capex', label: r.capex, from: rub(from.capexRub), to: rub(to.capexRub), delta: formatRubMillionsDelta(to.capexRub - from.capexRub) },
-    { key: 'effect', label: r.effect, from: rub(from.annualEffectRub), to: rub(to.annualEffectRub), delta: formatRubMillionsDelta(to.annualEffectRub - from.annualEffectRub) },
-    { key: 'payback', label: r.payback, from: years(from.paybackYears), to: years(to.paybackYears), delta: signedYears(from.paybackYears, to.paybackYears) },
+  return [
+    { key: 'capex', label: r.capex, from: rub(from.capexRub), to: rub(to.capexRub), change: change(from.capexRub, to.capexRub, true) },
+    { key: 'opex', label: r.opex, from: rub(from.robotOpexRub), to: rub(to.robotOpexRub), change: change(from.robotOpexRub, to.robotOpexRub, true) },
+    { key: 'effect', label: r.effect, from: rub(from.annualEffectRub), to: rub(to.annualEffectRub), change: change(from.annualEffectRub, to.annualEffectRub, false) },
+    { key: 'payback', label: r.payback, from: years(from.paybackYears), to: years(to.paybackYears), change: change(from.paybackYears, to.paybackYears, true) },
   ]
-  if (from.utilization === null || to.utilization === null) return rows
-  return [...rows, {
-    key: 'utilization',
-    label: r.utilization,
-    from: formatPercent(from.utilization),
-    to: formatPercent(to.utilization),
-    delta: t.economics.points(formatNumber((to.utilization - from.utilization) * 100, 0, { signed: true })),
-  }]
 }
 
 /** «в худший день в срок 98,4 % · 130 из 130 рейсов в пик» — итоги состава. */

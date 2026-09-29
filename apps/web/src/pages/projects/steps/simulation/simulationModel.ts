@@ -7,7 +7,7 @@ import {
   type SimulationInputs,
   type SimulationStage,
 } from '@/domain'
-import { formatCount, formatNumber } from '@/shared/format'
+import { formatCount, formatNumber, parseDecimal } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import type { PeakDemand } from '../params/paramsModel'
 
@@ -21,6 +21,16 @@ export const FLEET_LIMITS = {
 } as const
 
 const robotsCount = (n: number): string => formatCount(n, ru.plural.robots)
+
+export type FleetKey = keyof Fleet
+
+/** Поле состава (3.1): целое число в границах D-101; иначе — текст исправления. */
+export function parseFleetField(key: FleetKey, text: string): { readonly ok: true; readonly value: number } | { readonly ok: false; readonly error: string } {
+  const { min, max } = FLEET_LIMITS[key]
+  const value = parseDecimal(text)
+  if (value === null || !Number.isInteger(value) || value < min || value > max) return { ok: false, error: ru.project.simulation.fleet.rangeError(min, max) }
+  return { ok: true, value }
+}
 
 const indexOf = (stage: SimulationStage): number => SIMULATION_STAGES.indexOf(stage)
 
@@ -73,8 +83,9 @@ export interface CalcRow {
 }
 
 /**
- * «Как рассчитал подбор» (PRD 11.4, этап 1) на числах подбора, как в 03a (D-100): потребность — хелпер шага 1,
- * цикл и станции — из расчёта, производительность — из «Параметров расчёта» (8,6, а не 8,76 из PRD — №109).
+ * «Расчёт подбора» (PRD 11.4, этап 1; 3.1 доски — пояснение в подписи, значение справа) на числах подбора, как в 03a (D-100):
+ * потребность — хелпер шага 1, цикл и станции — из расчёта, производительность — из «Параметров расчёта» (8,6, а не 8,76
+ * из PRD — №109). Строки «Парк» и «Зарядных станций» вместо «Резерв парка · роботов на станцию» с доски: резерва нет в API (D-101).
  */
 export function calcRows(variant: RankedVariant, demand: PeakDemand | null, params: CalcParams | null): readonly CalcRow[] {
   const productivity = params?.robotTripsPerHour ?? null
@@ -86,27 +97,25 @@ export function calcRows(variant: RankedVariant, demand: PeakDemand | null, para
     },
     variant.cycleTimeS === null
       ? null
-      : { key: 'cycle', label: c.cycle, value: c.value(ru.project.matching.howCalc.seconds(formatNumber(variant.cycleTimeS)), c.cycleNote) },
+      : { key: 'cycle', label: c.withNote(c.cycle, c.cycleNote), value: ru.project.matching.howCalc.seconds(formatNumber(variant.cycleTimeS)) },
     productivity === null || variant.cycleTimeS === null || params === null
       ? null
       : {
           key: 'productivity',
-          label: c.productivity,
-          value: c.value(
-            ru.project.matching.howCalc.trips(formatNumber(productivity, 2)),
+          label: c.withNote(
+            c.productivity,
             c.productivityNote(formatNumber(variant.cycleTimeS), formatNumber(params.utilization, 2), formatNumber(SECONDS_PER_HOUR / variant.cycleTimeS * params.utilization, 2)),
           ),
+          value: ru.project.matching.howCalc.trips(formatNumber(productivity, 2)),
         },
     {
       key: 'fleet',
-      label: c.fleet,
-      value: demand && productivity
-        ? c.value(robotsCount(variant.robots), c.fleetNote(formatNumber(demand.perHour / productivity, 1)))
-        : robotsCount(variant.robots),
+      label: demand && productivity ? c.withNote(c.fleet, c.fleetNote(formatNumber(demand.perHour / productivity, 1))) : c.fleet,
+      value: robotsCount(variant.robots),
     },
     variant.stations === null || variant.stations === 0
       ? null
-      : { key: 'stations', label: c.stations, value: c.value(formatNumber(variant.stations), c.stationsNote(robotsPerStation(matchingFleet(variant)))) },
+      : { key: 'stations', label: c.withNote(c.stations, c.stationsNote(robotsPerStation(matchingFleet(variant)))), value: formatNumber(variant.stations) },
   ]
   return rows.filter((r): r is CalcRow => r !== null)
 }

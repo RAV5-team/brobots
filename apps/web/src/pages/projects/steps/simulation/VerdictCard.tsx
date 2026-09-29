@@ -1,22 +1,16 @@
 import { Card } from '@/components/ui/Card'
-import { Chip } from '@/components/ui/Chip'
-import { Well } from '@/components/ui/Well'
-import type { SimulationRun, SimulationVerdict } from '@/domain'
+import type { SimulationRun } from '@/domain'
 import { ru } from '@/shared/i18n/ru'
-import { kpisLine } from './verdictModel'
 
 const t = ru.project.simulation.verdict
 
-/** Состав справляется — лаймовая плашка; проблема — светлая: лайм на экране — знак «всё в порядке». */
-const PASSED: ReadonlySet<SimulationVerdict> = new Set(['confirmed', 'can_reduce'])
-
-/** Список с лаймовыми точками (16197:1876). */
+/** Маркированный список пунктов прогона (16414:3514). */
 function Points({ items, label }: { readonly items: readonly string[]; readonly label: string }) {
   return (
     <ul aria-label={label} className="flex flex-col gap-8">
       {items.map((item) => (
-        <li key={item} className="flex items-start gap-10 type-body text-bg">
-          <span aria-hidden className="mt-8 size-4 shrink-0 rounded-full bg-on-inverse" />
+        <li key={item} className="flex items-start gap-8 type-body text-text">
+          <span aria-hidden className="mt-8 size-4 shrink-0 rounded-full bg-text-muted" />
           {item}
         </li>
       ))}
@@ -24,34 +18,32 @@ function Points({ items, label }: { readonly items: readonly string[]; readonly 
   )
 }
 
+/** Подраздел карточки: «Узкое место», «Что проверить на пилоте» (16414:3527). */
+function Section({ id, title, lines }: { readonly id: string; readonly title: string; readonly lines: readonly string[] }) {
+  return (
+    <section aria-labelledby={id} className="flex flex-col gap-4">
+      <h3 id={id} className="type-title-sm text-text">{title}</h3>
+      {lines.map((line) => <p key={line} className="type-body text-text">{line}</p>)}
+    </section>
+  )
+}
+
 /**
- * «Карточка · вердикт» (16197:1870; PRD 11.4): плашка вердикта, итоги проверенного состава, заголовок и пункты прогона,
- * «Где тоньше всего» и «Что проверить на пилоте». Тексты — из прогона (simcore/verdict_text), числа — из его итогов.
+ * Карточка вердикта (3.4, 16414:3433; PRD 11.4): заголовок прогона, «оценка по худшему дню», пункты и «Узкое место».
+ * Тексты — из прогона (simcore/verdict_text), числа — из его итогов (D-13). «Что проверить на пилоте» на доске убран —
+ * пока показан подразделом ниже, ждёт решения 11 (D-104).
  */
 export function VerdictCard({ run }: { readonly run: SimulationRun }) {
-  const name = run.label ? `${t.names[run.verdict]} · ${run.label}` : t.names[run.verdict]
   const points = [...run.lines, ...run.justification]
   return (
-    <Card as="section" variant="inverse" padding={24} gap={16} aria-labelledby="verdict-title">
-      <div className="flex flex-wrap items-center gap-10">
-        <Chip tone={PASSED.has(run.verdict) ? 'ready' : 'neutral'}>{name}</Chip>
-        <p className="type-caption text-text-disabled">{kpisLine(run.before)}</p>
-        <p className="ml-auto type-caption text-text-disabled">{t.runLabel(run.id)}</p>
+    <Card as="section" padding={28} gap={20} aria-labelledby="verdict-title">
+      <div className="flex flex-col gap-4">
+        <h2 id="verdict-title" className="type-title-md text-text">{run.title}</h2>
+        <p className="type-caption text-text-secondary">{t.worstDay}</p>
       </div>
-      <h2 id="verdict-title" className="type-display-md text-bg">{run.title}</h2>
       {points.length > 0 && <Points items={points} label={t.pointsLabel} />}
-      {run.diagnosis.length > 0 && (
-        <Well title={t.thinnest}>
-          {run.diagnosis.map((line) => <p key={line} className="type-body-sm text-bg">{line}</p>)}
-        </Well>
-      )}
-      {run.risks.length > 0 && (
-        <Well title={t.pilot}>
-          <ul className="flex flex-col gap-4">
-            {run.risks.map((line) => <li key={line} className="type-body-sm text-bg">{line}</li>)}
-          </ul>
-        </Well>
-      )}
+      {run.diagnosis.length > 0 && <Section id="verdict-bottleneck" title={t.bottleneck} lines={run.diagnosis} />}
+      {run.risks.length > 0 && <Section id="verdict-pilot" title={t.pilot} lines={run.risks} />}
     </Card>
   )
 }
