@@ -1,9 +1,10 @@
-import { ArrowLeft, ArrowRight } from 'lucide-react'
-import { useState } from 'react'
-import { Button } from '@/components/ui/Button'
+import { ArrowRight } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
 import { FieldGrid, FormSection } from '@/components/ui/FormSection'
+import { MergedButton } from '@/components/ui/MergedButton'
 import type { SelectOption } from '@/components/ui/Select'
 import type { SimulationConditions } from '@/domain'
+import { formatPercent } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { ChoiceCondition, NumberCondition } from './ConditionField'
 import {
@@ -16,26 +17,49 @@ import {
   withCondition,
   type ConditionBases,
   type ConditionKey,
+  type ConditionOrigin,
   type NumericConditionKey,
 } from './conditionsModel'
 import { DemandCard } from './DemandCard'
-import { demandProfile, workingHours } from './hourlyDemand'
-import { PeakHoursCard } from './PeakHoursCard'
+import { demandProfile } from './hourlyDemand'
+import { PeakWindows } from './PeakWindows'
 
 const t = ru.project.simulation.conditions
 
+type SectionKey = keyof typeof t.sections
 type GroupKey = keyof typeof t.groups
 type ChoiceKey = 'traffic' | 'fastMoversAtGates' | 'fleetPolicy' | 'designVolume'
 
-/** Группы и поля по макету (16197:1335 … 16197:1509): порядок, колонки. */
-const GROUPS: readonly { readonly key: GroupKey; readonly columns: 2 | 3 | 4 | 1; readonly fields: readonly ConditionKey[] }[] = [
-  { key: 'schedule', columns: 4, fields: ['firstShiftStartHour', 'shiftsPerDay', 'shiftHours', 'peakFactor'] },
-  { key: 'flows', columns: 3, fields: ['inboundPalletsPerDay', 'outboundPalletsPerDay', 'manualShare'] },
-  { key: 'service', columns: 2, fields: ['maxWaitMin', 'onTimeTarget'] },
-  { key: 'growth', columns: 1, fields: ['growthReserve'] },
-  { key: 'site', columns: 3, fields: ['traffic', 'fastMoversAtGates', 'repairHours'] },
-  { key: 'assumptions', columns: 3, fields: ['routeLengthM', 'operatorTimeShare', 'laborReplacementRatio'] },
-  { key: 'check', columns: 3, fields: ['tolerance', 'fleetPolicy', 'designVolume'] },
+interface Group {
+  /** Подраздел карточки с заголовком капсом; без ключа — поля прямо в карточке («Допущения расчёта»). */
+  readonly key?: GroupKey
+  readonly fields: readonly ConditionKey[]
+}
+
+/**
+ * Карточки и подразделы 3.2 (16325:158): «Из задачи» — расписание и потоки, «Значения по умолчанию» — сервис, рост,
+ * склад и проверка, «Допущения расчёта». Источник карточки — метка, которую у её полей не повторяем.
+ */
+const SECTIONS: readonly { readonly key: SectionKey; readonly origin: ConditionOrigin; readonly groups: readonly Group[] }[] = [
+  {
+    key: 'task',
+    origin: 'task',
+    groups: [
+      { key: 'schedule', fields: ['firstShiftStartHour', 'shiftsPerDay', 'shiftHours', 'peakFactor'] },
+      { key: 'flows', fields: ['inboundPalletsPerDay', 'outboundPalletsPerDay', 'manualShare'] },
+    ],
+  },
+  {
+    key: 'defaults',
+    origin: 'default',
+    groups: [
+      { key: 'service', fields: ['maxWaitMin', 'onTimeTarget'] },
+      { key: 'growth', fields: ['growthReserve'] },
+      { key: 'site', fields: ['traffic', 'fastMoversAtGates', 'repairHours'] },
+      { key: 'check', fields: ['tolerance', 'fleetPolicy', 'designVolume'] },
+    ],
+  },
+  { key: 'assumptions', origin: 'assumption', groups: [{ fields: ['routeLengthM', 'operatorTimeShare', 'laborReplacementRatio'] }] },
 ]
 
 /** Варианты из словаря: ключи подписей — значения условия, выбор приходит уже своего типа. */
@@ -60,18 +84,18 @@ interface ConditionsStageProps {
   readonly calcPeak: number | null
   readonly overrides: Partial<SimulationConditions>
   readonly onChange: (overrides: Partial<SimulationConditions>) => void
-  readonly onBack: () => void
   readonly onRun: () => void
+  /** Раскладка экрана: карточки условий — в основную колонку, график и запуск — в правую (каркас доски). */
+  readonly layout: (body: ReactNode, rail: ReactNode) => ReactNode
 }
 
 /**
- * Этап 2 «Условия симуляции» (экран 05, 16197:1285; PRD 11.4; D-102): семь групп полей с меткой источника,
- * пиковые часы и потребность по часам. Правка сохраняется сразу и делает прошлый прогон устаревшим (D-89).
+ * Этап 2 «Условия симуляции» (3.2, 16325:158; PRD 11.4; D-102): три карточки по источнику значений, пиковые окна,
+ * справа — потребность по часам и запуск. Правка сохраняется сразу и делает прошлый прогон устаревшим (D-89).
  */
-export function ConditionsStage({ bases, handlingName, overrides, calcPeak, canEdit, onChange, onBack, onRun }: ConditionsStageProps) {
+export function ConditionsStage({ bases, handlingName, overrides, calcPeak, canEdit, onChange, onRun, layout }: ConditionsStageProps) {
   const [invalid, setInvalid] = useState<ReadonlySet<ConditionKey>>(new Set())
   const conditions = effectiveConditions(bases, overrides)
-  const working = workingHours(conditions.firstShiftStartHour, conditions.shiftsPerDay, conditions.shiftHours)
   const shiftsProblem = shiftsError(conditions)
   const peaksProblem = shiftsProblem ? null : peaksError(conditions)
   const blocked = invalid.size > 0 || shiftsProblem !== null || peaksProblem !== null
@@ -87,10 +111,12 @@ export function ConditionsStage({ bases, handlingName, overrides, calcPeak, canE
   const hintOf = (key: NumericConditionKey): string => {
     if (key !== 'onTimeTarget') return t.fields[key].hint
     const { part, whole } = simpleFraction(conditions.onTimeTarget)
-    return t.onTimeHint(part, whole)
+    return t.onTimeHint(formatPercent(conditions.onTimeTarget), part, whole)
   }
 
-  const renderField = (key: ConditionKey) => {
+  const renderField = (key: ConditionKey, sectionOrigin: ConditionOrigin) => {
+    const origin = originOf(key, bases, overrides)
+    const badge = origin === sectionOrigin ? null : origin
     if (isNumeric(key)) {
       const label = key === 'laborReplacementRatio' && handlingName ? t.replacementLabel(handlingName) : t.fields[key].label
       return (
@@ -100,7 +126,7 @@ export function ConditionsStage({ bases, handlingName, overrides, calcPeak, canE
           label={label}
           unit={t.fields[key].unit}
           hint={hintOf(key)}
-          origin={originOf(key, bases, overrides)}
+          origin={badge}
           value={conditions[key]}
           crossError={key === 'shiftHours' ? shiftsProblem : null}
           disabled={!canEdit}
@@ -109,11 +135,11 @@ export function ConditionsStage({ bases, handlingName, overrides, calcPeak, canE
         />
       )
     }
-    return renderChoice(key as ChoiceKey)
+    return renderChoice(key as ChoiceKey, badge)
   }
 
-  const renderChoice = (key: ChoiceKey) => {
-    const common = { label: t.fields[key].label, hint: t.fields[key].hint, origin: originOf(key, bases, overrides), disabled: !canEdit }
+  const renderChoice = (key: ChoiceKey, origin: ConditionOrigin | null) => {
+    const common = { label: t.fields[key].label, hint: t.fields[key].hint, origin, disabled: !canEdit }
     switch (key) {
       case 'fastMoversAtGates':
         return <ChoiceCondition key={key} {...common} options={CHOICES.fastMoversAtGates} value={conditions.fastMoversAtGates ? 'abc' : 'no'} onChange={(v) => { set(key, v === 'abc') }} />
@@ -126,23 +152,43 @@ export function ConditionsStage({ bases, handlingName, overrides, calcPeak, canE
     }
   }
 
-  return (
+  const peakWindows = (
+    <PeakWindows
+      peaks={conditions.peakHours}
+      isDefault={originOf('peakHours', bases, overrides) !== 'specified'}
+      error={peaksProblem}
+      canEdit={canEdit}
+      onChange={(peaks) => { set('peakHours', peaks) }}
+      onReset={() => { set('peakHours', bases.peakHours.value) }}
+    />
+  )
+
+  const renderGroup = (group: Group, origin: ConditionOrigin, index: number) => {
+    const grid = <FieldGrid>{group.fields.map((key) => renderField(key, origin))}</FieldGrid>
+    if (!group.key) return <div key={index}>{grid}</div>
+    const g: { readonly title: string; readonly description?: string } = t.groups[group.key]
+    const headingId = `simulation-${group.key}-heading`
+    return (
+      // Подразделы — через линию (16914:6): первый без неё, сразу под заголовком карточки.
+      <section key={group.key} aria-labelledby={headingId} className={index === 0 ? 'flex flex-col gap-16' : 'flex flex-col gap-16 border-t border-border pt-20'}>
+        <div className="flex flex-col gap-4">
+          <h3 id={headingId} className="type-overline text-text-muted">{g.title}</h3>
+          {g.description && <p className="type-caption text-text-secondary">{g.description}</p>}
+        </div>
+        {group.key === 'schedule' && peakWindows}
+        {grid}
+      </section>
+    )
+  }
+
+  const body = SECTIONS.map((section) => (
+    <FormSection key={section.key} id={`simulation-${section.key}`} title={t.sections[section.key].title} description={t.sections[section.key].description}>
+      {section.groups.map((group, index) => renderGroup(group, section.origin, index))}
+    </FormSection>
+  ))
+
+  const rail = (
     <>
-      {GROUPS.map((group) => (
-        <FormSection key={group.key} id={`simulation-${group.key}`} title={t.groups[group.key].title} description={t.groups[group.key].description}>
-          {group.columns === 1 ? group.fields.map(renderField) : <FieldGrid columns={group.columns}>{group.fields.map(renderField)}</FieldGrid>}
-        </FormSection>
-      ))}
-      <PeakHoursCard
-        startHour={conditions.firstShiftStartHour}
-        working={working}
-        peaks={conditions.peakHours}
-        isDefault={originOf('peakHours', bases, overrides) !== 'specified'}
-        error={peaksProblem}
-        disabled={!canEdit}
-        onChange={(peaks) => { set('peakHours', peaks) }}
-        onReset={() => { set('peakHours', bases.peakHours.value) }}
-      />
       <DemandCard
         calcPeak={calcPeak}
         profile={demandProfile({
@@ -156,17 +202,10 @@ export function ConditionsStage({ bases, handlingName, overrides, calcPeak, canE
           manualShare: conditions.manualShare,
         })}
       />
-      <div className="flex items-center justify-end gap-12">
-        {blocked && <p role="alert" className="mr-auto type-caption font-medium text-danger">{t.invalid}</p>}
-        <Button onClick={onBack}>
-          <ArrowLeft aria-hidden size={16} />
-          {t.back}
-        </Button>
-        <Button variant="primary" disabled={blocked || !canEdit} onClick={onRun}>
-          {t.run}
-          <ArrowRight aria-hidden size={16} />
-        </Button>
-      </div>
+      <MergedButton block label={t.run} icon={ArrowRight} disabled={blocked || !canEdit} onClick={onRun} />
+      {blocked && <p role="alert" className="type-caption font-medium text-danger">{t.invalid}</p>}
     </>
   )
+
+  return layout(body, rail)
 }

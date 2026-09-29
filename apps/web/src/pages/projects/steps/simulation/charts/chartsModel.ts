@@ -1,6 +1,6 @@
 import type { ChartSeries } from '@/components/charts/chartTones'
 import type { Fleet, HourlyStat, SimulationRun } from '@/domain'
-import { formatCount, formatNumber } from '@/shared/format'
+import { formatCount, formatNumber, formatPercent } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { sameFleet } from '../verdictModel'
 
@@ -149,4 +149,77 @@ export function initialTime(clockOffsetH: number, hours: readonly HourlyStat[], 
   const offsets = hours.filter((h) => isPeakHour(h, run)).map((h) => ((h.hour - clockOffsetH + HOURS_PER_DAY) % HOURS_PER_DAY) * SECONDS_PER_HOUR)
   const first = Math.min(...offsets.filter((s) => s <= duration))
   return Number.isFinite(first) ? first : 0
+}
+
+/** Составы вкладки на доске (3.5): второй — всегда «С изменениями», какой бы ни был вердикт. Отчёт 09 — на `chartFleets`. */
+export function boardFleets(run: SimulationRun, fromMatching: Fleet): readonly ChartFleet[] {
+  return chartFleets(run, fromMatching).map((f) => (f.key === 'after' ? { ...f, title: t.charts.changed } : f))
+}
+
+/** Часы суток по порядку от начала первой смены: 07 … 06 (3.5, как сетка этапа 2). */
+export function fromShiftStart(hours: readonly HourlyStat[], startHour: number): readonly HourlyStat[] {
+  const at = hours.findIndex((h) => h.hour === startHour)
+  return at <= 0 ? hours : [...hours.slice(at), ...hours.slice(0, at)]
+}
+
+export interface BoardHourlyRow {
+  readonly key: string
+  readonly label: string
+  readonly cells: readonly { readonly value: string; readonly violation: boolean }[]
+}
+
+export interface BoardHourlyMetric {
+  readonly key: string
+  readonly label: string
+  readonly requirement?: string
+  readonly rows: readonly BoardHourlyRow[]
+}
+
+const oneDecimal = (v: number | null): string => (v === null ? '—' : formatNumber(v, 1, { fixed: true }))
+
+/**
+ * Таблица «Что происходило по часам» на доске (3.5, 17040:225): общая строка «Потребность», группы «Нагрузка на парк» и
+ * «Результат», у показателя — строка на каждый состав. Нарушение — у выполненных рейсов, ожидания и доли в срок
+ * (требования этапа 2); загрузку роботов доска не отмечает.
+ */
+export function boardHourly(fleets: readonly ChartFleet[], targets: ServiceTargets, startHour: number) {
+  const l = t.hourly
+  const r = t.charts.requirement
+  const byFleet = fleets.map((f) => ({ fleet: f, hours: fromShiftStart(f.hours, startHour) }))
+  const metric = (key: string, label: string, value: (h: HourlyStat) => string, flag?: keyof HourViolations, requirement?: string): BoardHourlyMetric => ({
+    key,
+    label,
+    ...(requirement === undefined ? {} : { requirement }),
+    rows: byFleet.map(({ fleet, hours }) => ({
+      key: `${key}-${fleet.key}`,
+      label: fleet.title,
+      cells: hours.map((h) => ({ value: value(h), violation: flag ? hourViolations(h, targets)[flag] : false })),
+    })),
+  })
+  const demandHours = byFleet[0]?.hours ?? []
+  return {
+    columns: demandHours.map((h) => hourLabel(h.hour)),
+    demand: { key: 'demand', label: l.demand, cells: demandHours.map((h) => ({ value: whole(h.demand), violation: false })) },
+    groups: [
+      {
+        key: 'load',
+        title: t.charts.groups.load,
+        metrics: [
+          metric('utilization', l.utilization, (h) => percent(h.utilization)),
+          metric('idle', l.idle, (h) => oneDecimal(h.idle)),
+          metric('waitingCharger', l.waitingCharger, (h) => oneDecimal(h.waitingCharger)),
+          metric('charging', l.charging, (h) => oneDecimal(h.charging)),
+        ],
+      },
+      {
+        key: 'result',
+        title: t.charts.groups.result,
+        metrics: [
+          metric('done', l.done, (h) => whole(h.done), 'done', r.done),
+          metric('waitMean', l.waitMean, (h) => oneDecimal(h.waitMeanMin), 'waitMean', r.waitMean(formatNumber(targets.maxWaitMin))),
+          metric('onTime', l.onTime, (h) => percent(h.onTime), 'onTime', r.onTime(formatPercent(targets.onTimeTarget))),
+        ],
+      },
+    ],
+  }
 }

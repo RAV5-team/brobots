@@ -52,6 +52,8 @@ export interface SimulationStepState {
   readonly stopRun: () => void
   /** План вердикта и принятый риск (этап 4): ничего не делают устаревшим (D-89). */
   readonly setVerdict: (patch: Pick<SimulationInputs, 'plan' | 'acceptRisk'>) => void
+  /** Принятые поправки методики (3.4): ничего не делает устаревшим (D-89). */
+  readonly setCalibration: (codes: readonly string[]) => void
   /** Дождаться записи плана перед переходом к экономике; у гостя и сохранённой оценки — сразу. */
   readonly commitVerdict: () => Promise<void>
 }
@@ -188,6 +190,11 @@ export function useSimulationStep(initial: Project, canSave: boolean): Simulatio
     persist(patch)
   }, [persist])
 
+  const setCalibration = useCallback((calibration: readonly string[]) => {
+    setInputs((current) => ({ ...(current ?? EMPTY), calibration }))
+    persist({ calibration })
+  }, [persist])
+
   const commitVerdict = useCallback(async () => {
     if (!canSave) return
     lastRequest.current += 1
@@ -199,5 +206,5 @@ export function useSimulationStep(initial: Project, canSave: boolean): Simulatio
     setSaveError(null)
   }, [canSave, services, initial.id, inputs?.plan, inputs?.acceptRisk])
 
-  return { load, retry, project, inputs, savedAt, saveError, stale, setFleet, setConditions, reachStage, run, startRun, stopRun, setVerdict, commitVerdict }
+  return { load, retry, project, inputs, savedAt, saveError, stale, setFleet, setConditions, reachStage, run, startRun, stopRun, setVerdict, setCalibration, commitVerdict }
 }

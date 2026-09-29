@@ -49,6 +49,13 @@ describe('потребность по часам', () => {
     expect(profile.filter((h) => !h.isWorking).every((h) => h.trips === 0)).toBe(true)
   })
 
+  it('час делится на приёмку и отгрузку — стопка графика 3.2', () => {
+    const profile = demandProfile({ ...DEMO, peakHours: { inbound: [7, 8, 9, 10], outbound: [17, 18, 19] } })
+    expect(profile.every((h) => Math.abs(h.inbound + h.outbound - h.trips) < 1e-9)).toBe(true)
+    const seven = profile.find((h) => h.hour === 7)
+    expect(seven?.inbound).toBeGreaterThan(seven?.outbound ?? Infinity)
+  })
+
   it('пики приёмки и отгрузки разошлись — самый тяжёлый час легче', () => {
     const profile = demandProfile({ ...DEMO, peakHours: { inbound: [7, 8, 9, 10], outbound: [17, 18, 19] } })
     expect(heaviestHour(profile)).toBeLessThan(CALC_PEAK)
