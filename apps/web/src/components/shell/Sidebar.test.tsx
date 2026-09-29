@@ -29,6 +29,14 @@ describe('Sidebar', () => {
     expect(active).toHaveAttribute('href', '/processes')
   })
 
+  it('shows «Интеграции» greyed out without a link: the section is not ready', () => {
+    renderSidebar('user')
+    expect(nav().queryByRole('link', { name: /Интеграции/ })).not.toBeInTheDocument()
+    const item = nav().getByText('Интеграции').closest('[aria-disabled="true"]')
+    expect(item).toHaveTextContent('Интеграциискоро')
+    expect(item).toHaveAttribute('title', 'Раздел в разработке')
+  })
+
   it('shows administration only to the admin', () => {
     renderSidebar('admin', 'admin')
     expect(nav().getByRole('link', { name: 'Администрирование' })).toHaveAttribute('aria-current', 'page')

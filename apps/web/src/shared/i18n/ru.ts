@@ -43,6 +43,8 @@ export const ru = {
     locations: 'Локации',
     catalog: 'Каталог',
     integrations: 'Интеграции',
+    soon: 'скоро',
+    soonHint: 'Раздел в разработке',
     admin: 'Администрирование',
     guestNewProject: 'Открыть демо-проект',
     guestProjects: 'Демо-проекты',
