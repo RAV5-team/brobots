@@ -86,12 +86,11 @@ jobs:
           echo "$HOME/yandex-cloud/bin" >> "$GITHUB_PATH"
       - name: Update COI VM
         env:
-          YC_TOKEN: ${{ steps.yandex-token.outputs.token }}
+          YC_IAM_TOKEN: ${{ steps.yandex-token.outputs.token }}
           YC_INSTANCE_ID: ${{ vars.YC_INSTANCE_ID }}
           YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
           YC_CLOUD_ID: ${{ vars.YC_CLOUD_ID }}
         run: |
-          yc config set token "$YC_TOKEN"
           yc config set folder-id "$YC_FOLDER_ID"
           yc config set cloud-id "$YC_CLOUD_ID"
           yc compute instance update-container "$YC_INSTANCE_ID" \
