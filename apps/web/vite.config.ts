@@ -1,6 +1,6 @@
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, searchForWorkspaceRoot } from 'vite'
 
 // Адрес dev-сервера фиксирован: на него опираются правила визуальной проверки (AGENTS.md).
 const DEV_PORT = 5173
@@ -23,6 +23,8 @@ export default defineConfig({
     port: DEV_PORT,
     strictPort: true,
     proxy: { '/api': API_PROXY_TARGET },
+    // Проверка словаря (dictionaryKeys.test.ts) читает и исходники темы входа Keycloak — они вне корня пакета.
+    fs: { allow: [searchForWorkspaceRoot(process.cwd()), '../keycloak-theme/src'] },
   },
   test: {
     environment: 'jsdom',
