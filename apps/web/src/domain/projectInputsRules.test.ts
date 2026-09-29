@@ -79,6 +79,40 @@ describe('applyInputsPatch (D-89)', () => {
     expect(next.simulation?.plan).toEqual({ robots: 16, stations: 5 })
   })
 
+  describe('поправки методики (3.4, D-89)', () => {
+    it('выбор поправок ничего не делает устаревшим и сохраняет прогон, план и состав', () => {
+      const next = applyInputsPatch(walked, { simulation: { calibration: ['n_util', 'route_len_m'] } }, LATER)
+      expect(next.stale).toEqual({ matching: false, simulation: false })
+      expect(next.simulation).toMatchObject({ runId: 'SIM-1', fleet: { robots: 18, stations: 6 }, plan: null, calibration: ['n_util', 'route_len_m'] })
+    })
+
+    it('снять все поправки — тоже выбор, не устаревание', () => {
+      const chosen = applyInputsPatch(walked, { simulation: { calibration: ['n_util'] } }, LATER)
+      const next = applyInputsPatch(chosen, { simulation: { calibration: [] } }, LATER)
+      expect(next.stale).toEqual({ matching: false, simulation: false })
+      expect(next.simulation?.calibration).toEqual([])
+    })
+
+    it('новый прогон сбрасывает выбор поправок: у нового прогона свои поправки', () => {
+      const chosen = applyInputsPatch(walked, { simulation: { calibration: ['n_util'] } }, LATER)
+      const next = applyInputsPatch(chosen, { simulation: { runId: 'SIM-2' } }, LATER)
+      expect(next.simulation).not.toHaveProperty('calibration')
+      expect(next.simulation?.runId).toBe('SIM-2')
+    })
+
+    it('прогон вместе с выбором поправок (сценарий /dev/screens) выбор не сбрасывает', () => {
+      const next = applyInputsPatch(walked, { simulation: { runId: 'SIM-2', calibration: ['cycle_s'] } }, LATER)
+      expect(next.simulation?.calibration).toEqual(['cycle_s'])
+    })
+
+    it('смена состава и условий делает прогон устаревшим, но выбор поправок остаётся до нового прогона', () => {
+      const chosen = applyInputsPatch(walked, { simulation: { calibration: ['n_util'] } }, LATER)
+      const next = applyInputsPatch(chosen, { simulation: { conditions: { repairHours: 3 } } }, LATER)
+      expect(next.stale.simulation).toBe(true)
+      expect(next.simulation?.calibration).toEqual(['n_util'])
+    })
+  })
+
   it('без прогона симуляция не помечается устаревшей', () => {
     const fresh = emptyInputs(AT)
     const next = applyInputsPatch(fresh, { params: { assumptions: [{ code: 'x', value: 1, kind: 'estimate' }] } }, LATER)

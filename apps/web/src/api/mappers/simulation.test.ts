@@ -34,6 +34,23 @@ describe('toSimulationRun', () => {
     expect(Object.values(run.fleetShares).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 2)
   })
 
+  it('поправки методики — из adjusted_input_set: норматив, измерено, значимость, выбор по умолчанию', () => {
+    const run = toSimulationRun(confirmed)
+    expect(run.adjustments.map((a) => a.code)).toEqual(['n_util', 'route_len_m', 'cycle_s', 'eff_prod'])
+    expect(run.adjustments[1]).toEqual({
+      code: 'route_len_m', group: 'coefficient', label: 'Длина рейса в одну сторону', base: 100, simulated: 86, unit: 'м',
+      apply: 'calibration', note: 'Среднее груженого (92 м) и порожнего (80 м) пробега на схеме.', deltaRel: -0.14,
+      significant: true, defaultSelected: false,
+    })
+  })
+
+  it('поправка с неизвестной группой — ошибка контракта', () => {
+    const item = confirmed.adjusted_input_set.items[0]
+    if (!item) throw new Error('нет поправок')
+    const broken = { ...confirmed, adjusted_input_set: { items: [{ ...item, group: 'other' as 'fleet' }] } }
+    expect(() => toSimulationRun(broken)).toThrow('Adjustment.group')
+  })
+
   it('вердикт без заголовка — ошибка контракта', () => {
     const broken = { ...confirmed, verdict: { lines: [] } as unknown as SimulationSchemas['SimulationRun']['verdict'] }
     expect(() => toSimulationRun(broken)).toThrow('SimulationRun.verdict: в ответе нет строки «title»')

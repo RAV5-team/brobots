@@ -47,6 +47,31 @@ export interface RunKpis {
   readonly fleetShares: Readonly<Record<string, number>>
 }
 
+/**
+ * Поправка методики по данным симуляции (в API — `adjusted_input_set.items`, 3.4 «Уточнить методику»):
+ * норматив расчёта подбора против измеренного на модели. Какие принять — решает пользователь
+ * (`SimulationInputs.calibration`, D-89); состав парка (`group: fleet`) заменяет результат формулы подбора.
+ */
+export interface SimulationAdjustment {
+  readonly code: string
+  readonly group: 'fleet' | 'coefficient'
+  readonly label: string
+  /** Значение расчёта подбора; null — расчёт его не дал. */
+  readonly base: number | null
+  /** Измерено в симуляции; null — не измерено. */
+  readonly simulated: number | null
+  readonly unit: string
+  /** override — заменяет значение; calibration — уточняет коэффициент расчёта. */
+  readonly apply: 'override' | 'calibration'
+  readonly note: string
+  /** (измерено − норматив) ÷ норматив; null — нет одного из значений. */
+  readonly deltaRel: number | null
+  /** Отклонение больше допуска прогона или изменился состав. */
+  readonly significant: boolean
+  /** Отмечена по умолчанию (у движка — только изменённый состав). */
+  readonly defaultSelected: boolean
+}
+
 /** Прогон симуляции (в API — SimulationRun). */
 export interface SimulationRun {
   readonly id: string
@@ -73,6 +98,8 @@ export interface SimulationRun {
   readonly hourlyBefore: readonly HourlyStat[]
   readonly hourlyAfter: readonly HourlyStat[]
   readonly warnings: readonly string[]
+  /** Предлагаемые поправки методики; пусто — поправок нет. */
+  readonly adjustments: readonly SimulationAdjustment[]
 }
 
 /**

@@ -30,6 +30,12 @@ export function emptyInputs(at: IsoDateTime): ProjectInputs {
   }
 }
 
+/** Без выбора поправок методики: его делал пользователь по прежнему прогону. */
+function withoutCalibration(simulation: SimulationInputs): SimulationInputs {
+  const { calibration, ...rest } = simulation
+  return calibration === undefined ? simulation : rest
+}
+
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b)
 
 /** Поле правки задано и отличается от текущего значения. */
@@ -40,7 +46,8 @@ function changed<T extends object>(current: T | null, patch: Partial<T> | undefi
 /**
  * Применить правку решений и отметить, что устарело (D-89, proposed — в PRD правила нет):
  * допущения шага 1 и «Параметры расчёта» → подбор и прогон; другой вариант подбора → прогон, состав и план сбрасываются;
- * состав и условия симуляции → прогон; новый прогон снимает пометку и сбрасывает план и риск прежнего вердикта. План вердикта, этап и сценарий итога ничего не делают устаревшим.
+ * состав и условия симуляции → прогон; новый прогон снимает пометку и сбрасывает план, риск и выбор поправок методики прежнего вердикта.
+ * План вердикта, выбор поправок методики, этап и сценарий итога ничего не делают устаревшим.
  */
 export function applyInputsPatch(inputs: ProjectInputs, patch: ProjectInputsPatch, at: IsoDateTime): ProjectInputs {
   const matchingInputsChanged = changed(inputs.params, patch.params, 'assumptions')
@@ -55,7 +62,10 @@ export function applyInputsPatch(inputs: ProjectInputs, patch: ProjectInputsPatc
   const selected = selectionChanged && simulationBase ? { ...simulationBase, fleet: null, plan: null } : simulationBase
   // План и принятый риск — решения по прежнему вердикту: новый прогон подставляет свою рекомендацию (D-104).
   const rerun = patch.simulation?.runId != null && !('plan' in patch.simulation)
-  const simulation = rerun && selected ? { ...selected, plan: null, acceptRisk: false } : selected
+  const replanned = rerun && selected ? { ...selected, plan: null, acceptRisk: false } : selected
+  // Поправки методики предлагает прогон: новый прогон — новые поправки, прежний выбор не переносится.
+  const recalibrate = patch.simulation?.runId != null && !('calibration' in patch.simulation)
+  const simulation = recalibrate && replanned ? withoutCalibration(replanned) : replanned
   const economics = patch.economics ? { ...(inputs.economics ?? DEFAULT_ECONOMICS), ...patch.economics } : inputs.economics
 
   // Прогона не было — устаревать нечему. Записать прогон — значит прогнать заново: пометку снимает и тот же id

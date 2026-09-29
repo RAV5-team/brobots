@@ -199,7 +199,12 @@ export const SIMULATION_RUNS: readonly SimulationSchemas['SimulationRun'][] = [
       "calc_peak_trips_h": 130,
     },
     "adjusted_input_set": {
-      "items": [],
+      "items": [
+        {"code":"n_util","group":"coefficient","label":"Коэффициент загрузки робота","base":0.75,"simulated":0.9,"unit":"коэф.","apply":"calibration","note":"Доля полезной работы во времени, когда робот не простаивает без заявок и не в ремонте.","delta_rel":0.2,"significant":true,"source":"simulation","default_selected":false},
+        {"code":"route_len_m","group":"coefficient","label":"Длина рейса в одну сторону","base":100,"simulated":86,"unit":"м","apply":"calibration","note":"Среднее груженого (92 м) и порожнего (80 м) пробега на схеме.","delta_rel":-0.14,"significant":true,"source":"simulation","default_selected":false},
+        {"code":"cycle_s","group":"coefficient","label":"Время цикла","base":312,"simulated":288,"unit":"с","apply":"calibration","note":"Полезное время на один рейс.","delta_rel":-0.0769,"significant":false,"source":"simulation","default_selected":false},
+        {"code":"eff_prod","group":"coefficient","label":"Эффективная производительность робота","base":8.6,"simulated":8.5,"unit":"рейс/ч","apply":"calibration","note":"Циклов в час × загрузка × готовность.","delta_rel":-0.0116,"significant":false,"source":"simulation","default_selected":false},
+      ],
     },
     "warnings": [],
     "timing": {
@@ -410,7 +415,12 @@ export const SIMULATION_RUNS: readonly SimulationSchemas['SimulationRun'][] = [
       "calc_peak_trips_h": 130,
     },
     "adjusted_input_set": {
-      "items": [],
+      "items": [
+        {"code":"n_util","group":"coefficient","label":"Коэффициент загрузки робота","base":0.75,"simulated":0.9,"unit":"коэф.","apply":"calibration","note":"Доля полезной работы во времени, когда робот не простаивает без заявок и не в ремонте.","delta_rel":0.2,"significant":true,"source":"simulation","default_selected":false},
+        {"code":"route_len_m","group":"coefficient","label":"Длина рейса в одну сторону","base":100,"simulated":86,"unit":"м","apply":"calibration","note":"Среднее груженого (92 м) и порожнего (80 м) пробега на схеме.","delta_rel":-0.14,"significant":true,"source":"simulation","default_selected":false},
+        {"code":"cycle_s","group":"coefficient","label":"Время цикла","base":312,"simulated":288,"unit":"с","apply":"calibration","note":"Полезное время на один рейс.","delta_rel":-0.0769,"significant":false,"source":"simulation","default_selected":false},
+        {"code":"eff_prod","group":"coefficient","label":"Эффективная производительность робота","base":8.6,"simulated":8.5,"unit":"рейс/ч","apply":"calibration","note":"Циклов в час × загрузка × готовность.","delta_rel":-0.0116,"significant":false,"source":"simulation","default_selected":false},
+      ],
     },
     "warnings": [],
     "timing": {
@@ -616,7 +626,12 @@ export const SIMULATION_RUNS: readonly SimulationSchemas['SimulationRun'][] = [
       "calc_peak_trips_h": 130,
     },
     "adjusted_input_set": {
-      "items": [],
+      "items": [
+        {"code":"n_util","group":"coefficient","label":"Коэффициент загрузки робота","base":0.75,"simulated":0.9,"unit":"коэф.","apply":"calibration","note":"Доля полезной работы во времени, когда робот не простаивает без заявок и не в ремонте.","delta_rel":0.2,"significant":true,"source":"simulation","default_selected":false},
+        {"code":"route_len_m","group":"coefficient","label":"Длина рейса в одну сторону","base":100,"simulated":86,"unit":"м","apply":"calibration","note":"Среднее груженого (92 м) и порожнего (80 м) пробега на схеме.","delta_rel":-0.14,"significant":true,"source":"simulation","default_selected":false},
+        {"code":"cycle_s","group":"coefficient","label":"Время цикла","base":312,"simulated":288,"unit":"с","apply":"calibration","note":"Полезное время на один рейс.","delta_rel":-0.0769,"significant":false,"source":"simulation","default_selected":false},
+        {"code":"eff_prod","group":"coefficient","label":"Эффективная производительность робота","base":8.6,"simulated":8.5,"unit":"рейс/ч","apply":"calibration","note":"Циклов в час × загрузка × готовность.","delta_rel":-0.0116,"significant":false,"source":"simulation","default_selected":false},
+      ],
     },
     "warnings": [],
     "timing": {
@@ -822,7 +837,12 @@ export const SIMULATION_RUNS: readonly SimulationSchemas['SimulationRun'][] = [
       "calc_peak_trips_h": 130,
     },
     "adjusted_input_set": {
-      "items": [],
+      "items": [
+        {"code":"n_util","group":"coefficient","label":"Коэффициент загрузки робота","base":0.75,"simulated":0.9,"unit":"коэф.","apply":"calibration","note":"Доля полезной работы во времени, когда робот не простаивает без заявок и не в ремонте.","delta_rel":0.2,"significant":true,"source":"simulation","default_selected":false},
+        {"code":"route_len_m","group":"coefficient","label":"Длина рейса в одну сторону","base":100,"simulated":86,"unit":"м","apply":"calibration","note":"Среднее груженого (92 м) и порожнего (80 м) пробега на схеме.","delta_rel":-0.14,"significant":true,"source":"simulation","default_selected":false},
+        {"code":"cycle_s","group":"coefficient","label":"Время цикла","base":312,"simulated":372,"unit":"с","apply":"calibration","note":"Полезное время на один рейс.","delta_rel":0.1923,"significant":true,"source":"simulation","default_selected":false},
+        {"code":"eff_prod","group":"coefficient","label":"Эффективная производительность робота","base":8.6,"simulated":7.2,"unit":"рейс/ч","apply":"calibration","note":"Циклов в час × загрузка × готовность.","delta_rel":-0.1628,"significant":true,"source":"simulation","default_selected":false},
+      ],
     },
     "warnings": [],
     "timing": {
@@ -1028,7 +1048,12 @@ export const SIMULATION_RUNS: readonly SimulationSchemas['SimulationRun'][] = [
       "calc_peak_trips_h": 130,
     },
     "adjusted_input_set": {
-      "items": [],
+      "items": [
+        {"code":"n_util","group":"coefficient","label":"Коэффициент загрузки робота","base":0.75,"simulated":0.9,"unit":"коэф.","apply":"calibration","note":"Доля полезной работы во времени, когда робот не простаивает без заявок и не в ремонте.","delta_rel":0.2,"significant":true,"source":"simulation","default_selected":false},
+        {"code":"route_len_m","group":"coefficient","label":"Длина рейса в одну сторону","base":100,"simulated":140,"unit":"м","apply":"calibration","note":"Среднее груженого (150 м) и порожнего (130 м) пробега на схеме.","delta_rel":0.4,"significant":true,"source":"simulation","default_selected":false},
+        {"code":"cycle_s","group":"coefficient","label":"Время цикла","base":312,"simulated":624,"unit":"с","apply":"calibration","note":"Полезное время на один рейс.","delta_rel":1,"significant":true,"source":"simulation","default_selected":false},
+        {"code":"eff_prod","group":"coefficient","label":"Эффективная производительность робота","base":8.6,"simulated":4.3,"unit":"рейс/ч","apply":"calibration","note":"Циклов в час × загрузка × готовность.","delta_rel":-0.5,"significant":true,"source":"simulation","default_selected":false},
+      ],
     },
     "warnings": [],
     "timing": {

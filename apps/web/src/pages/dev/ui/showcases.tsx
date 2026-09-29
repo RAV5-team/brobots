@@ -9,6 +9,9 @@ import { CharacteristicRowShowcase, ChipListShowcase, CompareTableShowcase, Mult
 import { FormulaStatsShowcase, SectionNavShowcase, StatusBannerShowcase, TabNavShowcase, TextLinkShowcase } from './navigationAndStatusShowcases'
 import { FieldGridShowcase, HourGridShowcase, NumberStepperShowcase, StepperShowcase } from './projectFormShowcases'
 import { ChartsShowcase } from './chartShowcases'
+import { TimeWindowListShowcase } from './timeWindowShowcases'
+import { DisclosureShowcase, PopoverShowcase, ScorePillShowcase, TabsShowcase } from './disclosureShowcases'
+import { ProjectStepLayoutShowcase } from './projectStepLayoutShowcases'
 import { FormRailShowcase, NumberFieldShowcase } from './formShowcases'
 import { PageHeaderShowcase, StatTileShowcase, WellShowcase } from './tileShowcases'
 
@@ -47,6 +50,10 @@ export const SHOWCASES: readonly Showcase[] = [
   { slug: 'characteristic-row', title: 'CharacteristicRow · StatusChip', Component: CharacteristicRowShowcase },
   { slug: 'progress', title: 'Progress', Component: ProgressShowcase },
   { slug: 'modal', title: 'Modal', Component: ModalShowcase },
+  { slug: 'popover', title: 'Popover', Component: PopoverShowcase },
+  { slug: 'disclosure', title: 'Disclosure', Component: DisclosureShowcase },
+  { slug: 'tabs', title: 'Tabs', Component: TabsShowcase },
+  { slug: 'score-pill', title: 'ScorePill', Component: ScorePillShowcase },
   { slug: 'dropzone', title: 'Dropzone', Component: DropzoneShowcase },
   { slug: 'file-input', title: 'FileInput', Component: FileInputShowcase },
   { slug: 'states', title: 'Empty · Error · Skeleton', Component: StatesShowcase },
@@ -57,7 +64,9 @@ export const SHOWCASES: readonly Showcase[] = [
   { slug: 'status-banner', title: 'StatusBanner', Component: StatusBannerShowcase },
   { slug: 'stepper', title: 'Stepper', Component: StepperShowcase },
   { slug: 'number-stepper', title: 'NumberStepper', Component: NumberStepperShowcase },
+  { slug: 'project-step-layout', title: 'ProjectStepLayout', Component: ProjectStepLayoutShowcase },
   { slug: 'field-grid', title: 'FieldGrid', Component: FieldGridShowcase },
   { slug: 'hour-grid', title: 'HourGrid', Component: HourGridShowcase },
+  { slug: 'time-window-list', title: 'TimeWindowList', Component: TimeWindowListShowcase },
   { slug: 'charts', title: 'Charts', Component: ChartsShowcase },
 ]

@@ -58,6 +58,18 @@ export function CardShowcase() {
           </Card>
         </div>
       </ShowcaseSection>
+      <ShowcaseSection title="CardStat · caption">
+        {/* Пояснение под подписью — rail шага 2 (16325:101). */}
+        <div className="w-[300px]">
+          <Card>
+            <dl>
+              <CardStat label="Роботов" value="18" caption="+ 6 зарядных станций, 4 точки Wi-Fi" />
+              <CardStat label="Стартовые вложения · CAPEX" value="6,1 млн ₽" caption="в рамках бюджета 80 млн ₽" />
+              <CardStat label="Окупаемость" value="0,7 года" />
+            </dl>
+          </Card>
+        </div>
+      </ShowcaseSection>
       <ShowcaseSection title="Card · tile (KPI)">
         <div className="grid grid-cols-3 gap-16">
           <KpiCard label={s.kpiLocations} value={formatNumber(LOCATIONS.length)} caption={s.kpiLocationsCaption} />

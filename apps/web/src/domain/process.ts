@@ -27,6 +27,8 @@ export interface ProcessDefaults {
   readonly unitDimensionsMm?: readonly [number, number, number]
   /** Частота пересчёта, раз в месяц — у инвентаризации без неё парк не посчитать (PRD 11.2, 10.4). */
   readonly recountsPerMonth?: number
+  /** Кратность уборки, раз в сутки (доска 16325, процесс «Уборка»): объём смены = площадь × кратность. Допущение, в датасете нет. */
+  readonly cleaningsPerDay?: number
   /** Делится ли единица груза; нет груза (уборка, инвентаризация, обходы) — значения нет. */
   readonly cargoDivisible?: boolean
   /** Объём операций за период `Process.volumePeriod` (обычно — сутки). */

@@ -71,6 +71,133 @@ export interface RankedVariant {
   /** Подписи-флаги строки: «Чистый эффект отрицательный», «Статус поставки не подтверждён». */
   readonly warnings: readonly string[]
   readonly checks: readonly SolutionCheck[]
+
+  // Окно 2.1а «Подробнее о решении» (доска 16325). Поля необязательные: нет — «нет данных» на вкладке.
+  /** Полный разбор балла по 8 критериям для строки рейтинга и «Обзора» 2.1а; `criteria` — то, что показывает рейтинг 03. */
+  readonly scoreBreakdown?: readonly ScoreContribution[]
+  /** «Почему подходит» и «Недостающие данные» (вкладка «Обзор»). */
+  readonly reasons?: VariantReasons
+  /** Ограничения решения в проекте — коды `Candidate.risks`: specs_unconfirmed, throughput_unknown, hypothesis_only. */
+  readonly limitations?: readonly string[]
+  /** Краткое пояснение подбора (`Candidate.summary`). */
+  readonly summary?: string
+  /** Предложение из каталога, по которому посчитан вариант (`Candidate.offerId`). */
+  readonly offerId?: string
+  /** Шаги расчёта с формулами и входами (`CalcResult.trace`) — «Как рассчитано» на вкладке «Экономика». */
+  readonly calcTrace?: readonly CalcTraceStep[]
+  /** Цена единицы с источником (вкладка «Экономика», «Цена и источник»). */
+  readonly priceOffer?: PriceOffer
+  /** ПО, внедрение, обслуживание и срок службы — с признаком допущения. */
+  readonly ownership?: OwnershipCosts
+  /** Чистый эффект в год по статьям: экономия ФОТ, иные эффекты, новые расходы. Сумма — `annualEffectRub`. */
+  readonly netEffectItems?: readonly EffectItem[]
+  /** Условия RaaS — только у варианта `raas`. */
+  readonly raasTerms?: RaasTerms
+  /** Вспомогательное оборудование — результат расчёта (вкладка «Инфраструктура»). */
+  readonly auxEquipment?: AuxEquipment
+  /** Эффективная производительность для процесса с пояснением (вкладка «Технические»). */
+  readonly effectiveProductivity?: EffectiveProductivity
+}
+
+/** Прошедшие проверки («✓») и проверки без данных («?»). */
+export interface VariantReasons {
+  readonly fits: readonly SolutionCheck[]
+  readonly missing: readonly SolutionCheck[]
+}
+
+/** Шаг расчёта: формула, входы, результат (в API — TraceItem). */
+export interface CalcTraceStep {
+  readonly code: string
+  readonly label: string
+  readonly formula: string | null
+  readonly value: number | null
+  readonly unit: string | null
+  /** Нечисловой результат шага: интерпретация. */
+  readonly text: string | null
+  readonly source: 'task' | 'location' | 'robot' | 'norm' | 'derived' | null
+  readonly inputs: readonly { readonly name: string; readonly value: number | null; readonly text: string | null }[]
+}
+
+/** Откуда значение и на какую дату: «Файл цен организатора · 01.09.2026». */
+export interface ValueSourceRef {
+  readonly source: string
+  /** `YYYY-MM-DD`; нет — дата неизвестна. */
+  readonly date?: string
+}
+
+/** Цена единицы в расчёте варианта (может отличаться от цены каталога — PRD 15 · №107). */
+export interface PriceOffer extends ValueSourceRef {
+  readonly unitPriceRub: number
+  readonly currency: 'RUB'
+  /** НДС включён в цену — повторно не начисляется. null — неизвестно. */
+  readonly vatIncluded: boolean | null
+  readonly included: readonly string[]
+  readonly excluded: readonly string[]
+  /** «AMR 800 · базовая комплектация». */
+  readonly offerName: string
+}
+
+/** Сумма с признаком «оценка, допущение модели». */
+export interface AssumedAmount {
+  readonly value: number
+  readonly assumption: boolean
+  readonly note?: string
+}
+
+export interface OwnershipCosts {
+  readonly softwareOneOffRub: number | null
+  readonly softwareRubPerYear: number | null
+  readonly implementationRub: AssumedAmount | null
+  /** Обслуживание парка в год (покупка); у RaaS входит в тариф. */
+  readonly serviceRubPerYear: number | null
+  readonly serviceLifeYears: AssumedAmount | null
+}
+
+/** Статья чистого эффекта: labor — экономия ФОТ, other — иные эффекты, new_costs — новые расходы (со знаком минус). */
+export interface EffectItem {
+  readonly code: string
+  readonly kind: 'labor' | 'other' | 'new_costs'
+  readonly label: string
+  readonly amountRub: number
+}
+
+/** Условия RaaS (вкладка «Экономика», 12 строк). Платёж в месяц за парк выводится: ставка × роботов. */
+export interface RaasTerms extends ValueSourceRef {
+  readonly tariffStructure: 'fixed' | 'usage' | 'mixed'
+  /** База начисления: «за робота в месяц». */
+  readonly billingBase: string
+  readonly rateRub: number
+  /** Как объём использования влияет на платёж: «не влияет на платёж». */
+  readonly usageNote: string | null
+  readonly monthlyFleetRub: number
+  readonly includedServices: readonly string[]
+  readonly extraCosts: readonly string[]
+  readonly contractMonths: number | null
+  /** Условия продления; null — неизвестны. */
+  readonly renewal: string | null
+  /** Условия выкупа; null — не представлены. */
+  readonly buyout: string | null
+  /** Индексация платежей, доля в год. */
+  readonly indexationPerYear: number | null
+  /** Что принято допущением: «продление по тому же тарифу», «индексация 5 %». */
+  readonly assumptions: readonly string[]
+}
+
+/** Количество — результат расчёта; null — расчёт не отдал. */
+export interface AuxEquipment {
+  readonly stations: number | null
+  readonly adapters: number | null
+  readonly wifiPoints: number | null
+}
+
+/** Эффективная производительность: 3 600 ÷ цикл × загрузка (как в движке симуляции, `eff_prod`). */
+export interface EffectiveProductivity {
+  readonly tripsPerHour: number
+  readonly cycleTimeS: number | null
+  readonly loadTimeS: number | null
+  readonly utilization: number | null
+  /** Доля времени на зарядке. */
+  readonly chargingShare: number | null
 }
 
 /** Статья затрат расчёта: «Зарядная инфраструктура · 3,1 млн ₽». */

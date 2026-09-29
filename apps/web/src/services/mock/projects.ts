@@ -121,6 +121,13 @@ const loadRuns = (): Promise<readonly RunDto[]> => {
   return runsLoading
 }
 
+/** Поля окна 2.1а (цена, условия RaaS, оборудование, разбор балла) — тоже при первом обращении. */
+let detailsLoading: Promise<typeof import('./variantDetails')> | null = null
+const loadVariantDetails = (): Promise<typeof import('./variantDetails')> => {
+  detailsLoading ??= import('./variantDetails')
+  return detailsLoading
+}
+
 /** Прогон, который мок «насчитает» для состава: у кого проверенный состав совпал, иначе — основной (confirmed). */
 function runForFleet(runs: readonly RunDto[], robots: number, stations: number): RunDto {
   const match = runs.find((r) => r.fleet_change.from_.robots === robots && r.fleet_change.from_.chargers === stations)
@@ -187,10 +194,15 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
     if (!evaluation) throw new NotFoundError('Подбор для этого проекта ещё не рассчитан')
     return evaluation
   }
-  const matchingOf = (stored: StoredProject): MatchingEvaluation => ({
-    ...toMatchingEvaluation(evaluationOf(stored), CALC_DEFAULTS_BY_PROCESS[stored.dto.task?.id ?? ''] ?? null),
-    stale: stored.local.inputs.stale.matching,
-  })
+  const matchingOf = async (stored: StoredProject): Promise<MatchingEvaluation> => {
+    const processId = stored.dto.task?.id ?? ''
+    const evaluation: MatchingEvaluation = {
+      ...toMatchingEvaluation(evaluationOf(stored), CALC_DEFAULTS_BY_PROCESS[processId] ?? null),
+      stale: stored.local.inputs.stale.matching,
+    }
+    const { withVariantDetails } = await loadVariantDetails()
+    return withVariantDetails(evaluation, processId)
+  }
   /** Ошибки — отказом промиса, как у настоящего запроса. */
   const attempt = <T>(action: () => T): Promise<T> => {
     try {
@@ -250,16 +262,16 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
       return toDomain(find(id))
     }),
 
-    getMatching: (id) => attempt(() => matchingOf(find(id))),
+    getMatching: async (id) => respond(await matchingOf(find(id)), options),
 
-    evaluateMatching: (id) => attempt(() => {
+    evaluateMatching: async (id) => {
       const stored = editable(id)
       evaluationOf(stored)
       // Мок не пересчитывает: числа рейтинга из фикстуры, снимается только пометка «устарело» (api-contract.md, №11).
       const at = now()
       put(id, { dto: { ...stored.dto, updatedAt: at }, local: { ...stored.local, inputs: markFresh(stored.local.inputs, 'matching', at) } })
-      return matchingOf(find(id))
-    }),
+      return respond(await matchingOf(find(id)), options)
+    },
 
     startSimulation: async (id, request) => {
       editable(id)

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { toMatchingEvaluation } from '@/api/mappers/matching'
 import { toSimulationRun } from '@/api/mappers/simulation'
 import { LOCATION_PROCESSES } from './locationProcesses'
-import { EVALUATION_LP01, EVALUATIONS_BY_PROCESS } from './projectMatching'
+import { CALC_DEFAULTS_LP01, EVALUATION_LP01, EVALUATIONS_BY_PROCESS } from './projectMatching'
+import { PROCESSES } from './processes'
 import { DEMO_PROJECT, PROJECT_LOCAL_STATE, PROJECTS } from './projects'
 import { ROBOTS } from './robots'
 import { SIMULATION_RUNS } from './simulationRuns.generated'
@@ -96,5 +97,37 @@ describe('синтетические прогоны сходятся с итог
         expect(h.working + h.charging + h.waitingCharger + h.down + h.idle, `${r.id} ${String(h.hour)}`).toBeCloseTo(fleet, 1)
       }
     }
+  })
+})
+
+describe('поправки методики прогонов (3.4)', () => {
+  const amr800 = matching.variants.find((v) => v.solutionId === 'RB-0008' && v.acquisition === 'raas')
+  const lp01 = LOCATION_PROCESSES.find((lp) => lp.id === 'LP-01')
+  const routeLength = lp01?.overrides.routeLengthM ?? PROCESSES.find((p) => p.code === lp01?.processCode)?.defaults.routeLengthM
+
+  it('нормативы — из расчёта подбора (D-101): загрузка 0,75, 8,6 рейса/ч, цикл 312 с, рейс процесса LP-01', () => {
+    for (const r of runs) {
+      const byCode = Object.fromEntries(r.adjustments.map((a) => [a.code, a.base]))
+      expect(byCode, r.id).toEqual({
+        n_util: CALC_DEFAULTS_LP01.utilization,
+        route_len_m: routeLength,
+        cycle_s: amr800?.cycleTimeS,
+        eff_prod: CALC_DEFAULTS_LP01.robotTripsPerHour,
+      })
+    }
+  })
+
+  it('значима поправка с отклонением больше допуска 10 %; по умолчанию калибровка не выбрана (simcore/adjustments.py)', () => {
+    for (const a of runs.flatMap((r) => r.adjustments)) {
+      expect(a.deltaRel).toBeCloseTo(((a.simulated ?? 0) - (a.base ?? 1)) / (a.base ?? 1), 3)
+      expect(a.significant).toBe(Math.abs(a.deltaRel ?? 0) > 0.1)
+      expect(a).toMatchObject({ group: 'coefficient', apply: 'calibration', defaultSelected: false })
+    }
+  })
+})
+
+describe('процесс LP-04 «Уборка склада»', () => {
+  it('кратность уборки — 2 раза в сутки (допущение доски 16325, README)', () => {
+    expect(LOCATION_PROCESSES.find((lp) => lp.id === 'LP-04')?.overrides.cleaningsPerDay).toBe(2)
   })
 })

@@ -109,6 +109,11 @@ export interface SimulationInputs {
   readonly plan: Fleet | null
   /** «Продолжить без изменений и принять риск» (вердикт «нужно докупить»). */
   readonly acceptRisk: boolean
+  /**
+   * Принятые поправки методики (коды `SimulationRun.adjustments`, 3.4 «Уточнить методику»); нет — отмеченные
+   * по умолчанию (`defaultSelected`). Выбор ничего не делает устаревшим, новый прогон его сбрасывает (D-89).
+   */
+  readonly calibration?: readonly string[]
 }
 
 export interface EconomicsInputs {

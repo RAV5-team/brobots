@@ -27,6 +27,8 @@ export type RobotReadiness = 'operation' | 'pilot' | 'rnd' | 'unknown'
 
 export interface RobotSpecs {
   readonly payloadKg?: number
+  /** Собственная масса без груза, кг (окно 2.1а, «Технические»); в К-4 масса — только в тексте «Габариты». */
+  readonly massKg?: number
   readonly lengthMm?: number
   readonly widthMm?: number
   readonly heightMm?: number
@@ -64,6 +66,8 @@ export interface Robot {
   readonly industries: readonly string[]
   readonly scenarios: readonly string[]
   readonly description: string
+  /** Короткое «Назначение» (окно 2.1а, «Идентификация»): «Перемещение паллет и тележек». Нет — показывают `description`. */
+  readonly purpose?: string
   readonly operationClasses: readonly RobotOperationClass[]
   readonly specs: RobotSpecs
   /**

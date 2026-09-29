@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { toSimulationRun } from '@/api/mappers/simulation'
 import { Badge } from '@/components/ui/Badge'
+import { Chip } from '@/components/ui/Chip'
 import { Field } from '@/components/ui/Field'
 import { HourGrid } from '@/components/ui/HourGrid'
 import { hourText } from '@/components/ui/hourText'
@@ -19,22 +20,32 @@ const p = ru.project
 const STATES: readonly DemoState[] = ['default', 'hover', 'focus', 'disabled']
 
 /** Шаги проекта по состояниям: черновик на симуляции — пройдены 1–2, 4 закрыт; сохранённая оценка — все пройдены. */
-const projectSteps = (current: ProjectStep, stateOf: (index: number) => StepperStepState): readonly StepperStep[] =>
+const projectSteps = (
+  current: ProjectStep,
+  stateOf: (index: number) => StepperStepState,
+  labels: Readonly<Record<ProjectStep, string>> = ru.projectStepTitles,
+): readonly StepperStep[] =>
   PROJECT_STEPS.map((step, index) => ({
     key: step,
-    label: ru.projectStepTitles[step],
+    label: labels[step],
     state: step === current ? 'current' : stateOf(index),
     to: `#${step}`,
   }))
 
-const stages = (current: SimulationStage): readonly StepperStep[] =>
+const stages = (current: SimulationStage, withLinks = false): readonly StepperStep[] =>
   SIMULATION_STAGES.map((stage, index) => ({
     key: stage,
     label: p.simulation.stages[stage],
     state: stage === current ? 'current' : index < SIMULATION_STAGES.indexOf(current) ? 'done' : 'locked',
+    ...(withLinks ? { to: `#${stage}` } : {}),
   }))
 
-/** Степпер шагов проекта (pills, 16197:1120) и этапов симуляции (segments, 16197:1147). 4 шага по PRD 0.9 (D-54). */
+const short = ru.projectStepShortTitles
+
+/**
+ * Степпер шагов проекта (pills, 16197:1120; метка после подписи — доска 16325) и этапов симуляции
+ * (segments, 16197:1147; capsule — доска 16325:149). 4 шага по PRD 0.9 (D-54).
+ */
 export function StepperShowcase() {
   return (
     <div className="flex flex-col gap-24">
@@ -48,8 +59,27 @@ export function StepperShowcase() {
         <Stepper label={p.stepsNav} steps={projectSteps('matching', (i) => (i < 1 ? 'done' : i === 2 ? 'available' : 'locked'))} />
         <Stepper label={p.stepsNav} steps={projectSteps('economics', () => 'done')} />
       </ShowcaseSection>
+      <ShowcaseSection title="Stepper · pills · marker end">
+        <StateGrid
+          states={['default', 'hover', 'focus']}
+          rows={[
+            { label: 'draft · simulation', render: (st) => <Stepper label={p.stepsNav} marker="end" steps={projectSteps('simulation', (i) => (i < 2 ? 'done' : 'locked'), short)} {...stateProps(st)} /> },
+          ]}
+        />
+        <Stepper label={p.stepsNav} marker="end" steps={projectSteps('params', (i) => (i === 1 ? 'available' : 'locked'), short)} />
+        <Stepper label={p.stepsNav} marker="end" steps={projectSteps('economics', () => 'done', short)} />
+      </ShowcaseSection>
       <ShowcaseSection title="Stepper · segments">
         {SIMULATION_STAGES.map((stage) => <Stepper key={stage} variant="segments" label={p.simulation.stagesNav} steps={stages(stage)} />)}
+      </ShowcaseSection>
+      <ShowcaseSection title="Stepper · capsule">
+        <StateGrid
+          states={['default', 'hover', 'focus']}
+          rows={[
+            { label: 'verdict', render: (st) => <div className="w-[560px]"><Stepper variant="capsule" label={p.simulation.stagesNav} steps={stages('verdict', true)} {...stateProps(st)} /></div> },
+          ]}
+        />
+        {SIMULATION_STAGES.map((stage) => <Stepper key={stage} variant="capsule" label={p.simulation.stagesNav} steps={stages(stage, true)} />)}
       </ShowcaseSection>
     </div>
   )
@@ -74,7 +104,29 @@ function DemoFleet({ state, withPlan }: { readonly state: DemoState; readonly wi
   )
 }
 
-/** Строка числа ±: «Состав для проверки» 04 (16197:1213) и план вердикта 07 со слотами «было» и дельтой. */
+/** Вид block — правая колонка вердикта (16325:176): «из подбора», справа чип «+1» / «без изменений», широкий степпер. */
+function DemoFleetBlock({ state }: { readonly state: DemoState }) {
+  const from = needMore.from.stations
+  const [stations, setStations] = useState(from + 1)
+  const delta = stations - from
+  return (
+    <div className="w-(--rav-form-rail-width)">
+      <NumberStepper
+        layout="block"
+        label={p.simulation.fleet.stations}
+        value={stations}
+        min={1}
+        max={60}
+        onChange={setStations}
+        description={p.simulation.fleet.previous(from)}
+        badge={delta === 0 ? <Chip tone="muted" size="sm">{p.simulation.verdict.plan.noChange}</Chip> : <Chip tone="inverse" size="sm">{formatNumber(delta, 0, { signed: true })}</Chip>}
+        {...stateProps(state)}
+      />
+    </div>
+  )
+}
+
+/** Строка числа ±: «Состав для проверки» 04 (16197:1213) и план вердикта 07 со слотами «было» и дельтой; block — доска 16325. */
 export function NumberStepperShowcase() {
   return (
     <ShowcaseSection title="NumberStepper">
@@ -83,6 +135,7 @@ export function NumberStepperShowcase() {
         rows={[
           { label: 'scope (04)', render: (st) => <DemoFleet state={st} withPlan={false} /> },
           { label: 'plan (07)', render: (st) => <DemoFleet state={st} withPlan /> },
+          { label: 'block (16325:176)', render: (st) => <DemoFleetBlock state={st} /> },
         ]}
       />
     </ShowcaseSection>
