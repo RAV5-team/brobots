@@ -1,12 +1,14 @@
 import type { NewLocation, ParameterValue, StaffGroup } from '@/domain'
 import { formatNumber, parseDecimal } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
-import { siteSectionOf, type SiteGroup } from '../params/siteProfileFields'
+import { siteFieldKind, siteSectionOf, type SiteGroup } from '../params/siteProfileFields'
 import {
   NUMERIC_KEYS,
   NUMERIC_SPECS,
   REQUIRED_TEXT,
   STAFF_PRESETS,
+  extraFields,
+  extraSections,
   isTurnoverAssumed,
   num,
   numericRange,
@@ -94,11 +96,33 @@ export function validateLocation(form: LocationForm, params: ParameterIndex, opt
   // Порядок на экране: сначала поля секции «Персонал» до таблицы, затем таблица, затем поля после неё.
   const beforeTable = numeric.filter(([key]) => !AFTER_TABLE.includes(key as NumericKey))
   const afterTable = numeric.filter(([key]) => AFTER_TABLE.includes(key as NumericKey))
-  return Object.fromEntries([...text, ...beforeTable, ...staffErrors(form.staff, options), ...afterTable])
+  return Object.fromEntries([...text, ...beforeTable, ...staffErrors(form.staff, options), ...afterTable, ...extraErrors(form, params)])
+}
+
+function extraErrors(form: LocationForm, params: ParameterIndex): [string, string][] {
+  const fields = extraFields(params)
+  const errors = fields.flatMap((field): [string, string][] => {
+    const raw = form.extras[field.code]?.trim() ?? ''
+    if (raw === '' || siteFieldKind(field) !== 'number') return []
+    const value = parseDecimal(raw)
+    if (value === null) return [[field.code, t.errors.number]]
+    if (field.valueType === 'integer' && !Number.isInteger(value)) return [[field.code, t.errors.integer]]
+    if (field.min !== null && field.max !== null && (value < field.min || value > field.max)) {
+      return [[field.code, t.errors.range(formatNumber(field.min, 3), formatNumber(field.max, 3))]]
+    }
+    return []
+  })
+  const min = parseDecimal(form.extras.site_temp_min_c ?? '')
+  const max = parseDecimal(form.extras.site_temp_max_c ?? '')
+  return min !== null && max !== null && min > max
+    ? [...errors, ['site_temp_max_c', ru.location.params.site.tempOrder]]
+    : errors
 }
 
 /** Секция, где стоит поле с ошибкой, — для перехода из панели готовности. */
-export function errorSection(key: string, parameters?: ParameterIndex): SectionId | SiteGroup {
+export function errorSection(key: string, parameters?: ParameterIndex): SectionId | SiteGroup | string {
+  const extra = parameters ? extraSections(parameters).find((section) => section.fields.some((field) => field.code === key)) : undefined
+  if (extra) return extra.id
   const site = parameters ? siteSectionOf(key, [...parameters.values()]) : null
   if (site) return site
   if (key === 'name' || key === 'city' || key === 'address') return 'basics'
@@ -137,14 +161,18 @@ export function readiness(form: LocationForm, errors: FormErrors, params: Parame
   const filledNumeric = NUMERIC_KEYS.filter((key) => form[key].trim() !== '')
   const required = NUMERIC_KEYS.filter((key) => NUMERIC_SPECS[key].required)
   const payroll = payrollCoef(params) === null ? 0 : 1
+  const extras = extraFields(params)
+  const filledExtras = extras.filter((field) => (form.extras[field.code] ?? '').trim() !== '')
   return {
     requiredTotal: typeAndText.requiredTotal + required.length,
     requiredDone: typeAndText.requiredDone + required.filter((k) => filledNumeric.includes(k) && errors[k] === undefined).length,
-    filledTotal: typeAndText.filledTotal + NUMERIC_KEYS.length + payroll,
-    filled: typeAndText.filled + filledNumeric.length + payroll,
+    filledTotal: typeAndText.filledTotal + NUMERIC_KEYS.length + payroll + extras.length,
+    filled: typeAndText.filled + filledNumeric.length + payroll + filledExtras.length,
     errors: errorCount,
     assumptions: form.turnover.trim() !== '' && isTurnoverAssumed(form) ? 1 : 0,
-    optionalEmpty: typeAndText.optionalEmpty + NUMERIC_KEYS.filter((k) => !NUMERIC_SPECS[k].required && !filledNumeric.includes(k)).length,
+    optionalEmpty: typeAndText.optionalEmpty
+      + NUMERIC_KEYS.filter((k) => !NUMERIC_SPECS[k].required && !filledNumeric.includes(k)).length
+      + extras.length - filledExtras.length,
   }
 }
 
@@ -168,11 +196,23 @@ const STAFF_PARAMETER_CODES: ReadonlySet<string> = new Set(
 )
 
 /** Значения формы, которые api принимает как параметры типа объекта. */
+function extraParameters(form: LocationForm, params: ParameterIndex): [string, ParameterValue][] {
+  return extraFields(params).flatMap((field): [string, ParameterValue][] => {
+    const raw = form.extras[field.code]?.trim() ?? ''
+    if (raw === '') return []
+    if (siteFieldKind(field) === 'number') {
+      const value = parseDecimal(raw)
+      return value === null ? [] : [[field.code, { value, source: 'user' }]]
+    }
+    return [[field.code, { value: raw, source: 'user' }]]
+  })
+}
+
 function profileParameters(form: LocationForm, params: ParameterIndex): Readonly<Record<string, ParameterValue>> {
   const coef = payrollCoef(params)
   const payroll: [string, ParameterValue][] = coef === null ? [] : [['wh_payroll_tax_coef', { value: coef, source: 'organizer' }]]
   return Object.fromEntries(
-    [...numericParameters(form), ...payroll]
+    [...numericParameters(form), ...payroll, ...extraParameters(form, params)]
       .filter(([code]) => params.has(code) && !STAFF_PARAMETER_CODES.has(code)),
   )
 }
@@ -180,6 +220,11 @@ function profileParameters(form: LocationForm, params: ParameterIndex): Readonly
 function datasetNumber(params: ParameterIndex, code: string, fallback: number): number {
   const value = baseNumber(params, code)
   return value > 0 ? value : fallback
+}
+
+function extraNumber(form: LocationForm, params: ParameterIndex, code: string, fallback: number): number {
+  const parsed = parseDecimal(form.extras[code] ?? '')
+  return parsed !== null && parsed > 0 ? parsed : datasetNumber(params, code, fallback)
 }
 
 function staffGroups(staff: readonly StaffGroupRow[]): readonly StaffGroup[] {
@@ -205,8 +250,8 @@ export function toNewLocation(form: LocationForm, params: ParameterIndex): NewLo
     city: form.city.trim(),
     address: form.address.trim(),
     facilityType: 'warehouse',
-    capexBudgetRub: datasetNumber(params, 'wh_capex_budget', DEFAULT_CAPEX_MLN) * MILLION,
-    horizonYears: datasetNumber(params, 'wh_horizon_years', DEFAULT_HORIZON_YEARS),
+    capexBudgetRub: extraNumber(form, params, 'wh_capex_budget', DEFAULT_CAPEX_MLN) * MILLION,
+    horizonYears: extraNumber(form, params, 'wh_horizon_years', DEFAULT_HORIZON_YEARS),
     parameters: profileParameters(form, params),
     staffGroups: staffGroups(form.staff),
   }

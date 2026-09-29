@@ -1,4 +1,4 @@
-import type { FacilityParameter, FacilityTypeCode } from '@/domain'
+import { isSiteGroup, SITE_GROUPS, type FacilityParameter, type FacilityTypeCode } from '@/domain'
 import { formatNumber, parseDecimal } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 
@@ -43,6 +43,8 @@ export interface LocationForm extends NumericValues {
   readonly city: string
   readonly address: string
   readonly staff: readonly StaffGroupRow[]
+  /** Остальные параметры справочника, которых нет в четырёх секциях формы 14. Ключ — код параметра. */
+  readonly extras: Readonly<Record<string, string>>
 }
 
 export type TextKey = 'name' | 'city' | 'address'
@@ -144,12 +146,55 @@ export interface ProfileText {
   readonly address: string
 }
 
+const COVERED_CODES: ReadonlySet<string> = new Set([
+  ...NUMERIC_KEYS.map((key) => NUMERIC_SPECS[key].code),
+  ...STAFF_PRESETS.flatMap((preset) => (preset.salaryCode === null ? [preset.headcountCode] : [preset.headcountCode, preset.salaryCode])),
+  PAYROLL_CODE,
+])
+
+const byCatalogOrder = (a: FacilityParameter, b: FacilityParameter): number =>
+  (a.sort ?? 0) - (b.sort ?? 0) || a.code.localeCompare(b.code)
+
+/** Параметры справочника, которые не показаны в секциях «Основное»–«Персонал». */
+export function extraFields(params: ParameterIndex): readonly FacilityParameter[] {
+  return [...params.values()].filter((parameter) => !COVERED_CODES.has(parameter.code)).sort(byCatalogOrder)
+}
+
+export interface ExtraSection {
+  readonly id: string
+  readonly title: string
+  readonly fields: readonly FacilityParameter[]
+}
+
+/** Секции сверх формы 14: группы датасета, затем условия площадки. */
+export function extraSections(params: ParameterIndex): readonly ExtraSection[] {
+  const fields = extraFields(params)
+  const site = SITE_GROUPS.flatMap((group) => {
+    const groupFields = fields.filter((field) => field.formSection === group)
+    return groupFields.length === 0 ? [] : [{ id: `site-${group}`, title: ru.location.params.site.groups[group], fields: groupFields }]
+  })
+  const rest = fields.filter((field) => !isSiteGroup(field.formSection))
+  const groups = [...new Set(rest.map((field) => field.group))]
+  const catalog = groups.flatMap((group) => {
+    const groupFields = rest.filter((field) => field.group === group)
+    const id = `catalog-${group.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-')}`
+    return groupFields.length === 0 ? [] : [{ id, title: group, fields: groupFields }]
+  })
+  return [...catalog, ...site]
+}
+
+const extraText = (parameter: FacilityParameter): string => {
+  if (typeof parameter.base === 'number') return formatNumber(parameter.base, 3)
+  return parameter.base.trim()
+}
+
 /** Форма на значениях датасета склада — демо-профиль, как на 09а (D-31); тексты — из макета. */
 export function buildInitialForm(params: ParameterIndex, profile: ProfileText): LocationForm {
   const numeric = Object.fromEntries(
     NUMERIC_KEYS.map((key) => [key, key === 'turnover' ? String(ASSUMED_TURNOVER) : baseText(params, NUMERIC_SPECS[key].code)]),
   ) as unknown as NumericValues
-  return { facilityType: 'warehouse', ...profile, ...numeric, staff: presetStaffRows(params) }
+  const extras = Object.fromEntries(extraFields(params).map((parameter) => [parameter.code, extraText(parameter)]))
+  return { facilityType: 'warehouse', ...profile, ...numeric, staff: presetStaffRows(params), extras }
 }
 
 /** Новая пустая группа: ключ не повторяет существующие, даже после удалений. */
@@ -174,7 +219,8 @@ export function isLocationForm(value: unknown): value is LocationForm {
     FACILITY_CHOICES.includes(v.facilityType) &&
     typeof v.name === 'string' &&
     Array.isArray(v.staff) &&
-    NUMERIC_KEYS.every((key) => typeof v[key] === 'string')
+    NUMERIC_KEYS.every((key) => typeof v[key] === 'string') &&
+    typeof v.extras === 'object' && v.extras !== null
   )
 }
 

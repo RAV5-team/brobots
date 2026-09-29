@@ -39,12 +39,11 @@ describe('LocationNewPage (экран 14)', () => {
     renderPage('?as=user')
     expect(await screen.findByRole('heading', { level: 1, name: 'Новая локация' })).toBeInTheDocument()
     const nav = screen.getByRole('navigation', { name: 'Разделы формы' })
-    expect(within(nav).getAllByRole('link').map((l) => l.textContent)).toEqual(['Основное', 'Площадь и этажность', 'Режим', 'Персонал'])
-    expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
-      '1. Основное', '2. Площадь и этажность', '3. Режим работы', '4. Персонал',
-    ])
+    expect(within(nav).getAllByRole('link').map((l) => l.textContent)?.slice(0, 4)).toEqual(['Основное', 'Площадь и этажность', 'Режим', 'Персонал'])
+    expect(screen.getByRole('heading', { level: 2, name: '1. Основное' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: /Объём приёмки/ })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: /Проходы и высота/ })).toBeInTheDocument()
     expect(screen.getByText('9 / 9')).toBeInTheDocument()
-    expect(railValue('Заполнено полей')).toHaveTextContent('16 из 16')
     expect(railValue('Ошибки')).toHaveTextContent('0')
     expect(railValue('Допущения')).toHaveTextContent('1')
     expect(screen.getByRole('link', { name: 'Локации' })).toHaveAttribute('href', '/locations')
@@ -104,6 +103,22 @@ describe('LocationNewPage (экран 14)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Сохранить/ }))
     expect(await screen.findByText('Проверьте поля с ошибками: 1')).toBeInTheDocument()
     expect(name).toHaveFocus()
+  })
+
+  it('fills the form from an edited location template', async () => {
+    renderPage('?as=user')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Новая локация' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Скачать шаблон' })).toBeEnabled()
+    const csv = [
+      'Код параметра;Группа;Параметр;Ед. изм.;Значение',
+      'loc_name;Основное;Название;;РЦ Подольск',
+      'wh_total_area;Площадь;Общая площадь;;15 000',
+    ].join('\n')
+    const file = new File([csv], 'шаблон-локации.csv', { type: 'text/csv' })
+    fireEvent.change(screen.getByLabelText('Файл шаблона локации'), { target: { files: [file] } })
+    expect(await screen.findByRole('textbox', { name: /Название/ })).toHaveValue('РЦ Подольск')
+    expect(screen.getByRole('textbox', { name: /Общая площадь склада/ })).toHaveValue('15 000')
+    expect(screen.getByText('В форму перенесено значений: 2')).toBeInTheDocument()
   })
 
   it('creates the location, clears the draft and opens the list in the 12а state', async () => {

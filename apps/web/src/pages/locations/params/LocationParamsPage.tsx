@@ -7,11 +7,13 @@ import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
 import type { Role } from '@/domain'
 import { useServices } from '@/services/useServices'
 import { useRole } from '@/shared/auth/useRole'
+import { downloadText } from '@/shared/dom/download'
 import { useActiveSection } from '@/shared/dom/useActiveSection'
 import { formatNumber, formatTime } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { LocationHeader } from '../detail/LocationHeader'
 import { errorSection, readiness, validateLocation } from '../new/locationCheck'
+import { applyLocationFile, locationSheetCsv } from '../new/locationSheet'
 import { SECTION_IDS, fieldDomId, type LocationForm } from '../new/locationForm'
 import { AreaSection, BasicsSection, OtherTypeNotice, ScheduleSection, type LocationSectionProps } from '../new/LocationSections'
 import { ProfileReadinessRail } from '../new/ProfileReadinessRail'
@@ -75,6 +77,7 @@ function ParamsForm({ data, editing, onSaved, status }: ParamsFormProps) {
   const [site, setSite] = useState<SiteValues>(() => siteValuesFromLocation(location, catalog))
   const [showRequired, setShowRequired] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const [importStatus, setImportStatus] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const isWarehouse = location.facilityType === 'warehouse'
   const { activeId, select } = useActiveSection(isWarehouse ? PARAMS_SECTION_IDS : ['basics'])
@@ -110,6 +113,30 @@ function ParamsForm({ data, editing, onSaved, status }: ParamsFormProps) {
   const goToFirstError = () => {
     const [first] = Object.keys(errors)
     if (first) focusField(first, select, params)
+  }
+  const sheetForm = (): LocationForm => ({ ...form, extras: { ...form.extras, ...site } })
+  const downloadTemplate = () => { downloadText(tf.rail.excelFileName, locationSheetCsv(sheetForm(), params)) }
+  const importTemplate = (file: File) => {
+    void applyLocationFile(sheetForm(), params, file).then((result) => {
+      if (!result.ok) {
+        setImportStatus(null)
+        setMessage(tf.rail.excelBadFile)
+        return
+      }
+      setForm({ ...result.form, facilityType: form.facilityType })
+      setSite((prev) => ({
+        ...prev,
+        ...Object.fromEntries(Object.keys(prev).map((code) => [code, result.form.extras[code] ?? prev[code] ?? ''])),
+      }))
+      setMessage(null)
+      const count = formatNumber(result.applied)
+      const sample = result.unknown.slice(0, 3).join(', ')
+      setImportStatus(sample === '' ? tf.rail.excelImported(count) : tf.rail.excelUnknown(count, sample))
+    }).catch((error: unknown) => {
+      console.error('Не удалось прочитать шаблон локации', error)
+      setImportStatus(null)
+      setMessage(tf.rail.excelReadFailed)
+    })
   }
 
   const submit = async (event: SyntheticEvent) => {
@@ -167,8 +194,10 @@ function ParamsForm({ data, editing, onSaved, status }: ParamsFormProps) {
           saveBlock={null}
           saving={saving}
           message={message}
-          status={editing ? null : status}
+          status={editing ? importStatus : status}
           onGoToError={goToFirstError}
+          onDownloadTemplate={downloadTemplate}
+          onImportTemplate={importTemplate}
           dimmed={!editing}
         />
       </fieldset>

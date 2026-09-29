@@ -58,6 +58,8 @@ export function apiLocations(http: HttpClient, reference: Reference): Partial<Lo
       ((await reference.dictionaries()).facilityTypes ?? []).map(facilityTypeFromOption).filter((t): t is FacilityType => t !== null),
     listFacilityParameters: async (facilityType) =>
       ((await http.get<ApiSchemas['DefinitionList']>(`/facility-types/${facilityType}/parameters`)).items ?? []).map(facilityParameterFromApi),
+    // Тексты макета («РЦ Химки») не хранятся в API: форма стартует пустой, числа берутся из справочника параметров.
+    getDemoProfile: async () => ({ name: '', city: '', address: '' }),
   }
 }
 

@@ -24,6 +24,9 @@ interface ProfileReadinessRailProps {
   readonly dimmed?: boolean
   /** Итог сохранения — «Изменения сохранены · 14:32» (17а). */
   readonly status?: string | null
+  /** Скачать шаблон текущей формы и загрузить его обратно. Без обработчиков кнопки остаются недоступны. */
+  readonly onDownloadTemplate?: () => void
+  readonly onImportTemplate?: (file: File) => void
 }
 
 function ErrorsValue({ count, onGo }: { readonly count: number; readonly onGo: () => void }) {
@@ -40,7 +43,9 @@ function ErrorsValue({ count, onGo }: { readonly count: number; readonly onGo: (
  * Правая панель «Готовность профиля» и действия формы (PRD 10.2; 15950:2157). Счётчики вычисляются (`readiness`),
  * правило «N / M» — PRD 15 · №44, D-36. Липкая, как на 09а: «Сохранить» видно на всей высоте формы (D-04).
  */
-export function ProfileReadinessRail({ readiness, saveBlock, saving, message, onGoToError, dimmed = false, status = null }: ProfileReadinessRailProps) {
+export function ProfileReadinessRail({
+  readiness, saveBlock, saving, message, onGoToError, dimmed = false, status = null, onDownloadTemplate, onImportTemplate,
+}: ProfileReadinessRailProps) {
   const { requiredDone, requiredTotal } = readiness
   const note = saveBlock === 'guest' ? t.guestSave : saveBlock === 'otherType' ? t.otherTypeSave : null
   return (
@@ -65,7 +70,13 @@ export function ProfileReadinessRail({ readiness, saveBlock, saving, message, on
       message={message}
       status={status}
       submit={{ label: saving ? t.saving : t.save, disabled: saveBlock !== null || saving, note }}
-      excel={{ importLabel: t.importExcel, templateLabel: t.downloadTemplate, note: t.excelSoon }}
+      excel={{
+        importLabel: t.importExcel,
+        templateLabel: t.downloadTemplate,
+        note: onDownloadTemplate ? t.excelHint : t.excelSoon,
+        ...(onDownloadTemplate ? { fileLabel: t.excelFile, onDownload: onDownloadTemplate } : {}),
+        ...(onImportTemplate ? { onImport: onImportTemplate } : {}),
+      }}
     />
   )
 }

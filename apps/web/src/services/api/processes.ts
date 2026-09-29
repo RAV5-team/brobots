@@ -19,5 +19,7 @@ export function apiProcesses(http: HttpClient, reference: Reference): Partial<Pr
       reference.invalidate('processes')
       return processFromApi(created)
     },
+    // Пример «Перемещение паллет · кросс-докинг» — текст макета, не ресурс API. Форма стартует без него.
+    getDemoText: async () => ({ name: '', carrier: '', route: '' }),
   }
 }

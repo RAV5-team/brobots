@@ -7,6 +7,7 @@ import {
   NUMERIC_SPECS,
   STAFF_PRESETS,
   buildInitialForm,
+  extraFields,
   type LocationForm,
   type NumericValues,
   type ParameterIndex,
@@ -69,7 +70,13 @@ export function formFromLocation(location: Location, params: ParameterIndex): Lo
     }),
   ) as unknown as NumericValues
   const staff = location.staffGroups.length > 0 ? staffFromGroups(location) : staffFromParameters(location, params)
-  return { ...base, ...numeric, facilityType: location.facilityType, staff }
+  const extras = Object.fromEntries(extraFields(params).map((field) => {
+    const own = location.parameters[field.code]?.value
+    const value = own ?? field.base
+    const text = typeof value === 'number' ? formatNumber(value, 3) : String(value ?? '').trim()
+    return [field.code, text]
+  }))
+  return { ...base, ...numeric, facilityType: location.facilityType, staff, extras }
 }
 
 /** Коды, которыми управляет форма: числовые поля и параметры стандартных групп. */
