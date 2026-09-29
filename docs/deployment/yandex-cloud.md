@@ -9,15 +9,9 @@ then a manually started deployment workflow updates the VM.
 
 ## Deployment status
 
-The deployment workflow is intentionally gated by the repository variable
-`ECONOMICS_API_CONTRACT_VERIFIED`. Keep it unset or `false` until the separate
-API-to-economics adapter work is complete and its integration test passes. The
-current API adapter does not send all fields required by economics and expects
-plain-text reasons where economics now returns structured reasons.
-
 The demo VM, static IP, firewall group, snapshot schedule, deployment service
-account, and GitHub workload identity federation have been created. The GitHub
-repository variables and VM runtime configuration still need to be completed.
+account, and GitHub workload identity federation are provisioned. Required
+GitHub repository variables and VM runtime configuration are in place.
 
 ## Architecture
 
@@ -72,7 +66,6 @@ Set these repository variables for the provisioned resources:
 | `YC_FOLDER_ID` | `b1gralifrlhh1ata3enc` |
 | `YC_CLOUD_ID` | `b1g5n0nr3hp6dagcl2cv` |
 | `PUBLIC_URL` | `https://93.77.188.244` |
-| `ECONOMICS_API_CONTRACT_VERIFIED` | `false` until the prerequisite is verified |
 | `WEB_DEMO_MODE` | `false` until disposable demo credentials are configured |
 | `WEB_DEMO_USER_EMAIL` | Public demo user's email when demo mode is enabled |
 | `WEB_DEMO_USER_PASSWORD` | Public demo user's password when demo mode is enabled |
