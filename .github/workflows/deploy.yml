@@ -4,8 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: Full commit SHA published by release-images.yml
-        required: true
+        description: Full commit SHA published by release-images.yml (empty or "latest" = last successful main release)
+        required: false
+        default: latest
         type: string
 
 permissions:
@@ -22,9 +23,23 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+      - name: Resolve image tag
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          if [[ -z "$IMAGE_TAG" || "$IMAGE_TAG" == "latest" ]]; then
+            IMAGE_TAG=$(gh api \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/release-images.yml/runs?branch=main&event=push&status=success&per_page=1" \
+              --jq '.workflow_runs[0].head_sha // empty')
+            [[ -n "$IMAGE_TAG" ]] || { echo "No successful main release-images run found" >&2; exit 1; }
+            echo "Resolved latest release to ${IMAGE_TAG}"
+          fi
+          echo "sha=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
       - name: Validate deployment inputs
         env:
-          IMAGE_TAG: ${{ inputs.image_tag }}
+          IMAGE_TAG: ${{ steps.tag.outputs.sha }}
           YC_INSTANCE_ID: ${{ vars.YC_INSTANCE_ID }}
           YC_SERVICE_ACCOUNT_ID: ${{ vars.YC_SERVICE_ACCOUNT_ID }}
           YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
@@ -41,7 +56,7 @@ jobs:
       - name: Require a successful main release run for this SHA
         env:
           GH_TOKEN: ${{ github.token }}
-          IMAGE_TAG: ${{ inputs.image_tag }}
+          IMAGE_TAG: ${{ steps.tag.outputs.sha }}
         run: |
           runs=$(gh api \
             "repos/${GITHUB_REPOSITORY}/actions/workflows/release-images.yml/runs?head_sha=${IMAGE_TAG}" \
@@ -52,7 +67,7 @@ jobs:
           }
       - name: Render COI Compose specification
         env:
-          IMAGE_TAG: ${{ inputs.image_tag }}
+          IMAGE_TAG: ${{ steps.tag.outputs.sha }}
           GHCR_OWNER: ${{ github.repository_owner }}
         run: |
           GHCR_OWNER="${GHCR_OWNER,,}"
