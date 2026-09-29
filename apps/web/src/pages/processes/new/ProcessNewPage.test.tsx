@@ -78,6 +78,22 @@ describe('ProcessNewPage (экран 09а)', () => {
     expect(create).not.toHaveBeenCalled()
   })
 
+  it('fills the form from an edited process template', async () => {
+    renderPage('?as=user')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Новый процесс' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Скачать шаблон' })).toBeEnabled()
+    const csv = [
+      'Код параметра;Группа;Параметр;Ед. изм.;Значение',
+      'proc_name;Процесс;Название;;Ночная отгрузка',
+      'dailyVolume;Объём;Объём;;4 000',
+    ].join('\n')
+    const file = new File([csv], 'шаблон-процесса.csv', { type: 'text/csv' })
+    fireEvent.change(screen.getByLabelText('Файл шаблона процесса'), { target: { files: [file] } })
+    expect(await screen.findByRole('textbox', { name: /Название процесса/ })).toHaveValue('Ночная отгрузка')
+    expect(screen.getByRole('textbox', { name: /Объём операций в сутки/ })).toHaveValue('4 000')
+    expect(screen.getByText('В форму перенесено значений: 2')).toBeInTheDocument()
+  })
+
   it('saves the process, clears the draft and opens its card', async () => {
     renderPage('?as=user')
     fireEvent.click(await screen.findByRole('button', { name: 'Сохранить процесс' }))

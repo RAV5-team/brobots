@@ -40,11 +40,21 @@ export function useProcessFormState({ draftKey, initialForm, canSave, acceptDraf
   })
   const [errors, setErrors] = useState<FormErrors>({})
   const [message, setMessage] = useState<string | null>(null)
+  const [status, setStatus] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const savedAt = useDraftAutosave(draftKey, form, canSave)
   const { activeId, select } = useActiveSection(SECTION_IDS)
 
   const update = (patch: Partial<ProcessForm>) => { setForm((prev) => ({ ...prev, ...patch })) }
+  const applyImported = (next: ProcessForm, notice: string) => {
+    setForm(next)
+    setMessage(null)
+    setStatus(notice)
+  }
+  const rejectImported = (text: string) => {
+    setStatus(null)
+    setMessage(text)
+  }
 
   const submit = async (event: SyntheticEvent) => {
     event.preventDefault()
@@ -68,7 +78,7 @@ export function useProcessFormState({ draftKey, initialForm, canSave, acceptDraf
     }
   }
 
-  return { form, update, errors, message, saving, savedAt, activeId, select, submit }
+  return { form, update, errors, message, status, saving, savedAt, activeId, select, submit, applyImported, rejectImported }
 }
 
 export type ProcessFormState = ReturnType<typeof useProcessFormState>

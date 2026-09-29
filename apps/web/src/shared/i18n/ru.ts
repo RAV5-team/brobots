@@ -811,6 +811,13 @@ export const ru = {
       importExcel: 'Загрузить из Excel',
       downloadTemplate: 'Скачать шаблон',
       excelSoon: 'Загрузка и шаблон Excel появятся вместе с экраном загрузки (PRD 9.4)',
+      excelHint: 'Меняйте столбец «Значение». Файл можно загрузить и как CSV, и как книгу Excel',
+      excelFile: 'Файл шаблона процесса',
+      excelFileName: 'шаблон-процесса.csv',
+      excelImported: (count: string) => `В форму перенесено значений: ${count}`,
+      excelUnknown: (count: string, names: string) => `В форму перенесено значений: ${count}. Не распознаны: ${names}`,
+      excelBadFile: 'Это не шаблон процесса. Скачайте шаблон и заполните столбец «Значение»',
+      excelReadFailed: 'Не удалось прочитать файл. Повторите загрузку',
       guestSave: 'В демо-режиме процессы не сохраняются: войдите в рабочий кабинет',
     },
     errors: {
