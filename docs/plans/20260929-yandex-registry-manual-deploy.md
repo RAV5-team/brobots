@@ -27,6 +27,7 @@ Do not store a long-lived registry password on the VM. Use the local `yc` Docker
 
 **Files:**
 - Modify: `apps/web/src/components/ui/ProgressPanel.tsx`
+- Modify: `apps/web/src/pages/locations/new/locationCheck.ts`
 - Modify: `infra/keycloak/Dockerfile`
 
 - [x] Omit the `label` prop when `logLabel` is undefined, or adjust the prop type to explicitly accept `undefined`.
@@ -34,7 +35,12 @@ Do not store a long-lived registry password on the VM. Use the local `yc` Docker
 - [ ] Run web lint, typecheck, tests, and production build.
 - [ ] Build the Keycloak image with the repository root as context.
 
-**Verification note:** Web checks could not run because this checkout has no installed web dependencies (`eslint`, `tsc`, and `vitest` are unavailable). The repository-root Docker build was attempted but Docker could not connect to OrbStack’s socket (`permission denied`); the realm import source path was confirmed to exist.
+**Verification note:** Web lint and typecheck passed after installing
+dependencies. `npm test` ran 2,324 tests and reported 18 failures, 2,302
+passes, and 4 skips. A separate `locationCheck.ts` type error was corrected;
+`npm run typecheck` then passed. The image build did not run because the
+release gate stopped at the failing web tests. The Keycloak Docker build was
+not reached.
 
 ### Task 2: Point the COI Compose spec at Yandex Container Registry
 
@@ -64,10 +70,17 @@ Do not store a long-lived registry password on the VM. Use the local `yc` Docker
 `yc` command stubs in isolated temporary Git repositories. The tests cover
 missing configuration, a dirty checkout, a failed Go test, failed image builds,
 test ordering, seven full-SHA image tags, Dockerfile contexts, and web build
-arguments. A real release preflight was not run because the parent checkout is
-dirty. Docker/Buildx access, Yandex authentication, registry access, and the VM
-target platform were not verified. Set `TARGET_PLATFORM_VERIFIED=true` only
-after verifying the target VM platform.
+arguments, including separate pytest executables for the economics and
+simulation environments. A real release attempt passed Go formatting, vet,
+race, and integration checks; economics Ruff and 119 tests; simulation's 679
+tests; web lint and typecheck. The web suite reported 18 failures, 2,302
+passes, and 4 skips, so the release stopped before any image build or push.
+OrbStack, Buildx, authenticated registry read access, and the VM target platform
+were verified. The VM uses `standard-v3`, an Intel platform mapped to
+`linux/amd64` by [Yandex's platform documentation](
+https://yandex.cloud/en/docs/compute/concepts/vm-platforms).
+The documented SSH key is absent; registry push permission and Compute
+operation polling access remain unverified.
 
 ### Task 4: Add a manual COI deploy and rollback command
 
@@ -106,7 +119,13 @@ deployment and cloud access were explicitly excluded from this task.
 - [x] Add ordered copy-ready operator commands with required values, expected success signals, verification steps, and rollback command.
 - [x] Create and verify the actual registry, then record its ID in the operator commands. Do not include tokens or private keys.
 
-**Verification note:** The runbook follows the local release and manual COI deployment scripts and documents the known instance, folder, cloud, public URL, and script environment variables. Registry `brobots` (`crprb9kftitj4diu2jru`) was created in the deployment folder and verified `ACTIVE`; its ID is recorded in the operator commands. IAM bindings, Docker/Buildx access, and operation polling permissions remain to be verified.
+**Verification note:** The runbook follows the local release and manual COI
+deployment scripts and documents the known instance, folder, cloud, public
+URL, and script environment variables. Registry `brobots`
+(`crprb9kftitj4diu2jru`) was created in the deployment folder and verified
+`ACTIVE`; authenticated registry read access, Docker, and Buildx now work.
+Registry push/pull IAM bindings and Compute operation polling permissions
+remain to be verified.
 
 ### Task 6: Verify acceptance criteria
 
@@ -128,15 +147,16 @@ registry ID and the full current SHA produced nine Yandex image references
 sharing that SHA, with no GHCR references or unresolved deployment variables,
 and restored all eight `/etc/brobots` env-file paths. Registry image presence
 and live VM SHA verification were not performed; no images were published and
-no deployment was attempted. Full service checks and all seven `linux/amd64`
-builds were not verified: Docker socket access was denied, Buildx was
-unavailable, web dependencies and Python `pytest` were unavailable, and Go
-test cache writes were blocked.
+no deployment was attempted. Go, economics, and simulation checks passed. Web
+lint and typecheck passed, but 18 of 2,324 web tests failed (2,302 passed, 4
+skipped), so the release gate stopped before all seven `linux/amd64` builds.
+The registry's push permission remains unverified.
 
 ## Post-Completion Manual Checklist
 
-- Repair OrbStack/Docker socket access and install Buildx on the Mac.
-- Use the active `brobots` registry (`crprb9kftitj4diu2jru`) in the deployment folder.
+- [x] Repair OrbStack/Docker socket access and install Buildx on the Mac.
+- [x] Use the active `brobots` registry (`crprb9kftitj4diu2jru`) in the
+      deployment folder.
 - Grant your Yandex identity `container-registry.images.pusher` on the registry.
 - Grant the VM’s attached service account `container-registry.images.puller` on the registry.
 - Confirm your deployment identity can update the instance and read the resulting Compute operation.
@@ -157,8 +177,10 @@ test cache writes were blocked.
 
 ## Risks & Assumptions
 
-- **RISK-001:** Local Docker is currently blocked by OrbStack socket permissions, and Buildx is missing; local publishing cannot work until corrected.
-- **RISK-002:** The Mac is `arm64`; builds must target the VM’s verified platform to avoid incompatible images.
+- **RISK-001:** The web suite has 18 failures, so the release gate stops before
+  image builds or publication.
+- **RISK-002:** The Mac is `arm64`; the VM uses Intel `standard-v3`, so builds
+  must target `linux/amd64`.
 - **RISK-003:** The current GitHub deploy identity cannot poll the update operation. Manual deployment must verify operation-read permissions for the identity used with `yc`.
 - **ASSUMPTION-001:** The existing COI VM and its root-only runtime env files remain the target environment.
 - **ASSUMPTION-002:** Local commits are sufficient release provenance; no source push to GitHub is part of this workflow.
