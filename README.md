@@ -69,17 +69,9 @@ brobots/
 │   ├── postgres/                роли и БД keycloak, api, simulation, economics — при создании тома
 │   └── deploy/                  продление сертификатов certbot на ВМ
 │
-├── docs/
-│   ├── RAV5_PRD.docx            требования к продукту
-│   ├── orchestrator.md          жизненный цикл проекта и снимки данных
-│   ├── integration-followups.md что осталось доделать в интеграции фронта и бэка
-│   ├── api/                     сервис api: запуск, схема БД, подбор, демо-данные
-│   ├── keycloak/                Keycloak: запуск и проверка токенов в сервисах
-│   ├── economics/               методика, отчёт об интеграции, backlog
-│   ├── deployment/              развёртывание в Yandex Cloud
-│   └── decisions/, guides/, reference/, plans/
+├── docs/                        документация контура, карта — в разделе «Документация»
 │
-├── scripts/                     генерация секретов, smoke-тесты Keycloak
+├── scripts/                     генерация секретов, smoke-тесты Keycloak, выгрузка датасетов в seed api
 ├── .github/workflows/           CI сервисов, сборка образов, деплой
 │
 ├── docker-compose.yml           локальный контур: Postgres, Keycloak, шлюз, api, simulation, economics
@@ -181,6 +173,24 @@ npm run dev    # http://localhost:5173, /api проксируется на http:
   `docker-compose.coi.yml`. Runbook — [docs/deployment/yandex-cloud.md](docs/deployment/yandex-cloud.md).
 - **CI:** `api.yml`, `economics.yml`, `keycloak-theme.yml` — линт, тесты и
   интеграционные тесты с Postgres по изменённым путям.
+
+## Документация
+
+| Документ | О чём |
+|---|---|
+| [docs/RAV5_PRD.docx](docs/RAV5_PRD.docx) | требования к продукту; markdown-копия — `apps/web/docs/product/prd/` |
+| [docs/orchestrator.md](docs/orchestrator.md) | жизненный цикл проекта, снимки данных, калькуляция и симуляция |
+| [docs/api/](docs/api/README.md) | сервис api: запуск, доступ, эндпоинты, [схема БД](docs/api/db-schema.md), [правила подбора](docs/api/matching-rules.md), [демо-данные](docs/api/seed-data.md) |
+| [docs/keycloak/](docs/keycloak/keycloak.md) | Keycloak: запуск, роли, учётки; [проверка токенов в сервисах](docs/keycloak/middleware.md) |
+| [docs/economics/](docs/economics/integration-report.md) | интеграция economics с api и [бэклог валидации](docs/economics/backlog.md) |
+| [docs/decisions/ranking-methodology-signoff.md](docs/decisions/ranking-methodology-signoff.md) | утверждённый контракт рейтинга `ranking-v1` |
+| [docs/guides/currency-and-extracted-data.md](docs/guides/currency-and-extracted-data.md) | валюта расчёта и граница извлечённых данных |
+| [docs/reference/economics/](docs/reference/economics/economic_inputs.md) | словарь входов экономической модели по книге Excel |
+| [docs/source-materials/economics/](docs/source-materials/economics/) | исходные книга, методика и аудит экономической модели |
+| [docs/deployment/yandex-cloud.md](docs/deployment/yandex-cloud.md) | развёртывание в Yandex Cloud |
+
+Документы сервисов лежат рядом с кодом: [services/simulation/README.md](services/simulation/README.md),
+[services/economics/README.md](services/economics/README.md), [apps/web/docs/](apps/web/docs/).
 
 ## Что дальше
 
