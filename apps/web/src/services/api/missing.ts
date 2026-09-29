@@ -30,11 +30,13 @@ function missingMethod(service: string, method: string): Promise<never> {
   if (!gaps.has(key)) {
     gaps.add(key)
     snapshot = [...gaps]
-    listeners.forEach((listener) => listener())
+    listeners.forEach((listener) => { listener() })
   }
   return Promise.reject(new MissingApiError(service, method))
 }
 
+// T задаёт вызывающий: заглушка отвечает на любой метод сервиса.
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
 function missing<T extends object>(service: string): T {
   return new Proxy({} as T, {
     get(_target, prop) {

@@ -153,6 +153,7 @@ func (c *Client) Submit(ctx context.Context, token string, request any) (string,
 	if err != nil {
 		return "", err
 	}
+	defer func() { _ = resp.Body.Close() }()
 	var accepted struct {
 		JobID string `json:"job_id"`
 	}
@@ -172,6 +173,7 @@ func (c *Client) Job(ctx context.Context, token, jobID string) (Job, error) {
 	if err != nil {
 		return job, err
 	}
+	defer func() { _ = resp.Body.Close() }()
 	return job, decode(resp, &job)
 }
 
@@ -182,6 +184,7 @@ func (c *Client) Run(ctx context.Context, token, simulationID string) (json.RawM
 	if err != nil {
 		return nil, err
 	}
+	defer func() { _ = resp.Body.Close() }()
 	return run, decode(resp, &run)
 }
 

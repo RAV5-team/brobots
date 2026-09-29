@@ -61,13 +61,9 @@ export function useCatalog(tab: CatalogTab): {
   const missingKey = missing.join(',')
 
   useEffect(() => {
-    if (missingKey === '') {
-      setSectionError(false)
-      return
-    }
+    if (missingKey === '') return
     const types = missingKey.split(',') as LaunchItemType[]
     let cancelled = false
-    setSectionError(false)
     services.catalog.listLaunchItems(types)
       .then((items) => {
         if (cancelled) return
@@ -82,7 +78,10 @@ export function useCatalog(tab: CatalogTab): {
         console.error('Не удалось загрузить раздел каталога', error)
         setSectionError(true)
       })
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      setSectionError(false)
+    }
   }, [services, missingKey, sectionAttempt])
 
   const retry = useCallback(() => {

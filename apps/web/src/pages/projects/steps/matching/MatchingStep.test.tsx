@@ -147,7 +147,7 @@ describe('Шаг 2 «Подбор решений» (2.1, 16325:101; PRD 11.3)', 
     await screen.findByRole('radiogroup', { name: 'Рейтинг вариантов подбора' })
     fireEvent.click(row('Ronavi H1500 · RaaS'))
     expect(row('Ronavi H1500 · RaaS')).toBeChecked()
-    await waitFor(() => { expect(update).toHaveBeenCalledWith('PJ-DEMO', expect.objectContaining({ matching: expect.any(Object) })) })
+    await waitFor(() => { expect(update).toHaveBeenCalledWith('PJ-DEMO', expect.objectContaining({ matching: expect.any(Object) as unknown })) })
     expect(screen.queryByText(/Черновик сохранён/)).not.toBeInTheDocument()
     expect(screen.getByText('Демо-режим · изменения не сохраняются')).toBeInTheDocument()
   })

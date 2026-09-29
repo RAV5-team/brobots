@@ -1,7 +1,7 @@
 import type { NewLocation, ParameterValue, StaffGroup } from '@/domain'
 import { formatNumber, parseDecimal } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
-import { siteFieldKind, siteSectionOf, type SiteGroup } from '../params/siteProfileFields'
+import { siteFieldKind, siteSectionOf } from '../params/siteProfileFields'
 import {
   NUMERIC_KEYS,
   NUMERIC_SPECS,
@@ -16,7 +16,6 @@ import {
   type LocationForm,
   type NumericKey,
   type ParameterIndex,
-  type SectionId,
   type StaffGroupRow,
 } from './locationForm'
 
@@ -120,7 +119,7 @@ function extraErrors(form: LocationForm, params: ParameterIndex): [string, strin
 }
 
 /** Секция, где стоит поле с ошибкой, — для перехода из панели готовности. */
-export function errorSection(key: string, parameters?: ParameterIndex): SectionId | SiteGroup | string {
+export function errorSection(key: string, parameters?: ParameterIndex): string {
   const extra = parameters ? extraSections(parameters).find((section) => section.fields.some((field) => field.code === key)) : undefined
   if (extra) return extra.id
   const site = parameters ? siteSectionOf(key, [...parameters.values()]) : null

@@ -12,7 +12,7 @@ describe('этап «Моделирование»: полоса и журнал 
 
   it('пока журнал пуст: состав моделируется, варианты — отдельной строкой в очереди', () => {
     expect(runSteps({ status: 'running', log: [], elapsedS: 1 }, fleet, fleet)).toEqual([
-      { text: expect.stringMatching(/^Конфигурация из подбора, как в расчёте: 18\sроботов, 6\sстанций — моделируются рабочие сутки$/u), state: 'current' },
+      { text: expect.stringMatching(/^Конфигурация из подбора, как в расчёте: 18\sроботов, 6\sстанций — моделируются рабочие сутки$/u) as unknown, state: 'current' },
       { text: 'В очереди: варианты с большим и меньшим парком, затем сводный вердикт', state: 'queued' },
     ])
   })
@@ -35,6 +35,6 @@ describe('этап «Моделирование»: полоса и журнал 
 
   it('свой состав называется «для проверки»; без журнала готовый прогон — одна строка', () => {
     const steps = runSteps({ status: 'done', log: [], elapsedS: 5, runId: 'SIM-1' }, { robots: 15, stations: 6 }, fleet)
-    expect(steps).toEqual([{ text: expect.stringMatching(/^Конфигурация для проверки: 15\sроботов, 6\sстанций — проверена · Вердикт готов$/u), state: 'done' }])
+    expect(steps).toEqual([{ text: expect.stringMatching(/^Конфигурация для проверки: 15\sроботов, 6\sстанций — проверена · Вердикт готов$/u) as unknown, state: 'done' }])
   })
 })

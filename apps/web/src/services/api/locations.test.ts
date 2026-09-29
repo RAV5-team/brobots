@@ -7,10 +7,10 @@ describe('apiLocations page', () => {
   it('fetches GET /locations once when the list and summaries are asked together', async () => {
     let calls = 0
     const http = {
-      get: async (path: string) => {
-        if (path !== '/locations') throw new Error(path)
+      get: (path: string) => {
+        if (path !== '/locations') return Promise.reject(new Error(path))
         calls += 1
-        return { items: [{ id: '1', name: 'РЦ', facilityTypeCode: 'warehouse', updatedAt: '2026-01-01T00:00:00Z' }] }
+        return Promise.resolve({ items: [{ id: '1', name: 'РЦ', facilityTypeCode: 'warehouse', updatedAt: '2026-01-01T00:00:00Z' }] })
       },
     } as HttpClient
     const locations = apiLocations(http, {} as Reference)

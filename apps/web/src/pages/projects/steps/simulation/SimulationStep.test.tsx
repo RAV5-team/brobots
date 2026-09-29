@@ -86,7 +86,7 @@ describe('Шаг 3 «Симуляция», этап 1 «Что проверяе�
     fireEvent.change(await screen.findByRole('textbox', { name: 'Роботов' }), { target: { value: '19' } })
     fireEvent.blur(robots())
     expect(robots()).toHaveValue('19')
-    await waitFor(() => { expect(update).toHaveBeenCalledWith('PJ-DEMO', expect.objectContaining({ simulation: expect.any(Object) })) })
+    await waitFor(() => { expect(update).toHaveBeenCalledWith('PJ-DEMO', expect.objectContaining({ simulation: expect.any(Object) as unknown })) })
     // Статус сохранения у гостя заменяет демо-плашка каркаса.
     expect(screen.getByText('Демо-режим · изменения не сохраняются')).toBeInTheDocument()
   })
@@ -209,7 +209,7 @@ describe('Шаг 3 «Симуляция», этап 3 «Моделировани
         shiftsPerDay: 2,
         shiftHours: 11,
         peakHours: { inbound: [7, 8, 9, 10, 17, 18, 19], outbound: [7, 8, 9, 10, 17, 18, 19] },
-      }),
+      }) as unknown,
     }))
     expect(await screen.findByRole('heading', { level: 1, name: 'Моделирование рабочих суток' })).toBeInTheDocument()
     expect(within(stages()).getByText('3. Моделирование').closest('[aria-current]')).toHaveAttribute('aria-current', 'step')
