@@ -109,6 +109,25 @@ Figma: `get_metadata` строк `16325:44`, `16325:92`, `16325:138` — по о
 
 Остаются общими `mocks/fixtures/README.md`, `screens.md` и `decisions.md`: каждый поток правит только свои строки или разделы, и конфликты слияния решаются тривиально. Можно и так: потоки пишут заметки в PR, а файлы обновляет один человек после слияния.
 
+## Владение файлами потоков (после подготовки, ветка `chore/web-prep-parallel-steps`)
+
+Поток 0 выполнен: общие компоненты (`c0d610c`), модель и фикстуры (`8b07304`), словарь по шагам (`222855d`), реестры экранов по разделам (`d2e0d47`). Пути — от `apps/web/`.
+
+| Поток | Можно менять |
+|---|---|
+| **A · шаг 1** | `src/pages/projects/steps/params/**`; `src/shared/i18n/project/params.ts`; `e2e/screens/params.ts`; `src/app/screenRows/params.ts`; `src/pages/dev/scenarios/params.ts`; `src/pages/projects/shared/ValueTable.tsx`; `src/domain/projectParams.ts`; фикстуры `siteParameters.ts`, `locationProcesses.ts`, `norms.ts`, `staffParameters`/`locations.ts` (только поля процессов проекта); эталоны `02*.png` |
+| **B · шаг 2** | `src/pages/projects/steps/matching/**`; `src/shared/i18n/project/matching.ts`; `e2e/screens/matching.ts`; `src/app/screenRows/matching.ts`; `src/pages/dev/scenarios/matching.ts`; `src/domain/projectMatching.ts`, `verification.ts`, `siteFit.ts`; `src/api/mappers/matching.ts`; `src/services/mock/variantDetails.ts`; фикстуры `projectMatching.ts`, `projectMatchingDetails.ts`; `docs/api-contract.md` (свои номера); эталоны `03*.png` |
+| **C · шаг 3** | `src/pages/projects/steps/simulation/**`; `src/shared/i18n/project/simulation.ts`; `e2e/screens/simulation.ts`; `src/app/screenRows/simulation.ts`; `src/pages/dev/scenarios/simulation.ts`; `src/domain/projectSimulation.ts`; `src/api/mappers/simulation.ts`; `scripts/genSimulationFixtures.ts` → `simulationRuns.generated.ts`; эталоны `04*`, `05-sim*`, `06-sim*`, `07*.png` |
+
+**Общие — только по договорённости, одним владельцем за раз:**
+- каркас и примитивы — `ProjectStepLayout.tsx`, `src/components/ui/**`, `src/components/charts/**`, витрины `src/pages/dev/ui/**`. Новые варианты — только необязательными пропами; эталоны чужих экранов не меняются;
+- модель входов — `src/domain/projectInputs.ts`, `projectInputsRules.ts` (D-89), `src/domain/index.ts`; `src/services/mock/projects.ts`;
+- словари — `src/shared/i18n/ru.ts`, `src/shared/i18n/project/common.ts`;
+- `src/pages/projects/report/**` (отчёт 09 использует модели всех шагов) и `steps/economics/**` (шаг 4);
+- документы — `decisions.md`, `screens.md`, `components.md`, `mocks/fixtures/README.md`: каждый поток правит только свои строки или разделы.
+
+**Бюджет первой загрузки — 299,8 из 300 КБ gzip.** `ru.project` (словари шагов) попадает в стартовый чанк через `ru.ts`, поэтому любая новая строка в `src/shared/i18n/project/*` его превысит. До старта потоков нужно решение: вынести словари шагов из стартового чанка (81 файл читает `ru.project`) или поднять бюджет.
+
 ---
 
 # Шаг 1 — подробно
