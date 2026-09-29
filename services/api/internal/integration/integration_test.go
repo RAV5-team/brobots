@@ -262,8 +262,11 @@ func TestLocationTaskProjectFlow(t *testing.T) {
 		"capexBudget": map[string]any{"amount": 50_000_000, "currency": "RUB"},
 		"parameters":  []map[string]any{{"code": "wh_inbound_pallets", "value": 1500}},
 	}, 201, &loc)
-	if loc.Summary.ParametersCompletenessPct != 100 || loc.Readiness.RequiredFilled != loc.Readiness.RequiredTotal {
+	if loc.Readiness.RequiredFilled != loc.Readiness.RequiredTotal {
 		t.Errorf("new location readiness = %+v %+v", loc.Readiness, loc.Summary)
+	}
+	if got := loc.Summary.ParametersCompletenessPct; got <= 0 || got >= 100 {
+		t.Errorf("new location completeness = %d, want between 0 and 100 with optional parameters empty", got)
 	}
 
 	var problem struct {
