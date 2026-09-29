@@ -120,7 +120,7 @@ function extraErrors(form: LocationForm, params: ParameterIndex): [string, strin
 }
 
 /** Секция, где стоит поле с ошибкой, — для перехода из панели готовности. */
-export function errorSection(key: string, parameters?: ParameterIndex): SectionId | SiteGroup | string {
+export function errorSection(key: string, parameters?: ParameterIndex): SectionId | SiteGroup {
   const extra = parameters ? extraSections(parameters).find((section) => section.fields.some((field) => field.code === key)) : undefined
   if (extra) return extra.id
   const site = parameters ? siteSectionOf(key, [...parameters.values()]) : null

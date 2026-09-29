@@ -11,10 +11,11 @@ describe('этап «Моделирование»: полоса и журнал 
   })
 
   it('пока журнал пуст: состав моделируется, варианты — отдельной строкой в очереди', () => {
-    expect(runSteps({ status: 'running', log: [], elapsedS: 1 }, fleet, fleet)).toEqual([
-      { text: expect.stringMatching(/^Конфигурация из подбора, как в расчёте: 18\sроботов, 6\sстанций — моделируются рабочие сутки$/u), state: 'current' },
-      { text: 'В очереди: варианты с большим и меньшим парком, затем сводный вердикт', state: 'queued' },
-    ])
+    const steps = runSteps({ status: 'running', log: [], elapsedS: 1 }, fleet, fleet)
+    expect(steps).toHaveLength(2)
+    expect(steps[0]?.text).toMatch(/^Конфигурация из подбора, как в расчёте: 18\sроботов, 6\sстанций — моделируются рабочие сутки$/u)
+    expect(steps[0]?.state).toBe('current')
+    expect(steps[1]).toEqual({ text: 'В очереди: варианты с большим и меньшим парком, затем сводный вердикт', state: 'queued' })
   })
 
   it('пришедшие строки сделаны, последняя идёт; очередь остаётся, пока нет вердикта', () => {
@@ -35,6 +36,8 @@ describe('этап «Моделирование»: полоса и журнал 
 
   it('свой состав называется «для проверки»; без журнала готовый прогон — одна строка', () => {
     const steps = runSteps({ status: 'done', log: [], elapsedS: 5, runId: 'SIM-1' }, { robots: 15, stations: 6 }, fleet)
-    expect(steps).toEqual([{ text: expect.stringMatching(/^Конфигурация для проверки: 15\sроботов, 6\sстанций — проверена · Вердикт готов$/u), state: 'done' }])
+    expect(steps).toHaveLength(1)
+    expect(steps[0]?.text).toMatch(/^Конфигурация для проверки: 15\sроботов, 6\sстанций — проверена · Вердикт готов$/u)
+    expect(steps[0]?.state).toBe('done')
   })
 })

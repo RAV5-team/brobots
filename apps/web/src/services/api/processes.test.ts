@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import type { HttpClient } from '@/api/http'
-import type { ApiSchemas } from '@/api/contract'
 import { PROCESS_TEMPLATE_DEFAULTS } from '@/mocks/fixtures/processTemplateDefaults'
 import { NotFoundError } from '../errors'
 import { apiProcesses } from './processes'
@@ -8,9 +7,9 @@ import type { Reference } from './reference'
 
 function httpReturning(values: readonly { readonly code: string; readonly value: number }[]): HttpClient {
   return {
-    get: async (path) => {
+    get: (path) => {
       if (path !== '/norms') throw new Error(path)
-      return { values }
+      return Promise.resolve({ values })
     },
   } as HttpClient
 }
@@ -29,11 +28,11 @@ describe('apiProcesses.getTemplateDefaults', () => {
 
 describe('apiProcesses.getRequirements', () => {
   const processes = apiProcesses({} as HttpClient, {
-    processes: async () => [{
+    processes: () => Promise.resolve([{
       code: 'PR-0099',
       name: 'Свой процесс',
       defaults: { unitMassKg: 800, routeLengthM: 40 },
-    } as ApiSchemas['Process']],
+    }]),
   } as unknown as Reference)
 
   it('derives location requirements from the process fields', async () => {

@@ -30,32 +30,32 @@ function missingMethod(service: string, method: string): Promise<never> {
   if (!gaps.has(key)) {
     gaps.add(key)
     snapshot = [...gaps]
-    listeners.forEach((listener) => listener())
+    listeners.forEach((listener) => { listener() })
   }
   return Promise.reject(new MissingApiError(service, method))
 }
 
-function missing<T extends object>(service: string): T {
-  return new Proxy({} as T, {
+function missing(service: string): object {
+  return new Proxy({}, {
     get(_target, prop) {
       if (typeof prop !== 'string') return undefined
-      return () => missingMethod(service, prop)
+      return () => { return missingMethod(service, prop) }
     },
   })
 }
 
 /** Запасная реализация режима API: ничего не выдумывает, каждый метод — ошибка «нет в API». */
 export function createMissingServices(): Services {
-  const projects = missing<ProjectService>('projects')
+  const projects = missing('projects') as ProjectService
   return {
-    catalog: missing<CatalogService>('catalog'),
-    compare: missing<CompareService>('compare'),
-    processes: missing<ProcessService>('processes'),
-    locations: missing<LocationService>('locations'),
+    catalog: missing('catalog') as CatalogService,
+    compare: missing('compare') as CompareService,
+    processes: missing('processes') as ProcessService,
+    locations: missing('locations') as LocationService,
     projects,
     simulationRuns: createSimulationRuns(projects),
-    admin: missing<AdminService>('admin'),
-    session: missing<SessionService>('session'),
-    dashboard: missing<DashboardService>('dashboard'),
+    admin: missing('admin') as AdminService,
+    session: missing('session') as SessionService,
+    dashboard: missing('dashboard') as DashboardService,
   }
 }

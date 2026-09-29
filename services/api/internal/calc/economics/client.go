@@ -34,7 +34,7 @@ type Client struct {
 // New creates a client for the service at baseURL; timeout bounds every call. auth, when set, wraps the transport to
 // add the service token of api (the service accepts only it); nil sends the calls without a token.
 func New(baseURL string, timeout time.Duration, auth func(http.RoundTripper) http.RoundTripper) *Client {
-	var transport http.RoundTripper = http.DefaultTransport
+	transport := http.DefaultTransport
 	if auth != nil {
 		transport = auth(transport)
 	}

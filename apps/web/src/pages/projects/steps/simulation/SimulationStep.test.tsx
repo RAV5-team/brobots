@@ -86,7 +86,10 @@ describe('Шаг 3 «Симуляция», этап 1 «Что проверяе�
     fireEvent.change(await screen.findByRole('textbox', { name: 'Роботов' }), { target: { value: '19' } })
     fireEvent.blur(robots())
     expect(robots()).toHaveValue('19')
-    await waitFor(() => { expect(update).toHaveBeenCalledWith('PJ-DEMO', expect.objectContaining({ simulation: expect.any(Object) })) })
+    await waitFor(() => { expect(update).toHaveBeenCalled() })
+    const [projectId, inputs] = update.mock.calls[0] ?? []
+    expect(projectId).toBe('PJ-DEMO')
+    expect(inputs?.simulation).toBeDefined()
     // Статус сохранения у гостя заменяет демо-плашка каркаса.
     expect(screen.getByText('Демо-режим · изменения не сохраняются')).toBeInTheDocument()
   })
@@ -203,14 +206,14 @@ describe('Шаг 3 «Симуляция», этап 3 «Моделировани
     const start = vi.spyOn(services.projects, 'startSimulation')
     renderAt('/projects/PJ-DEMO/simulation?as=user&stage=conditions', services)
     fireEvent.click(await screen.findByRole('button', { name: 'Запустить симуляцию' }))
-    expect(start).toHaveBeenCalledWith('PJ-DEMO', expect.objectContaining({
-      fleet: { robots: 18, stations: 6 },
-      conditions: expect.objectContaining({
-        shiftsPerDay: 2,
-        shiftHours: 11,
-        peakHours: { inbound: [7, 8, 9, 10, 17, 18, 19], outbound: [7, 8, 9, 10, 17, 18, 19] },
-      }),
-    }))
+    const [projectId, request] = start.mock.calls[0] ?? []
+    expect(projectId).toBe('PJ-DEMO')
+    expect(request?.fleet).toEqual({ robots: 18, stations: 6 })
+    expect(request?.conditions).toMatchObject({
+      shiftsPerDay: 2,
+      shiftHours: 11,
+      peakHours: { inbound: [7, 8, 9, 10, 17, 18, 19], outbound: [7, 8, 9, 10, 17, 18, 19] },
+    })
     expect(await screen.findByRole('heading', { level: 1, name: 'Моделирование рабочих суток' })).toBeInTheDocument()
     expect(within(stages()).getByText('3. Моделирование').closest('[aria-current]')).toHaveAttribute('aria-current', 'step')
     expect(runCard()).toHaveAttribute('aria-busy', 'true')

@@ -82,7 +82,7 @@ function bytesOf(bytes: Uint8Array): ArrayBuffer {
 }
 
 function cp1251(text: string): Uint8Array {
-  const bytes = [...text].map((char) => {
+  const bytes = Array.from(text, (char) => {
     const code = char.charCodeAt(0)
     if (code < 128) return code
     if (code >= 0x410 && code <= 0x44f) return code - 0x350

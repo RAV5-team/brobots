@@ -107,7 +107,7 @@ func (c *Client) do(ctx context.Context, token, method, path string, body any, h
 	}
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrUnavailable, err)
+		return nil, fmt.Errorf("%w: %w", ErrUnavailable, err)
 	}
 	return resp, nil
 }
@@ -117,38 +117,43 @@ func check(resp *http.Response) error {
 	if resp.StatusCode < 300 {
 		return nil
 	}
-	defer resp.Body.Close()
+	// The status error is already determined; a close error cannot change it.
+	defer func() { _ = resp.Body.Close() }()
 	var problem struct {
 		Error  string       `json:"error"`
 		Errors []FieldError `json:"errors"`
 	}
 	_ = json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&problem)
-	switch {
-	case resp.StatusCode == http.StatusNotFound:
+	switch resp.StatusCode {
+	case http.StatusNotFound:
 		return ErrNotFound
-	case resp.StatusCode == http.StatusTooManyRequests:
+	case http.StatusTooManyRequests:
 		return &BusyError{Message: problem.Error}
-	case resp.StatusCode == http.StatusUnprocessableEntity:
+	case http.StatusUnprocessableEntity:
 		return &RejectedError{Message: problem.Error, Errors: problem.Errors}
-	case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
+	case http.StatusUnauthorized, http.StatusForbidden:
 		return fmt.Errorf("%w: access denied (%d): %s", ErrUnavailable, resp.StatusCode, problem.Error)
+	default:
+		return fmt.Errorf("%w: status %d: %s", ErrUnavailable, resp.StatusCode, problem.Error)
 	}
-	return fmt.Errorf("%w: status %d: %s", ErrUnavailable, resp.StatusCode, problem.Error)
 }
 
 func decode(resp *http.Response, dst any) error {
-	defer resp.Body.Close()
+	// Decoding determines the result; a close error after it cannot change that result.
+	defer func() { _ = resp.Body.Close() }()
 	if err := check(resp); err != nil {
 		return err
 	}
 	if err := json.NewDecoder(resp.Body).Decode(dst); err != nil {
-		return fmt.Errorf("%w: unreadable answer: %v", ErrUnavailable, err)
+		return fmt.Errorf("%w: unreadable answer: %w", ErrUnavailable, err)
 	}
 	return nil
 }
 
 // Submit queues a simulation (POST /api/simulations); the request follows the simulation contract.
 func (c *Client) Submit(ctx context.Context, token string, request any) (string, error) {
+	// decode closes the response body after reading the answer.
+	//nolint:bodyclose
 	resp, err := c.do(ctx, token, http.MethodPost, c.prefix, request, nil)
 	if err != nil {
 		return "", err
@@ -168,6 +173,8 @@ func (c *Client) Submit(ctx context.Context, token string, request any) (string,
 // Job returns the progress of a job.
 func (c *Client) Job(ctx context.Context, token, jobID string) (Job, error) {
 	var job Job
+	// decode closes the response body after reading the answer.
+	//nolint:bodyclose
 	resp, err := c.do(ctx, token, http.MethodGet, c.prefix+"/jobs/"+url.PathEscape(jobID), nil, nil)
 	if err != nil {
 		return job, err
@@ -178,6 +185,8 @@ func (c *Client) Job(ctx context.Context, token, jobID string) (Job, error) {
 // Run returns a finished run as the service stores it (SimulationRun of services/simulation/docs/openapi.json).
 func (c *Client) Run(ctx context.Context, token, simulationID string) (json.RawMessage, error) {
 	var run json.RawMessage
+	// decode closes the response body after reading the answer.
+	//nolint:bodyclose
 	resp, err := c.do(ctx, token, http.MethodGet, c.prefix+"/"+url.PathEscape(simulationID), nil, nil)
 	if err != nil {
 		return nil, err

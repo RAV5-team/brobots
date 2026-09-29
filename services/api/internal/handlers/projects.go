@@ -173,6 +173,8 @@ func (a *API) simulationTraces(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	gzip := strings.Contains(r.Header.Get("Accept-Encoding"), "gzip")
+	// passTraces closes the response body after forwarding it to the caller.
+	//nolint:bodyclose
 	resp, err := a.svc.SimulationTraces(r.Context(), id, gzip)
 	a.passTraces(w, r, resp, err)
 }
@@ -205,6 +207,8 @@ func (a *API) previewSimulationResult(w http.ResponseWriter, r *http.Request) {
 
 func (a *API) previewSimulationTraces(w http.ResponseWriter, r *http.Request) {
 	gzip := strings.Contains(r.Header.Get("Accept-Encoding"), "gzip")
+	// passTraces closes the response body after forwarding it to the caller.
+	//nolint:bodyclose
 	resp, err := a.svc.PreviewSimulationTraces(r.Context(), chi.URLParam(r, "jobId"), gzip)
 	a.passTraces(w, r, resp, err)
 }
@@ -214,7 +218,11 @@ func (a *API) passTraces(w http.ResponseWriter, r *http.Request, resp *http.Resp
 		a.fail(w, r, err)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			a.log.WarnContext(r.Context(), "traces body close failed", slog.Any("error", err))
+		}
+	}()
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	if enc := resp.Header.Get("Content-Encoding"); enc != "" {
 		w.Header().Set("Content-Encoding", enc)

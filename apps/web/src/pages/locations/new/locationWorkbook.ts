@@ -79,7 +79,7 @@ async function tableFromXlsx(bytes: Uint8Array): Promise<string[][]> {
 function sharedStrings(file: Uint8Array | undefined): readonly string[] {
   if (!file) return []
   return [...xml(file).getElementsByTagNameNS('*', 'si')].map((item) =>
-    [...item.getElementsByTagNameNS('*', 't')].map((node) => node.textContent ?? '').join(''),
+    [...item.getElementsByTagNameNS('*', 't')].map((node) => node.textContent).join(''),
   )
 }
 
@@ -97,8 +97,8 @@ function sheetRows(document: XMLDocument, strings: readonly string[]): string[][
 
 function cellText(cell: Element, strings: readonly string[]): string {
   const kind = cell.getAttribute('t')
-  if (kind === 'inlineStr') return [...cell.getElementsByTagNameNS('*', 't')].map((node) => node.textContent ?? '').join('')
-  const raw = cell.getElementsByTagNameNS('*', 'v')[0]?.textContent ?? ''
+  if (kind === 'inlineStr') return [...cell.getElementsByTagNameNS('*', 't')].map((node) => node.textContent).join('')
+  const raw = cell.getElementsByTagNameNS('*', 'v').item(0)?.textContent ?? ''
   if (kind === 's') return strings[Number(raw)] ?? ''
   return raw
 }

@@ -35,7 +35,7 @@ export function useCatalog(tab: CatalogTab): {
   const [attempt, setAttempt] = useState(0)
   const [launchItems, setLaunchItems] = useState<readonly LaunchItem[]>([])
   const [loaded, setLoaded] = useState<ReadonlySet<LaunchItemType>>(() => new Set())
-  const [sectionError, setSectionError] = useState(false)
+  const [sectionError, setSectionError] = useState<{ readonly key: string; readonly attempt: number } | null>(null)
   const [sectionAttempt, setSectionAttempt] = useState(0)
 
   useEffect(() => {
@@ -61,13 +61,9 @@ export function useCatalog(tab: CatalogTab): {
   const missingKey = missing.join(',')
 
   useEffect(() => {
-    if (missingKey === '') {
-      setSectionError(false)
-      return
-    }
+    if (missingKey === '') return
     const types = missingKey.split(',') as LaunchItemType[]
     let cancelled = false
-    setSectionError(false)
     services.catalog.listLaunchItems(types)
       .then((items) => {
         if (cancelled) return
@@ -80,7 +76,7 @@ export function useCatalog(tab: CatalogTab): {
       .catch((error: unknown) => {
         if (cancelled) return
         console.error('Не удалось загрузить раздел каталога', error)
-        setSectionError(true)
+        setSectionError({ key: missingKey, attempt: sectionAttempt })
       })
     return () => { cancelled = true }
   }, [services, missingKey, sectionAttempt])
@@ -89,16 +85,16 @@ export function useCatalog(tab: CatalogTab): {
     setState({ status: 'loading' })
     setLaunchItems([])
     setLoaded(new Set())
-    setSectionError(false)
+    setSectionError(null)
     setAttempt((n) => n + 1)
   }, [])
 
   const retrySection = useCallback(() => {
-    setSectionError(false)
     setSectionAttempt((n) => n + 1)
   }, [])
 
   const view: CatalogState = state.status === 'ready' ? { ...state, launchItems } : state
-  const section: CatalogSection = missing.length === 0 ? 'idle' : sectionError ? 'error' : 'loading'
+  const hasSectionError = sectionError?.key === missingKey && sectionError.attempt === sectionAttempt
+  const section: CatalogSection = missing.length === 0 ? 'idle' : hasSectionError ? 'error' : 'loading'
   return { state: view, section, retry, retrySection }
 }
