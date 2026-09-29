@@ -5,6 +5,7 @@ import { ErrorState, Skeleton } from '@/components/ui/States'
 import { isReadOnly } from '@/domain'
 import { formatDayTime } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
+import { useAdvanceStep } from '../useAdvanceStep'
 import { ProjectStepLayout } from '../ProjectStepLayout'
 import { AssumptionsBlock } from './AssumptionsBlock'
 import { ParamsRail } from './ParamsRail'
@@ -33,6 +34,7 @@ function groupOfAnchor(view: ParamsView, anchor: string): string | null {
  */
 export function ParamsStep({ project: initial, locationName, isGuest }: ProjectStepProps) {
   const readOnly = isReadOnly(initial)
+  const advance = useAdvanceStep(initial.id, !isGuest && !readOnly)
   const state = useParamsStep(initial, !isGuest && !readOnly)
   // «Всё раскрыто» (16992:10) — состояние навигации из сценария /dev/screens.
   const navState: unknown = useLocation().state
@@ -80,6 +82,15 @@ export function ParamsStep({ project: initial, locationName, isGuest }: ProjectS
       <SiteBlock groups={view.siteGroups} location={snapshot.location} reveal={groups} showAllInitially={expandedState?.siteAll ?? false} ownScheduleHours={view.ownScheduleHours} />
       {view.selected && <AssumptionsBlock rows={view.assumptions} snapshotAt={project.versions.snapshotAt} />}
     </>,
-    <ParamsRail project={project} snapshot={snapshot} readiness={view.readiness} missing={view.missing} onRevealMissing={reveal} />,
+    <ParamsRail
+      project={project}
+      snapshot={snapshot}
+      readiness={view.readiness}
+      missing={view.missing}
+      onRevealMissing={reveal}
+      onProceed={() => { void advance.go('matching') }}
+      proceeding={advance.busy}
+      proceedError={advance.error}
+    />,
   )
 }

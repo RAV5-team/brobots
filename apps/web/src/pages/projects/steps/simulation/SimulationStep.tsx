@@ -1,5 +1,5 @@
 import { useEffect, type ComponentProps, type ReactNode } from 'react'
-import { useNavigate, useSearchParams } from 'react-router'
+import { useSearchParams } from 'react-router'
 import { projectStepPath } from '@/app/routePaths'
 import { ButtonLink } from '@/components/ui/Button'
 import { Chip } from '@/components/ui/Chip'
@@ -11,6 +11,7 @@ import { SIMULATION_STAGES, isReadOnly, type Fleet, type SimulationRequest, type
 import { formatTime } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { useModelNorms } from '@/shared/norms/useModelNorms'
+import { useAdvanceStep } from '../useAdvanceStep'
 import { ProjectStepLayout } from '../ProjectStepLayout'
 import { demandOf } from '../matching/howCalculatedModel'
 import { findVariant } from '../matching/matchingModel'
@@ -75,11 +76,11 @@ function StaleRunNotice({ runId }: { readonly runId: string }) {
  */
 export function SimulationStep({ project: initial, locationName, isGuest }: ProjectStepProps) {
   const readOnly = isReadOnly(initial)
+  const advance = useAdvanceStep(initial.id, !isGuest && !readOnly)
   const state = useSimulationStep(initial, !isGuest && !readOnly)
   const norms = useModelNorms()
   const { project, inputs, load } = state
   const [params, setParams] = useSearchParams()
-  const navigate = useNavigate()
   const requested = params.get('stage')
   const fallback: SimulationStage = state.run?.status === 'running' ? 'run' : inputs?.stage ?? 'scope'
   const stage: SimulationStage = isSimulationStage(requested) ? requested : fallback
@@ -211,7 +212,7 @@ export function SimulationStep({ project: initial, locationName, isGuest }: Proj
       onVerdict: state.setVerdict,
       onAccept: async () => {
         await state.commitVerdict()
-        await navigate(projectStepPath(project.id, 'economics'))
+        await advance.go('economics')
       },
       onRerun: (next: Fleet) => {
         state.setFleet(fleetToStore(next, fromMatching))

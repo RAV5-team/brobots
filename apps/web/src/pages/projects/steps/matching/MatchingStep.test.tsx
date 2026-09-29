@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Services } from '@/services'
+import { NotFoundError } from '@/services/errors'
 import { createMockServices } from '@/services/mock'
 import { ServicesProvider } from '@/services/ServicesProvider'
 import { RoleProvider } from '@/shared/auth/RoleProvider'
@@ -29,6 +30,27 @@ const row = (name: string) => within(ranking()).getByRole('radio', { name })
 afterEach(() => { sessionStorage.clear() })
 
 describe('Шаг 2 «Подбор решений» (2.1, 16325:101; PRD 11.3)', () => {
+  it('нет расчёта: открытие шага запускает evaluate и показывает рейтинг', async () => {
+    const services = createMockServices({ latencyMs: 0 })
+    vi.spyOn(services.projects, 'getMatching').mockRejectedValueOnce(new NotFoundError('расчёта нет'))
+    const evaluate = vi.spyOn(services.projects, 'evaluateMatching')
+    renderAt('/projects/PJ-DEMO/matching?as=user', services)
+    await waitFor(() => { expect(evaluate).toHaveBeenCalledWith('PJ-DEMO') })
+    expect(await screen.findByRole('radiogroup', { name: 'Рейтинг вариантов подбора' })).toBeInTheDocument()
+  })
+
+  it('сбой расчёта: «Рассчитать» повторяет evaluate', async () => {
+    const services = createMockServices({ latencyMs: 0 })
+    vi.spyOn(services.projects, 'getMatching').mockRejectedValue(new NotFoundError('расчёта нет'))
+    const evaluate = vi.spyOn(services.projects, 'evaluateMatching').mockRejectedValueOnce(new Error('сеть'))
+    renderAt('/projects/PJ-DEMO/matching?as=user', services)
+    const button = await screen.findByRole('button', { name: 'Рассчитать' })
+    expect(await screen.findByRole('alert')).toHaveTextContent('Не удалось рассчитать подбор')
+    fireEvent.click(button)
+    await waitFor(() => { expect(evaluate).toHaveBeenCalledTimes(2) })
+    expect(await screen.findByRole('radiogroup', { name: 'Рейтинг вариантов подбора' })).toBeInTheDocument()
+  })
+
   it('условия, рейтинг 8 вариантов с разбором балла, 4 исключённых, рекомендация в правой колонке', async () => {
     renderAt('/projects/PJ-DEMO/matching?as=user')
     expect(await screen.findByRole('heading', { level: 1, name: 'Подбор решений' })).toBeInTheDocument()

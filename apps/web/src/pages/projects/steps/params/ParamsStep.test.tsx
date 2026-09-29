@@ -28,6 +28,15 @@ const matchButton = () => screen.getByRole('button', { name: 'Подобрать
 afterEach(() => { sessionStorage.clear() })
 
 describe('Шаг 1 «Параметры проекта» (доска 16325, экран 1.1; PRD 11.2)', () => {
+  it('«Подобрать решения» записывает следующий шаг и открывает подбор', async () => {
+    const services = createMockServices({ latencyMs: 0 })
+    const openStep = vi.spyOn(services.projects, 'openStep')
+    renderAt('/projects/PJ-DEMO/params?as=user', services)
+    fireEvent.click(await screen.findByRole('button', { name: 'Подобрать решения' }))
+    await waitFor(() => { expect(openStep).toHaveBeenCalledWith('PJ-DEMO', 'matching') })
+    expect(await screen.findByText('другая страница')).toBeInTheDocument()
+  })
+
   it('демо-проект: три блока, выбран процесс проекта, группы свёрнуты, подбор выполним', async () => {
     renderAt('/projects/PJ-DEMO/params?as=user')
     expect(await screen.findByRole('heading', { name: '1. Выбор процесса' })).toBeInTheDocument()

@@ -1,7 +1,5 @@
 import { ArrowRight, SlidersHorizontal } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { useNavigate } from 'react-router'
-import { projectStepPath } from '@/app/routePaths'
 import { Button } from '@/components/ui/Button'
 import { MergedButton } from '@/components/ui/MergedButton'
 import type { Project } from '@/domain'
@@ -21,15 +19,18 @@ interface MatchingRailProps {
   /** Сколько «Параметров расчёта» изменено; null — панели нет (исходных значений нет или только просмотр). */
   readonly changedParams: number | null
   readonly onOpenParams: () => void
+  /** «Перейти к симуляции»: записать следующий шаг и перейти. */
+  readonly onProceed: () => void
+  readonly proceeding: boolean
+  readonly proceedError: string | null
 }
 
 /**
  * Правая колонка шага 2 (16828:2): рекомендация системы, «Перейти к симуляции» с пояснением, «Изменить параметры расчёта»
  * (нет в макете, PRD 11.3 — D-97) и версии данных.
  */
-export function MatchingRail({ project, recommendation, selection, stale, changedParams, onOpenParams }: MatchingRailProps) {
+export function MatchingRail({ project, recommendation, selection, stale, changedParams, onOpenParams, onProceed, proceeding, proceedError }: MatchingRailProps) {
   const hasSelection = selection !== null
-  const navigate = useNavigate()
   const handoff = !hasSelection ? r.noneHint : stale ? r.staleBlocked : r.handoff
   return (
     <>
@@ -38,10 +39,11 @@ export function MatchingRail({ project, recommendation, selection, stale, change
         block
         label={r.toSimulation}
         icon={ArrowRight}
-        disabled={!hasSelection || stale}
+        disabled={!hasSelection || stale || proceeding}
         aria-describedby="matching-handoff"
-        onClick={() => { void navigate(projectStepPath(project.id, 'simulation')) }}
+        onClick={onProceed}
       />
+      {proceedError && <p role="alert" className="type-caption text-danger">{proceedError}</p>}
       <div id="matching-handoff" className="flex flex-col gap-4 type-caption text-text-secondary">
         {selection && <p className="font-semibold text-text">{r.selected(selection)}</p>}
         <p>{handoff}</p>

@@ -9,6 +9,7 @@ import { COMPARE_LIMIT, isReadOnly, siteFactsOf, type Project } from '@/domain'
 import { numberParameter } from '@/pages/processes/locationStaffing'
 import { formatCount, formatDayTime, formatNumber } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
+import { useAdvanceStep } from '../useAdvanceStep'
 import { ProjectStepLayout } from '../ProjectStepLayout'
 import { paramsView } from '../params/paramsModel'
 import { demandOf } from './howCalculatedModel'
@@ -80,6 +81,7 @@ function SaveStatus({ state }: { readonly state: MatchingStepState }) {
  */
 export function MatchingStep({ project: initial, locationName, isGuest }: ProjectStepProps) {
   const readOnly = isReadOnly(initial)
+  const advance = useAdvanceStep(initial.id, !isGuest && !readOnly)
   const state = useMatchingStep(initial, !isGuest && !readOnly)
   const { project, draft, load } = state
   const [paramsOpen, setParamsOpen] = useState(false)
@@ -117,7 +119,23 @@ export function MatchingStep({ project: initial, locationName, isGuest }: Projec
 
   if (load.status === 'loading') return layout(<div aria-busy="true"><Skeleton className="h-(--rav-location-card-height)" /></div>)
   if (load.status === 'error') return layout(<ErrorState title={t.loadError.title} message={t.loadError.message} onRetry={state.retry} />)
-  if (load.status === 'notCalculated') return layout(<EmptyState title={t.notCalculated.title} description={t.notCalculated.description} />)
+  if (load.status === 'notCalculated') {
+    const canCalculate = !isGuest && !readOnly
+    return layout(
+      <EmptyState
+        title={t.notCalculated.title}
+        description={t.notCalculated.description}
+        action={canCalculate && (
+          <>
+            <Button variant="primary" disabled={state.recalculating} onClick={state.recalculate}>
+              {state.recalculating ? t.notCalculated.running : t.notCalculated.action}
+            </Button>
+            {state.recalcError && <p role="alert" className="type-caption text-danger">{t.notCalculated.failed}</p>}
+          </>
+        )}
+      />,
+    )
+  }
 
   const { data } = load
   const { evaluation } = data
@@ -250,6 +268,9 @@ export function MatchingStep({ project: initial, locationName, isGuest }: Projec
       stale={state.stale}
       changedParams={canEdit && evaluation.calcDefaults ? Object.keys(overrides).length : null}
       onOpenParams={() => { setParamsOpen(true) }}
+      onProceed={() => { void advance.go('simulation') }}
+      proceeding={advance.busy}
+      proceedError={advance.error}
     />,
   )
 }

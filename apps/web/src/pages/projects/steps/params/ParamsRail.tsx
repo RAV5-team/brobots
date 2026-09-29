@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowRight } from 'lucide-react'
-import { generatePath, useNavigate } from 'react-router'
-import { ROUTE_PATHS, projectStepPath } from '@/app/routePaths'
+import { generatePath } from 'react-router'
+import { ROUTE_PATHS } from '@/app/routePaths'
 import { Card } from '@/components/ui/Card'
 import { MergedButton } from '@/components/ui/MergedButton'
 import { TextLink } from '@/components/ui/TextLink'
@@ -18,6 +18,10 @@ interface ParamsRailProps {
   readonly missing: readonly MissingItem[]
   /** «Нет данных ↓»: раскрыть группу первого незаполненного значения и перейти к нему. */
   readonly onRevealMissing: (item: MissingItem) => void
+  /** «Подобрать решения»: записать следующий шаг и перейти. */
+  readonly onProceed: () => void
+  readonly proceeding: boolean
+  readonly proceedError: string | null
 }
 
 /** Вывод и правило под счётчиками (PRD 11.2): блокировка — одна причина, иначе — проверки площадки и экономия труда. */
@@ -56,8 +60,7 @@ function Counter({ label, count, href, onClick }: CounterProps) {
 }
 
 /** Правая колонка шага 1 (16975:2): «Готовность к подбору» над «Подобрать решения», решение из каталога. */
-export function ParamsRail({ project, snapshot, readiness, missing, onRevealMissing }: ParamsRailProps) {
-  const navigate = useNavigate()
+export function ParamsRail({ project, snapshot, readiness, missing, onRevealMissing, onProceed, proceeding, proceedError }: ParamsRailProps) {
   const r = t.readiness
   const canMatch = readiness?.canMatch ?? false
   const text = readiness ? readinessText(readiness, missing) : null
@@ -83,10 +86,11 @@ export function ParamsRail({ project, snapshot, readiness, missing, onRevealMiss
         block
         label={r.match}
         icon={ArrowRight}
-        disabled={!canMatch}
+        disabled={!canMatch || proceeding}
         aria-describedby="params-readiness"
-        onClick={() => { void navigate(projectStepPath(project.id, 'matching')) }}
+        onClick={onProceed}
       />
+      {proceedError && <p role="alert" className="type-caption text-danger">{proceedError}</p>}
       {/* На доске карточки нет; у PJ-DEMO закреплённого решения нет — оставлена до решения по D-57. */}
       {snapshot.pinnedSolution && (
         <Card variant="well" padding={16} gap={8} as="section" aria-labelledby="params-pinned">

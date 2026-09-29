@@ -64,6 +64,8 @@ export function useMatchingStep(initial: Project, canSave: boolean): MatchingSte
   const [savedAt, setSavedAt] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const lastRequest = useRef(0)
+  /** Один автозапуск на открытие шага без расчёта: повтор — кнопкой «Рассчитать». */
+  const autoStarted = useRef(false)
 
   useEffect(() => {
     let cancelled = false
@@ -136,7 +138,7 @@ export function useMatchingStep(initial: Project, canSave: boolean): MatchingSte
   const recalculate = useCallback(() => {
     setRecalcError(false)
     if (!canSave) {
-      // Гость и мок: пересчёта на странице нет — числа из демо-расчёта, снимается только пометка.
+      // Гость и сохранённая оценка расчёт не запускают: у гостя нет сохранения, у оценки рейтинг уже в снимке.
       setStale(false)
       return
     }
@@ -153,11 +155,18 @@ export function useMatchingStep(initial: Project, canSave: boolean): MatchingSte
         setLoad({ status: 'ready', data: { evaluation, snapshot, robots: new Map(robots.map((r) => [r.id, r])) } })
       })
       .catch((error: unknown) => {
-        console.error('Не удалось пересчитать подбор', error)
+        console.error('Не удалось рассчитать подбор', error)
         setRecalcError(true)
       })
       .finally(() => { setRecalculating(false) })
   }, [canSave, services, initial.id])
+
+  // PRD 11.2–11.3: «Подобрать решения» открывает шаг уже с рейтингом. Пока расчёта нет — запускаем его здесь.
+  useEffect(() => {
+    if (load.status !== 'notCalculated' || !canSave || recalcError || autoStarted.current) return
+    autoStarted.current = true
+    recalculate()
+  }, [load.status, canSave, recalcError, recalculate])
 
   return { load, retry, project, draft, stale, recalculating, recalcError, savedAt, saveError, select, setCalcParams, addManual, removeManual, recalculate }
 }
