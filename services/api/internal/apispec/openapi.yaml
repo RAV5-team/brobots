@@ -5029,6 +5029,8 @@ components:
         baseValueText:
           nullable: true
           type: string
+        checkedByMatching:
+          type: boolean
         code:
           type: string
         enumValues:
@@ -5057,9 +5059,14 @@ components:
           type: number
         name:
           type: string
+        pairCode:
+          nullable: true
+          type: string
         role:
           nullable: true
           type: string
+        routeOnly:
+          type: boolean
         sort:
           type: integer
         sourceNote:

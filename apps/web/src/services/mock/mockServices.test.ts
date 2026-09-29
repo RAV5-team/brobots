@@ -137,8 +137,8 @@ describe('mock location service', () => {
       totalAreaM2: 20000, staffTotal: 180, processesCount: 0, laborCostRubYear: null, workersInProcesses: null,
       projectsCount: 0, projectsCompleted: 0,
     })
-    // Полнота — доля заполненных параметров типа объекта: у Химки 40 из 42.
-    expect(summary?.parametersCompletenessPct).toBe(95)
+    // Полнота — доля заполненных параметров типа объекта, включая пустые поля площадки.
+    expect(summary?.parametersCompletenessPct).toBe(83)
     // Фикстуры и другие экземпляры сервиса не меняются.
     expect(await services.locations.listLocations()).toHaveLength(4)
   })

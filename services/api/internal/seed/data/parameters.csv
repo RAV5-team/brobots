@@ -1,12 +1,12 @@
-code;facility_type;group;name;unit;value_type;base_number;base_text;min;max;is_required;is_constant;role;staff_role;staff_attr;form_section;hint;sort
+code;facility_type;group;name;unit;value_type;base_number;base_text;min;max;is_required;is_constant;role;staff_role;staff_attr;form_section;hint;sort;enum;checked_by_matching;route_only;pair_code
 wh_total_area;warehouse;Общие параметры объекта;Общая площадь склада;м²;number;20000;;10000;100000;true;false;total_area;;;area;Типичный FFC/RDC в логистическом парке. Источник: отраслевые бенчмарки РФ 2023–2024;1
 wh_active_area;warehouse;Общие параметры объекта;Площадь активной (роботизируемой) зоны;м²;number;10000;;5000;50000;true;false;active_area;;;area;50% от общей площади;2
-wh_ceiling_height;warehouse;Общие параметры объекта;Высота потолков в зоне хранения;м;number;10;;5;16;false;false;ceiling_height;;;area;Влияет на выбор типа решений (особенно в случае шаттловой системы);3
+wh_ceiling_height;warehouse;Общие параметры объекта;Высота потолков в зоне хранения;м;number;10;;5;16;false;false;ceiling_height;;;aisles;Влияет на выбор типа решений (особенно в случае шаттловой системы);3;;true;false;
 wh_floors;warehouse;Общие параметры объекта;Количество этажей (мезонинов);шт.;number;1;;1;3;false;false;floors;;;area;Для многоэтажных решений необходимы лифты - учитывается в CAPEX;4
-wh_main_aisle_width;warehouse;Общие параметры объекта;Ширина главных проездов;м;number;3.5;;2.5;6;false;false;;;;object_params;Определяет допустимые габариты робота;5
-wh_rack_aisle_width;warehouse;Общие параметры объекта;Ширина рабочих проходов между стеллажами;м;number;2.8;;1.5;4.5;false;false;min_aisle_width;;;object_params;Узкий проход (1.5-2.0 м) - только специализированные решения;6
-wh_floor_type;warehouse;Общие параметры объекта;Тип напольного покрытия;;text;;Промышленный бетон;;;false;false;;;;object_params;Влияет на выбор колёс/гусениц роботов-транспортировщиков. Альтернативы: эпоксид, асфальт;7
-wh_floor_flatness;warehouse;Общие параметры объекта;Ровность пола (отклонение);мм/2м;number;3;;1;8;false;false;;;;object_params;DIN 15185 или FM2. Критично для AutoStore и высотных решений;8
+wh_main_aisle_width;warehouse;Общие параметры объекта;Ширина главных проездов;м;number;3.5;;2.5;6;false;false;;;;aisles;Определяет допустимые габариты робота;5;;true;false;
+wh_rack_aisle_width;warehouse;Общие параметры объекта;Ширина рабочих проходов между стеллажами;м;number;2.8;;1.5;4.5;false;false;min_aisle_width;;;aisles;Узкий проход (1.5-2.0 м) - только специализированные решения;6;;false;false;
+wh_floor_type;warehouse;Общие параметры объекта;Тип напольного покрытия;;text;;Промышленный бетон;;;false;false;;;;floor;Влияет на выбор колёс/гусениц роботов-транспортировщиков. Альтернативы: эпоксид, асфальт;7;Промышленный бетон|эпоксид|плитка|асфальт;true;false;
+wh_floor_flatness;warehouse;Общие параметры объекта;Ровность пола (отклонение);мм/2м;number;3;;1;8;false;false;;;;floor;DIN 15185 или FM2. Критично для AutoStore и высотных решений;8;;true;false;
 wh_shifts;warehouse;Режим работы;Количество рабочих смен в сутки;смен;number;2;;1;3;true;false;shifts_per_day;;;schedule;Стандартно: 2 смены по 12 ч/сутки;9
 wh_working_days;warehouse;Режим работы;Рабочих дней в году;дн.;number;365;;365;365;false;true;working_days;;;schedule;;10
 wh_shift_hours;warehouse;Режим работы;Продолжительность смены;ч;number;11;;10;11;true;false;shift_hours;;;schedule;С учётом перерывов на обед и техн. пауз;11
@@ -42,28 +42,28 @@ wh_wms;warehouse;Инфраструктура и ограничения;Нали
 wh_erp;warehouse;Инфраструктура и ограничения;Наличие ERP/1С;;text;;1С:ERP;;;false;false;;;;object_params;Интеграция через REST API или COM-коннектор;41
 wh_capex_budget;warehouse;Инфраструктура и ограничения;Планируемый бюджет на роботизацию (CAPEX);млн руб.;number;80;;10;500;false;false;;;;object_params;Ориентир для фильтрации решений. Лизинг/RaaS — альтернатива;42
 wh_horizon_years;warehouse;Инфраструктура и ограничения;Горизонт расчёта окупаемости;лет;number;5;;3;10;false;false;;;;object_params;Типовой горизонт ТЭО для складской автоматизации;43
-site_aisle_min_m;warehouse;Условия площадки для подбора;Мин. свободная ширина прохода на маршруте;м;number;;;1;6;false;false;;;;object_params;Ширина робота + запас ≤ проход;44
-site_clear_height_m;warehouse;Условия площадки для подбора;Мин. высота проезда;м;number;;;1.5;40;false;false;;;;object_params;Высота робота с грузом;45
-site_floor_condition;warehouse;Условия площадки для подбора;Состояние пола;;text;;;;;false;false;;;;object_params;без выбоин / есть выбоины / нужен ремонт;46
-site_floor_load_tm2;warehouse;Условия площадки для подбора;Допустимая нагрузка на пол;т/м²;number;;;0.5;20;false;false;;;;object_params;Пусто — нет данных: решение получит «требует проверки»;47
-site_threshold_mm;warehouse;Условия площадки для подбора;Макс. высота порога;мм;number;;;0;200;false;false;;;;object_params;Клиренс робота;48
-site_slope_pct;warehouse;Условия площадки для подбора;Макс. уклон;%;number;;;0;20;false;false;;;;object_params;Допустимый уклон робота с грузом;49
-site_doors;warehouse;Условия площадки для подбора;Двери и ворота на маршрутах;;text;;;;;false;false;;;;object_params;Ширина и тип открывания;50
-site_lifts;warehouse;Условия площадки для подбора;Лифты и перепады уровней;;text;;;;;false;false;;;;object_params;Грузоподъёмность и пандусы;51
-site_bottlenecks;warehouse;Условия площадки для подбора;Узкие места и запретные зоны;;text;;;;;false;false;;;;object_params;Ограничение скорости и 2D-схема;52
-site_equipment_area_m2;warehouse;Условия площадки для подбора;Площадь для размещения оборудования;м²;number;;;0;100000;false;false;;;;object_params;Станции зарядка парковка;53
-site_env;warehouse;Условия площадки для подбора;Среда работы;;text;;;;;false;false;;;;object_params;в помещении / на улице / смешанная;54
-site_temp_min_c;warehouse;Условия площадки для подбора;Температура от;°C;number;;;-60;60;false;false;;;;object_params;Диапазон эксплуатации робота;55
-site_temp_max_c;warehouse;Условия площадки для подбора;Температура до;°C;number;;;-60;60;false;false;;;;object_params;Диапазон эксплуатации робота;56
-site_people_on_route;warehouse;Условия площадки для подбора;Люди на маршруте;;text;;;;;false;false;;;;object_params;редко / периодически / часто / постоянно;57
-site_vehicles_on_route;warehouse;Условия площадки для подбора;Другая техника на маршруте;;text;;;;;false;false;;;;object_params;нет / периодически / постоянно и вид;58
-site_noise_limit_db;warehouse;Условия площадки для подбора;Допустимый уровень шума;дБ;number;;;20;120;false;false;;;;object_params;Пусто — не применяется;59
-site_wifi_coverage;warehouse;Условия площадки для подбора;Wi-Fi в зоне работы;;text;;;;;false;false;;;;object_params;по всей зоне / частично / нет / не проверено;60
-site_wifi_band;warehouse;Условия площадки для подбора;Диапазон Wi-Fi;;text;;;;;false;false;;;;object_params;2,4 ГГц / 5 ГГц / оба;61
-site_wifi_roaming;warehouse;Условия площадки для подбора;Бесшовный роуминг или private LTE;;text;;;;;false;false;;;;object_params;да / нет;62
-site_wifi_area_m2;warehouse;Условия площадки для подбора;Площадь покрытия Wi-Fi;м²;number;;;0;100000;false;false;;;;object_params;Сколько точек докупать в CAPEX;63
-site_charge_power_ready;warehouse;Условия площадки для подбора;Электропитание в местах зарядки;;text;;;;;false;false;;;;object_params;подведено / нужно подвести;64
-site_charge_power_kw;warehouse;Условия площадки для подбора;Доступная мощность для зарядки;кВт;number;;;0;3000;false;false;;;;object_params;Станций × мощность ≤ доступной;65
+site_aisle_min_m;warehouse;Условия площадки для подбора;Мин. свободная ширина прохода на маршруте;м;number;;;1;6;false;false;;;;aisles;Ширина робота + запас ≤ проход;44;;true;true;
+site_clear_height_m;warehouse;Условия площадки для подбора;Мин. высота проезда;м;number;;;1.5;40;false;false;;;;aisles;Высота робота с грузом;45;;true;true;
+site_floor_condition;warehouse;Условия площадки для подбора;Состояние пола;;text;;;;;false;false;;;;floor;без выбоин / есть выбоины / нужен ремонт;46;без выбоин|есть выбоины|нужен ремонт;false;false;
+site_floor_load_tm2;warehouse;Условия площадки для подбора;Допустимая нагрузка на пол;т/м²;number;;;0.5;20;false;false;;;;floor;Пусто — нет данных: решение получит «требует проверки»;47;;true;false;
+site_threshold_mm;warehouse;Условия площадки для подбора;Макс. высота порога;мм;number;;;0;200;false;false;;;;floor;Клиренс робота;48;;true;true;
+site_slope_pct;warehouse;Условия площадки для подбора;Макс. уклон;%;number;;;0;20;false;false;;;;floor;Допустимый уклон робота с грузом;49;;true;true;
+site_doors;warehouse;Условия площадки для подбора;Двери и ворота на маршрутах;;text;;;;;false;false;;;;layout;Ширина и тип открывания;50;;false;true;
+site_lifts;warehouse;Условия площадки для подбора;Лифты и перепады уровней;;text;;;;;false;false;;;;layout;Грузоподъёмность и пандусы;51;;false;true;
+site_bottlenecks;warehouse;Условия площадки для подбора;Узкие места и запретные зоны;;text;;;;;false;false;;;;layout;Ограничение скорости и 2D-схема;52;;false;true;
+site_equipment_area_m2;warehouse;Условия площадки для подбора;Площадь для размещения оборудования;м²;number;;;0;100000;false;false;;;;layout;Станции зарядка парковка;53;;false;false;
+site_env;warehouse;Условия площадки для подбора;Среда работы;;text;;;;;false;false;;;;operating;в помещении / на улице / смешанная;54;в помещении|на улице|смешанная;true;false;
+site_temp_min_c;warehouse;Условия площадки для подбора;Температура от;°C;number;;;-60;60;false;false;;;;operating;Диапазон эксплуатации робота;55;;true;false;site_temp_max_c
+site_temp_max_c;warehouse;Условия площадки для подбора;Температура до;°C;number;;;-60;60;false;false;;;;operating;Диапазон эксплуатации робота;56;;false;false;
+site_people_on_route;warehouse;Условия площадки для подбора;Люди на маршруте;;text;;;;;false;false;;;;operating;редко / периодически / часто / постоянно;57;редко|периодически|часто|постоянно;false;true;
+site_vehicles_on_route;warehouse;Условия площадки для подбора;Другая техника на маршруте;;text;;;;;false;false;;;;operating;нет / периодически / постоянно и вид;58;;false;true;
+site_noise_limit_db;warehouse;Условия площадки для подбора;Допустимый уровень шума;дБ;number;;;20;120;false;false;;;;operating;Пусто — не применяется;59;;false;false;
+site_wifi_coverage;warehouse;Условия площадки для подбора;Wi-Fi в зоне работы;;text;;;;;false;false;;;;connectivity;по всей зоне / частично / нет / не проверено;60;по всей зоне|частично|нет|не проверено;true;false;
+site_wifi_band;warehouse;Условия площадки для подбора;Диапазон Wi-Fi;;text;;;;;false;false;;;;connectivity;2,4 ГГц / 5 ГГц / оба;61;2,4 ГГц|5 ГГц|оба;false;false;
+site_wifi_roaming;warehouse;Условия площадки для подбора;Бесшовный роуминг или private LTE;;text;;;;;false;false;;;;connectivity;да / нет;62;да|нет;false;false;
+site_wifi_area_m2;warehouse;Условия площадки для подбора;Площадь покрытия Wi-Fi;м²;number;;;0;100000;false;false;;;;connectivity;Сколько точек докупать в CAPEX;63;;false;false;
+site_charge_power_ready;warehouse;Условия площадки для подбора;Электропитание в местах зарядки;;text;;;;;false;false;;;;connectivity;подведено / нужно подвести;64;подведено|нужно подвести;false;false;
+site_charge_power_kw;warehouse;Условия площадки для подбора;Доступная мощность для зарядки;кВт;number;;;0;3000;false;false;;;;connectivity;Станций × мощность ≤ доступной;65;;false;false;
 ap_terminal_area;airport;Общие параметры объекта;Суммарная площадь терминала (ов);м²;number;85000;;8000;500000;true;false;total_area;;;area;Площадь пассажирского терминала - база для расчёта маршрутов роботов-транспортировщиков;1
 ap_apron_area;airport;Общие параметры объекта;Площадь перрона и технических зон;м²;number;100000;;10000;800000;true;false;;;;area;Открытая зона - ограничения на перемещение роботов (погода, допуски);2
 ap_terminals;airport;Общие параметры объекта;Количество терминалов;шт.;number;2;;1;6;false;false;;;;area;Несколько терминалов - сложная логистика между ними;3

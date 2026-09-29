@@ -15,7 +15,7 @@
 - 4 — `project.inputs` (модель экрана как есть) и `project.step`; `PATCH /projects/{id}` принимает `inputs`, `step`, `taskId`.
 - 5, 8 — `Project.resultSummary` при сохранении; сценарий без окупаемости фронт сохранить не даёт, как и раньше.
 - 6 — формат трасс в `openapi.json` по-прежнему «массив объектов»: схему опишет services/simulation; проверка — `trace.ts`.
-- 10 — шаг 1 собирается из снимка, `GET /locations/{id}`, `/tasks` и `/facility-types/{code}/parameters`; параметры площадки `site_*` в API пока не хранятся — «нет данных».
+- 10 — шаг 1 собирается из снимка, `GET /locations/{id}`, `/tasks` и `/facility-types/{code}/parameters`. Параметры площадки `site_*` — строки того же справочника (секция, список, пометки подбора).
 - 11 — `POST /projects/{id}/evaluate` принимает `calcOverrides`, `Evaluation.calcDefaults` — исходные значения.
 - 13, 14 — прогон через оркестратор: `POST /projects/{id}/simulation-runs` (`fleet`, `conditions` в модели экрана), `GET/DELETE /simulation-runs/{id}`, `…/result`, `…/traces`. Запись прогона в решения проекта — фронт (`inputs.simulation.runId`).
 

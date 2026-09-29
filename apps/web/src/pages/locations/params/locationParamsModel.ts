@@ -12,7 +12,8 @@ import {
   type ParameterIndex,
   type StaffGroupRow,
 } from '../new/locationForm'
-import { SITE_PROFILE_CODES, siteParametersOf, siteValuesFromLocation, type SiteValues } from './siteProfileFields'
+import { siteFields } from '@/domain'
+import { siteParametersOf, siteValuesFromLocation, type SiteValues } from './siteProfileFields'
 
 /** Ссылки шага 1 («Профиль», «заполнить в профиле»): 17а сразу в правке, а не в просмотре D-41. */
 export const EDIT_LOCATION_STATE = { edit: true } as const
@@ -75,7 +76,6 @@ export function formFromLocation(location: Location, params: ParameterIndex): Lo
 const FORM_CODES: ReadonlySet<string> = new Set([
   ...NUMERIC_KEYS.map((key) => NUMERIC_SPECS[key].code),
   ...STAFF_PRESETS.flatMap((p) => (p.salaryCode === null ? [p.headcountCode] : [p.headcountCode, p.salaryCode])),
-  ...SITE_PROFILE_CODES,
 ])
 
 /** Неизменённое значение сохраняет прежний источник («датасет», «допущение»); изменённое — ввод пользователя. */
@@ -93,7 +93,7 @@ export function toLocationUpdate(
   form: LocationForm,
   params: ParameterIndex,
   location: Location,
-  site: SiteValues = siteValuesFromLocation(location),
+  site: SiteValues = siteValuesFromLocation(location, [...params.values()]),
 ): NewLocation {
   const basics = { name: form.name.trim(), city: form.city.trim(), address: form.address.trim() }
   const kept: NewLocation = {
@@ -108,9 +108,11 @@ export function toLocationUpdate(
   }
   if (location.facilityType !== 'warehouse') return { ...kept, ...basics }
 
+  const catalog = [...params.values()]
+  const siteCodes = new Set(siteFields(catalog).map((field) => field.code))
   const fromForm = toNewLocation(form, params)
-  const outside = Object.entries(location.parameters).filter(([code]) => !FORM_CODES.has(code))
-  const edited = Object.entries({ ...fromForm.parameters, ...siteParametersOf(site) })
+  const outside = Object.entries(location.parameters).filter(([code]) => !FORM_CODES.has(code) && !siteCodes.has(code))
+  const edited = Object.entries({ ...fromForm.parameters, ...siteParametersOf(site, catalog) })
     .map(([code, value]): [string, ParameterValue] => [code, keepSource(code, value, location)])
   return { ...kept, ...basics, parameters: Object.fromEntries([...outside, ...edited]), staffGroups: fromForm.staffGroups }
 }

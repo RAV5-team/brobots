@@ -85,18 +85,18 @@ describe('toLocationUpdate', () => {
   })
 
   it('saves a changed main aisle width without dropping the rest of the dataset profile', () => {
-    const site = { ...siteValuesFromLocation(khimki), wh_main_aisle_width: '4' }
+    const site = { ...siteValuesFromLocation(khimki, [...params.values()]), wh_main_aisle_width: '4' }
     const update = toLocationUpdate(formFromLocation(khimki, params), params, khimki, site)
     expect(update.parameters.wh_main_aisle_width).toEqual({ value: 4, source: 'user' })
     expect(update.parameters.wh_ceiling_height).toEqual({ value: 10, source: 'organizer' })
   })
 
   it('writes filled site_* values and drops empty ones (PRD 10.5)', () => {
-    const site = { ...siteValuesFromLocation(khimki), site_wifi_coverage: 'частично', site_aisle_min_m: '2,8' }
+    const site = { ...siteValuesFromLocation(khimki, [...params.values()]), site_wifi_coverage: 'частично', site_aisle_min_m: '3' }
     const update = toLocationUpdate(formFromLocation(khimki, params), params, khimki, site)
 
     expect(update.parameters.site_wifi_coverage).toEqual({ value: 'частично', source: 'user' })
-    expect(update.parameters.site_aisle_min_m).toEqual({ value: 2.8, source: 'user' })
+    expect(update.parameters.site_aisle_min_m).toEqual({ value: 3, source: 'user' })
     expect(update.parameters).not.toHaveProperty('site_floor_load_tm2')
   })
 

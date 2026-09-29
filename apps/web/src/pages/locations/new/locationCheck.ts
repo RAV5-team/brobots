@@ -98,8 +98,8 @@ export function validateLocation(form: LocationForm, params: ParameterIndex, opt
 }
 
 /** Секция, где стоит поле с ошибкой, — для перехода из панели готовности. */
-export function errorSection(key: string): SectionId | SiteGroup {
-  const site = siteSectionOf(key)
+export function errorSection(key: string, parameters?: ParameterIndex): SectionId | SiteGroup {
+  const site = parameters ? siteSectionOf(key, [...parameters.values()]) : null
   if (site) return site
   if (key === 'name' || key === 'city' || key === 'address') return 'basics'
   if (key in NUMERIC_SPECS) return NUMERIC_SPECS[key as NumericKey].section

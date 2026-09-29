@@ -120,5 +120,12 @@ export function facilityParameterFromApi(dto: ApiSchemas['ParameterDefinition'])
     min: optional(dto.minValue),
     max: optional(dto.maxValue),
     note: dto.hint ?? dto.sourceNote ?? '',
+    ...(dto.formSection !== undefined ? { formSection: dto.formSection } : {}),
+    ...(dto.enumValues != null ? { enumValues: dto.enumValues } : {}),
+    ...(dto.routeOnly !== undefined ? { routeOnly: dto.routeOnly } : {}),
+    ...(dto.checkedByMatching !== undefined ? { checkedByMatching: dto.checkedByMatching } : {}),
+    ...(dto.pairCode !== undefined ? { pairCode: dto.pairCode } : {}),
+    ...(dto.sort !== undefined ? { sort: dto.sort } : {}),
+    ...(dto.valueType !== undefined ? { valueType: dto.valueType } : {}),
   }
 }

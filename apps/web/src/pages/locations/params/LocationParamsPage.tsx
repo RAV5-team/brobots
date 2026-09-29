@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type SyntheticEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type SyntheticEvent } from 'react'
 import { useLocation, useParams } from 'react-router'
 import { ROUTE_PATHS } from '@/app/routePaths'
 import { Button, ButtonLink } from '@/components/ui/Button'
@@ -18,15 +18,16 @@ import { ProfileReadinessRail } from '../new/ProfileReadinessRail'
 import { StaffSection } from '../new/StaffSection'
 import { formFromLocation, isEditLocationState, toLocationUpdate } from './locationParamsModel'
 import { SiteSection } from './SiteSection'
-import { SITE_PROFILE_GROUPS, isSiteProfileCode, siteFieldErrors, siteFieldId, siteSectionOf, siteValuesFromLocation, type SiteValues } from './siteProfileFields'
+import { SITE_GROUPS } from '@/domain'
+import { siteFieldErrors, siteFieldId, siteSectionOf, siteValuesFromLocation, type SiteValues } from './siteProfileFields'
 import { useLocationParams, type LocationParamsData } from './useLocationParams'
 
 const t = ru.location
 const tf = ru.locationNew
-const PARAMS_SECTION_IDS = [...SECTION_IDS, ...SITE_PROFILE_GROUPS] as const
+const PARAMS_SECTION_IDS = [...SECTION_IDS, ...SITE_GROUPS] as const
 const ALL_NAV_ITEMS = [
   ...SECTION_IDS.map((id) => ({ id, label: tf.nav[id] })),
-  ...SITE_PROFILE_GROUPS.map((id) => ({ id, label: t.params.site.groups[id] })),
+  ...SITE_GROUPS.map((id) => ({ id, label: t.params.site.groups[id] })),
 ]
 const BASICS_ONLY = ALL_NAV_ITEMS.filter((item) => item.id === 'basics')
 
@@ -43,9 +44,10 @@ function LocationParamsSkeleton() {
 }
 
 /** Перейти к полю: прокрутить к его секции и поставить фокус в само поле. */
-function focusField(key: string, select: (id: string) => void) {
-  select(errorSection(key))
-  document.getElementById(isSiteProfileCode(key) ? siteFieldId(key) : fieldDomId(key))?.focus({ preventScroll: true })
+function focusField(key: string, select: (id: string) => void, parameters: LocationParamsData['params']) {
+  const site = siteSectionOf(key, [...parameters.values()])
+  select(errorSection(key, parameters))
+  document.getElementById(site ? siteFieldId(key) : fieldDomId(key))?.focus({ preventScroll: true })
 }
 
 function hashCode(hash: string): string {
@@ -69,7 +71,8 @@ function ParamsForm({ data, editing, onSaved, status }: ParamsFormProps) {
   const { hash } = useLocation()
   const { location, params } = data
   const [form, setForm] = useState<LocationForm>(() => formFromLocation(location, params))
-  const [site, setSite] = useState<SiteValues>(() => siteValuesFromLocation(location))
+  const catalog = useMemo(() => [...params.values()], [params])
+  const [site, setSite] = useState<SiteValues>(() => siteValuesFromLocation(location, catalog))
   const [showRequired, setShowRequired] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -84,8 +87,8 @@ function ParamsForm({ data, editing, onSaved, status }: ParamsFormProps) {
       return
     }
     const target = hashCode(hash)
-    const id = isSiteProfileCode(target) ? siteFieldId(target) : !wasEditing.current ? fieldDomId('name') : null
-    const group = siteSectionOf(target)
+    const group = siteSectionOf(target, catalog)
+    const id = group ? siteFieldId(target) : !wasEditing.current ? fieldDomId('name') : null
     if (group) select(group)
     if (id) {
       // Селекты площадки монтируются вместе с fieldset — фокус после кадра, иначе его перехватывают.
@@ -96,29 +99,29 @@ function ParamsForm({ data, editing, onSaved, status }: ParamsFormProps) {
       })
     }
     wasEditing.current = true
-  }, [editing, hash, select])
+  }, [catalog, editing, hash, select])
 
   const formErrors = validateLocation(form, params, { showRequired })
-  const siteErrors = siteFieldErrors(site)
+  const siteErrors = siteFieldErrors(site, catalog)
   const errors = { ...formErrors, ...siteErrors }
   const ready = readiness(form, formErrors, params)
   const update = (patch: Partial<LocationForm>) => { setForm((prev) => ({ ...prev, ...patch })) }
   const sectionProps: LocationSectionProps = { form, errors, update, params }
   const goToFirstError = () => {
     const [first] = Object.keys(errors)
-    if (first) focusField(first, select)
+    if (first) focusField(first, select, params)
   }
 
   const submit = async (event: SyntheticEvent) => {
     event.preventDefault()
     if (!editing) return
-    const found = { ...validateLocation(form, params, { showRequired: true }), ...siteFieldErrors(site) }
+    const found = { ...validateLocation(form, params, { showRequired: true }), ...siteFieldErrors(site, catalog) }
     setShowRequired(true)
     const keys = Object.keys(found)
     const [first] = keys
     if (first) {
       setMessage(tf.errors.summary(formatNumber(keys.length)))
-      focusField(first, select)
+      focusField(first, select, params)
       return
     }
     setMessage(null)
@@ -147,6 +150,7 @@ function ParamsForm({ data, editing, onSaved, status }: ParamsFormProps) {
               <ScheduleSection {...sectionProps} />
               <StaffSection {...sectionProps} />
               <SiteSection
+                parameters={catalog}
                 values={site}
                 errors={siteErrors}
                 onChange={(code, value) => { setSite((prev) => ({ ...prev, [code]: value })) }}
@@ -177,7 +181,8 @@ function ParamsForm({ data, editing, onSaved, status }: ParamsFormProps) {
  * в режиме просмотра с «Изменить» (D-41). Гость только смотрит: своих локаций и сохранения у него нет (D-14).
  */
 function wantsEdit(role: Role, hash: string, navState: unknown): boolean {
-  return role !== 'guest' && (isSiteProfileCode(hashCode(hash)) || isEditLocationState(navState))
+  const code = hashCode(hash)
+  return role !== 'guest' && (code.startsWith('site_') || code.startsWith('wh_') || isEditLocationState(navState))
 }
 
 export function LocationParamsPage() {

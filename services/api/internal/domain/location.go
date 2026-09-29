@@ -14,26 +14,29 @@ const DefaultPayrollTaxCoef = 1.302
 
 // ParameterDefinition describes a facility-type parameter from the organizer datasets.
 type ParameterDefinition struct {
-	Code             string   `json:"code"`
-	FacilityTypeCode string   `json:"facilityTypeCode"`
-	GroupName        string   `json:"groupName"`
-	Name             string   `json:"name"`
-	Unit             *string  `json:"unit"`
-	ValueType        string   `json:"valueType"`
-	BaseValueNumber  *float64 `json:"baseValueNumber"`
-	BaseValueText    *string  `json:"baseValueText"`
-	MinValue         *float64 `json:"minValue"`
-	MaxValue         *float64 `json:"maxValue"`
-	EnumValues       []string `json:"enumValues"`
-	IsRequired       bool     `json:"isRequired"`
-	IsConstant       bool     `json:"isConstant"`
-	Role             *string  `json:"role"`
-	StaffRole        *string  `json:"staffRole"`
-	StaffAttr        *string  `json:"staffAttr"`
-	FormSection      string   `json:"formSection"`
-	Hint             *string  `json:"hint"`
-	SourceNote       *string  `json:"sourceNote"`
-	Sort             int      `json:"sort"`
+	Code              string   `json:"code"`
+	FacilityTypeCode  string   `json:"facilityTypeCode"`
+	GroupName         string   `json:"groupName"`
+	Name              string   `json:"name"`
+	Unit              *string  `json:"unit"`
+	ValueType         string   `json:"valueType"`
+	BaseValueNumber   *float64 `json:"baseValueNumber"`
+	BaseValueText     *string  `json:"baseValueText"`
+	MinValue          *float64 `json:"minValue"`
+	MaxValue          *float64 `json:"maxValue"`
+	EnumValues        []string `json:"enumValues"`
+	IsRequired        bool     `json:"isRequired"`
+	IsConstant        bool     `json:"isConstant"`
+	Role              *string  `json:"role"`
+	StaffRole         *string  `json:"staffRole"`
+	StaffAttr         *string  `json:"staffAttr"`
+	FormSection       string   `json:"formSection"`
+	Hint              *string  `json:"hint"`
+	SourceNote        *string  `json:"sourceNote"`
+	Sort              int      `json:"sort"`
+	RouteOnly         bool     `json:"routeOnly"`
+	CheckedByMatching bool     `json:"checkedByMatching"`
+	PairCode          *string  `json:"pairCode"`
 }
 
 // IsNumeric reports whether the parameter holds a number.

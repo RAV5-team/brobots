@@ -24,10 +24,10 @@ const location = (name: string) => LOCATIONS.find((l) => l.name === name)
 const classCodes = new Set(OPERATION_CLASSES.map((c) => c.code))
 
 describe('fixtures: integrity', () => {
-  it('holds warehouse, airport and medical parameters (43 / 39 / 57)', () => {
+  it('holds warehouse, airport and medical parameters (65 / 39 / 57)', () => {
     const count = (t: string) => FACILITY_PARAMETERS.filter((p) => p.facilityType === t).length
-    expect([FACILITY_PARAMETERS.length, count('warehouse'), count('airport'), count('medical')]).toEqual([139, 43, 39, 57])
-    expect(new Set(FACILITY_PARAMETERS.map((p) => p.code)).size).toBe(139)
+    expect([FACILITY_PARAMETERS.length, count('warehouse'), count('airport'), count('medical')]).toEqual([161, 65, 39, 57])
+    expect(new Set(FACILITY_PARAMETERS.map((p) => p.code)).size).toBe(161)
   })
 
   it('keeps every numeric base value inside its range', () => {
@@ -67,12 +67,17 @@ describe('fixtures: integrity', () => {
     }
   })
 
-  it('fills every location parameter of its facility type', () => {
+  it('fills every dataset parameter of its facility type; empty site fields stay absent', () => {
+    const siteSections = new Set(['aisles', 'floor', 'layout', 'operating', 'connectivity'])
     for (const loc of LOCATIONS) {
-      const expected = FACILITY_PARAMETERS.filter(
+      const catalog = FACILITY_PARAMETERS.filter(
         (p) => p.facilityType === loc.facilityType && !/_(capex_budget|horizon_years)$/.test(p.code),
-      ).map((p) => p.code)
-      expect(Object.keys(loc.parameters).sort(), loc.name).toEqual(expected.sort())
+      )
+      const required = catalog.filter((p) => !siteSections.has(p.formSection ?? '')).map((p) => p.code)
+      const keys = Object.keys(loc.parameters)
+      for (const code of required) expect(keys, loc.name).toContain(code)
+      const known = new Set(catalog.map((p) => p.code))
+      expect(keys.filter((code) => !known.has(code)), loc.name).toEqual([])
     }
   })
 })

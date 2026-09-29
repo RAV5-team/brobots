@@ -167,11 +167,11 @@ describe('мок проектов', () => {
     expect(typeof (await projects.requestQuote('PJ-01')).inputs.economics?.quoteRequestedAt).toBe('string')
     await expect(projects.requestQuote('PJ-02')).rejects.toBeInstanceOf(ConflictError)
   })
-  it('снимок шага 1: профиль локации, пять процессов РЦ Химки, 25 параметров площадки, решение из каталога (PRD 11.2)', async () => {
+  it('снимок шага 1: профиль локации, пять процессов РЦ Химки, параметры площадки из справочника, решение из каталога (PRD 11.2)', async () => {
     const snapshot = await service().getParamsSnapshot('PJ-DEMO')
     expect(snapshot.location.id).toBe('LOC-01')
     expect(snapshot.processes.map((p) => p.locationProcess.id)).toEqual(['LP-01', 'LP-02', 'LP-03', 'LP-04', 'LP-05'])
-    expect(snapshot.siteParameters).toHaveLength(25)
+    expect(snapshot.siteParameters).toHaveLength(26)
     expect(snapshot.pinnedSolution).toEqual({ id: 'RB-0008', name: 'AMR 800' })
     expect((await service().getParamsSnapshot('PJ-07')).pinnedSolution).toBeNull()
   })

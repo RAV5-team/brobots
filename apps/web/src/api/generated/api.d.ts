@@ -6168,6 +6168,7 @@ export interface components {
         ParameterDefinition: {
             baseValueNumber?: number | null;
             baseValueText?: string | null;
+            checkedByMatching?: boolean;
             code?: string;
             enumValues?: string[] | null;
             facilityTypeCode?: string;
@@ -6179,7 +6180,9 @@ export interface components {
             maxValue?: number | null;
             minValue?: number | null;
             name?: string;
+            pairCode?: string | null;
             role?: string | null;
+            routeOnly?: boolean;
             sort?: number;
             sourceNote?: string | null;
             staffAttr?: string | null;

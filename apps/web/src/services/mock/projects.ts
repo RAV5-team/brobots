@@ -31,7 +31,7 @@ import { NORMS } from '@/mocks/fixtures/norms'
 import { HANDLING_METHODS, OPERATION_CLASSES } from '@/mocks/fixtures/operationClasses'
 import { PROCESSES } from '@/mocks/fixtures/processes'
 import { ROBOTS } from '@/mocks/fixtures/robots'
-import { SITE_PARAMETERS, SITE_VALUES } from '@/mocks/fixtures/siteParameters'
+import { siteParameterDefs, siteValuesFromParameters } from '@/domain'
 import { CONDITIONS_LP01, OPERATIONS_PER_DAY_LP01 } from '@/mocks/fixtures/projectEconomics'
 import { CALC_DEFAULTS_BY_PROCESS, EVALUATIONS_BY_PROCESS } from '@/mocks/fixtures/projectMatching'
 import { DEMO_PROJECT_DTO, PROJECT_DTOS, PROJECT_LOCAL_STATE, PROJECT_VERSIONS } from '@/mocks/fixtures/projects'
@@ -139,11 +139,13 @@ function paramsSnapshot(dto: ProjectDto): ProjectParamsSnapshot {
   const location = LOCATIONS.find((l) => l.id === dto.locationId)
   if (!location) throw new NotFoundError(`Локация ${String(dto.locationId)} не найдена`)
   const pinned = dto.status === 'draft' && dto.pinnedSolutionId ? ROBOTS.find((r) => r.id === dto.pinnedSolutionId) : undefined
+  const facilityParameters = FACILITY_PARAMETERS.filter((p) => p.facilityType === location.facilityType)
+  const siteParameters = siteParameterDefs(facilityParameters)
   return {
     location,
-    facilityParameters: FACILITY_PARAMETERS.filter((p) => p.facilityType === location.facilityType),
-    siteParameters: SITE_PARAMETERS,
-    siteValues: SITE_VALUES[location.id] ?? {},
+    facilityParameters,
+    siteParameters,
+    siteValues: siteValuesFromParameters(location.parameters, siteParameters),
     processes: processesOf(location.id),
     handlingMethods: HANDLING_METHODS,
     pinnedSolution: pinned ? { id: pinned.id, name: pinned.name } : null,

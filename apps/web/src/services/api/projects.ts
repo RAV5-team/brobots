@@ -23,7 +23,7 @@ import {
   type SavedProject,
   type SimulationJob,
 } from '@/domain'
-import { SITE_PARAMETERS } from '@/mocks/fixtures/siteParameters'
+import { siteParameterDefs, siteValuesFromParameters } from '@/domain'
 import { ConflictError, NotFoundError } from '../errors'
 import type { CatalogService } from '../catalog'
 import type { LocationService } from '../locations'
@@ -173,9 +173,12 @@ export function apiProjects(http: HttpClient, deps: Dependencies): Partial<Proje
       const pinned = dto.status === 'draft' && dto.pinnedSolutionId
         ? await deps.catalog.getRobot(dto.pinnedSolutionId).then((r) => ({ id: r.id, name: r.name }), () => null)
         : null
-      const siteValues = Object.fromEntries(SITE_PARAMETERS.flatMap((p) => [p.code, p.pairCode]).filter((code): code is string => Boolean(code))
-        .flatMap((code) => (location.parameters[code] ? [[code, location.parameters[code]]] : [])))
-      return { location, facilityParameters, siteParameters: SITE_PARAMETERS, siteValues, processes: entries, handlingMethods, pinnedSolution: pinned }
+      const siteParameters = siteParameterDefs(facilityParameters)
+      return {
+        location, facilityParameters, siteParameters,
+        siteValues: siteValuesFromParameters(location.parameters, siteParameters),
+        processes: entries, handlingMethods, pinnedSolution: pinned,
+      }
     },
 
     selectProcess: async (id, locationProcessId) => {
