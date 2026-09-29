@@ -220,6 +220,11 @@
   --rav-compare-label-width-compact: 180px;
   /* 03 «Исключённые решения»: колонка названия 200 (16197:998). */
   --rav-excluded-name-width: 200px;
+  /* 2.1 «Подбор решений»: колонки рейтинга CAPEX 76, эффект/год 84, окупаемость 92, балл 64; «Решение» — остаток (16742:30). */
+  --rav-ranking-capex-width: 76px;
+  --rav-ranking-effect-width: 84px;
+  --rav-ranking-payback-width: 92px;
+  --rav-ranking-score-width: 64px;
   /* К-4 «Карточка решения»: строка характеристики — подпись 160, статус 128, источник 172, значение — остаток (16777:987). */
   --rav-characteristic-label-width: 160px;
   --rav-characteristic-status-width: 128px;
