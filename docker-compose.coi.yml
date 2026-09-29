@@ -1,0 +1,134 @@
+# Container Optimized Image deployment specification.
+# Render IMAGE_TAG and GHCR_OWNER before passing this file to `yc compute
+# instance update-container --docker-compose-file`. Runtime configuration is
+# supplied by root-only env files already present on the VM.
+version: "3.7"
+
+networks:
+  edge: {}
+  internal:
+    internal: true
+
+volumes:
+  pgdata:
+    name: rav5-pgdata
+
+services:
+  postgres:
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    image: ghcr.io/${GHCR_OWNER:?}/brobots-postgres:${IMAGE_TAG:?}
+    env_file: /etc/brobots/postgres.env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  keycloak:
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    image: ghcr.io/${GHCR_OWNER:?}/brobots-keycloak:${IMAGE_TAG:?}
+    command: ["start", "--optimized", "--import-realm"]
+    env_file: /etc/brobots/keycloak.env
+    networks: [edge, internal]
+    mem_limit: 1g
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /auth/health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && head -n1 <&3 | grep -q ' 200 '"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 180s
+
+  gateway:
+    container_name: rav5-gateway
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    image: ghcr.io/${GHCR_OWNER:?}/brobots-gateway:${IMAGE_TAG:?}
+    env_file: /etc/brobots/gateway.env
+    ports: ["80:80", "443:443"]
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/lib/brobots/acme:/var/www/certbot:ro
+    networks: [edge]
+    mem_limit: 128m
+    depends_on:
+      keycloak: { condition: service_healthy }
+      web: { condition: service_healthy }
+
+  api:
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    image: ghcr.io/${GHCR_OWNER:?}/brobots-api:${IMAGE_TAG:?}
+    env_file: /etc/brobots/api.env
+    networks: [edge, internal]
+    depends_on:
+      postgres: { condition: service_healthy }
+      economics: { condition: service_healthy }
+
+  simulation-migrate:
+    restart: "no"
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    image: ghcr.io/${GHCR_OWNER:?}/brobots-simulation:${IMAGE_TAG:?}
+    command: ["alembic", "upgrade", "head"]
+    env_file: /etc/brobots/simulation.env
+    networks: [internal]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  simulation:
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    image: ghcr.io/${GHCR_OWNER:?}/brobots-simulation:${IMAGE_TAG:?}
+    env_file: /etc/brobots/simulation.env
+    networks: [edge, internal]
+    depends_on:
+      simulation-migrate: { condition: service_completed_successfully }
+
+  economics-migrate:
+    restart: "no"
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    image: ghcr.io/${GHCR_OWNER:?}/brobots-economics:${IMAGE_TAG:?}
+    command: ["alembic", "upgrade", "head"]
+    env_file: /etc/brobots/economics.env
+    networks: [internal]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  economics:
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    image: ghcr.io/${GHCR_OWNER:?}/brobots-economics:${IMAGE_TAG:?}
+    env_file: /etc/brobots/economics.env
+    networks: [internal]
+    depends_on:
+      economics-migrate: { condition: service_completed_successfully }
+
+  web:
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    image: ghcr.io/${GHCR_OWNER:?}/brobots-web:${IMAGE_TAG:?}
+    networks: [edge]

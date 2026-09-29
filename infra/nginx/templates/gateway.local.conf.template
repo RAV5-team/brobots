@@ -20,4 +20,5 @@ server {
     }
 
     include /etc/nginx/snippets/keycloak.conf;
+    location / { return 404; }
 }

@@ -1,0 +1,226 @@
+name: release-images
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-images-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: services/api/go.mod
+          cache-dependency-path: services/api/go.sum
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+          working-directory: services/api
+      - name: Format, vet, and unit tests
+        working-directory: services/api
+        run: |
+          test -z "$(gofmt -l .)"
+          go vet ./...
+          go test -race -count=1 ./...
+      - name: PostgreSQL integration tests
+        working-directory: services/api
+        run: go test -tags=integration -count=1 ./internal/integration/...
+
+  economics:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: economics
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d economics"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: services/economics
+    env:
+      POSTGRES_TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/economics
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/economics/requirements-dev.txt
+      - run: python -m pip install -r requirements-dev.txt
+      - run: ruff check src tests
+      - run: pytest -q
+
+  simulation:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: simulation_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d simulation_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: services/simulation
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/simulation_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/simulation/requirements-dev.txt
+      - run: python -m pip install -r requirements-dev.txt
+      - run: pytest
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+
+  api-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: services/api/go.mod
+          cache-dependency-path: services/api/go.sum
+      - name: Regenerate OpenAPI contracts
+        working-directory: services/api
+        run: go generate ./...
+      - name: Verify generated contracts are current
+        run: git diff --exit-code -- packages/contracts/openapi services/api/internal/apispec
+
+  compose-spec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate COI Compose specification
+        run: |
+          sudo install -d -m 700 /etc/brobots
+          for service in postgres keycloak gateway api simulation economics; do
+            sudo touch "/etc/brobots/${service}.env"
+          done
+          sudo env GHCR_OWNER=example IMAGE_TAG="${GITHUB_SHA}" \
+            docker compose -f docker-compose.coi.yml config --quiet
+
+  images:
+    needs: [api, api-contract, economics, simulation, web, compose-spec]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: api
+            file: services/api/Dockerfile
+            target: runtime
+            context: .
+          - image: simulation
+            file: services/simulation/Dockerfile
+            target: runtime
+            context: .
+          - image: economics
+            file: services/economics/Dockerfile
+            target: runtime
+            context: .
+          - image: web
+            file: apps/web/Dockerfile
+            target: runtime
+            context: .
+          - image: keycloak
+            file: infra/keycloak/Dockerfile
+            target: ""
+            context: infra/keycloak
+          - image: gateway
+            file: infra/nginx/Dockerfile
+            target: ""
+            context: infra/nginx
+          - image: postgres
+            file: infra/postgres/Dockerfile
+            target: ""
+            context: infra/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Normalize GHCR owner
+        id: owner
+        run: echo "image_owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          target: ${{ matrix.target }}
+          build-args: |
+            VERSION=${{ github.sha }}
+            VITE_DEMO_MODE=${{ vars.WEB_DEMO_MODE || 'false' }}
+            VITE_DEMO_USER_EMAIL=${{ vars.WEB_DEMO_USER_EMAIL }}
+            VITE_DEMO_USER_PASSWORD=${{ vars.WEB_DEMO_USER_PASSWORD }}
+            VITE_DEMO_ADMIN_EMAIL=${{ vars.WEB_DEMO_ADMIN_EMAIL }}
+            VITE_DEMO_ADMIN_PASSWORD=${{ vars.WEB_DEMO_ADMIN_PASSWORD }}
+            VITE_PUBLIC_SITE_URL=${{ vars.PUBLIC_URL }}
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: ghcr.io/${{ steps.owner.outputs.image_owner }}/brobots-${{ matrix.image }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,scope=${{ matrix.image }},mode=max

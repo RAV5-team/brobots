@@ -233,34 +233,66 @@ def calculate_remaining_annual_payroll(
 
 @dataclass(frozen=True)
 class ProductivityInputs:
-    """Inputs for effective speed and robot cycle productivity."""
+    """Inputs for cycle-based or catalog-rated robot productivity."""
 
-    max_speed_mps: Decimal
+    max_speed_mps: Decimal | None
     site_speed_limit_mps: Decimal
     operating_speed_factor: Decimal
     one_way_route_m: Decimal
     lift_trip_share: Decimal
     one_way_lift_seconds: Decimal
-    loading_seconds: Decimal
-    unloading_seconds: Decimal
+    loading_seconds: Decimal | None
+    unloading_seconds: Decimal | None
     productive_time_share: Decimal
     technical_availability: Decimal
+    trips_per_operation: Decimal = assumptions.ONE
+    catalog_throughput_per_hour: Decimal | None = None
 
 
 @dataclass(frozen=True)
 class ProductivityResult:
-    """Calculated speed, cycle, and effective productivity metrics."""
+    """Calculated nominal and effective robot capacity metrics."""
 
-    effective_speed_mps: Decimal
-    movement_seconds: Decimal
-    lift_seconds: Decimal
-    cycle_seconds: Decimal
-    nominal_cycles_per_hour: Decimal
+    effective_speed_mps: Decimal | None
+    movement_seconds: Decimal | None
+    lift_seconds: Decimal | None
+    cycle_seconds: Decimal | None
+    nominal_cycles_per_hour: Decimal | None
+    nominal_capacity_per_hour: Decimal
     effective_trips_per_robot_hour: Decimal
 
 
 def calculate_productivity(inputs: ProductivityInputs) -> ProductivityResult:
-    """Calculates robot speed, cycle time, and effective trips per hour."""
+    """Calculates capacity from catalog throughput or the robot cycle."""
+
+    if inputs.catalog_throughput_per_hour is not None:
+        nominal_capacity = (
+            inputs.catalog_throughput_per_hour * inputs.trips_per_operation
+        )
+        return ProductivityResult(
+            effective_speed_mps=None,
+            movement_seconds=None,
+            lift_seconds=None,
+            cycle_seconds=None,
+            nominal_cycles_per_hour=None,
+            nominal_capacity_per_hour=nominal_capacity,
+            effective_trips_per_robot_hour=(
+                calculate_effective_trips_per_robot_hour(
+                    nominal_capacity,
+                    inputs.productive_time_share,
+                    inputs.technical_availability,
+                )
+            ),
+        )
+
+    if (
+        inputs.max_speed_mps is None
+        or inputs.loading_seconds is None
+        or inputs.unloading_seconds is None
+    ):
+        raise InvalidInputError(
+            "Cycle-based productivity requires speed, loading, and unloading."
+        )
 
     effective_speed = calculate_effective_speed(
         inputs.max_speed_mps,
@@ -291,6 +323,7 @@ def calculate_productivity(inputs: ProductivityInputs) -> ProductivityResult:
         lift_seconds=lift_seconds,
         cycle_seconds=cycle_seconds,
         nominal_cycles_per_hour=nominal_cycles,
+        nominal_capacity_per_hour=nominal_cycles,
         effective_trips_per_robot_hour=effective_trips,
     )
 
@@ -359,14 +392,16 @@ def calculate_nominal_cycles_per_hour(cycle_seconds: Decimal) -> Decimal:
 
 
 def calculate_effective_trips_per_robot_hour(
-    nominal_cycles_per_hour: Decimal,
+    nominal_capacity_per_hour: Decimal,
     productive_time_share: Decimal,
     technical_availability: Decimal,
 ) -> Decimal:
     """Calculates effective trips after productivity and uptime factors."""
 
     return (
-        nominal_cycles_per_hour * productive_time_share * technical_availability
+        nominal_capacity_per_hour
+        * productive_time_share
+        * technical_availability
     )
 
 
@@ -382,6 +417,7 @@ class FleetInputs:
     trips_per_operation: Decimal
     nominal_cycles_per_hour: Decimal
     charger_power_kw: Decimal
+    nominal_capacity_per_hour: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -409,11 +445,16 @@ def calculate_fleet(inputs: FleetInputs) -> FleetResult:
     peak_capacity = calculate_peak_capacity(
         robot_count, inputs.effective_trips_per_robot_hour
     )
+    nominal_capacity = (
+        inputs.nominal_cycles_per_hour
+        if inputs.nominal_capacity_per_hour is None
+        else inputs.nominal_capacity_per_hour
+    )
     utilization = calculate_average_utilization(
         inputs.average_operations_per_hour,
         inputs.trips_per_operation,
         robot_count,
-        inputs.nominal_cycles_per_hour,
+        nominal_capacity,
     )
     return FleetResult(
         robot_count=robot_count,
@@ -467,14 +508,14 @@ def calculate_average_utilization(
     average_operations_per_hour: Decimal,
     trips_per_operation: Decimal,
     robot_count: Decimal,
-    nominal_cycles_per_hour: Decimal,
+    nominal_capacity_per_hour: Decimal,
 ) -> Decimal:
     """Calculates average fleet utilization."""
 
     return (
         average_operations_per_hour
         * trips_per_operation
-        / (robot_count * nominal_cycles_per_hour)
+        / (robot_count * nominal_capacity_per_hour)
     )
 
 

@@ -25,6 +25,7 @@ htmlcov/
 .env
 .env.*
 !.env.example
+.deployment/keys/
 
 # --- editors / os ---
 .DS_Store

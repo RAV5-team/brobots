@@ -204,6 +204,7 @@ def test_warehouse_workbook_golden(
         unloading_seconds=Decimal(robot["unloading"]),
         average_power_kw=Decimal(robot["power"]),
         handling_method=robot["handling"],
+        acquisition_models=(acquisition,),
     )
     request = replace(
         _request(candidate, acquisition),
@@ -215,7 +216,7 @@ def test_warehouse_workbook_golden(
                 price_factor=Decimal("1"),
                 volume_factor=Decimal("1"),
                 labor_factor=Decimal("1"),
-                model_version="economic-v1.1",
+                model_version="economic-v1.2",
             ),
         ),
     )

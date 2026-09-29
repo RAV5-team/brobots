@@ -8,6 +8,7 @@ from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from enum import StrEnum
 
 from economic_service.domain.errors import InvalidInputError
+from economic_service.domain.reason_codes import ReasonCode
 
 _USER_MONEY_QUANTUM = Decimal("0.01")
 CALCULATION_CURRENCY = "RUB"
@@ -207,6 +208,8 @@ class RobotCandidate:
     catalog_status: str
     confirmation: ConfirmationStatus
     source: SourceRef
+    acquisition_models: tuple[AcquisitionModel, ...] = ()
+    throughput_per_hour: SourcedValue[Decimal] | None = None
     maturity_trl: SourcedValue[Decimal] | None = None
     catalog_completeness_percent: SourcedValue[Decimal] | None = None
 
@@ -290,7 +293,7 @@ class CandidateEconomics:
     status: CandidateStatus
     metrics: tuple[MetricValue, ...]
     traces: tuple[CalculationTrace, ...]
-    risks: tuple[str, ...]
+    risks: tuple[ReasonCode, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -306,7 +309,7 @@ class RankingCriterionTrace:
     contribution: Decimal | None
     provenance: tuple[SourceRef, ...]
     is_missing: bool
-    missing_reason: str | None = None
+    missing_reason: ReasonCode | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -316,12 +319,12 @@ class RankingItem:
     candidate_id: str
     acquisition_model: AcquisitionModel
     candidate_status: CandidateStatus
-    risks: tuple[str, ...]
+    risks: tuple[ReasonCode, ...]
     rank: int | None
     score: Decimal | None
     contributions: tuple[tuple[str, Decimal], ...]
     status: RankingItemStatus = RankingItemStatus.RANKED
-    unranked_reason: str | None = None
+    unranked_reason: ReasonCode | None = None
     criteria: tuple[RankingCriterionTrace, ...] = ()
 
 
