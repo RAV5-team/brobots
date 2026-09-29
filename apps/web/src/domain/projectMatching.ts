@@ -60,8 +60,9 @@ export interface RankedVariant {
   readonly paybackYears: number | null
   readonly roi: number | null
   readonly tcoRub: number | null
+  /** Разбор балла по критериям: вес и вклад (строка рейтинга 2.1, «Обзор» 2.1а, отчёт 09). Порядок — как в ответе API. */
   readonly criteria: readonly ScoreContribution[]
-  /** Цикл рейса, с; null — расчёт не отдал (панель «Как рассчитано», 03a). */
+  /** Цикл рейса, с; null — расчёт не отдал (шаги расчёта в отчёте 09 и симуляции). */
   readonly cycleTimeS: number | null
   /** Загрузка парка, доля 0–1. */
   readonly fleetUtilization: number | null
@@ -73,10 +74,12 @@ export interface RankedVariant {
   readonly checks: readonly SolutionCheck[]
 
   // Окно 2.1а «Подробнее о решении» (доска 16325). Поля необязательные: нет — «нет данных» на вкладке.
-  /** Полный разбор балла по 8 критериям для строки рейтинга и «Обзора» 2.1а; `criteria` — то, что показывает рейтинг 03. */
-  readonly scoreBreakdown?: readonly ScoreContribution[]
-  /** «Почему подходит» и «Недостающие данные» (вкладка «Обзор»). */
-  readonly reasons?: VariantReasons
+  /**
+   * «Почему подходит» — прошедшие проверки условий (вкладка «Обзор», рекомендация). API отдаёт в `checks` только
+   * непройденные; пока pass нет (api-contract №16), они здесь. `checks` не трогаем: из них строит матрицу отчёт 09.
+   * «Недостающие данные» не хранятся — это параметры площадки без данных (D-99, `siteRequirementChecks`).
+   */
+  readonly fits?: readonly SolutionCheck[]
   /** Ограничения решения в проекте — коды `Candidate.risks`: specs_unconfirmed, throughput_unknown, hypothesis_only. */
   readonly limitations?: readonly string[]
   /** Краткое пояснение подбора (`Candidate.summary`). */
@@ -97,12 +100,6 @@ export interface RankedVariant {
   readonly auxEquipment?: AuxEquipment
   /** Эффективная производительность для процесса с пояснением (вкладка «Технические»). */
   readonly effectiveProductivity?: EffectiveProductivity
-}
-
-/** Прошедшие проверки («✓») и проверки без данных («?»). */
-export interface VariantReasons {
-  readonly fits: readonly SolutionCheck[]
-  readonly missing: readonly SolutionCheck[]
 }
 
 /** Шаг расчёта: формула, входы, результат (в API — TraceItem). */
@@ -177,10 +174,12 @@ export interface RaasTerms extends ValueSourceRef {
   readonly renewal: string | null
   /** Условия выкупа; null — не представлены. */
   readonly buyout: string | null
+  /** Что принято, пока условия продления неизвестны: «после 36 мес. — продление по тому же тарифу». */
+  readonly renewalAssumption: string | null
   /** Индексация платежей, доля в год. */
   readonly indexationPerYear: number | null
-  /** Что принято допущением: «продление по тому же тарифу», «индексация 5 %». */
-  readonly assumptions: readonly string[]
+  /** Индексация принята допущением команды, а не взята из условий поставщика. */
+  readonly indexationAssumed: boolean
 }
 
 /** Количество — результат расчёта; null — расчёт не отдал. */
