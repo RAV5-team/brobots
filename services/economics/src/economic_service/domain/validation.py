@@ -11,6 +11,7 @@ from economic_service.domain.errors import (
 )
 from economic_service.domain.models import (
     CALCULATION_CURRENCY,
+    AcquisitionModel,
     EvaluationRequest,
     Money,
     NormSet,
@@ -190,6 +191,23 @@ def validate_candidate(candidate: RobotCandidate) -> None:
             )
     if candidate.max_speed_mps is not None and candidate.max_speed_mps <= 0:
         raise InvalidInputError("candidate.max_speed_mps must be positive.")
+    if not candidate.acquisition_models:
+        raise InvalidInputError(
+            "candidate.acquisition_models must not be empty."
+        )
+    if len(candidate.acquisition_models) != len(
+        set(candidate.acquisition_models)
+    ):
+        raise InvalidInputError(
+            "candidate.acquisition_models must not contain duplicates."
+        )
+    if any(
+        not isinstance(model, AcquisitionModel)
+        for model in candidate.acquisition_models
+    ):
+        raise InvalidInputError(
+            "candidate.acquisition_models contains an unsupported model."
+        )
     for field_name, value in (
         ("loading_seconds", candidate.loading_seconds),
         ("unloading_seconds", candidate.unloading_seconds),
@@ -229,6 +247,22 @@ def validate_candidate(candidate: RobotCandidate) -> None:
             raise InvalidInputError(
                 f"candidate.{field_name} must be between "
                 f"{minimum} and {maximum}."
+            )
+    if candidate.throughput_per_hour is not None:
+        throughput = candidate.throughput_per_hour
+        if not isinstance(throughput.value, Decimal) or not (
+            throughput.value.is_finite()
+        ):
+            raise InvalidInputError(
+                "candidate.throughput_per_hour must be a finite Decimal."
+            )
+        if throughput.value <= 0:
+            raise InvalidInputError(
+                "candidate.throughput_per_hour must be positive."
+            )
+        if throughput.unit != "task_units/hour":
+            raise InvalidInputError(
+                "candidate.throughput_per_hour must use task_units/hour."
             )
 
 
@@ -286,7 +320,9 @@ def validate_evaluation_request(request: EvaluationRequest) -> None:
         raise InvalidInputError(
             "At least one acquisition scenario is required."
         )
-    candidate_ids = [candidate.candidate_id for candidate in request.candidates]
+    candidate_ids = [
+        candidate.candidate_id for candidate in request.candidates
+    ]
     if len(candidate_ids) != len(set(candidate_ids)):
         raise InvalidInputError("Candidate identifiers must be unique.")
 

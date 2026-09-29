@@ -230,6 +230,16 @@ components:
           $ref: '#/components/schemas/ConfirmationStatus'
         source:
           $ref: '#/components/schemas/SourceDto'
+        acquisition_models:
+          items:
+            $ref: '#/components/schemas/AcquisitionModel'
+          type: array
+          minItems: 1
+          title: Acquisition Models
+        throughput_per_hour:
+          anyOf:
+          - $ref: '#/components/schemas/SourcedValueDto-Input'
+          - type: 'null'
         maturity_trl:
           anyOf:
           - $ref: '#/components/schemas/SourcedValueDto-Input'
@@ -253,6 +263,7 @@ components:
       - catalog_status
       - confirmation
       - source
+      - acquisition_models
       title: CandidateDto
     CandidateDto-Output:
       properties:
@@ -303,6 +314,16 @@ components:
           $ref: '#/components/schemas/ConfirmationStatus'
         source:
           $ref: '#/components/schemas/SourceDto'
+        acquisition_models:
+          items:
+            $ref: '#/components/schemas/AcquisitionModel'
+          type: array
+          minItems: 1
+          title: Acquisition Models
+        throughput_per_hour:
+          anyOf:
+          - $ref: '#/components/schemas/SourcedValueDto-Output'
+          - type: 'null'
         maturity_trl:
           anyOf:
           - $ref: '#/components/schemas/SourcedValueDto-Output'
@@ -326,6 +347,7 @@ components:
       - catalog_status
       - confirmation
       - source
+      - acquisition_models
       title: CandidateDto
     CandidateEconomicsDto:
       properties:
@@ -348,7 +370,7 @@ components:
           title: Traces
         risks:
           items:
-            type: string
+            $ref: '#/components/schemas/ReasonDto'
           type: array
           title: Risks
       additionalProperties: false
@@ -1042,9 +1064,8 @@ components:
           title: Is Missing
         missing_reason:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/ReasonDto'
           - type: 'null'
-          title: Missing Reason
       additionalProperties: false
       type: object
       required:
@@ -1070,7 +1091,7 @@ components:
           $ref: '#/components/schemas/CandidateStatus'
         risks:
           items:
-            type: string
+            $ref: '#/components/schemas/ReasonDto'
           type: array
           title: Risks
         rank:
@@ -1097,9 +1118,8 @@ components:
           $ref: '#/components/schemas/RankingItemStatus'
         unranked_reason:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/ReasonDto'
           - type: 'null'
-          title: Unranked Reason
         criteria:
           items:
             $ref: '#/components/schemas/RankingCriterionTraceDto'
@@ -1154,6 +1174,49 @@ components:
       - available
       title: RankingStatus
       description: Availability status of ranking output.
+    ReasonCode:
+      type: string
+      enum:
+      - catalog_price_missing
+      - productivity_inputs_missing
+      - loading_time_missing
+      - unloading_time_missing
+      - average_power_missing
+      - handling_method_missing
+      - payload_missing
+      - catalog_status_not_operational
+      - catalog_specs_unconfirmed
+      - capex_exceeds_budget
+      - charging_power_insufficient
+      - fleet_utilization_below_threshold
+      - non_positive_annual_benefit
+      - no_positive_weight_criteria
+      - calculated_metric_unavailable
+      - calculated_metric_not_numeric
+      - location_budget_unavailable
+      - location_budget_negative
+      - upfront_capex_unavailable
+      - upfront_capex_not_numeric
+      - upfront_capex_negative
+      - sourced_value_unavailable
+      - sourced_value_not_finite
+      - legacy_unmapped
+      title: ReasonCode
+      description: Identifies stable calculation and ranking reasons.
+    ReasonDto:
+      properties:
+        code:
+          $ref: '#/components/schemas/ReasonCode'
+        text_ru:
+          type: string
+          title: Text Ru
+      additionalProperties: false
+      type: object
+      required:
+      - code
+      - text_ru
+      title: ReasonDto
+      description: Pairs a stable reason code with its Russian display text.
     ScenarioDto-Input:
       properties:
         acquisition_model:

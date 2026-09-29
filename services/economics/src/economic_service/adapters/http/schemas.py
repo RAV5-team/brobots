@@ -5,8 +5,9 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from economic_service.adapters.http.reason_texts_ru import REASON_TEXTS_RU
 from economic_service.domain.models import (
     CALCULATION_CURRENCY,
     AcquisitionModel,
@@ -28,6 +29,7 @@ from economic_service.domain.models import (
     RankingItemStatus,
     RankingResult,
     RankingStatus,
+    ReasonCode,
     RobotCandidate,
     Scenario,
     SourcedValue,
@@ -61,6 +63,17 @@ class ErrorResponseDto(StrictModel):
     detail: str | tuple[ValidationIssueDto, ...]
 
 
+class ReasonDto(StrictModel):
+    """Pairs a stable reason code with its Russian display text."""
+
+    code: ReasonCode
+    text_ru: str
+
+    @classmethod
+    def from_code(cls, code: ReasonCode) -> ReasonDto:
+        return cls(code=code, text_ru=REASON_TEXTS_RU[code])
+
+
 class ModelVersionDto(StrictModel):
     """Describes the calculation and ranking versions served now."""
 
@@ -70,8 +83,6 @@ class ModelVersionDto(StrictModel):
     ranking_version: str = Field(
         description="Default ranking methodology version."
     )
-
-
 class SourceDto(StrictModel):
     source: str
     origin: InputOrigin
@@ -282,8 +293,19 @@ class CandidateDto(StrictModel):
     catalog_status: str
     confirmation: ConfirmationStatus
     source: SourceDto
+    acquisition_models: tuple[AcquisitionModel, ...] = Field(min_length=1)
+    throughput_per_hour: SourcedValueDto | None = None
     maturity_trl: SourcedValueDto | None = None
     catalog_completeness_percent: SourcedValueDto | None = None
+
+    @field_validator("acquisition_models")
+    @classmethod
+    def validate_acquisition_models(
+        cls, acquisition_models: tuple[AcquisitionModel, ...]
+    ) -> tuple[AcquisitionModel, ...]:
+        if len(acquisition_models) != len(set(acquisition_models)):
+            raise ValueError("acquisition_models must not contain duplicates.")
+        return acquisition_models
 
     def to_domain(self) -> RobotCandidate:
         return RobotCandidate(
@@ -299,6 +321,12 @@ class CandidateDto(StrictModel):
             catalog_status=self.catalog_status,
             confirmation=self.confirmation,
             source=self.source.to_domain(),
+            acquisition_models=self.acquisition_models,
+            throughput_per_hour=(
+                None
+                if self.throughput_per_hour is None
+                else self.throughput_per_hour.to_domain()
+            ),
             maturity_trl=(
                 None
                 if self.maturity_trl is None
@@ -328,6 +356,12 @@ class CandidateDto(StrictModel):
             catalog_status=candidate.catalog_status,
             confirmation=candidate.confirmation,
             source=SourceDto.from_domain(candidate.source),
+            acquisition_models=candidate.acquisition_models,
+            throughput_per_hour=(
+                None
+                if candidate.throughput_per_hour is None
+                else SourcedValueDto.from_domain(candidate.throughput_per_hour)
+            ),
             maturity_trl=(
                 None
                 if candidate.maturity_trl is None
@@ -602,7 +636,7 @@ class CandidateEconomicsDto(StrictModel):
     status: CandidateStatus
     metrics: tuple[MetricValueDto, ...]
     traces: tuple[CalculationTraceDto, ...]
-    risks: tuple[str, ...]
+    risks: tuple[ReasonDto, ...]
 
     @classmethod
     def from_domain(
@@ -620,7 +654,7 @@ class CandidateEconomicsDto(StrictModel):
                 CalculationTraceDto.from_domain(trace)
                 for trace in candidate.traces
             ),
-            risks=candidate.risks,
+            risks=tuple(ReasonDto.from_code(code) for code in candidate.risks),
         )
 
 
@@ -628,12 +662,12 @@ class RankingItemDto(StrictModel):
     candidate_id: str
     acquisition_model: AcquisitionModel
     candidate_status: CandidateStatus
-    risks: tuple[str, ...]
+    risks: tuple[ReasonDto, ...]
     rank: int | None
     score: Decimal | None
     contributions: tuple[tuple[str, Decimal], ...]
     status: RankingItemStatus
-    unranked_reason: str | None
+    unranked_reason: ReasonDto | None
     criteria: tuple[RankingCriterionTraceDto, ...]
 
     @classmethod
@@ -642,12 +676,16 @@ class RankingItemDto(StrictModel):
             candidate_id=item.candidate_id,
             acquisition_model=item.acquisition_model,
             candidate_status=item.candidate_status,
-            risks=item.risks,
+            risks=tuple(ReasonDto.from_code(code) for code in item.risks),
             rank=item.rank,
             score=item.score,
             contributions=item.contributions,
             status=item.status,
-            unranked_reason=item.unranked_reason,
+            unranked_reason=(
+                None
+                if item.unranked_reason is None
+                else ReasonDto.from_code(item.unranked_reason)
+            ),
             criteria=tuple(
                 RankingCriterionTraceDto.from_domain(trace)
                 for trace in item.criteria
@@ -665,7 +703,7 @@ class RankingCriterionTraceDto(StrictModel):
     contribution: Decimal | None
     provenance: tuple[SourceDto, ...]
     is_missing: bool
-    missing_reason: str | None
+    missing_reason: ReasonDto | None
 
     @classmethod
     def from_domain(
@@ -683,7 +721,11 @@ class RankingCriterionTraceDto(StrictModel):
                 SourceDto.from_domain(source) for source in trace.provenance
             ),
             is_missing=trace.is_missing,
-            missing_reason=trace.missing_reason,
+            missing_reason=(
+                None
+                if trace.missing_reason is None
+                else ReasonDto.from_code(trace.missing_reason)
+            ),
         )
 
 

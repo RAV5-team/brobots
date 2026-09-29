@@ -4,8 +4,8 @@ Run from services/economics:
 
     python scripts/export_openapi.py
 
-The api service (Go) calls this contract; tests/api/test_openapi_contract.py
-fails when the committed file differs from the application.
+The API service (Go) consumes this contract; the OpenAPI contract test fails
+when the committed file differs from the application.
 """
 
 from __future__ import annotations
@@ -41,6 +41,9 @@ def render_contract() -> str:
 
 
 def main() -> int:
+    """Writes the current OpenAPI document to the contract path."""
+
+    CONTRACT.parent.mkdir(parents=True, exist_ok=True)
     CONTRACT.write_text(render_contract(), encoding="utf-8", newline="\n")
     print(f"written {CONTRACT}")
     return 0

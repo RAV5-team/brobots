@@ -5,7 +5,7 @@ from economic_service.application.ranking import RankingModelRegistry
 # Callers pin this version in their projects. Bump it whenever formulas,
 # assumptions or rounding change; keep an old version here only while the
 # code can still reproduce it.
-CALCULATION_MODEL_VERSION = "economic-v1.1"
+CALCULATION_MODEL_VERSION = "economic-v1.2"
 SUPPORTED_CALCULATION_MODEL_VERSIONS = frozenset({CALCULATION_MODEL_VERSION})
 RANKING_MODEL_VERSION = RankingModelRegistry.ranking_v1().default_version
 
