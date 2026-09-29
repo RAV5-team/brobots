@@ -41,6 +41,7 @@ type env struct {
 	pool  *pgxpool.Pool
 	srv   *httptest.Server
 	st    *store.Store
+	svc   *service.Service
 	iss   *authtest.Issuer
 	token string // "" — guest
 }
@@ -109,11 +110,12 @@ func setupWith(t *testing.T, calculator calc.Calculator) *env {
 		t.Fatalf("seed: %v", err)
 	}
 	iss := authtest.New(t)
-	srv := httptest.NewServer(handlers.NewRouter(service.New(st, log, calculator), log, handlers.Options{Auth: iss.Middleware(t)}))
+	svc := service.New(st, log, calculator)
+	srv := httptest.NewServer(handlers.NewRouter(svc, log, handlers.Options{Auth: iss.Middleware(t)}))
 	t.Cleanup(srv.Close)
 	// The flows here are the admin's: catalog changes need the role, the rest a signed-in user.
 	token := iss.User(t, "integration-admin", auth.RoleUser, auth.RoleAdmin)
-	return &env{pool: pool, srv: srv, st: st, iss: iss, token: token}
+	return &env{pool: pool, srv: srv, st: st, svc: svc, iss: iss, token: token}
 }
 
 func (e *env) do(t *testing.T, method, path string, body any, wantStatus int, out any) {

@@ -12,7 +12,7 @@ import (
 const definitionSelect = `
 SELECT code, facility_type_code, group_name, name, unit, value_type, base_value_number, base_value_text,
        min_value, max_value, enum_values, is_required, is_constant, role, staff_role, staff_attr, form_section,
-       hint, source_note, sort
+       hint, source_note, sort, route_only, checked_by_matching, pair_code
 FROM parameter_definition`
 
 // ParameterDefinitions returns the definitions of a facility type, or of all types when empty.
@@ -25,7 +25,8 @@ func (q Q) ParameterDefinitions(ctx context.Context, facilityType string) ([]dom
 		var d domain.ParameterDefinition
 		err := r.Scan(&d.Code, &d.FacilityTypeCode, &d.GroupName, &d.Name, &d.Unit, &d.ValueType, &d.BaseValueNumber,
 			&d.BaseValueText, &d.MinValue, &d.MaxValue, &d.EnumValues, &d.IsRequired, &d.IsConstant, &d.Role,
-			&d.StaffRole, &d.StaffAttr, &d.FormSection, &d.Hint, &d.SourceNote, &d.Sort)
+			&d.StaffRole, &d.StaffAttr, &d.FormSection, &d.Hint, &d.SourceNote, &d.Sort,
+			&d.RouteOnly, &d.CheckedByMatching, &d.PairCode)
 		return d, err
 	})
 }
@@ -39,17 +40,18 @@ func (q Q) SaveParameterDefinition(ctx context.Context, d domain.ParameterDefini
 	_, err := q.db.Exec(ctx, `
 INSERT INTO parameter_definition (code, facility_type_code, group_name, name, unit, value_type, base_value_number,
     base_value_text, min_value, max_value, enum_values, is_required, is_constant, role, staff_role, staff_attr,
-    form_section, hint, source_note, sort)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+    form_section, hint, source_note, sort, route_only, checked_by_matching, pair_code)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
 ON CONFLICT (code) DO UPDATE SET facility_type_code = EXCLUDED.facility_type_code, group_name = EXCLUDED.group_name,
   name = EXCLUDED.name, unit = EXCLUDED.unit, value_type = EXCLUDED.value_type, base_value_number = EXCLUDED.base_value_number,
   base_value_text = EXCLUDED.base_value_text, min_value = EXCLUDED.min_value, max_value = EXCLUDED.max_value,
   enum_values = EXCLUDED.enum_values, is_required = EXCLUDED.is_required, is_constant = EXCLUDED.is_constant,
   role = EXCLUDED.role, staff_role = EXCLUDED.staff_role, staff_attr = EXCLUDED.staff_attr,
-  form_section = EXCLUDED.form_section, hint = EXCLUDED.hint, source_note = EXCLUDED.source_note, sort = EXCLUDED.sort`,
+  form_section = EXCLUDED.form_section, hint = EXCLUDED.hint, source_note = EXCLUDED.source_note, sort = EXCLUDED.sort,
+  route_only = EXCLUDED.route_only, checked_by_matching = EXCLUDED.checked_by_matching, pair_code = EXCLUDED.pair_code`,
 		d.Code, d.FacilityTypeCode, d.GroupName, d.Name, d.Unit, d.ValueType, d.BaseValueNumber, d.BaseValueText,
 		d.MinValue, d.MaxValue, enum, d.IsRequired, d.IsConstant, d.Role, d.StaffRole, d.StaffAttr, d.FormSection,
-		d.Hint, d.SourceNote, d.Sort)
+		d.Hint, d.SourceNote, d.Sort, d.RouteOnly, d.CheckedByMatching, d.PairCode)
 	return err
 }
 

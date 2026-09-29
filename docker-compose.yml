@@ -6,7 +6,7 @@
 # Postgres — одна инстанция, у каждого потребителя своя роль и БД (keycloak, api, simulation, economics);
 # их создают скрипты infra/postgres/init при первом запуске на пустом томе.
 # Наружу публикуются шлюз, api (API_PORT) и simulation (SIMULATION_PORT).
-# Economics доступен только сервисам во внутренней сети: его вызывает оркестратор api. Web остаётся каркасом.
+# Economics доступен только во внутренней сети и только с сервисным токеном api. Web остаётся каркасом.
 
 name: rav5
 
@@ -65,7 +65,8 @@ services:
 
   keycloak:
     <<: *service
-    build: ./infra/keycloak
+    # Контекст — корень репозитория: в образ собирается тема входа apps/keycloak-theme.
+    build: { context: ., dockerfile: infra/keycloak/Dockerfile }
     # Схему своей БД Keycloak создаёт и обновляет сам (миграции Liquibase при старте).
     command: ["start", "--optimized", "--import-realm"]
     environment:
@@ -83,6 +84,15 @@ services:
       KC_API_INTERNAL_SECRET: ${KC_API_INTERNAL_SECRET}
       DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD}
       DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD}
+      # Тема входа rav5 читает их в рантайме (apps/keycloak-theme/vite.config.ts, THEME_ENV). Keycloakify кладёт
+      # их в данные КАЖДОЙ страницы входа — сюда только то, что можно показать в браузере.
+      RAV5_APP_URL: ${APP_URL:-${PUBLIC_URL}/}
+      RAV5_PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:-}
+      # Плашки демо-учёток с паролями (D-16) — только стенд жюри. Пусто — ни плашек, ни паролей на странице.
+      RAV5_DEMO_USER_EMAIL: ${DEMO_PLATES_USER_EMAIL:-}
+      RAV5_DEMO_USER_PASSWORD: ${DEMO_PLATES_USER_PASSWORD:-}
+      RAV5_DEMO_ADMIN_EMAIL: ${DEMO_PLATES_ADMIN_EMAIL:-}
+      RAV5_DEMO_ADMIN_PASSWORD: ${DEMO_PLATES_ADMIN_PASSWORD:-}
     volumes:
       - ./infra/keycloak/realm-rav5.json:/opt/keycloak/data/import/realm-rav5.json:ro
     # edge — для шлюза и для клиентов Keycloak внутри Docker (http://keycloak:8080/auth).
@@ -146,6 +156,10 @@ services:
       OIDC_ISSUER: ${PUBLIC_URL:?}/auth/realms/rav5
       OIDC_JWKS_URL: http://keycloak:8080/auth/realms/rav5/protocol/openid-connect/certs
       OIDC_AUDIENCE: rav5-api
+      # Сервисный токен api (client credentials): economics и гостевые прогоны симуляции демо-проектов.
+      OIDC_TOKEN_URL: http://keycloak:8080/auth/realms/rav5/protocol/openid-connect/token
+      KC_CLIENT_ID: rav5-api-internal
+      KC_CLIENT_SECRET: ${KC_API_INTERNAL_SECRET}
       # TODO(dev-auth): dev-режим для ручного тестирования — запросы без токена идут от AUTH_DEV_SUB;
       # только при APP_ENV=local. Удалить вместе с dev-режимом.
       AUTH_DEV_MODE: ${AUTH_DEV_MODE:-false}
@@ -185,6 +199,9 @@ services:
       OIDC_JWKS_URL: http://keycloak:8080/auth/realms/rav5/protocol/openid-connect/certs
       OIDC_AUDIENCE: rav5-sim
       INTERNAL_CALLER_AZP: rav5-api-internal
+      # Гостевые прогоны демо-проектов (их ставит api): сколько одновременно и сколько хранить.
+      SIM_GUEST_MAX_ACTIVE: ${SIM_GUEST_MAX_ACTIVE:-4}
+      SIM_GUEST_TTL_S: ${SIM_GUEST_TTL_S:-86400}
       APP_ENV: ${APP_ENV:-local}
       # TODO(dev-auth): dev-режим для ручного тестирования — запросы без токена идут от AUTH_DEV_SUB;
       # только при APP_ENV=local. Удалить вместе с dev-режимом.
@@ -214,6 +231,12 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://${ECON_DB_USERNAME}:${ECON_DB_PASSWORD}@postgres:5432/economics
       ECONOMIC_SERVICE_ENV: ${ECONOMIC_SERVICE_ENV:-development}
+      # API принимает только сервисный токен api (docs/keycloak/middleware.md); /readyz ждёт ключи Keycloak.
+      OIDC_ISSUER: ${PUBLIC_URL:?}/auth/realms/rav5
+      OIDC_JWKS_URL: http://keycloak:8080/auth/realms/rav5/protocol/openid-connect/certs
+      OIDC_AUDIENCE: rav5-economics
+      INTERNAL_CALLER_AZP: rav5-api-internal
     networks: [internal]
     depends_on:
       economics-migrate: { condition: service_completed_successfully }
+      keycloak: { condition: service_healthy }

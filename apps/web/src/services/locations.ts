@@ -9,6 +9,8 @@ export interface LocationService {
   /** Тексты демо-профиля формы 14 (PRD 10.2); экран запрашивает их только в демо-режиме. */
   getDemoProfile(): Promise<LocationDemoProfile>
   getLocation(id: LocationId): Promise<Location>
+  /** Сводка одной площадки — `summary` у `GET /locations/{id}`, без списка всех локаций. */
+  getLocationSummary(id: LocationId): Promise<LocationSummary>
   /** Сохранить локацию из формы 14; вернёт её с присвоенным id — после этого список показывает состояние 12а. */
   createLocation(input: NewLocation): Promise<Location>
   /**

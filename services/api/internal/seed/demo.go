@@ -194,7 +194,7 @@ func loadDemoContent(ctx context.Context, q store.Q, svc *service.Service, log *
 		}
 		if dp.RunMatching {
 			// Matching and calculation; an unavailable calculator must not stop the service start.
-			_, err := svc.Evaluate(ctx, p.ID)
+			_, err := svc.Evaluate(ctx, p.ID, nil)
 			var ue *domain.UnavailableError
 			switch {
 			case errors.As(err, &ue):

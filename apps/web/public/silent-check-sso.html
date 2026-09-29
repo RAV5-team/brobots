@@ -1,0 +1,9 @@
+<!doctype html>
+<html>
+  <body>
+    <!-- Ответ Keycloak для check-sso в скрытом iframe (keycloak-js, src/shared/auth/oidc.ts). -->
+    <script>
+      parent.postMessage(location.href, location.origin)
+    </script>
+  </body>
+</html>

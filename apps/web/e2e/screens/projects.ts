@@ -1,10 +1,11 @@
 import { expect } from '@playwright/test'
-import { SIGNED_IN, type ScreenRegistration } from './types'
+import { ALL, type ScreenRegistration } from './types'
 
 /** Список проектов A1 и окно «Новый проект» A2 (доска 16325:2). */
 export const PROJECTS_SCREENS: ScreenRegistration = {
   routes: [
-    { path: '/projects', roles: SIGNED_IN },
+    // Гостю — «Демо-проекты» организатора (ролевая модель, §3).
+    { path: '/projects', roles: ALL },
   ],
   visual: [
     // P1, P2 — A1 и A2 доски проекта (латинская A): эталоны не путаются с А1, А2 администрирования (кириллица).

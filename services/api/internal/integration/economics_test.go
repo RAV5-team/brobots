@@ -62,7 +62,7 @@ func TestEconomicsFlow(t *testing.T) {
 	if econURL == "" {
 		t.Skip("ECONOMICS_TEST_URL is not set")
 	}
-	e := setupWith(t, economics.New(econURL, 10*time.Second))
+	e := setupWith(t, economics.New(econURL, 10*time.Second, nil))
 
 	// The seed calculated the demo project with the economics service.
 	var projects struct{ Items []projectOut }

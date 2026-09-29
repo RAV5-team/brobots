@@ -43,6 +43,24 @@ type Request struct {
 	Location          Location       `json:"location"`
 	Task              Task           `json:"task"`
 	Candidates        []Candidate    `json:"candidates"`
+	// Defaults are the snapshot values before the user's «Параметры расчёта» were applied; nil in runs made before them.
+	Defaults *Defaults `json:"defaults,omitempty"`
+	// DryRun asks for figures only: the calculator keeps no snapshot (the guest preview writes nothing).
+	DryRun bool `json:"-"`
+}
+
+// Defaults keep the values of the «Параметры расчёта» fields as the snapshot and the catalog gave them.
+type Defaults struct {
+	StaffCostRubPerMonth *float64                    `json:"staffCostRubPerMonth"`
+	WorkHoursPerDay      *float64                    `json:"workHoursPerDay"`
+	Robots               map[uuid.UUID]RobotDefaults `json:"robots"`
+}
+
+// RobotDefaults are the catalog values of a candidate the panel can override.
+type RobotDefaults struct {
+	PriceRub       *float64 `json:"priceRub"`
+	TripsPerHour   *float64 `json:"tripsPerHour"`
+	ServiceCostPct *float64 `json:"serviceCostPct"`
 }
 
 // Location is the part of the location snapshot used by the calculation.

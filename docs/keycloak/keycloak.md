@@ -17,7 +17,8 @@ flowchart LR
 
 | Путь | Назначение |
 | --- | --- |
-| `infra/keycloak/Dockerfile` | Оптимизированный образ Keycloak 26.7.1 (`kc.sh build`, relative path `/auth`) |
+| `infra/keycloak/Dockerfile` | Оптимизированный образ Keycloak 26.7.1 (`kc.sh build`, relative path `/auth`) с темой входа `rav5`; контекст сборки — корень репозитория |
+| `apps/keycloak-theme/` | Тема входа `rav5` (Keycloakify): экран 05 и остальные страницы входа на UI-kit `apps/web` |
 | `infra/keycloak/realm-rav5.json` | Realm `rav5`: роли, клиенты, демо-учётки; секреты и URL подставляются из окружения |
 | `infra/postgres/init/01-keycloak.sh` | Роль и пустая БД `keycloak` |
 | `infra/nginx/templates/gateway.{local,stand}.conf.template` | Шлюз для профиля; монтируется ровно один |
@@ -57,8 +58,8 @@ docker compose up -d --build     # http://localhost/auth/
 
 | Кто | Логин | Пароль (`.env`) | Где |
 | --- | --- | --- | --- |
-| Пользователь | `user@example.com` | `DEMO_USER_PASSWORD` | realm `rav5` |
-| Администратор платформы | `admin@example.com` | `DEMO_ADMIN_PASSWORD` | realm `rav5` |
+| Пользователь | `demo@rav5.ru` | `DEMO_USER_PASSWORD` | realm `rav5` |
+| Администратор платформы | `admin@rav5.ru` | `DEMO_ADMIN_PASSWORD` | realm `rav5` |
 | Администратор Keycloak | `KC_ADMIN_USERNAME` | `KC_ADMIN_PASSWORD` | master-realm, `/auth/admin/` |
 
 Администратор платформы и администратор Keycloak — разные учётки в разных realm.
@@ -75,7 +76,7 @@ docker compose up -d --build     # http://localhost/auth/
 
 ## Keycloak
 
-- Realm `rav5`, локаль `ru` по умолчанию, регистрация открыта (email = логин), сброс пароля
+- Realm `rav5`, локаль `ru` по умолчанию, самостоятельной регистрации нет — учётки выдают по приглашению (email = логин), сброс пароля
   и подтверждение email выключены (в демо нет SMTP), защита от перебора включена,
   политика паролей `length(8) and notUsername`.
 - Роли realm: `user` (входит в default-роль — её получает и каждый зарегистрированный),
@@ -109,6 +110,42 @@ docker compose up -d --build     # http://localhost/auth/
    `realmRoles`, если нужно).
 2. `docker compose down -v && docker compose up -d --build` — или создать роль в админке на
    работающем стенде, но файл всё равно обновить.
+
+## Тема входа rav5
+
+Страницы входа Keycloak рисует своя React-тема `apps/keycloak-theme` (Keycloakify 11): экран 05 «Вход в RAV5»
+с демо-карточкой и формой кабинета, регистрация, смена пароля, подтверждение выхода, истёкшая страница, info и error.
+Остальные страницы (OTP, IdP и т. п. — в realm не включены) — стандартные страницы Keycloakify.
+
+- **Модель безопасности прежняя.** SPA уводит на Keycloak (authorization code + PKCE). Форма темы — обычный
+  `<form method="post">` на `url.loginAction`: пароль видит только Keycloak, в JS приложения он не попадает.
+  Защита от перебора, лимиты шлюза на `login-actions`, SSO-сессия работают как раньше.
+- **UI-kit общий.** Тема импортирует примитивы, токены, стили и тексты из `apps/web/src` (alias `@`) — отдельной
+  копии дизайна нет. Зависимости (`react`, `clsx`, `lucide-react`) тема берёт свои: `resolve.dedupe` в
+  `vite.config.ts` и `paths` в `tsconfig.app.json`, поэтому `npm ci` в `apps/web` для сборки темы не нужен.
+- **Сборка.** Этап `theme` в `infra/keycloak/Dockerfile`: `npm run build-keycloak-theme` (Vite + `keycloakify build`,
+  jar упаковывает Maven) → `rav5-theme.jar` в `/opt/keycloak/providers/` до `kc.sh build`.
+- **Включение.** `"loginTheme": "rav5"` в `realm-rav5.json`. Realm импортируется только в пустую БД: после смены темы
+  на работающем стенде — `docker compose down -v` или «Realm settings → Themes» в админке.
+- **Переменные окружения.** Keycloak читает их в рантайме, в jar и бандл они не попадают. Но Keycloakify кладёт
+  их в данные **каждой** страницы входа — всё, что сюда передано, видно в исходнике страницы. Поэтому секретов здесь
+  нет, а демо-пароли передаются, только если заданы явно:
+
+  | В `.env` | В контейнере | Что делает |
+  | --- | --- | --- |
+  | `DEMO_PLATES_USER_EMAIL`, `DEMO_PLATES_USER_PASSWORD`, `DEMO_PLATES_ADMIN_EMAIL`, `DEMO_PLATES_ADMIN_PASSWORD` | `RAV5_DEMO_*` | Плашки демо-учёток на экране входа (D-16). Плашка есть, только если заданы и почта, и пароль. По умолчанию пусто — ни плашек, ни паролей на странице. Только стенд жюри |
+  | `APP_URL` | `RAV5_APP_URL` | Куда ведут «Открыть демо» и «Вернуться в RAV5»; пусто — `PUBLIC_URL`. Для Vite: `http://localhost:5173/` |
+  | `PUBLIC_SITE_URL` | `RAV5_PUBLIC_SITE_URL` | «Публичный сайт RAV5»; пусто — приложение |
+
+- **Что тема не рисует.** Внешние провайдеры входа, ключи доступа (passkeys), согласие с условиями и reCAPTCHA при
+  регистрации, поля профиля со списком значений. Включат их в realm — эти страницы откроются стандартными страницами
+  Keycloakify (`apps/keycloak-theme/src/login/pageSupport.ts`), а не потеряют элементы молча. Если почта не служит
+  логином (`registrationEmailAsUsername: false`), поле входа — «Почта или логин» без проверки формата.
+- **Разработка без Keycloak.** `cd apps/keycloak-theme && npm ci && npm run dev` → `http://localhost:5174` — страница
+  на моке `getKcContextMock`: `?page=register.ftl`, `?demo=1` (плашки учёток), `?error=1` (неверный пароль).
+- **Проверки.** `npm run lint && npm run typecheck && npm test` в `apps/keycloak-theme`; `make smoke` — T4, T5, T8
+  входят и регистрируются через формы темы, T23 проверяет, что секреты из `.env` не попали в HTML страниц входа. Форму тема рисует в браузере, поэтому адрес отправки smoke берёт из
+  `kcContext` на странице (`loginAction`, `registrationAction`); имена полей — как у стандартной темы.
 
 ## Шлюз
 
@@ -145,10 +182,11 @@ docker compose up -d --build     # http://localhost/auth/
 | T4 | вход через форму на русском по PKCE, userinfo; неверный пароль отклонён |
 | T7 | access token: `iss`, `aud` (`rav5-api`, `rav5-sim`), роль `user` без `admin`, 5 минут; ID token без `aud rav5-api` |
 | T8 | у администратора платформы роли `user` + `admin` |
-| T5 | самостоятельная регистрация, новый пользователь получает `user` |
+| T5 | самостоятельной регистрации нет: ни ссылки на странице входа, ни формы по `/registrations` |
 | T14 | client credentials через шлюз и по внутреннему адресу: `iss` публичный, роль `service`; неверный секрет — 401 |
 | T17 | DCR 404, health 404, пути вне `/auth` 404; в stand админка вне allowlist — 403 |
 | T21 | пароли в БД — хэши (argon2) |
+| T23 | ни один пароль или секрет из `.env` нет в HTML страницы входа, кроме явно заданных `DEMO_PLATES_*` |
 | T20 | после выхода refresh token недействителен |
 | T22 | stand: 301 на https, HSTS |
 | T18 | `--restart`: после перезапуска Keycloak шлюз работает без перезапуска, токен и сессия действуют |

@@ -23,6 +23,7 @@ SELECT p.id, p.name, p.location_id, l.name, l.facility_type_code, t.id, t.name, 
        p.owner_id, r.id, r.created_at, r.total_candidates, r.passed_count, r.verify_count, r.excluded_count,
        p.saved_at, p.selected_calc_result_id, cr.id, cr.model_version, cr.created_at, cr.inputs_version <> p.inputs_version,
        ns.version, COALESCE((SELECT max(version) FROM norm_set) > ns.version, false),
+       p.current_step, p.inputs, p.result_summary, p.quote_requested_at,
        p.created_at, p.updated_at
 FROM project p
 JOIN location l ON l.id = p.location_id
@@ -42,6 +43,7 @@ func scanProject(r pgx.Row) (domain.Project, error) {
 	var total, passed, verify, excluded *int
 	var calcModel *string
 	var calcStale *bool
+	var inputs, summary []byte
 	err := r.Scan(&p.ID, &p.Name, &p.LocationID, &p.LocationName, &p.FacilityTypeCode, &p.Task.ID, &p.Task.Name,
 		&p.Task.WorkType.ID, &p.Task.WorkType.Code, &p.Task.WorkType.Name, &p.Task.WorkType.UnitLabel,
 		&p.Status, &p.HorizonYears, &p.Versions.Catalog, &p.Versions.Dictionaries, &p.Versions.Model, &p.SnapshotTakenAt,
@@ -49,8 +51,15 @@ func scanProject(r pgx.Row) (domain.Project, error) {
 		&p.PinnedSolutionID, &selID, &selName, &selModel, &p.CopiedFromID, &p.IsDemo,
 		&p.OwnerID, &runID, &runAt, &total, &passed, &verify, &excluded,
 		&p.SavedAt, &selResultID, &calcID, &calcModel, &calcAt, &calcStale, &p.Versions.Norms, &p.NormsUpdated,
+		&p.Step, &inputs, &summary, &p.QuoteRequestedAt,
 		&p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
+		return p, err
+	}
+	if len(inputs) > 0 {
+		p.Inputs = inputs
+	}
+	if p.ResultSummary, err = decodeSummary(summary); err != nil {
 		return p, err
 	}
 	if selID != nil {
@@ -118,6 +127,33 @@ type ProjectRecord struct {
 	NormSetID *uuid.UUID
 	// InputsVersion is read only here; BumpProjectInputs and the input writers change it.
 	InputsVersion int
+	// Step is the furthest opened step of the draft; empty means params.
+	Step string
+	// Inputs are the decisions by steps in the web model; nil — none yet.
+	Inputs           json.RawMessage
+	ResultSummary    *domain.ResultSummary
+	QuoteRequestedAt *time.Time
+	// CalcOverrides are the «Параметры расчёта» of the user; a change must be followed by BumpProjectInputs.
+	CalcOverrides domain.CalcParams
+}
+
+func decodeSummary(raw []byte) (*domain.ResultSummary, error) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	var s domain.ResultSummary
+	if err := json.Unmarshal(raw, &s); err != nil {
+		return nil, fmt.Errorf("unmarshal result summary: %w", err)
+	}
+	return &s, nil
+}
+
+// jsonbOrNull passes JSON to a jsonb column; empty and JSON null become SQL NULL.
+func jsonbOrNull(raw json.RawMessage) []byte {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil
+	}
+	return raw
 }
 
 // SaveProject inserts or updates a project.
@@ -126,21 +162,39 @@ func (q Q) SaveProject(ctx context.Context, r ProjectRecord) error {
 	if err != nil {
 		return fmt.Errorf("marshal snapshot: %w", err)
 	}
+	var summary []byte
+	if r.ResultSummary != nil {
+		if summary, err = json.Marshal(r.ResultSummary); err != nil {
+			return fmt.Errorf("marshal result summary: %w", err)
+		}
+	}
+	overrides, err := json.Marshal(r.CalcOverrides)
+	if err != nil {
+		return fmt.Errorf("marshal calc overrides: %w", err)
+	}
+	step := r.Step
+	if step == "" {
+		step = domain.ProjectSteps[0]
+	}
 	_, err = q.db.Exec(ctx, `
 INSERT INTO project (id, name, location_id, task_id, status, horizon_years, catalog_version, dictionaries_version,
                      model_version, snapshot, snapshot_taken_at, pinned_solution_id, selected_solution_id,
                      selected_acquisition_model, copied_from_id, is_demo, owner_id, saved_at, selected_calc_result_id,
-                     norm_set_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
-ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, status = EXCLUDED.status, horizon_years = EXCLUDED.horizon_years,
+                     norm_set_id, current_step, inputs, result_summary, quote_requested_at, calc_overrides)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
+ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, task_id = EXCLUDED.task_id, status = EXCLUDED.status,
+  horizon_years = EXCLUDED.horizon_years,
   catalog_version = EXCLUDED.catalog_version, dictionaries_version = EXCLUDED.dictionaries_version,
   model_version = EXCLUDED.model_version, snapshot = EXCLUDED.snapshot, snapshot_taken_at = EXCLUDED.snapshot_taken_at,
   pinned_solution_id = EXCLUDED.pinned_solution_id, selected_solution_id = EXCLUDED.selected_solution_id,
   selected_acquisition_model = EXCLUDED.selected_acquisition_model, saved_at = EXCLUDED.saved_at,
-  selected_calc_result_id = EXCLUDED.selected_calc_result_id, norm_set_id = EXCLUDED.norm_set_id, updated_at = now()`,
+  selected_calc_result_id = EXCLUDED.selected_calc_result_id, norm_set_id = EXCLUDED.norm_set_id,
+  current_step = EXCLUDED.current_step, inputs = EXCLUDED.inputs, result_summary = EXCLUDED.result_summary,
+  quote_requested_at = EXCLUDED.quote_requested_at, calc_overrides = EXCLUDED.calc_overrides, updated_at = now()`,
 		r.ID, r.Name, r.LocationID, r.TaskID, r.Status, r.HorizonYears, r.Versions.Catalog, r.Versions.Dictionaries,
 		r.Versions.Model, snap, r.SnapshotTakenAt, r.PinnedSolutionID, r.SelectedSolutionID, r.SelectedModel,
-		r.CopiedFromID, r.IsDemo, r.OwnerID, r.SavedAt, r.SelectedCalcResultID, r.NormSetID)
+		r.CopiedFromID, r.IsDemo, r.OwnerID, r.SavedAt, r.SelectedCalcResultID, r.NormSetID,
+		step, jsonbOrNull(r.Inputs), summary, r.QuoteRequestedAt, overrides)
 	return err
 }
 
@@ -153,22 +207,31 @@ func (q Q) BumpProjectInputs(ctx context.Context, id uuid.UUID) error {
 // ProjectRecordOf loads the writable part of a live project.
 func (q Q) ProjectRecordOf(ctx context.Context, id uuid.UUID) (ProjectRecord, error) {
 	var r ProjectRecord
-	var snap []byte
+	var snap, inputs, summary, overrides []byte
 	err := q.db.QueryRow(ctx, `
 SELECT id, name, location_id, task_id, status, horizon_years, catalog_version, dictionaries_version, model_version,
        snapshot, snapshot_taken_at, pinned_solution_id, selected_solution_id, selected_acquisition_model, copied_from_id, is_demo,
-       owner_id, saved_at, selected_calc_result_id, inputs_version, norm_set_id
+       owner_id, saved_at, selected_calc_result_id, inputs_version, norm_set_id,
+       current_step, inputs, result_summary, quote_requested_at, calc_overrides
 FROM project WHERE id = $1 AND deleted_at IS NULL`, id).Scan(&r.ID, &r.Name, &r.LocationID, &r.TaskID, &r.Status,
 		&r.HorizonYears, &r.Versions.Catalog, &r.Versions.Dictionaries, &r.Versions.Model, &snap, &r.SnapshotTakenAt,
 		&r.PinnedSolutionID, &r.SelectedSolutionID, &r.SelectedModel, &r.CopiedFromID, &r.IsDemo, &r.OwnerID,
-		&r.SavedAt, &r.SelectedCalcResultID, &r.InputsVersion, &r.NormSetID)
+		&r.SavedAt, &r.SelectedCalcResultID, &r.InputsVersion, &r.NormSetID,
+		&r.Step, &inputs, &summary, &r.QuoteRequestedAt, &overrides)
 	if err != nil {
 		return r, notFound(err, "project", id)
 	}
 	if err := json.Unmarshal(snap, &r.Snapshot); err != nil {
 		return r, fmt.Errorf("unmarshal snapshot: %w", err)
 	}
-	return r, nil
+	if err := json.Unmarshal(overrides, &r.CalcOverrides); err != nil {
+		return r, fmt.Errorf("unmarshal calc overrides: %w", err)
+	}
+	if len(inputs) > 0 {
+		r.Inputs = inputs
+	}
+	r.ResultSummary, err = decodeSummary(summary)
+	return r, err
 }
 
 // SoftDeleteProject hides a project.

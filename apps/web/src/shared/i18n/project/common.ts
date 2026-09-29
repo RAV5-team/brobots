@@ -7,6 +7,12 @@ export const common = {
   page: {
     documentTitle: (step: string, project: string) => `${step} · ${project} · RAV5`,
     notFound: { title: 'Проект не найден', description: 'Возможно, его удалили или ссылка устарела', back: 'К списку проектов' },
+    demoClosed: {
+      title: 'Демо в подготовке',
+      description: 'Этот демо-проект ещё не проработан. Пока доступен демо-проект склада',
+      back: 'К демо-проектам',
+    },
     error: { title: 'Не удалось открыть проект', message: 'Проверьте соединение и попробуйте ещё раз' },
+    advanceFailed: 'Не удалось перейти к следующему шагу. Проверьте соединение и повторите',
   },
 } as const

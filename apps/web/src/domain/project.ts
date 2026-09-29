@@ -3,7 +3,8 @@ import type { LocationId } from './location'
 import type { LocationProcessId } from './locationProcess'
 import type { ProjectInputs } from './projectInputs'
 
-export type ProjectId = `PJ-${string}`
+/** В API — UUID, в фикстурах — PJ-NN. */
+export type ProjectId = string
 
 /** Шаг проекта: параметры → подбор → симуляция → итог и экономика (PRD 0.9, раздел 11). */
 export type ProjectStep = 'params' | 'matching' | 'simulation' | 'economics'
@@ -28,12 +29,17 @@ interface ProjectBase {
   /** Решения пользователя по шагам; расчёты — ответы сервиса. */
   readonly inputs: ProjectInputs
   readonly updatedAt: IsoDateTime
+  /**
+   * Демо-проект организатора (ролевая модель, §5): гость проходит его без сохранения — решения живут в браузере,
+   * расчёты идут без записи. Вошедшему пользователю в списках не показывается.
+   */
+  readonly isDemo?: boolean
 }
 
 /** Черновик: всё можно менять, открывается на шаге, где остановились (PRD 11.1). Цифр результата нет. */
 export interface DraftProject extends ProjectBase {
   readonly status: 'draft'
-  /** Самый дальний пройденный шаг: назад — на любой пройденный, вперёд — не дальше него. */
+  /** Самый дальний пройденный шаг: назад — на любой пройденный, вперёд — кнопкой CTA на следующий. */
   readonly step: ProjectStep
   /** Решение из каталога («Проверить на объекте», D-57): подбор начнёт с него. В API — `pinnedSolutionId`. */
   readonly pinnedSolutionId?: string

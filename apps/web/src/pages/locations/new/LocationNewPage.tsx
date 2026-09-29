@@ -9,20 +9,22 @@ import { ErrorState, Skeleton } from '@/components/ui/States'
 import { TextLink } from '@/components/ui/TextLink'
 import { useServices } from '@/services/useServices'
 import { useRole } from '@/shared/auth/useRole'
+import { downloadText } from '@/shared/dom/download'
 import { useActiveSection } from '@/shared/dom/useActiveSection'
 import { clearDraft, readDraft, useDraftAutosave } from '@/shared/dom/useDraftAutosave'
 import { formatNumber, formatTime } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { createdLocationState } from '../createdLocation'
 import { errorSection, readiness, toNewLocation, validateLocation } from './locationCheck'
-import { SECTION_IDS, draftFromNavState, fieldDomId, isLocationForm, type LocationForm } from './locationForm'
-import { AreaSection, BasicsSection, OtherTypeNotice, ScheduleSection, type LocationSectionProps } from './LocationSections'
+import { applyLocationFile, locationSheetCsv } from './locationSheet'
+import { SECTION_IDS, draftFromNavState, extraSections, fieldDomId, isLocationForm, type LocationForm, type ParameterIndex } from './locationForm'
+import { AreaSection, BasicsSection, ExtraSections, OtherTypeNotice, ScheduleSection, type LocationSectionProps } from './LocationSections'
 import { ProfileReadinessRail, type SaveBlock } from './ProfileReadinessRail'
 import { StaffSection } from './StaffSection'
 import { useLocationNew, type LocationNewData } from './useLocationNew'
 
 const t = ru.locationNew
-export const LOCATION_DRAFT_KEY = 'rav5.draft.location-new.v1'
+export const LOCATION_DRAFT_KEY = 'rav5.draft.location-new.v2'
 const ALL_NAV_ITEMS = SECTION_IDS.map((id) => ({ id, label: t.nav[id] }))
 const BASICS_ONLY = ALL_NAV_ITEMS.filter((item) => item.id === 'basics')
 
@@ -36,8 +38,8 @@ function LocationNewSkeleton() {
 }
 
 /** Перейти к полю: прокрутить к его секции и поставить фокус в само поле (или в секцию, если поля нет). */
-function focusField(key: string, select: (id: string) => void) {
-  select(errorSection(key))
+function focusField(key: string, select: (id: string) => void, params: ParameterIndex) {
+  select(errorSection(key, params))
   const el = document.getElementById(fieldDomId(key))
   el?.focus({ preventScroll: true })
 }
@@ -53,10 +55,12 @@ function LocationNewForm({ data, canSave }: { readonly data: LocationNewData; re
   )
   const [showRequired, setShowRequired] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const [importStatus, setImportStatus] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const savedAt = useDraftAutosave(LOCATION_DRAFT_KEY, form, canSave)
   const isWarehouse = form.facilityType === 'warehouse'
-  const { activeId, select } = useActiveSection(isWarehouse ? SECTION_IDS : ['basics'])
+  const extras = extraSections(data.params).map((section, index) => ({ id: section.id, label: `${String(index + 5)}. ${section.title}` }))
+  const { activeId, select } = useActiveSection(isWarehouse ? [...SECTION_IDS, ...extras.map((section) => section.id)] : ['basics'])
 
   const errors = validateLocation(form, data.params, { showRequired })
   const ready = readiness(form, errors, data.params)
@@ -65,7 +69,26 @@ function LocationNewForm({ data, canSave }: { readonly data: LocationNewData; re
   const saveBlock: SaveBlock = !canSave ? 'guest' : isWarehouse ? null : 'otherType'
   const goToFirstError = () => {
     const [first] = Object.keys(errors)
-    if (first) focusField(first, select)
+    if (first) focusField(first, select, data.params)
+  }
+  const downloadTemplate = () => { downloadText(t.rail.excelFileName, locationSheetCsv(form, data.params)) }
+  const importTemplate = (file: File) => {
+    void applyLocationFile(form, data.params, file).then((result) => {
+      if (!result.ok) {
+        setImportStatus(null)
+        setMessage(t.rail.excelBadFile)
+        return
+      }
+      setForm(result.form)
+      setMessage(null)
+      const count = formatNumber(result.applied)
+      const sample = result.unknown.slice(0, 3).join(', ')
+      setImportStatus(sample === '' ? t.rail.excelImported(count) : t.rail.excelUnknown(count, sample))
+    }).catch((error: unknown) => {
+      console.error('Не удалось прочитать шаблон локации', error)
+      setImportStatus(null)
+      setMessage(t.rail.excelReadFailed)
+    })
   }
 
   const submit = async (event: SyntheticEvent) => {
@@ -77,7 +100,7 @@ function LocationNewForm({ data, canSave }: { readonly data: LocationNewData; re
     const [first] = keys
     if (first) {
       setMessage(t.errors.summary(formatNumber(keys.length)))
-      focusField(first, select)
+      focusField(first, select, data.params)
       return
     }
     setMessage(null)
@@ -106,7 +129,7 @@ function LocationNewForm({ data, canSave }: { readonly data: LocationNewData; re
       <div className="flex items-start gap-24">
         <div className="flex min-w-0 flex-1 flex-col gap-20">
           <div className="sticky top-16 z-10">
-            <SectionNav label={t.sectionNavLabel} items={isWarehouse ? ALL_NAV_ITEMS : BASICS_ONLY} activeId={activeId} onSelect={select} />
+            <SectionNav label={t.sectionNavLabel} items={isWarehouse ? [...ALL_NAV_ITEMS, ...extras] : BASICS_ONLY} activeId={activeId} onSelect={select} />
           </div>
           <BasicsSection {...sectionProps} />
           {form.facilityType === 'warehouse' ? (
@@ -114,12 +137,22 @@ function LocationNewForm({ data, canSave }: { readonly data: LocationNewData; re
               <AreaSection {...sectionProps} />
               <ScheduleSection {...sectionProps} />
               <StaffSection {...sectionProps} />
+              <ExtraSections {...sectionProps} />
             </>
           ) : (
             <OtherTypeNotice facilityType={form.facilityType} />
           )}
         </div>
-        <ProfileReadinessRail readiness={ready} saveBlock={saveBlock} saving={saving} message={message} onGoToError={goToFirstError} />
+        <ProfileReadinessRail
+          readiness={ready}
+          saveBlock={saveBlock}
+          saving={saving}
+          message={message}
+          status={importStatus}
+          onGoToError={goToFirstError}
+          onDownloadTemplate={downloadTemplate}
+          onImportTemplate={importTemplate}
+        />
       </div>
     </form>
   )

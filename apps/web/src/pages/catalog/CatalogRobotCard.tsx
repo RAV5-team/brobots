@@ -3,7 +3,7 @@ import { formatNumber } from '@/shared/format/number'
 import { formatRubMillions } from '@/shared/format/money'
 import { ru } from '@/shared/i18n/ru'
 import { CardSection, CatalogCardFrame } from './CatalogCardFrame'
-import { CARD_LAUNCH_LABELS, launchLabels } from './launchLabels'
+import { CARD_LAUNCH_LABELS } from './launchLabels'
 
 const t = ru.catalog.card
 
@@ -31,6 +31,11 @@ export function CatalogRobotCard({ robot, operationClasses, launchItems, inCompa
     : [{ key: 'none', label: t.noClass }]
   const payload = robot.specs.payloadKg
   const status = t.status[robot.readiness]
+  const launch = robot.launchRequired.flatMap((id) => {
+    const item = launchItems.find((entry) => entry.id === id)
+    if (!item) return []
+    return [{ key: id, label: item.launchCategory ? CARD_LAUNCH_LABELS[item.launchCategory] : item.name }]
+  })
 
   return (
     <CatalogCardFrame
@@ -54,11 +59,7 @@ export function CatalogRobotCard({ robot, operationClasses, launchItems, inCompa
         <p className="type-title-md">{robot.priceRub === null ? t.noPrice : formatRubMillions(robot.priceRub)}</p>
         <p className="type-caption font-medium">{t.readiness(robot.trl === null ? t.noTrl : t.trl(robot.trl), status)}</p>
       </div>
-      <CardSection
-        title={t.launch}
-        items={launchLabels(robot.launchRequired, launchItems, CARD_LAUNCH_LABELS).map((label, i) => ({ key: robot.launchRequired[i] ?? label, label }))}
-        max={MAX_LAUNCH}
-      />
+      {launch.length > 0 && <CardSection title={t.launch} items={launch} max={MAX_LAUNCH} />}
     </CatalogCardFrame>
   )
 }

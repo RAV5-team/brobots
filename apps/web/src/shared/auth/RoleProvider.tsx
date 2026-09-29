@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { Role } from '@/domain'
 import { useLocation } from 'react-router'
 import { ALLOW_URL_ROLE, FALLBACK_ROLE, ROLE_STORAGE_KEY } from './demoMode'
+import { currentUser } from './oidc'
 import { resolveRole } from './resolveRole'
 import { RoleContext, RoleSwitchContext } from './roleContext'
 
@@ -23,8 +24,8 @@ function storeRole(role: string): void {
 }
 
 /**
- * Роль сессии: ?as= (dev и демо) → sessionStorage → роль по умолчанию (D-14, D-16, D-24).
- * Вход на экране 05 записывает роль в sessionStorage; вне dev и демо-сборки она не читается — до Keycloak там только гость.
+ * Роль сессии. Вошёл через Keycloak — роль из токена. Иначе ?as= (dev и демо) → sessionStorage → роль по умолчанию
+ * (D-14, D-16, D-24): вход на экране 05 без Keycloak записывает роль в sessionStorage, вне dev и демо-сборки она не читается.
  */
 export function RoleProvider({ children }: { children: ReactNode }) {
   const { search } = useLocation()
@@ -34,12 +35,10 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     storeRole(next)
     setRevision((n) => n + 1)
   }, [])
-  const { role, persist } = resolveRole({
-    search,
-    stored: readStoredRole(),
-    allowUrlRole: ALLOW_URL_ROLE,
-    fallback: FALLBACK_ROLE,
-  })
+  const signedIn = currentUser()
+  const { role, persist } = signedIn
+    ? { role: signedIn.role, persist: null }
+    : resolveRole({ search, stored: readStoredRole(), allowUrlRole: ALLOW_URL_ROLE, fallback: FALLBACK_ROLE })
 
   useEffect(() => {
     if (persist) storeRole(persist)

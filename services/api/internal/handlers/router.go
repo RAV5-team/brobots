@@ -88,10 +88,11 @@ func NewRouter(svc *service.Service, log *slog.Logger, opts Options) http.Handle
 			r.With(admin).Patch("/{id}", a.patchWorkType)
 			r.With(admin).Delete("/{id}", a.hideWorkType)
 		})
+		// The source registry is part of the admin section: only the admin sees it (roles model §4).
 		r.Route("/data-sources", func(r chi.Router) {
-			r.Get("/", a.listSources)
+			r.With(admin).Get("/", a.listSources)
 			r.With(admin).Post("/", a.createSource)
-			r.Get("/{id}", a.getSource)
+			r.With(admin).Get("/{id}", a.getSource)
 			r.With(admin).Patch("/{id}", a.patchSource)
 			r.With(admin).Delete("/{id}", a.deleteSource)
 		})
@@ -161,16 +162,36 @@ func NewRouter(svc *service.Service, log *slog.Logger, opts Options) http.Handle
 			r.With(user).Put("/{id}/selection", a.putSelection)
 			r.With(user).Post("/{id}/save", a.saveProject)
 			r.With(user).Post("/{id}/reopen", a.reopenProject)
+			r.With(user).Post("/{id}/quote-request", a.requestQuote)
 			r.Get("/{id}/evaluation-context", a.evaluationContext)
+			r.With(user).Post("/{id}/simulation-runs", a.startSimulation)
+			// A guest recalculates a demo project without saving (roles model §5): the service allows demo projects only.
+			r.Post("/{id}/preview", a.preview)
+			r.Post("/{id}/preview/simulation-runs", a.startPreviewSimulation)
+		})
+		r.Route("/preview/simulation-runs/{jobId}", func(r chi.Router) {
+			r.Get("/", a.getPreviewSimulation)
+			r.Get("/result", a.previewSimulationResult)
+			r.Get("/traces", a.previewSimulationTraces)
 		})
 		r.Get("/matching-runs/{id}", a.getRun)
+		r.Route("/simulation-runs", func(r chi.Router) {
+			r.Get("/{id}", a.getSimulation)
+			r.With(user).Delete("/{id}", a.cancelSimulation)
+			r.Get("/{id}/result", a.simulationResult)
+			r.Get("/{id}/traces", a.simulationTraces)
+		})
 	})
 	return r
 }
 
-// withActor passes the signed-in user to the service, which checks data ownership.
+// withActor passes the signed-in user to the service, which checks data ownership, and the caller's token, which
+// the service forwards to services/simulation.
 func withActor(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if h := r.Header.Get("Authorization"); h != "" {
+			r = r.WithContext(service.WithBearer(r.Context(), h))
+		}
 		p, ok := auth.FromContext(r.Context())
 		if !ok {
 			next.ServeHTTP(w, r)

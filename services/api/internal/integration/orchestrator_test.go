@@ -4,10 +4,13 @@ package integration
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"testing"
 
+	"github.com/brobots/api/internal/calc/mock"
+	"github.com/brobots/api/internal/seed"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
@@ -37,6 +40,7 @@ type evaluation struct {
 
 type projectOut struct {
 	ID, Name, Status string
+	Step             string
 	SavedAt          *string
 	DataChanged      bool
 	Versions         struct{ Model *string }
@@ -162,11 +166,16 @@ func TestOrchestratorFlow(t *testing.T) {
 	e.do(t, http.MethodDelete, base+"/conditions", nil, 200, nil)
 	e.do(t, http.MethodPost, base+"/evaluate", nil, 201, &ev)
 	e.do(t, http.MethodGet, base, nil, 200, &project)
-	if project.Selection != nil || project.LatestEvaluation == nil || project.LatestEvaluation.ID != ev.ID || project.LatestEvaluation.Stale {
-		t.Fatalf("a new calculation must drop the selection: %+v %+v", project.Selection, project.LatestEvaluation)
-	}
 	chosen = *resultOf(ev, chosen.SolutionID, "purchase")
-	e.do(t, http.MethodPut, base+"/selection", map[string]any{"solutionId": chosen.SolutionID, "acquisitionModel": "purchase"}, 200, nil)
+	// D-89: the selected configuration is calculated again, so the selection moves to the new calculation.
+	if project.Selection == nil || project.Selection.CalcResultID == nil || *project.Selection.CalcResultID != chosen.ID ||
+		project.LatestEvaluation == nil || project.LatestEvaluation.ID != ev.ID || project.LatestEvaluation.Stale {
+		t.Fatalf("a new calculation must keep the selection on its result: %+v %+v", project.Selection, project.LatestEvaluation)
+	}
+	e.do(t, http.MethodGet, base+"/snapshot", nil, 200, &snap)
+	if snap.Robot == nil || snap.Robot.CalcRunID != ev.ID || snap.Robot.CalcResultID != chosen.ID {
+		t.Fatalf("snapshot robot after recalculation = %+v", snap.Robot)
+	}
 
 	e.do(t, http.MethodPost, base+"/save", nil, 200, &project)
 	if project.Status != "saved" || project.SavedAt == nil || project.Versions.Model == nil || *project.Versions.Model != "mock-calc/v1" {
@@ -298,4 +307,24 @@ func TestDemoProjectsAreCalculated(t *testing.T) {
 	guest.do(t, http.MethodGet, "/api/v1/projects/"+projects.Items[0].ID+"/evaluation", nil, 200, &ev)
 	firstCalculated(t, ev)
 	e.do(t, http.MethodPost, "/api/v1/projects/"+projects.Items[0].ID+"/evaluate", nil, 403, nil)
+
+	// Every demo project opens on the result with a chosen variant: a guest walks the whole path (roles model §8).
+	checkReady := func() {
+		t.Helper()
+		var all struct{ Items []projectOut }
+		guest.do(t, http.MethodGet, "/api/v1/projects?limit=50", nil, 200, &all)
+		if len(all.Items) != 3 {
+			t.Fatalf("demo projects = %d, want 3", len(all.Items))
+		}
+		for _, p := range all.Items {
+			if p.Status != "draft" || p.Step != "economics" || p.Selection == nil || p.Selection.CalcResultID == nil {
+				t.Errorf("demo project %s: status %s, step %s, selection %+v", p.Name, p.Status, p.Step, p.Selection)
+			}
+		}
+	}
+	checkReady()
+	if err := seed.Load(context.Background(), e.st, mock.New(), slog.New(slog.DiscardHandler)); err != nil {
+		t.Fatalf("seed again: %v", err)
+	}
+	checkReady()
 }

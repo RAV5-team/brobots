@@ -32,6 +32,22 @@ class JobSubmission(Protocol):
     ) -> None:
         """Ставит задание в очередь (статус queued); owner_sub — владелец."""
 
+    def count_active(self, owner_sub: str) -> int:
+        """Сколько заданий владельца в очереди или в работе."""
+
+
+class GuestJobCleanup(Protocol):
+    """Удаление гостевых заданий по сроку хранения."""
+
+    def purge_owner(self, owner_sub: str, older_than_s: float) -> int:
+        """Удаляет задания владельца старше срока с прогонами и трассами.
+
+        Задание в работе не трогается: его удалят при следующей чистке.
+
+        Returns:
+            Сколько заданий удалено.
+        """
+
 
 class JobQueue(Protocol):
     """Очередь заданий со стороны воркера.

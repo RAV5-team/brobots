@@ -9,7 +9,8 @@ FOR UPDATE SKIP LOCKED, поэтому экземпляров сервиса м�
 остановке.
 
 Удаления нет: строки помечаются deleted_at и перестают быть видны. Задание,
-помеченное удалённым, скрывает свои прогоны и трассы.
+помеченное удалённым, скрывает свои прогоны и трассы. Исключение — гостевые
+задания: purge_owner удаляет их по сроку хранения.
 """
 
 from __future__ import annotations
@@ -27,9 +28,9 @@ from application import models
 
 # Ревизия Alembic, под которую написан этот код.
 EXPECTED_REVISION = "0002"
-# Задание видно viewer: без владельца — всем, с владельцем — только ему.
-# viewer = NULL (гость) даёт NULL в сравнении, то есть «не видно».
-_VISIBLE = "(j.owner_sub IS NULL OR j.owner_sub = %(viewer)s)"
+# Задание видно только владельцу. viewer = NULL даёт NULL в сравнении, то есть
+# «не видно»: задания без владельца (гостевые до метки guest) не видны никому.
+_VISIBLE = "j.owner_sub = %(viewer)s"
 
 _INTERRUPTED = "Задание прервано: сервис перезапускался во время расчёта."
 _REQUEUED = "Воркер перестал отвечать — задание возвращено в очередь."
@@ -109,6 +110,44 @@ class PostgresJobRepository:
                     owner_sub,
                 ),
             )
+
+    def count_active(self, owner_sub: str) -> int:
+        """Сколько заданий владельца в очереди или в работе."""
+        with _connection(self._pool) as conn:
+            row = conn.execute(
+                "SELECT count(*) FROM jobs WHERE owner_sub = %s"
+                " AND status IN ('queued', 'running') AND deleted_at IS NULL",
+                (owner_sub,),
+            ).fetchone()
+        return int(row[0]) if row else 0
+
+    def purge_owner(self, owner_sub: str, older_than_s: float) -> int:
+        """Удаляет задания владельца старше срока с прогонами и трассами.
+
+        Строки удаляются, а не помечаются: гостевые данные не хранятся.
+        Задание в работе не трогается — воркер ещё пишет его результат.
+        """
+        with _connection(self._pool) as conn, conn.transaction():
+            jobs = [
+                r[0]
+                for r in conn.execute(
+                    "SELECT job_id FROM jobs WHERE owner_sub = %s"
+                    " AND status <> 'running'"
+                    " AND created_at <= now() - make_interval(secs => %s)"
+                    " FOR UPDATE SKIP LOCKED",
+                    (owner_sub, older_than_s),
+                ).fetchall()
+            ]
+            if not jobs:
+                return 0
+            conn.execute(
+                "DELETE FROM run_traces WHERE simulation_id IN"
+                " (SELECT simulation_id FROM runs WHERE job_id = ANY(%s))",
+                (jobs,),
+            )
+            conn.execute("DELETE FROM runs WHERE job_id = ANY(%s)", (jobs,))
+            conn.execute("DELETE FROM jobs WHERE job_id = ANY(%s)", (jobs,))
+        return len(jobs)
 
     def claim_next_job(self, worker_id: str) -> models.ClaimedJob | None:
         """Забирает самое старое задание из очереди.

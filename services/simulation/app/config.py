@@ -120,6 +120,11 @@ class Settings:
             TODO(dev-auth): удалить вместе с dev-режимом.
         auth_dev_sub: UUID пользователя dev-режима (AUTH_DEV_SUB).
         auth_dev_roles: Роли пользователя dev-режима (AUTH_DEV_ROLES).
+        guest_max_active: Сколько гостевых заданий демо-проектов допускается
+            в очереди и в работе одновременно (SIM_GUEST_MAX_ACTIVE).
+        guest_ttl_s: Срок хранения гостевых заданий, с (SIM_GUEST_TTL_S).
+        guest_cleanup_s: Как часто удалять просроченные гостевые задания, с
+            (SIM_GUEST_CLEANUP_S).
     """
 
     database_url: str
@@ -140,6 +145,9 @@ class Settings:
     auth_dev_mode: bool = False
     auth_dev_sub: str = DEFAULT_DEV_SUB
     auth_dev_roles: tuple[str, ...] = ("user", "admin")
+    guest_max_active: int = 4
+    guest_ttl_s: float = 86400.0
+    guest_cleanup_s: float = 600.0
 
     @classmethod
     def from_env(cls, env: Mapping[str, str]) -> Settings:
@@ -177,6 +185,9 @@ class Settings:
                 "INTERNAL_CALLER_AZP", "rav5-api-internal"
             ),
             app_env=env.get("APP_ENV") or "local",
+            guest_max_active=int(_read(env, "SIM_GUEST_MAX_ACTIVE", int, 4, 1)),
+            guest_ttl_s=_read(env, "SIM_GUEST_TTL_S", float, 86400, 60),
+            guest_cleanup_s=_read(env, "SIM_GUEST_CLEANUP_S", float, 600, 10),
             **_dev_settings(env),
         )
         if settings.auth_dev_mode and settings.app_env != "local":

@@ -23,13 +23,18 @@ interface ProcessCheckRailProps {
   readonly saving: boolean
   /** Сводка ошибок проверки или сбоя сохранения — объявляется скринридеру. */
   readonly message: string | null
+  /** Итог загрузки шаблона — «В форму перенесено значений: 12». */
+  readonly status?: string | null
+  /** Скачать шаблон текущей формы и загрузить его обратно. */
+  readonly onDownloadTemplate: () => void
+  readonly onImportTemplate: (file: File) => void
 }
 
 /**
  * Правая панель проверки и действия формы процесса (PRD 9.2, 10.4; 15935:1254, 15953:5569). Липкая: кнопку сохранения
- * видно без прокрутки на всей высоте формы (D-04, D-31). Excel — после экрана загрузки (PRD 9.4), пока недоступно с подсказкой.
+ * видно без прокрутки на всей высоте формы (D-04, D-31). Шаблон Excel — тот же лист, что у локации: меняется столбец «Значение».
  */
-export function ProcessCheckRail({ copy, rows, canSave, saving, message }: ProcessCheckRailProps) {
+export function ProcessCheckRail({ copy, rows, canSave, saving, message, status = null, onDownloadTemplate, onImportTemplate }: ProcessCheckRailProps) {
   return (
     <FormRail
       label={copy.title}
@@ -43,8 +48,16 @@ export function ProcessCheckRail({ copy, rows, canSave, saving, message }: Proce
         </Card>
       )}
       message={message}
+      status={status}
       submit={{ label: saving ? t.saving : copy.save, disabled: !canSave || saving, note: canSave ? null : t.guestSave }}
-      excel={{ importLabel: t.importExcel, templateLabel: t.downloadTemplate, note: t.excelSoon }}
+      excel={{
+        importLabel: t.importExcel,
+        templateLabel: t.downloadTemplate,
+        note: t.excelHint,
+        fileLabel: t.excelFile,
+        onDownload: onDownloadTemplate,
+        onImport: onImportTemplate,
+      }}
     />
   )
 }

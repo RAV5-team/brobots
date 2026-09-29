@@ -32,13 +32,22 @@ from simcore import version
 
 pytestmark = pytest.mark.db
 
+# Пользователь запросов: пути заданий открыты только вошедшему.
+_TOKEN = "user-token"
+_OWNER = "11111111-1111-4111-8111-111111111111"
+
 
 class _Served:
     """uvicorn с приложением сервиса в фоновом потоке на свободном порту."""
 
     def __init__(self, repo) -> None:
         app = server_lib.create_app(
-            runtime.http_services(repo, fakes.FakeTokenVerifier())
+            runtime.http_services(
+                repo,
+                fakes.FakeTokenVerifier(
+                    {_TOKEN: fakes.principal(_OWNER, "user")}
+                ),
+            )
         )
         self._sock = socket.create_server(("127.0.0.1", 0))
         self._server = uvicorn.Server(
@@ -76,7 +85,9 @@ def _base_fixture(pool):
 
 
 def _send(req: urllib.request.Request) -> tuple[int, dict]:
-    """Отправляет запрос: (код, JSON-ответ)."""
+    """Отправляет запрос от пользователя: (код, JSON-ответ)."""
+    if not req.has_header("Authorization"):
+        req.add_header("Authorization", f"Bearer {_TOKEN}")
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             return resp.status, json.loads(resp.read())
@@ -104,7 +115,11 @@ def _done_job(repo, verified: dict) -> tuple[str, str]:
     """Завершённое задание с одним прогоном: (job_id, simulation_id)."""
     job_id = uuid.uuid4().hex
     repo.create_job(
-        job_id, conftest.request_body(), [conftest.scenario()], "sim-test"
+        job_id,
+        conftest.request_body(),
+        [conftest.scenario()],
+        "sim-test",
+        owner_sub=_OWNER,
     )
     job = repo.claim_next_job("test")
     run = json_codec.json_safe(dict(verified, simulation_id=uuid.uuid4().hex))
@@ -189,8 +204,13 @@ def test_run_is_served(base, repo, verified):
 def test_traces_are_served_gzipped_when_accepted(base, repo, verified):
     _, sim_id = _done_job(repo, verified)
     url = f"{base}/api/simulations/{sim_id}/traces"
-    plain = urllib.request.Request(url, headers={"Accept-Encoding": "identity"})
-    zipped = urllib.request.Request(url, headers={"Accept-Encoding": "gzip"})
+    auth = {"Authorization": f"Bearer {_TOKEN}"}
+    plain = urllib.request.Request(
+        url, headers={"Accept-Encoding": "identity", **auth}
+    )
+    zipped = urllib.request.Request(
+        url, headers={"Accept-Encoding": "gzip", **auth}
+    )
 
     with urllib.request.urlopen(plain, timeout=10) as resp:
         assert "Content-Encoding" not in resp.headers

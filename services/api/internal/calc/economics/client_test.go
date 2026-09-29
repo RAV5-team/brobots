@@ -82,7 +82,7 @@ func fakeService(t *testing.T, onEvaluate func(w http.ResponseWriter, body []byt
 		}
 	}))
 	t.Cleanup(srv.Close)
-	return New(srv.URL+"/", time.Second)
+	return New(srv.URL+"/", time.Second, nil)
 }
 
 func recorded(t *testing.T) []byte {
@@ -253,7 +253,7 @@ func TestFailures(t *testing.T) {
 			}
 		})
 	}
-	if _, err := New("http://127.0.0.1:1", time.Second).ModelVersion(context.Background()); !errors.Is(err, calc.ErrUnavailable) {
+	if _, err := New("http://127.0.0.1:1", time.Second, nil).ModelVersion(context.Background()); !errors.Is(err, calc.ErrUnavailable) {
 		t.Errorf("no server: %v", err)
 	}
 }
@@ -281,7 +281,7 @@ func TestLiveService(t *testing.T) {
 	if url == "" {
 		t.Skip("ECONOMICS_TEST_URL is not set")
 	}
-	c := New(url, 10*time.Second)
+	c := New(url, 10*time.Second, nil)
 	ctx := context.Background()
 	if os.Getenv("ECONOMICS_RECORD") != "" {
 		v, err := c.versions(ctx)
@@ -319,3 +319,50 @@ func TestLiveService(t *testing.T) {
 		t.Fatalf("nothing calculated: %+v", resp.Results)
 	}
 }
+
+// TestDryRunAndServiceToken: a preview asks the service not to keep a snapshot; the service token rides on every call.
+func TestDryRunAndServiceToken(t *testing.T) {
+	var query, authorization []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authorization = append(authorization, r.Header.Get("Authorization"))
+		switch r.URL.Path {
+		case PathModelVersion:
+			_, _ = w.Write([]byte(`{"model_version":"economic-v1.1","ranking_version":"ranking-v1"}`))
+		case PathEvaluations:
+			query = append(query, r.URL.RawQuery)
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write(recorded(t))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	withToken := func(base http.RoundTripper) http.RoundTripper {
+		return roundTrip(func(r *http.Request) (*http.Response, error) {
+			r = r.Clone(r.Context())
+			r.Header.Set("Authorization", "Bearer service")
+			return base.RoundTrip(r)
+		})
+	}
+	c := New(srv.URL, time.Second, withToken)
+	req := sampleRequest()
+	if _, err := c.Calculate(context.Background(), req); err != nil {
+		t.Fatal(err)
+	}
+	req.DryRun = true
+	if _, err := c.Calculate(context.Background(), req); err != nil {
+		t.Fatal(err)
+	}
+	if len(query) != 2 || query[0] != "" || query[1] != "dry_run=true" {
+		t.Errorf("evaluation queries = %q, want the second one dry", query)
+	}
+	for _, a := range authorization {
+		if a != "Bearer service" {
+			t.Errorf("call without the service token: %q", a)
+		}
+	}
+}
+
+type roundTrip func(*http.Request) (*http.Response, error)
+
+func (f roundTrip) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }

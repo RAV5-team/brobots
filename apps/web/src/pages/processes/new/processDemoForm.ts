@@ -24,6 +24,7 @@ export interface WarehouseBase {
   readonly rackAisle: number
   readonly palletMass: number
   readonly workTimeLossPct: number
+  readonly turnoverPct: number
   readonly payrollCoef: number
 }
 
@@ -31,6 +32,12 @@ function numberParam(params: readonly FacilityParameter[], code: string): number
   const base = params.find((p) => p.code === code)?.base
   if (typeof base !== 'number') throw new Error(`В датасете нет числового параметра ${code}`)
   return base
+}
+
+/** Текучести нет в приложении А и в старом seed api — принято 0, как на форме 14 (PRD 10.2). */
+function numberParamOr(params: readonly FacilityParameter[], code: string, fallback: number): number {
+  const base = params.find((p) => p.code === code)?.base
+  return typeof base === 'number' ? base : fallback
 }
 
 export function warehouseBase(params: readonly FacilityParameter[]): WarehouseBase {
@@ -48,6 +55,7 @@ export function warehouseBase(params: readonly FacilityParameter[]): WarehouseBa
     rackAisle: n('wh_rack_aisle_width'),
     palletMass: n('wh_pallet_mass'),
     workTimeLossPct: n('wh_work_time_loss'),
+    turnoverPct: numberParamOr(params, 'wh_annual_turnover', 0),
     payrollCoef: n('wh_payroll_tax_coef'),
   }
 }
@@ -97,7 +105,7 @@ export function buildInitialForm(params: readonly FacilityParameter[], defaults:
     minTempC: text(defaults.minTempC),
     staff,
     replacement: Object.fromEntries(Object.entries(defaults.replacement).map(([method, ratio]) => [method, RATIO_FORMAT.format(ratio)])),
-    turnoverPct: text(defaults.turnoverPct),
+    turnoverPct: text(base.turnoverPct),
     workTimeLossPct: text(base.workTimeLossPct),
     fleetOperators: text(defaults.fleetOperators),
     fleetSalaryRub: text(forkliftSalary),

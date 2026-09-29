@@ -3,7 +3,7 @@
   "enabled": true,
   "displayName": "RAV5",
   "sslRequired": "external",
-  "registrationAllowed": true,
+  "registrationAllowed": false,
   "registrationEmailAsUsername": true,
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
@@ -15,6 +15,7 @@
   "internationalizationEnabled": true,
   "supportedLocales": ["ru", "en"],
   "defaultLocale": "ru",
+  "loginTheme": "rav5",
   "accessTokenLifespan": 300,
   "ssoSessionIdleTimeout": 7200,
   "ssoSessionMaxLifespan": 36000,
@@ -44,7 +45,7 @@
       "serviceAccountsEnabled": false,
       "rootUrl": "${PUBLIC_URL}",
       "baseUrl": "${PUBLIC_URL}/",
-      "redirectUris": ["${PUBLIC_URL}/*"],
+      "redirectUris": ["${PUBLIC_URL}/*", "http://localhost:5173/*"],
       "webOrigins": ["+"],
       "attributes": {
         "pkce.code.challenge.method": "S256",
@@ -109,10 +110,10 @@
   ],
   "users": [
     {
-      "username": "user@example.com",
-      "email": "user@example.com",
-      "firstName": "Демо",
-      "lastName": "Пользователь",
+      "username": "demo@rav5.ru",
+      "email": "demo@rav5.ru",
+      "firstName": "И.",
+      "lastName": "Демидов",
       "enabled": true,
       "emailVerified": true,
       "credentials": [
@@ -121,10 +122,10 @@
       "realmRoles": ["default-roles-rav5"]
     },
     {
-      "username": "admin@example.com",
-      "email": "admin@example.com",
-      "firstName": "Демо",
-      "lastName": "Администратор",
+      "username": "admin@rav5.ru",
+      "email": "admin@rav5.ru",
+      "firstName": "А.",
+      "lastName": "Соколова",
       "enabled": true,
       "emailVerified": true,
       "credentials": [

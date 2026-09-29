@@ -1,7 +1,8 @@
 import type { IsoDateTime } from './common'
 import type { FacilityTypeCode, ParameterValue } from './facility'
 
-export type LocationId = `LOC-${string}`
+/** В API — UUID, в фикстурах — LOC-NN. */
+export type LocationId = string
 
 /** Локация: тип объекта и параметры площадки (глоссарий). */
 export interface Location {
@@ -17,10 +18,15 @@ export interface Location {
   readonly staffGroups: readonly StaffGroup[]
   /** Когда профиль менялся последний раз — «обновлено 14.09.2026», сортировка списка (PRD 10.1). */
   readonly updatedAt: IsoDateTime
+  /**
+   * Демо-локация организатора: только просмотр для всех (ролевая модель, §4). Своя копия — «Создать из типового
+   * объекта». Кнопок правки у неё нет — сервис ответил бы 403.
+   */
+  readonly isDemo?: boolean
 }
 
 /** Новая локация из формы 14: идентификатор и дату изменения присваивает сервис (`POST /locations`). */
-export type NewLocation = Omit<Location, 'id' | 'updatedAt'>
+export type NewLocation = Omit<Location, 'id' | 'updatedAt' | 'isDemo'>
 
 export interface StaffGroup {
   readonly role: string

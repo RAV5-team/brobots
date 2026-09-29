@@ -1,10 +1,14 @@
 package handlers
 
 import (
+	"io"
+	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/brobots/api/internal/matching"
 	"github.com/brobots/api/internal/service"
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
@@ -121,7 +125,7 @@ func (a *API) putSelection(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) evaluate(w http.ResponseWriter, r *http.Request) {
-	a.withID(w, r, func(id uuid.UUID) (any, error) { return a.svc.Evaluate(r.Context(), id) }, http.StatusCreated)
+	a.withIDBody(w, r, func(id uuid.UUID, b []byte) (any, error) { return a.svc.Evaluate(r.Context(), id, b) }, http.StatusCreated)
 }
 
 func (a *API) evaluation(w http.ResponseWriter, r *http.Request) {
@@ -134,6 +138,95 @@ func (a *API) saveProject(w http.ResponseWriter, r *http.Request) {
 
 func (a *API) reopenProject(w http.ResponseWriter, r *http.Request) {
 	a.withID(w, r, func(id uuid.UUID) (any, error) { return a.svc.ReopenProject(r.Context(), id) }, http.StatusOK)
+}
+
+func (a *API) startSimulation(w http.ResponseWriter, r *http.Request) {
+	a.withIDBody(w, r, func(id uuid.UUID, b []byte) (any, error) { return a.svc.StartSimulation(r.Context(), id, b) }, http.StatusCreated)
+}
+
+func (a *API) getSimulation(w http.ResponseWriter, r *http.Request) {
+	a.withID(w, r, func(id uuid.UUID) (any, error) { return a.svc.GetSimulation(r.Context(), id) }, http.StatusOK)
+}
+
+func (a *API) cancelSimulation(w http.ResponseWriter, r *http.Request) {
+	a.withID(w, r, func(id uuid.UUID) (any, error) { return nil, a.svc.CancelSimulation(r.Context(), id) }, http.StatusNoContent)
+}
+
+func (a *API) simulationResult(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
+	body, err := a.svc.SimulationResult(r.Context(), id)
+	if err != nil {
+		a.fail(w, r, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_, _ = w.Write(body)
+}
+
+// simulationTraces passes the traces of services/simulation through, gzipped when the client accepts it.
+func (a *API) simulationTraces(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
+	gzip := strings.Contains(r.Header.Get("Accept-Encoding"), "gzip")
+	resp, err := a.svc.SimulationTraces(r.Context(), id, gzip)
+	a.passTraces(w, r, resp, err)
+}
+
+// preview recalculates a demo project for a guest; nothing is saved.
+func (a *API) preview(w http.ResponseWriter, r *http.Request) {
+	a.withIDBody(w, r, func(id uuid.UUID, b []byte) (any, error) { return a.svc.Preview(r.Context(), id, b) }, http.StatusOK)
+}
+
+func (a *API) startPreviewSimulation(w http.ResponseWriter, r *http.Request) {
+	a.withIDBody(w, r, func(id uuid.UUID, b []byte) (any, error) {
+		return a.svc.StartPreviewSimulation(r.Context(), id, b)
+	}, http.StatusCreated)
+}
+
+func (a *API) getPreviewSimulation(w http.ResponseWriter, r *http.Request) {
+	v, err := a.svc.GetPreviewSimulation(r.Context(), chi.URLParam(r, "jobId"))
+	a.respond(w, r, http.StatusOK, v, err)
+}
+
+func (a *API) previewSimulationResult(w http.ResponseWriter, r *http.Request) {
+	body, err := a.svc.PreviewSimulationResult(r.Context(), chi.URLParam(r, "jobId"))
+	if err != nil {
+		a.fail(w, r, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_, _ = w.Write(body)
+}
+
+func (a *API) previewSimulationTraces(w http.ResponseWriter, r *http.Request) {
+	gzip := strings.Contains(r.Header.Get("Accept-Encoding"), "gzip")
+	resp, err := a.svc.PreviewSimulationTraces(r.Context(), chi.URLParam(r, "jobId"), gzip)
+	a.passTraces(w, r, resp, err)
+}
+
+func (a *API) passTraces(w http.ResponseWriter, r *http.Request, resp *http.Response, err error) {
+	if err != nil {
+		a.fail(w, r, err)
+		return
+	}
+	defer resp.Body.Close()
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if enc := resp.Header.Get("Content-Encoding"); enc != "" {
+		w.Header().Set("Content-Encoding", enc)
+		w.Header().Set("Vary", "Accept-Encoding")
+	}
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		a.log.WarnContext(r.Context(), "traces copy failed", slog.Any("error", err))
+	}
+}
+
+func (a *API) requestQuote(w http.ResponseWriter, r *http.Request) {
+	a.withID(w, r, func(id uuid.UUID) (any, error) { return a.svc.RequestQuote(r.Context(), id) }, http.StatusOK)
 }
 
 func (a *API) evaluationContext(w http.ResponseWriter, r *http.Request) {

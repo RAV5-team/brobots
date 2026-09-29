@@ -2,7 +2,7 @@ import { useSearchParams } from 'react-router'
 import { Button } from '@/components/ui/Button'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
-import { COMPARE_LIMIT, hasEntry } from '@/domain'
+import { COMPARE_LIMIT, deriveLaunchRequired, hasEntry } from '@/domain'
 import { useCompare } from '@/shared/compare/useCompare'
 import { ru } from '@/shared/i18n/ru'
 import { CatalogFilters } from './CatalogFilters'
@@ -19,9 +19,15 @@ import {
   type CatalogEntry,
   type CatalogFilter,
 } from './catalogModel'
-import { useCatalog, type CatalogData } from './useCatalog'
+import { useCatalog, type CatalogData, type CatalogSection } from './useCatalog'
 
 const t = ru.catalog
+
+/** Состав запуска в списке API считается по уже загруженным разделам. Пока их нет — блок на карточке скрыт. */
+function robotWithLaunch(robot: CatalogData['robots'][number], items: CatalogData['launchItems']) {
+  if (robot.launchRequired.length > 0 || items.length === 0) return robot
+  return { ...robot, launchRequired: deriveLaunchRequired(robot.id, items) }
+}
 const SKELETON_CARDS = [0, 1, 2, 3, 4, 5]
 
 function CatalogSkeleton() {
@@ -63,7 +69,7 @@ function CatalogGrid({ data, entries, filter, onReset }: CatalogGridProps) {
         return (
           <li key={ref.id}>
             {entry.kind === 'robot'
-              ? <CatalogRobotCard robot={entry.robot} operationClasses={data.operationClasses} launchItems={data.launchItems} {...common} />
+              ? <CatalogRobotCard robot={robotWithLaunch(entry.robot, data.launchItems)} operationClasses={data.operationClasses} launchItems={data.launchItems} {...common} />
               : <CatalogLaunchItemCard item={entry.item} robots={data.robots} items={data.launchItems} {...common} />}
           </li>
         )
@@ -73,7 +79,11 @@ function CatalogGrid({ data, entries, filter, onReset }: CatalogGridProps) {
 }
 
 /** Фильтры и лента: состояние в адресе — выборкой можно поделиться (правило URL-состояния). */
-function CatalogContent({ data }: { readonly data: CatalogData }) {
+function CatalogContent({ data, section, onRetrySection }: {
+  readonly data: CatalogData
+  readonly section: CatalogSection
+  readonly onRetrySection: () => void
+}) {
   const [params, setParams] = useSearchParams()
   const { entries: selected, error: compareError } = useCompare()
   const filter = parseCatalogSearch(params, data.operationClasses.map((c) => c.code))
@@ -91,14 +101,18 @@ function CatalogContent({ data }: { readonly data: CatalogData }) {
         compatibleName={filter.compatibleWith ? (data.robots.find((r) => r.id === filter.compatibleWith)?.name ?? filter.compatibleWith) : null}
       />
       {compareError && <p role="alert" className="type-body-sm text-danger">{compareError}</p>}
-      <CatalogGrid data={data} entries={entries} filter={filter} onReset={() => { update(resetFilters(filter)) }} />
+      {section === 'loading' && <p role="status" className="type-body text-text-secondary">{t.sectionLoading}</p>}
+      {section === 'error' && <ErrorState title={t.sectionError.title} message={t.sectionError.message} onRetry={onRetrySection} />}
+      {section === 'idle' && <CatalogGrid data={data} entries={entries} filter={filter} onReset={() => { update(resetFilters(filter)) }} />}
     </div>
   )
 }
 
 /** Экран К-1 «Каталог · список» (PRD 7.1, 7.2, 7.5; 16642:619). Доступен всем ролям, включая гостя. */
 export function CatalogPage() {
-  const { state, retry } = useCatalog()
+  const [params] = useSearchParams()
+  const tab = parseCatalogSearch(params, []).tab
+  const { state, section, retry, retrySection } = useCatalog(tab)
 
   return (
     <>
@@ -106,7 +120,7 @@ export function CatalogPage() {
 
       {state.status === 'loading' && <CatalogSkeleton />}
       {state.status === 'error' && <ErrorState title={t.error.title} message={t.error.message} onRetry={retry} />}
-      {state.status === 'ready' && <CatalogContent data={state} />}
+      {state.status === 'ready' && <CatalogContent data={state} section={section} onRetrySection={retrySection} />}
     </>
   )
 }

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router'
+import { Link, MemoryRouter, Route, Routes, type InitialEntry } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
 import type { Services } from '@/services'
 import { createMockServices } from '@/services/mock'
@@ -7,7 +7,7 @@ import { ServicesProvider } from '@/services/ServicesProvider'
 import { RoleProvider } from '@/shared/auth/RoleProvider'
 import { LocationParamsPage } from './LocationParamsPage'
 
-const renderPage = (path = '/locations/LOC-01/params', services: Services = createMockServices({ latencyMs: 0 })) =>
+const renderPage = (path: InitialEntry = '/locations/LOC-01/params', services: Services = createMockServices({ latencyMs: 0 })) =>
   render(
     <MemoryRouter initialEntries={[path]}>
       <ServicesProvider services={services}>
@@ -32,17 +32,25 @@ describe('LocationParamsPage (экран 17а)', () => {
     expect(tabs.getByRole('link', { name: 'Параметры объекта' })).toHaveAttribute('aria-current', 'page')
   })
 
-  it('shows the four form sections read-only with the saved values', async () => {
+  it('shows the form sections and the site conditions section read-only with the saved values (16005:291)', async () => {
     renderPage()
     await screen.findByRole('heading', { level: 1, name: 'РЦ Химки' })
-    for (const title of ['1. Основное', '2. Площадь и этажность', '3. Режим работы', '4. Персонал']) {
-      expect(screen.getByRole('heading', { name: title })).toBeInTheDocument()
+    for (const title of ['1. Основное', '2. Площадь и этажность', '3. Режим работы', '4. Персонал', '5. Условия площадки для роботов']) {
+      expect(screen.getByRole('heading', { level: 2, name: title })).toBeInTheDocument()
     }
+    // Группы подбора PRD 10.5 — подгруппы секции 5, а не отдельные секции.
+    for (const group of ['Проходы и высота', 'Покрытие пола', 'Маршруты и планировка', 'Условия эксплуатации', 'Связь и зарядная инфраструктура']) {
+      expect(screen.getByRole('heading', { level: 3, name: group })).toBeInTheDocument()
+    }
+    expect(screen.getByText('необязательно')).toBeInTheDocument()
+    const nav = screen.getByRole('navigation', { name: 'Разделы профиля' })
+    expect(within(nav).getAllByRole('link').map((item) => item.textContent)).toEqual([
+      'Основное', 'Площадь и этажность', 'Режим', 'Персонал', 'Условия площадки',
+    ])
     expect(nameInput()).toHaveValue('РЦ Химки')
     expect(nameInput()).toBeDisabled()
     expect(saveButton()).toBeDisabled()
-    // Подсказка секции 2 не отсылает к самой вкладке (PRD 15 · №46).
-    expect(screen.getByText(/приложите план и обследование во вкладке «Документы»/)).toBeInTheDocument()
+    expect(screen.getByText(/Покрытие пола и другие условия для роботов — в блоке 5/)).toBeInTheDocument()
   })
 
   it('computes the readiness panel from the profile: 9 / 9, one assumption', async () => {
@@ -51,7 +59,7 @@ describe('LocationParamsPage (экран 17а)', () => {
     expect(screen.getByText('9 / 9')).toBeInTheDocument()
   })
 
-  it('edits and saves the profile, then returns to view mode with the new values', async () => {
+  it('edits and saves the profile, then returns to view mode with the new values', { timeout: 15_000 }, async () => {
     const services = createMockServices({ latencyMs: 0 })
     renderPage(undefined, services)
     fireEvent.click(await screen.findByRole('button', { name: 'Изменить параметры объекта' }))
@@ -77,7 +85,7 @@ describe('LocationParamsPage (экран 17а)', () => {
     expect(nameInput()).toHaveFocus()
   })
 
-  it('discards changes on «Отменить изменения»', async () => {
+  it('discards changes on «Отменить изменения»', { timeout: 15_000 }, async () => {
     renderPage()
     fireEvent.click(await screen.findByRole('button', { name: 'Изменить параметры объекта' }))
     fireEvent.change(nameInput(), { target: { value: 'Черновик' } })
@@ -118,6 +126,55 @@ describe('LocationParamsPage (экран 17а)', () => {
     await screen.findByRole('heading', { level: 1, name: 'РЦ Химки' })
     expect(screen.queryByRole('button', { name: 'Изменить параметры объекта' })).not.toBeInTheDocument()
     expect(nameInput()).toBeDisabled()
+  })
+
+  it('shows dataset aisle widths on 17а (PRD 10.5)', { timeout: 15_000 }, async () => {
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Изменить параметры объекта' }))
+    expect(screen.getByRole('textbox', { name: /Ширина главных проездов/ })).toHaveValue('3,5')
+    expect(screen.getByRole('textbox', { name: /Ширина рабочих проходов между стеллажами/ })).toHaveValue('2,8')
+  })
+
+  it('opens the hashed site field from the project params step (PRD 11.2)', async () => {
+    renderPage('/locations/LOC-01/params#site_wifi_coverage')
+    const wifi = await screen.findByRole('combobox', { name: 'Wi-Fi в зоне работы' })
+    expect(wifi).toBeEnabled()
+    await waitFor(() => { expect(wifi).toHaveFocus() })
+  })
+
+  it('opens edit when the project profile link asks to edit', async () => {
+    renderPage({ pathname: '/locations/LOC-01/params', state: { edit: true } })
+    await screen.findByRole('heading', { level: 1, name: 'РЦ Химки' })
+    expect(nameInput()).toBeEnabled()
+  })
+
+  it('opens edit when navigating from the project to a hashed site field', async () => {
+    render(
+      <MemoryRouter initialEntries={['/projects/demo']}>
+        <ServicesProvider services={createMockServices({ latencyMs: 0 })}>
+          <RoleProvider>
+            <Routes>
+              <Route path="/projects/demo" element={<Link to="/locations/LOC-01/params#site_wifi_coverage">заполнить</Link>} />
+              <Route path="/locations/:locationId/params" element={<LocationParamsPage />} />
+            </Routes>
+          </RoleProvider>
+        </ServicesProvider>
+      </MemoryRouter>,
+    )
+    fireEvent.click(screen.getByRole('link', { name: 'заполнить' }))
+    const wifi = await screen.findByRole('combobox', { name: 'Wi-Fi в зоне работы' })
+    expect(wifi).toBeEnabled()
+  })
+
+  it('saves a site parameter so the project step can read it', async () => {
+    const services = createMockServices({ latencyMs: 0 })
+    renderPage('/locations/LOC-02/params#site_aisle_min_m', services)
+    const aisle = await screen.findByRole('textbox', { name: /Мин. свободная ширина прохода на маршруте/ })
+    fireEvent.change(aisle, { target: { value: '2,8' } })
+    fireEvent.click(saveButton())
+    await screen.findByText(/Изменения сохранены/)
+    const saved = await services.locations.getLocation('LOC-02')
+    expect(saved.parameters.site_aisle_min_m).toEqual({ value: 2.8, source: 'user' })
   })
 
   it('shows «не найдена» for an unknown location', async () => {

@@ -10,6 +10,14 @@ interface ImportMetaEnv {
   readonly VITE_DEMO_ADMIN_PASSWORD?: string
   /** Адрес публичного сайта для ссылки «Публичный сайт RAV5» на экране входа (D-28). */
   readonly VITE_PUBLIC_SITE_URL?: string
+  /** Источник данных экранов: 'api' — services/api, иначе — моки на фикстурах. */
+  readonly VITE_SERVICES?: string
+  /** Origin services/api; пусто — тот же origin (прокси dev-сервера или шлюза). */
+  readonly VITE_API_BASE_URL?: string
+  /** Realm Keycloak: `http://localhost/auth/realms/rav5`; пусто — вход без Keycloak (гость и dev-режим api). */
+  readonly VITE_OIDC_URL?: string
+  /** Публичный клиент Keycloak фронтенда; по умолчанию rav5-web. */
+  readonly VITE_OIDC_CLIENT_ID?: string
 }
 
 interface ImportMeta {

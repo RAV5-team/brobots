@@ -1,5 +1,5 @@
 import { READY_ROUTES } from './readyScreens'
-import { expect, openAs, test } from './support'
+import { expect, openAs, test, withRole } from './support'
 
 const NOT_FOUND = 'Страница не найдена'
 
@@ -15,11 +15,21 @@ for (const { path, roles, busy } of READY_ROUTES) {
   }
 }
 
-test('гостю список проектов закрыт — редирект в каталог (D-82)', async ({ page, consoleErrors }) => {
+test('гость видит демо-проекты организатора (ролевая модель, §3)', async ({ page, consoleErrors }) => {
   await openAs(page, '/projects', 'guest')
-  await expect(page).toHaveURL(/\/catalog(\?|$)/)
+  await expect(page.getByRole('heading', { level: 1, name: 'Демо-проекты' })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Открыть демо-проект/ }).first()).toBeVisible()
   expect(consoleErrors).toEqual([])
 })
+
+for (const path of ['/processes/new', '/locations/new', '/admin/journal', '/integrations']) {
+  test(`гостю ${path} закрыт маршрутом, а не только меню (ролевая модель, §3)`, async ({ page, consoleErrors }) => {
+    // Экран «нет доступа» без h1 — openAs ждал бы заголовок страницы.
+    await page.goto(withRole(path, 'guest'))
+    await expect(page.getByText('Раздел недоступен для роли «Гость»')).toBeVisible()
+    expect(consoleErrors).toEqual([])
+  })
+}
 
 test('замороженные часы не идут сами: кадр опроса А1а не меняется, пока время не сдвинули', async ({ page, consoleErrors }) => {
   await openAs(page, '/admin/catalog/import', 'admin', { busy: true, frozenAfterMs: 500 })

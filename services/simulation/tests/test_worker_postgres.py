@@ -22,6 +22,9 @@ from simcore import version
 
 pytestmark = pytest.mark.db
 
+# Владелец заданий: без владельца задание не видно никому.
+_OWNER = "owner-sub"
+
 
 def _queue(repo, scenarios: list[dict], request: dict | None = None) -> str:
     job_id = uuid.uuid4().hex
@@ -30,6 +33,7 @@ def _queue(repo, scenarios: list[dict], request: dict | None = None) -> str:
         request or conftest.request_body(),
         scenarios,
         version.SIM_VERSION,
+        owner_sub=_OWNER,
     )
     return job_id
 
@@ -49,13 +53,14 @@ def test_job_is_computed_and_stored(repo):
 
     assert _worker(repo).run_once()
 
-    job = repo.get_job(job_id)
+    job = repo.get_job(job_id, viewer=_OWNER)
     assert job.status == "done", job.error
     assert len(job.runs) == 1
     assert job.log, "журнал хода расчёта пуст"
     sim_id = job.simulation_ids[0]
-    assert repo.get_run(sim_id)["simulation_id"] == sim_id
-    traces = json.loads(gzip.decompress(repo.get_traces_gz(sim_id)))
+    assert repo.get_run(sim_id, viewer=_OWNER)["simulation_id"] == sim_id
+    traces_gz = repo.get_traces_gz(sim_id, viewer=_OWNER)
+    traces = json.loads(gzip.decompress(traces_gz))
     assert isinstance(traces, list) and traces
 
 
@@ -66,7 +71,7 @@ def test_two_scenarios_keep_their_order(repo):
 
     _worker(repo).run_once()
 
-    job = repo.get_job(job_id)
+    job = repo.get_job(job_id, viewer=_OWNER)
     assert job.status == "done", job.error
     assert [r["scenario"]["name"] for r in job.runs] == ["Первый", "Второй"]
     assert job.workers == min(2, os.cpu_count() or 1)
@@ -79,7 +84,7 @@ def test_invalid_input_ends_with_field_errors(repo):
 
     _worker(repo).run_once()
 
-    job = repo.get_job(job_id)
+    job = repo.get_job(job_id, viewer=_OWNER)
     assert job.status == "error"
     assert any(e["field"] == "task.shifts" for e in job.errors)
 
@@ -89,7 +94,7 @@ def test_crash_in_child_ends_with_error_and_hidden_detail(repo, pool):
 
     _worker(repo, target=crash_target.explode).run_once()
 
-    job = repo.get_job(job_id)
+    job = repo.get_job(job_id, viewer=_OWNER)
     assert job.status == "error"
     assert "расчёт упал" in job.error
     assert job.errors is None
@@ -105,7 +110,7 @@ def test_process_dying_without_result_ends_with_error(repo):
 
     _worker(repo, target=crash_target.die).run_once()
 
-    job = repo.get_job(job_id)
+    job = repo.get_job(job_id, viewer=_OWNER)
     assert job.status == "error"
     assert "аварийно" in job.error
     assert "код 3" in job.error
@@ -118,7 +123,7 @@ def test_release_stops_the_computation_quickly(repo):
     thread = threading.Thread(target=w.run_once)
     thread.start()
     deadline = time.monotonic() + 30
-    while not repo.get_job(job_id).log:
+    while not repo.get_job(job_id, viewer=_OWNER).log:
         assert time.monotonic() < deadline, "расчёт не начался"
         time.sleep(0.1)
 
@@ -128,7 +133,7 @@ def test_release_stops_the_computation_quickly(repo):
 
     assert not thread.is_alive()
     assert time.monotonic() - started < 10
-    assert repo.get_job(job_id).status == "queued"
+    assert repo.get_job(job_id, viewer=_OWNER).status == "queued"
 
 
 def test_lost_ownership_discards_the_result(repo, monkeypatch):
@@ -137,4 +142,4 @@ def test_lost_ownership_discards_the_result(repo, monkeypatch):
 
     _worker(repo).run_once()
 
-    assert repo.get_job(job_id).status == "running"
+    assert repo.get_job(job_id, viewer=_OWNER).status == "running"

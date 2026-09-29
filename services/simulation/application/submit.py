@@ -7,6 +7,7 @@ from typing import Any
 
 from application import errors
 from application import input_policy
+from application import models
 from application import ports
 from simcore import inputs
 from simcore import version
@@ -72,6 +73,44 @@ class SubmitVerification:
             owner_sub=owner_sub,
         )
         return job_id
+
+
+class SubmitGuestVerification:
+    """Ставит задание за гостя демо-проекта, пока свободны гостевые места.
+
+    Гость анонимен, а расчёт тяжёлый: одновременно в очереди и в работе не
+    больше max_active гостевых заданий.
+    """
+
+    def __init__(
+        self,
+        submit: SubmitVerification,
+        jobs: ports.JobSubmission,
+        max_active: int,
+    ) -> None:
+        """Готовит сценарий.
+
+        Args:
+            submit: Постановка задания с проверкой входа.
+            jobs: Очередь заданий: число активных гостевых.
+            max_active: Сколько гостевых заданий допускается одновременно.
+        """
+        self._submit = submit
+        self._jobs = jobs
+        self._max_active = max_active
+
+    def __call__(self, body: Mapping[str, Any]) -> str:
+        """Ставит гостевое задание в очередь.
+
+        Raises:
+            errors.GuestLimitError: Гостевые места заняты.
+            errors.InvalidSubmissionError: Вход не прошёл проверку.
+        """
+        if self._jobs.count_active(models.GUEST_OWNER) >= self._max_active:
+            raise errors.GuestLimitError(
+                "Демо-симуляций сейчас много — повторите через минуту."
+            )
+        return self._submit(body, models.GUEST_OWNER)
 
 
 def _scenario_errors(

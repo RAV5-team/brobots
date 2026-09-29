@@ -1,5 +1,6 @@
 import type {
   DraftProject,
+  LocationId,
   LocationProcessId,
   EconomicsResult,
   MatchingEvaluation,
@@ -18,9 +19,19 @@ import type {
 } from '@/domain'
 
 /** Проекты оценки (PRD 11). Ответы API переводятся в модель экрана мапперами src/api/mappers. */
+export interface ProjectListOptions {
+  /** Демо-проекты организатора (гость). Без флага — свои проекты, без демо. */
+  readonly demo?: boolean
+  /** Только проекты этой площадки (`GET /projects?locationId=`). */
+  readonly locationId?: LocationId
+}
+
 export interface ProjectService {
-  /** Сначала недавно изменённые; демо-проект в список не входит. */
-  listProjects(): Promise<readonly Project[]>
+  /**
+   * Сначала недавно изменённые. Вошедшему — свои проекты без демо; `demo` — демо-проекты организатора: их список
+   * видит гость (ролевая модель, §3). `locationId` не тянет проекты других площадок.
+   */
+  listProjects(options?: ProjectListOptions): Promise<readonly Project[]>
   getProject(id: ProjectId): Promise<Project>
   /** Создать черновик на шаге «Параметры» (окно A2, PRD 11.1) — `POST /projects`; id присваивает сервис. */
   createDraft(input: NewProjectDraft): Promise<DraftProject>
@@ -39,7 +50,10 @@ export interface ProjectService {
    * сбрасываются, черновик возвращается на «Параметры» (D-94). Сохранённая оценка — ConflictError.
    */
   selectProcess(id: ProjectId, locationProcessId: LocationProcessId): Promise<Project>
-  /** Открыт шаг: черновик запоминает самый дальний. Закрытый шаг — ConflictError. */
+  /**
+   * Открыть шаг: пройденный — без сдвига, следующий — CTA записывает его как дальний.
+   * Дальше текущего+1 — ConflictError. URL закрытого шага лоадер не вызывает.
+   */
   openStep(id: ProjectId, step: ProjectStep): Promise<Project>
   /** Расчёт подбора (`GET /projects/{id}/evaluation`). Не рассчитан — NotFoundError. */
   getMatching(id: ProjectId): Promise<MatchingEvaluation>

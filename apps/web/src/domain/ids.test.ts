@@ -9,6 +9,8 @@ describe('parse*Id (идентификаторы из адреса)', () => {
     expect(parseLocationProcessId('LP-12')).toBe('LP-12')
     expect(parseProcessCode('PR-0001')).toBe('PR-0001')
     expect(parseRobotId('RB-0187')).toBe('RB-0187')
+    expect(parseProjectId('01a0ed25-962d-7e02-bf87-a1d04c5ce457')).toBe('01a0ed25-962d-7e02-bf87-a1d04c5ce457')
+    expect(parseLocationId('01a0ed25-962d-7e02-bf87-a1d04c5ce457')).toBe('01a0ed25-962d-7e02-bf87-a1d04c5ce457')
   })
 
   it('rejects ids of another kind, empty and missing values', () => {

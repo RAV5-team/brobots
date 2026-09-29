@@ -114,10 +114,6 @@ func (a access) process(p domain.Process, write bool) error {
 	return nil
 }
 
-// newProcessOwner: the admin and the seed add reference processes, a user adds own ones.
-func (a access) newProcessOwner() *uuid.UUID {
-	if a.admin {
-		return nil
-	}
-	return a.owner()
-}
+// seesHidden: hidden reference records (catalog positions, operation classes, reference processes) are admin data.
+// Other callers get them only through the records that already reference them.
+func (a access) seesHidden() bool { return a.admin || a.system }

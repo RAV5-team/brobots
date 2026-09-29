@@ -4,6 +4,7 @@ import { readiness, toNewLocation, validateLocation } from './locationCheck'
 import {
   addStaffRow,
   buildInitialForm,
+  extraFields,
   indexParameters,
   isLocationForm,
   removeStaffRow,
@@ -36,22 +37,28 @@ describe('buildInitialForm', () => {
 })
 
 describe('readiness', () => {
-  it('counts 9 required and 16 fields on a valid warehouse profile', () => {
+  const extras = extraFields(params)
+  const filledExtras = extras.filter((field) => initial.extras[field.code]?.trim()).length
+
+  it('counts 9 required fields and the catalog fields beyond the four sections', () => {
     const { errors, ready } = check(initial)
     expect(errors).toEqual({})
-    expect(ready).toEqual({ requiredDone: 9, requiredTotal: 9, filled: 16, filledTotal: 16, errors: 0, assumptions: 1, optionalEmpty: 0 })
+    expect(ready).toEqual({
+      requiredDone: 9, requiredTotal: 9, errors: 0, assumptions: 1,
+      filled: 16 + filledExtras, filledTotal: 16 + extras.length, optionalEmpty: extras.length - filledExtras,
+    })
   })
 
   it('does not count a filled required field with an error as done (PRD 15 · №44)', () => {
     const { errors, ready } = check(mockupForm(initial))
     expect(Object.keys(errors)).toEqual(['activeArea'])
     expect(errors.activeArea?.replace(/\s/g, ' ')).toBe('Больше общей площади склада — 20 000 м²')
-    expect(ready).toMatchObject({ requiredDone: 8, requiredTotal: 9, filled: 16, errors: 1 })
+    expect(ready).toMatchObject({ requiredDone: 8, requiredTotal: 9, filled: 16 + filledExtras, errors: 1 })
   })
 
   it('counts empty optional fields and drops the assumption once turnover is real data', () => {
     const { ready } = check({ ...initial, address: '', floors: '', turnover: '12' })
-    expect(ready).toMatchObject({ optionalEmpty: 2, assumptions: 0, filled: 14 })
+    expect(ready).toMatchObject({ optionalEmpty: 2 + extras.length - filledExtras, assumptions: 0, filled: 14 + filledExtras })
   })
 
   it('shows empty required fields as errors only after a save attempt', () => {
@@ -98,18 +105,26 @@ describe('staff rows', () => {
 })
 
 describe('toNewLocation', () => {
-  it('saves the profile as warehouse parameters with sources and staff groups', () => {
+  it('saves the profile as warehouse parameters, horizon and staff groups (PRD 10.2)', () => {
     const created = toNewLocation(initial, params)
     expect(created).toMatchObject({ name: 'РЦ Химки', facilityType: 'warehouse', capexBudgetRub: 80_000_000, horizonYears: 5 })
     expect(created.parameters.wh_total_area).toEqual({ value: 20000, source: 'user' })
+    expect(created.parameters.wh_inbound_pallets).toEqual({ value: 1000, source: 'user' })
+    expect(created.parameters.wh_ceiling_height).toEqual({ value: 10, source: 'user' })
     expect(created.parameters.wh_annual_turnover).toEqual({ value: 0, source: 'assumption' })
     expect(created.parameters.wh_payroll_tax_coef).toEqual({ value: 1.302, source: 'organizer' })
-    expect(created.parameters.wh_packing_operators).toEqual({ value: 20, source: 'user' })
+    expect(created.parameters).not.toHaveProperty('wh_pickers')
+    expect(created.parameters).not.toHaveProperty('wh_packing_operators')
     expect(created.staffGroups).toEqual([
       { role: 'Отборщики (комплектовщики)', headcount: 100, salaryGrossMonthRub: 100000 },
       { role: 'Операторы погрузчиков', headcount: 25, salaryGrossMonthRub: 120000 },
       { role: 'Операторы упаковочных линий', headcount: 20, salaryGrossMonthRub: null },
     ])
+  })
+
+  it('uses the dataset horizon when the type has no horizon parameter', () => {
+    const withoutHorizon = indexParameters([...params.values()].filter((p) => p.code !== 'wh_horizon_years'))
+    expect(toNewLocation(initial, withoutHorizon).horizonYears).toBe(5)
   })
 })
 

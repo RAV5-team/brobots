@@ -22,6 +22,9 @@ type Service struct {
 	st   *store.Store
 	log  *slog.Logger
 	calc calc.Calculator
+	sim  Simulator
+	// guestSim runs guest simulations on the internal paths of services/simulation with the service token of api.
+	guestSim Simulator
 }
 
 // New creates the service; calculator computes fleet and economics for the orchestrator.

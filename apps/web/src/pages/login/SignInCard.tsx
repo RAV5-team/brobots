@@ -1,12 +1,12 @@
 import { useRef, useState, type SubmitEvent } from 'react'
 import { ActionButton } from '@/components/ui/ActionButton'
-import { Card } from '@/components/ui/Card'
 import { Field } from '@/components/ui/Field'
 import { Input } from '@/components/ui/Input'
 import { InvalidCredentialsError, type Credentials } from '@/services'
 import type { Profile } from '@/domain'
 import type { DemoAccount } from '@/shared/auth/demoAccounts'
 import { ru } from '@/shared/i18n/ru'
+import { LoginCard } from './LoginLayout'
 import { DemoAccessList } from './DemoAccessList'
 import { validateLogin, type LoginErrors } from './loginForm'
 
@@ -55,7 +55,7 @@ export function SignInCard({ demoAccounts, signIn, onSignedIn }: SignInCardProps
   }
 
   return (
-    <Card padding={28} gap={20} className="flex-1" aria-labelledby="login-cabinet-title">
+    <LoginCard labelledBy="login-cabinet-title">
       <p className="type-overline text-text-muted">{t.eyebrow}</p>
       <h2 id="login-cabinet-title" className="type-display-md text-text">
         {t.title}
@@ -88,6 +88,6 @@ export function SignInCard({ demoAccounts, signIn, onSignedIn }: SignInCardProps
           {pending ? t.submitting : t.submit}
         </ActionButton>
       </form>
-    </Card>
+    </LoginCard>
   )
 }

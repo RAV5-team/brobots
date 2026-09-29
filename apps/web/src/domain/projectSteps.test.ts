@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { canOpenStep, furthestStep, isReadOnly, PROJECT_STEPS, stepState } from './projectSteps'
+import {
+  canAdvanceTo, canOpenStep, furthestStep, isReadOnly, matchingStaleCause, PROJECT_STEPS, rewindStep,
+  stepAfterMatchingStale, stepState,
+} from './projectSteps'
 import type { Project, ProjectStep } from './project'
-import { emptyInputs } from './projectInputsRules'
+import { applyInputsPatch, emptyInputs } from './projectInputsRules'
 
 const base = {
   id: 'PJ-X', name: 'x', locationId: 'LOC-01', locationProcessId: 'LP-01', updatedAt: '2026-09-26T09:00:00Z',
@@ -25,6 +28,13 @@ describe('шаги проекта', () => {
     expect(PROJECT_STEPS.map((s) => canOpenStep(draft, s))).toEqual([true, true, false, false])
   })
 
+  it('кнопка CTA открывает только следующий шаг, не через один', () => {
+    const draft = draftAt('params')
+    expect(PROJECT_STEPS.map((s) => canAdvanceTo(draft, s))).toEqual([false, true, false, false])
+    expect(canAdvanceTo(draftAt('matching'), 'simulation')).toBe(true)
+    expect(canAdvanceTo(saved, 'economics')).toBe(false)
+  })
+
   it('сохранённая оценка открывает все шаги, только просмотр (D-17)', () => {
     expect(PROJECT_STEPS.every((s) => canOpenStep(saved, s))).toBe(true)
     expect(isReadOnly(saved)).toBe(true)
@@ -40,5 +50,19 @@ describe('шаги проекта', () => {
   it('самый дальний шаг не уменьшается при возврате назад', () => {
     expect(furthestStep('simulation', 'params')).toBe('simulation')
     expect(furthestStep('matching', 'economics')).toBe('economics')
+  })
+
+  it('устаревший подбор сжимает дальний шаг: допущения — на параметры, расчёт — на подбор', () => {
+    expect(rewindStep('economics', 'params')).toBe('params')
+    expect(rewindStep('params', 'matching')).toBe('params')
+    const walked = applyInputsPatch(
+      { ...emptyInputs('2026-09-26T09:00:00.000Z'), matching: { calcParams: {}, selection: null, manualSolutionIds: [] } },
+      { matching: { calcParams: { utilization: 0.7 } } },
+      '2026-09-26T10:00:00.000Z',
+    )
+    expect(matchingStaleCause({ matching: { calcParams: { utilization: 0.7 } } }, walked)).toBe('calcParams')
+    expect(stepAfterMatchingStale('simulation', 'calcParams')).toBe('matching')
+    expect(stepAfterMatchingStale('simulation', 'params')).toBe('params')
+    expect(stepAfterMatchingStale('params', 'calcParams')).toBe('params')
   })
 })

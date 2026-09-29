@@ -90,7 +90,9 @@ export function LocationDocumentsPage() {
   }
 
   const isGuest = role === 'guest'
-  const action = isGuest ? null : (
+  // Демо-локация только для просмотра у всех ролей (ролевая модель, §4): документы не добавляются.
+  const readOnly = isGuest || state.location.isDemo === true
+  const action = readOnly ? null : (
     <div className="flex items-center gap-16">
       <UploadFeedback message={upload.message} />
       <input {...upload.inputProps} />
@@ -109,7 +111,7 @@ export function LocationDocumentsPage() {
         activeTab="documents"
         action={action}
       />
-      <DocumentsPanel documents={state.documents} canUpload={!isGuest} />
+      <DocumentsPanel documents={state.documents} canUpload={!readOnly} />
     </article>
   )
 }

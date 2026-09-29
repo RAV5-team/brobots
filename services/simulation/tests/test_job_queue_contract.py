@@ -12,6 +12,8 @@ import pytest
 from application import models
 
 _FIRST, _SECOND = "a" * 32, "b" * 32
+# Владелец заданий очереди в проверках, которые не про владение.
+_OWNER = "owner-sub"
 
 
 @pytest.fixture(
@@ -25,7 +27,9 @@ def _store_fixture(request):
 
 
 def _queue(store, job_id: str = _FIRST) -> str:
-    store.create_job(job_id, {"task": {}}, [{"name": "S"}], "sim-test")
+    store.create_job(
+        job_id, {"task": {}}, [{"name": "S"}], "sim-test", owner_sub=_OWNER
+    )
     return job_id
 
 
@@ -48,16 +52,16 @@ def _run(simulation_id: str = "c" * 32, index: int = 0) -> models.FinishedRun:
 def test_new_job_is_queued_with_empty_log(store):
     _queue(store)
 
-    job = store.get_job(_FIRST)
+    job = store.get_job(_FIRST, viewer=_OWNER)
 
     assert (job.status, list(job.log), job.workers) == ("queued", [], None)
     assert (job.simulation_ids, job.runs) == ((), ())
 
 
 def test_unknown_ids_are_not_found(store):
-    assert store.get_job(_FIRST) is None
-    assert store.get_run(_FIRST) is None
-    assert store.get_traces_gz(_FIRST) is None
+    assert store.get_job(_FIRST, viewer=_OWNER) is None
+    assert store.get_run(_FIRST, viewer=_OWNER) is None
+    assert store.get_traces_gz(_FIRST, viewer=_OWNER) is None
 
 
 def test_claim_takes_the_oldest_job_exactly_once(store):
@@ -81,7 +85,7 @@ def test_heartbeat_appends_log_and_sets_workers(store):
     assert store.heartbeat(_FIRST, job.lease, ["шаг 1", "шаг 2"], workers=2)
     assert store.heartbeat(_FIRST, job.lease, ["шаг 3"])
 
-    view = store.get_job(_FIRST)
+    view = store.get_job(_FIRST, viewer=_OWNER)
     assert view.status == "running"
     assert list(view.log) == ["шаг 1", "шаг 2", "шаг 3"]
     assert view.workers == 2
@@ -94,13 +98,14 @@ def test_finish_stores_runs_and_traces(store):
 
     assert store.finish_job(_FIRST, job.lease, [run], ["готово"])
 
-    view = store.get_job(_FIRST)
+    view = store.get_job(_FIRST, viewer=_OWNER)
     assert view.status == "done"
     assert view.simulation_ids == (run.simulation_id,)
     assert [dict(r) for r in view.runs] == [run.result]
     assert list(view.log) == ["готово"]
-    assert dict(store.get_run(run.simulation_id)) == run.result
-    assert store.get_traces_gz(run.simulation_id) == run.traces.gzip_json
+    assert dict(store.get_run(run.simulation_id, viewer=_OWNER)) == run.result
+    traces_gz = store.get_traces_gz(run.simulation_id, viewer=_OWNER)
+    assert traces_gz == run.traces.gzip_json
 
 
 def test_fail_keeps_field_errors(store):
@@ -110,7 +115,7 @@ def test_fail_keeps_field_errors(store):
 
     assert store.fail_job(_FIRST, job.lease, "Ошибка входа", field_errors, "…")
 
-    view = store.get_job(_FIRST)
+    view = store.get_job(_FIRST, viewer=_OWNER)
     assert (view.status, view.error) == ("error", "Ошибка входа")
     assert [dict(e) for e in view.errors] == field_errors
 
@@ -126,7 +131,7 @@ def test_stale_job_is_requeued_and_old_owner_is_fenced(store):
     assert not store.heartbeat(_FIRST, old.lease, ["опоздал"])
     assert not store.finish_job(_FIRST, old.lease, [_run()])
     assert not store.fail_job(_FIRST, old.lease, "поздно", None, None)
-    assert store.get_job(_FIRST).status == "running"
+    assert store.get_job(_FIRST, viewer=_OWNER).status == "running"
     assert store.heartbeat(_FIRST, new.lease, ["новый владелец"])
 
 
@@ -138,7 +143,7 @@ def test_stale_job_fails_after_max_attempts(store):
 
     assert store.requeue_stale(stale_after_s=0, max_attempts=2) == 1
 
-    view = store.get_job(_FIRST)
+    view = store.get_job(_FIRST, viewer=_OWNER)
     assert view.status == "error"
     assert "прерван" in view.error
 
@@ -155,12 +160,12 @@ def test_release_returns_job_without_spending_an_attempt(store):
     job = store.claim_next_job("w")
 
     assert store.release_job(_FIRST, job.lease)
-    assert store.get_job(_FIRST).status == "queued"
+    assert store.get_job(_FIRST, viewer=_OWNER).status == "queued"
     store.claim_next_job("w")
     store.requeue_stale(stale_after_s=0, max_attempts=2)
 
     # попытка потрачена одна — задание снова в очереди, а не в ошибке
-    assert store.get_job(_FIRST).status == "queued"
+    assert store.get_job(_FIRST, viewer=_OWNER).status == "queued"
 
 
 def test_released_owner_is_fenced_after_reclaim(store):
@@ -172,7 +177,7 @@ def test_released_owner_is_fenced_after_reclaim(store):
     assert new.lease != old.lease
     assert not store.heartbeat(_FIRST, old.lease, ["опоздал"])
     assert not store.release_job(_FIRST, old.lease)
-    assert store.get_job(_FIRST).status == "running"
+    assert store.get_job(_FIRST, viewer=_OWNER).status == "running"
 
 
 def test_finished_job_accepts_no_more_writes(store):
@@ -182,7 +187,7 @@ def test_finished_job_accepts_no_more_writes(store):
 
     assert not store.heartbeat(_FIRST, job.lease, ["после конца"])
     assert not store.fail_job(_FIRST, job.lease, "поздно", None, None)
-    assert store.get_job(_FIRST).status == "done"
+    assert store.get_job(_FIRST, viewer=_OWNER).status == "done"
 
 
 # --- владение: одинаково у двойника и PostgreSQL ----------------------------
@@ -216,10 +221,37 @@ def test_owned_job_and_its_run_are_visible_only_to_the_owner(
     assert all(x is not None for x in found) if visible else found == [None] * 3
 
 
-@pytest.mark.parametrize("viewer", ["alice", None], ids=["user", "guest"])
-def test_guest_job_is_visible_to_anyone_with_its_id(store, viewer):
+@pytest.mark.parametrize("viewer", ["alice", None], ids=["user", "no viewer"])
+def test_job_without_owner_is_visible_to_nobody(store, viewer):
     sim_id = _finished(store, _FIRST, owner_sub=None)
 
-    assert store.get_job(_FIRST, viewer=viewer) is not None
-    assert store.get_run(sim_id, viewer=viewer) is not None
-    assert store.get_traces_gz(sim_id, viewer=viewer) is not None
+    assert store.get_job(_FIRST, viewer=viewer) is None
+    assert store.get_run(sim_id, viewer=viewer) is None
+    assert store.get_traces_gz(sim_id, viewer=viewer) is None
+
+
+def test_guest_jobs_are_counted_while_active(store):
+    _finished(store, _FIRST, owner_sub=models.GUEST_OWNER)
+    store.create_job(
+        _SECOND,
+        {"task": {}},
+        [{"name": "S"}],
+        "sim-test",
+        owner_sub=models.GUEST_OWNER,
+    )
+
+    assert store.count_active(models.GUEST_OWNER) == 1
+    assert store.count_active("alice") == 0
+
+
+def test_purge_removes_old_guest_jobs_with_their_runs(store):
+    sim_id = _finished(store, _FIRST, owner_sub=models.GUEST_OWNER)
+    mine = _finished(store, _SECOND, owner_sub="alice")
+
+    assert store.purge_owner(models.GUEST_OWNER, 3600) == 0  # ещё свежее
+    assert store.purge_owner(models.GUEST_OWNER, 0) == 1
+
+    assert store.get_job(_FIRST, viewer=models.GUEST_OWNER) is None
+    assert store.get_run(sim_id, viewer=models.GUEST_OWNER) is None
+    assert store.get_traces_gz(sim_id, viewer=models.GUEST_OWNER) is None
+    assert store.get_run(mine, viewer="alice") is not None

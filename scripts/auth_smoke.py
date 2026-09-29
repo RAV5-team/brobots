@@ -28,14 +28,13 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
 ROOT = Path(__file__).resolve().parent.parent
-DEMO_USER = "user@example.com"
-DEMO_ADMIN = "admin@example.com"
+DEMO_USER = "demo@rav5.ru"
+DEMO_ADMIN = "admin@rav5.ru"
 ACCESS_TOKEN_LIFESPAN = 300
 # Таблиц в схеме Keycloak заведомо больше: признак, что Keycloak сам накатил миграции.
 MIN_KEYCLOAK_TABLES = 50
@@ -139,6 +138,8 @@ class Browser(Client):
     """Клиент rav5-web: authorization code + PKCE S256, формы входа и регистрации."""
 
     FORM_RE = re.compile(r'<form[^>]*id="(kc-form-login|kc-register-form)"[^>]*action="([^"]+)"', re.S)
+    # Тема rav5 (Keycloakify) рисует форму в браузере: адрес отправки — в kcContext на странице.
+    KC_CONTEXT_ACTION_RE = re.compile(r'"(loginAction|registrationAction)"\s*:\s*"([^"]+)"')
 
     def __init__(self, insecure: bool) -> None:
         super().__init__(insecure)
@@ -146,20 +147,31 @@ class Browser(Client):
         self.redirect_uri = f"{PUBLIC_URL}/"
 
     def open_form(self, endpoint: str = "auth") -> str:
+        resp = self.open_page(endpoint)
+        expect(resp.status == 200, f"страница {endpoint}: {resp.status}")
+        return resp.body
+
+    def open_page(self, endpoint: str = "auth") -> Resp:
         challenge = b64url(hashlib.sha256(self.verifier.encode()).digest())
         query = urllib.parse.urlencode({
             "client_id": "rav5-web", "redirect_uri": self.redirect_uri, "response_type": "code",
             "response_mode": "fragment", "scope": "openid", "state": secrets.token_hex(8),
             "nonce": secrets.token_hex(8), "code_challenge": challenge, "code_challenge_method": "S256",
         })
-        resp = self.request(f"{OIDC}/{endpoint}?{query}")
-        expect(resp.status == 200, f"страница {endpoint}: {resp.status}")
-        return resp.body
+        return self.request(f"{OIDC}/{endpoint}?{query}")
+
+    def form_action(self, page: str) -> str:
+        """Адрес формы входа или регистрации: из HTML стандартной темы или из kcContext темы rav5."""
+        match = self.FORM_RE.search(page)
+        if match is not None:
+            return html.unescape(match.group(2))
+        actions = dict(self.KC_CONTEXT_ACTION_RE.findall(page))
+        action = actions.get("registrationAction") or actions.get("loginAction")
+        expect(action is not None, "на странице нет формы Keycloak")
+        return json.loads(f'"{action}"')
 
     def post_form(self, page: str, fields: dict[str, str]) -> Resp:
-        match = self.FORM_RE.search(page)
-        expect(match is not None, "на странице нет формы Keycloak")
-        return self.request(html.unescape(match.group(2)), data=fields)
+        return self.request(self.form_action(page), data=fields)
 
     def submit(self, page: str, fields: dict[str, str]) -> str:
         resp = self.post_form(page, fields)
@@ -343,18 +355,17 @@ class Smoke:
         tokens = Browser(self.insecure).login(DEMO_ADMIN, ENV["DEMO_ADMIN_PASSWORD"])
         roles = realm_roles(jwt_claims(tokens["access_token"]))
         expect({"user", "admin"} <= roles, f"роли администратора: {sorted(roles)}")
-        return "admin@example.com: роли user + admin"
+        return f"{DEMO_ADMIN}: роли user + admin"
 
-    def t5_registration(self) -> str:
-        browser = Browser(self.insecure)
-        email = f"smoke-{uuid.uuid4().hex[:8]}@example.com"
-        password = f"Pw-{secrets.token_hex(6)}"
-        code = browser.submit(browser.open_form("registrations"), {
-            "email": email, "firstName": "Смоук", "lastName": "Тест",
-            "password": password, "password-confirm": password})
-        roles = realm_roles(jwt_claims(browser.exchange(code)["access_token"]))
-        expect("user" in roles and "admin" not in roles, f"роли нового пользователя: {sorted(roles)}")
-        return f"{email}: роль user"
+    def t5_registration_closed(self) -> str:
+        # Учётки выдают «по приглашению» (ролевая модель, §2): формы регистрации нет ни на странице входа,
+        # ни по прямому адресу /registrations.
+        login = Browser(self.insecure).open_form()
+        expect('"registrationAllowed":true' not in login.replace(" ", ""), "на странице входа включена регистрация")
+        page = Browser(self.insecure).open_page("registrations")
+        expect("kc-register-form" not in page.body and "registrationAction" not in page.body,
+               f"форма регистрации открыта: {page.status}")
+        return f"регистрация закрыта: /registrations → {page.status} без формы"
 
     def t14_service_token(self) -> str:
         form = {"grant_type": "client_credentials", "client_id": "rav5-api-internal",
@@ -419,6 +430,18 @@ class Smoke:
         expect("max-age=" in hsts, f"HSTS: {hsts!r}")
         return f"301 -> https, HSTS {hsts}"
 
+    def t23_no_secrets_on_login_pages(self) -> str:
+        # Тема rav5 (Keycloakify) кладёт переменные окружения в данные каждой страницы входа. Ни один пароль или
+        # секрет из .env не должен туда попасть — кроме паролей, которые явно отданы плашкам (DEMO_PLATES_*).
+        shown = {value for key, value in ENV.items() if key.startswith("DEMO_PLATES_") and value}
+        secrets_ = {key: value for key, value in ENV.items()
+                    if re.search(r"(PASSWORD|SECRET)$", key) and len(value) >= 6 and value not in shown}
+        pages = {"вход": Browser(self.insecure).open_form()}
+        leaks = [f"{key} на странице «{name}»" for name, page in pages.items() for key, value in secrets_.items() if value in page]
+        expect(not leaks, "секреты в HTML: " + ", ".join(sorted(leaks)))
+        plates = "плашки: " + ("пароли показаны явно (DEMO_PLATES_*)" if shown else "выключены")
+        return f"{len(secrets_)} секретов из .env не найдены на странице входа; {plates}"
+
     def t18_restart(self) -> str:
         tokens = Browser(self.insecure).login(DEMO_USER, ENV["DEMO_USER_PASSWORD"])
         gateway_before = started_at("gateway")
@@ -452,10 +475,11 @@ def main() -> int:
     runner.check("T4", "вход демо-пользователем (PKCE, страница на русском)", s.t4_login)
     runner.check("T7", "состав токенов пользователя", s.t7_token_claims)
     runner.check("T8", "роль admin у администратора платформы", s.t8_admin_role)
-    runner.check("T5", "регистрация нового пользователя", s.t5_registration)
+    runner.check("T5", "самостоятельной регистрации нет", s.t5_registration_closed)
     runner.check("T14", "сервисный токен client credentials", s.t14_service_token)
     runner.check("T17", "закрытые пути: DCR, health, админка", s.t17_closed_paths)
     runner.check("T21", "пароли в БД — хэши", s.t21_password_hashes)
+    runner.check("T23", "секреты .env не попадают на страницы входа", s.t23_no_secrets_on_login_pages)
     runner.check("T20", "выход из системы", s.t20_logout)
     runner.check("T22", "stand: редирект на https и HSTS", s.t22_stand)
     if args.restart:

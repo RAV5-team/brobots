@@ -6,9 +6,11 @@ import { SectionNav } from '@/components/ui/SectionNav'
 import type { SelectOption } from '@/components/ui/Select'
 import { TextLink } from '@/components/ui/TextLink'
 import type { HandlingMethod, OperationClassCode } from '@/domain'
-import { formatTime } from '@/shared/format'
+import { downloadText } from '@/shared/dom/download'
+import { formatNumber, formatTime } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { ProcessCheckRail, type CheckRailCopy, type CheckRow } from './ProcessCheckRail'
+import { applyProcessFile, processSheetCsv, type ProcessSheetCatalog } from './processSheet'
 import { ProcessSection } from './ProcessSection'
 import { ProcessStaffSection } from './ProcessStaffSection'
 import { CostsSection, RouteSection, VolumeSection } from './VolumeRouteSections'
@@ -40,8 +42,29 @@ interface ProcessFormLayoutProps {
  * Один на шаблон 09а и копию на локации 16 — PRD 10.4: «состав формы полностью совпадает».
  */
 export function ProcessFormLayout({ back, title, lead, state, canSave, hints, rail, ...options }: ProcessFormLayoutProps) {
-  const { form, errors, update, savedAt, activeId, select, submit, saving, message } = state
+  const { form, errors, update, savedAt, activeId, select, submit, saving, message, status, applyImported, rejectImported } = state
   const sectionProps = { form, errors, update, hints }
+  const catalog: ProcessSheetCatalog = {
+    classLocked: options.classLocked ?? false,
+    classes: options.classOptions,
+    categories: options.categoryOptions,
+    handlingMethods: options.handlingMethods,
+  }
+  const downloadTemplate = () => { downloadText(t.rail.excelFileName, processSheetCsv(form, catalog)) }
+  const importTemplate = (file: File) => {
+    void applyProcessFile(form, catalog, file).then((result) => {
+      if (!result.ok) {
+        rejectImported(t.rail.excelBadFile)
+        return
+      }
+      const count = formatNumber(result.applied)
+      const sample = result.unknown.slice(0, 3).join(', ')
+      applyImported(result.form, sample === '' ? t.rail.excelImported(count) : t.rail.excelUnknown(count, sample))
+    }).catch((error: unknown) => {
+      console.error('Не удалось прочитать шаблон процесса', error)
+      rejectImported(t.rail.excelReadFailed)
+    })
+  }
   return (
     <form noValidate onSubmit={(e) => { void submit(e) }} className="flex flex-col gap-16">
       <div className="flex items-center justify-between gap-16">
@@ -69,7 +92,16 @@ export function ProcessFormLayout({ back, title, lead, state, canSave, hints, ra
           <ProcessStaffSection {...sectionProps} handlingMethods={options.handlingMethods} payrollCoef={options.payrollCoef} />
           <CostsSection {...sectionProps} />
         </div>
-        <ProcessCheckRail copy={rail.copy} rows={rail.rows} canSave={canSave} saving={saving} message={message} />
+        <ProcessCheckRail
+          copy={rail.copy}
+          rows={rail.rows}
+          canSave={canSave}
+          saving={saving}
+          message={message}
+          status={status}
+          onDownloadTemplate={downloadTemplate}
+          onImportTemplate={importTemplate}
+        />
       </div>
     </form>
   )

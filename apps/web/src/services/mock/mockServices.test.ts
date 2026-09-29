@@ -110,10 +110,10 @@ describe('mock location service', () => {
   it('summarises every location for the list cards (PRD 10.1)', async () => {
     const summaries = await services.locations.listLocationSummaries()
     const pick = (id: string) => summaries.find((s) => s.locationId === id)
-    // РЦ Химки: 20 000 м², 180 чел, 2 × 11 ч, 5 процессов, 231 млн ₽; допущений 2 — как в форме (PRD 15 · №45).
+    // РЦ Химки: 20 000 м², 180 чел, 2 × 11 ч, 5 процессов, 231 млн ₽; допущений 3 — ровность, мощность, текучесть (PRD 15 · №45, PRD 10.2).
     expect(pick('LOC-01')).toMatchObject({
       totalAreaM2: 20000, staffTotal: 180, shiftsPerDay: 2, shiftHours: 11, processesCount: 5,
-      laborCostRubYear: 231_000_000, workersInProcesses: 145, assumptionsCount: 2, projectsCount: 4, projectsCompleted: 2,
+      laborCostRubYear: 231_000_000, workersInProcesses: 145, assumptionsCount: 3, projectsCount: 4, projectsCompleted: 2,
     })
     // Аэропорт: персонал — сумма групп 320 + 180, смены — из PRD 10.1 (в датасете режима нет).
     expect(pick('LOC-03')).toMatchObject({ staffTotal: 500, shiftsPerDay: 3, shiftHours: 8, processesCount: 3 })
@@ -137,8 +137,8 @@ describe('mock location service', () => {
       totalAreaM2: 20000, staffTotal: 180, processesCount: 0, laborCostRubYear: null, workersInProcesses: null,
       projectsCount: 0, projectsCompleted: 0,
     })
-    // Полнота — доля заполненных параметров типа объекта: у Химки 40 из 42.
-    expect(summary?.parametersCompletenessPct).toBe(95)
+    // Полнота — доля заполненных параметров типа объекта, включая пустые поля площадки.
+    expect(summary?.parametersCompletenessPct).toBe(83)
     // Фикстуры и другие экземпляры сервиса не меняются.
     expect(await services.locations.listLocations()).toHaveLength(4)
   })

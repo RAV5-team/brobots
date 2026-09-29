@@ -104,9 +104,12 @@ describe('ProjectsPage (экран A1)', () => {
     expect(screen.queryByRole('radio')).not.toBeInTheDocument()
   })
 
-  it('sends a guest to the catalog (D-82)', () => {
+  it('shows the guest the demo projects of the organizer (roles model §3)', async () => {
     renderPage('?as=guest')
-    expect(screen.getByTestId('location')).toHaveTextContent('/catalog')
+    expect(await screen.findByRole('heading', { name: 'Демо-проекты' })).toBeInTheDocument()
+    const open = await screen.findByRole('link', { name: 'Открыть демо-проект «Демо-проект · РЦ Химки»' })
+    expect(open).toHaveAttribute('href', '/projects/PJ-DEMO/params')
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument()
   })
 
   it('shows an error with retry when the service fails (D-07)', async () => {

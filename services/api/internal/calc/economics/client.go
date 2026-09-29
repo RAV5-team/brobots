@@ -31,9 +31,14 @@ type Client struct {
 	http *http.Client
 }
 
-// New creates a client for the service at baseURL; timeout bounds every call.
-func New(baseURL string, timeout time.Duration) *Client {
-	return &Client{base: strings.TrimSuffix(baseURL, "/"), http: &http.Client{Timeout: timeout}}
+// New creates a client for the service at baseURL; timeout bounds every call. auth, when set, wraps the transport to
+// add the service token of api (the service accepts only it); nil sends the calls without a token.
+func New(baseURL string, timeout time.Duration, auth func(http.RoundTripper) http.RoundTripper) *Client {
+	var transport http.RoundTripper = http.DefaultTransport
+	if auth != nil {
+		transport = auth(transport)
+	}
+	return &Client{base: strings.TrimSuffix(baseURL, "/"), http: &http.Client{Timeout: timeout, Transport: transport}}
 }
 
 // ModelVersion is the calculation model the service runs now.
@@ -70,8 +75,12 @@ func (c *Client) Calculate(ctx context.Context, req calc.Request) (calc.Response
 		}
 		return resp, nil
 	}
+	path := PathEvaluations
+	if req.DryRun {
+		path += "?dry_run=true" // the service calculates without saving a snapshot
+	}
 	var snap snapshotDTO
-	if err := c.do(ctx, http.MethodPost, PathEvaluations, p.payload, &snap); err != nil {
+	if err := c.do(ctx, http.MethodPost, path, p.payload, &snap); err != nil {
 		return calc.Response{}, err
 	}
 	resp.ModelVersion = snap.Result.ModelVersion

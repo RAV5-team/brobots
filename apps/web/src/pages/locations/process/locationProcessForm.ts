@@ -116,7 +116,12 @@ export function siteValues({ defaults, process, operationClass, location, parame
     template: {
       ...template,
       category: { ...template.category, facilityType: location.facilityType },
-      ...(base && { peakFactor: base.peakFactor, minAisleWidthM: base.rackAisle, workTimeLossShare: base.workTimeLossPct / PERCENT }),
+      ...(base && {
+        peakFactor: base.peakFactor,
+        minAisleWidthM: base.rackAisle,
+        workTimeLossShare: base.workTimeLossPct / PERCENT,
+        staffTurnoverShare: base.turnoverPct / PERCENT,
+      }),
       ...(salary != null && { fleetOperatorSalaryRub: salary }),
     },
     workers: template.staff,

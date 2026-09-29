@@ -6,6 +6,8 @@ import { toMatchingEvaluation } from './matching'
 export interface EconomicsExtras {
   readonly conditions: readonly ConditionRow[]
   readonly operationsPerDay: number
+  /** База, если расчёт её не прислал (мок-модель api): ФОТ исполнителей задачи из снимка. */
+  readonly baselineOpexRubPerYear?: number | null
 }
 
 /**
@@ -38,7 +40,8 @@ export function toEconomics(dto: ApiSchemas['Evaluation'], solutionId: string, e
   const details = dto.candidates
     ?.flatMap((c) => c.results ?? [])
     .find((r) => r.solutionId === solutionId)?.details
-  const baseline = required(details ?? {}, 'baselineOpexYearRub', 'CalcResult.details')
+  const baseline = details?.baselineOpexYearRub ?? extras.baselineOpexRubPerYear
+    ?? required(details ?? {}, 'baselineOpexYearRub', 'CalcResult.details')
   const recommended = evaluation.recommended
   return {
     solutionId,

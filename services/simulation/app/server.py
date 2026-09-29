@@ -49,6 +49,13 @@ def main() -> None:
                 daemon=True,
             ).start()
         started = runtime.start_workers(repo, settings, stop, settings.workers)
+        cleanup = threading.Thread(
+            target=runtime.purge_guest_jobs,
+            args=(repo, settings, stop),
+            name="guest-cleanup",
+            daemon=True,
+        )
+        cleanup.start()
         _log.info(
             "Шаг «Симуляция»: http://localhost:%d (воркеров: %d, %s)",
             settings.port,
@@ -61,6 +68,7 @@ def main() -> None:
             loop.stop_threads(started, stop)
             for thread, _ in started:
                 thread.join()
+            cleanup.join()
             pool.close()
 
     services = runtime.http_services(
@@ -68,6 +76,7 @@ def main() -> None:
         verifier,
         settings.internal_caller_azp,
         runtime.dev_principal(settings),  # TODO(dev-auth)
+        settings.guest_max_active,
     )
     app = web_server.create_app(services, lifespan)
     try:

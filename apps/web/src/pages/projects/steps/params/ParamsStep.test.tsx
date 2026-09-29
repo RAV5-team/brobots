@@ -28,6 +28,15 @@ const matchButton = () => screen.getByRole('button', { name: 'Подобрать
 afterEach(() => { sessionStorage.clear() })
 
 describe('Шаг 1 «Параметры проекта» (доска 16325, экран 1.1; PRD 11.2)', () => {
+  it('«Подобрать решения» записывает следующий шаг и открывает подбор', async () => {
+    const services = createMockServices({ latencyMs: 0 })
+    const openStep = vi.spyOn(services.projects, 'openStep')
+    renderAt('/projects/PJ-DEMO/params?as=user', services)
+    fireEvent.click(await screen.findByRole('button', { name: 'Подобрать решения' }))
+    await waitFor(() => { expect(openStep).toHaveBeenCalledWith('PJ-DEMO', 'matching') })
+    expect(await screen.findByText('другая страница')).toBeInTheDocument()
+  })
+
   it('демо-проект: три блока, выбран процесс проекта, группы свёрнуты, подбор выполним', async () => {
     renderAt('/projects/PJ-DEMO/params?as=user')
     expect(await screen.findByRole('heading', { name: '1. Выбор процесса' })).toBeInTheDocument()
@@ -71,6 +80,16 @@ describe('Шаг 1 «Параметры проекта» (доска 16325, эк
     expect(within(popover).getByRole('link', { name: 'Изменить процесс в профиле' })).toHaveAttribute('href', '/locations/LOC-01/processes/LP-05')
   })
 
+  it('«↓» у незаполненного значения скроллит к строке на шаге (PRD 11.2)', async () => {
+    renderAt('/projects/PJ-07/params?as=user')
+    const button = await screen.findByRole('button', { name: 'Перейти к значению: частота пересчёта' })
+    const target = document.getElementById('param-recountsPerMonth')
+    expect(target).not.toBeNull()
+    const scroll = vi.spyOn(target as HTMLElement, 'scrollIntoView')
+    fireEvent.click(button)
+    expect(scroll).toHaveBeenCalled()
+  })
+
   it('пользователь: смена процесса сохраняется в черновик (D-21, D-94)', async () => {
     const services = createMockServices({ latencyMs: 0 })
     const selectProcess = vi.spyOn(services.projects, 'selectProcess')
@@ -81,14 +100,17 @@ describe('Шаг 1 «Параметры проекта» (доска 16325, эк
     expect(matchButton()).toBeEnabled()
   })
 
-  it('гость: выбор работает на странице, но не сохраняется (D-14)', async () => {
+  it('гость: процесс демо-проекта закреплён, профиль процесса не правится (ролевая модель, §5)', async () => {
     const services = createMockServices({ latencyMs: 0 })
     const selectProcess = vi.spyOn(services.projects, 'selectProcess')
     renderAt('/projects/PJ-DEMO/params?as=guest', services)
-    fireEvent.click(await screen.findByRole('radio', { name: 'Упаковка' }))
-    expect(screen.getByRole('radio', { name: 'Упаковка' })).toBeChecked()
-    expect(screen.queryByText(/Черновик сохранён/)).not.toBeInTheDocument()
+    const packing = await screen.findByRole('radio', { name: 'Упаковка' })
+    expect(screen.getByRole('radiogroup', { name: 'Процесс проекта' })).toHaveAttribute('aria-readonly', 'true')
+    fireEvent.click(packing)
+    expect(packing).not.toBeChecked()
     expect(selectProcess).not.toHaveBeenCalled()
+    expect(screen.queryByRole('link', { name: 'Изменить процесс в профиле' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Черновик сохранён/)).not.toBeInTheDocument()
   })
 
   it('«всё раскрыто» (16992:10): группы, разбор нагрузки и все параметры локации открыты, поповер закрыт', async () => {

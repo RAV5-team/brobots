@@ -126,6 +126,9 @@ type (
 	idPath struct {
 		ID string `path:"id" format:"uuid"`
 	}
+	jobPath struct {
+		JobID string `path:"jobId" pattern:"^[0-9a-f]{32}$"`
+	}
 	capPath struct {
 		ID    string `path:"id" format:"uuid"`
 		CapID string `path:"capId" format:"uuid"`
@@ -228,7 +231,7 @@ func Operations() []op {
 		{http.MethodGet, "/readyz", "service", "Готовность: доступность базы", "", nil, nil, new(Health), 200, []int{503}},
 		{http.MethodGet, "/api/v1/dictionaries", "dictionaries", "Все справочники для выпадающих списков", "", nil, nil, new(Dictionaries), 200, nil},
 		{http.MethodGet, "/api/v1/versions", "dictionaries", "Текущие версии каталога и справочников", "Для строки «Версия данных» и закрепления в проекте (ТЗ 3.1.5).", nil, nil, new(VersionList), 200, nil},
-		{http.MethodGet, "/api/v1/dashboard/summary", "dashboard", "Сводка дашборда", "foundSavingsRubYear пока null — его посчитает оркестратор оценки.", nil, nil, new(domain.Dashboard), 200, nil},
+		{http.MethodGet, "/api/v1/dashboard/summary", "dashboard", "Сводка дашборда", "foundSavingsRubYear — сумма годового эффекта сохранённых оценок (resultSummary); null — сохранённых оценок с эффектом нет.", nil, nil, new(domain.Dashboard), 200, nil},
 
 		{http.MethodGet, "/api/v1/norms", "norms", "Текущие нормативы расчёта", "Экран А5 (PRD 6.8): значение, единица, тип (норматив или допущение) и источник каждого норматива. Новые проекты закрепляют эту версию. Доли — от 0 до 1, веса рейтинга — в процентах, в сумме 100.", nil, nil, new(domain.NormSet), 200, notFound},
 		{http.MethodGet, "/api/v1/norm-sets", "norms", "Версии нормативов", "Новые сверху.", nil, nil, new(NormSetList), 200, nil},
@@ -241,7 +244,7 @@ func Operations() []op {
 		{http.MethodPatch, "/api/v1/work-types/{id}", "work-types", "Изменить класс операции", "JSON merge patch: переданные поля заменяются, null очищает. Связи идут по id — переименование их не ломает.", new(idPath), new(service.WorkTypeInput), new(domain.WorkType), 200, withBodyNF},
 		{http.MethodDelete, "/api/v1/work-types/{id}", "work-types", "Скрыть класс операции", "Класс не удаляется: роботы и процессы продолжают на него ссылаться.", new(idPath), nil, nil, 204, notFound},
 
-		{http.MethodGet, "/api/v1/data-sources", "data-sources", "Источники данных", "Экран A6.", nil, nil, new(DataSourceList), 200, nil},
+		{http.MethodGet, "/api/v1/data-sources", "data-sources", "Источники данных", "Экран A6. Только администратор.", nil, nil, new(DataSourceList), 200, nil},
 		{http.MethodPost, "/api/v1/data-sources", "data-sources", "Добавить источник", "Экраны A7/A7б. Загрузка файла и проверка ссылки — вне рамок сервиса.", nil, new(service.DataSourceInput), new(domain.DataSource), 201, withBody},
 		{http.MethodGet, "/api/v1/data-sources/{id}", "data-sources", "Источник данных", "", new(idPath), nil, new(domain.DataSource), 200, notFound},
 		{http.MethodPatch, "/api/v1/data-sources/{id}", "data-sources", "Изменить источник", "JSON merge patch.", new(idPath), new(service.DataSourceInput), new(domain.DataSource), 200, withBodyNF},
@@ -289,7 +292,7 @@ func Operations() []op {
 		{http.MethodGet, "/api/v1/projects", "projects", "Проекты", "", new(projectsQuery), nil, new(ProjectPage), 200, []int{400}},
 		{http.MethodPost, "/api/v1/projects", "projects", "Создать проект", "Ровно одна задача. Фиксируется снимок локации и задачи и версии каталога и справочников. pinnedSolutionId — вход «Проверить на своём объекте».", nil, new(service.ProjectCreateInput), new(domain.Project), 201, withBodyNF},
 		{http.MethodGet, "/api/v1/projects/{id}", "projects", "Проект", "dataChanged — локация или задача изменились после снимка; catalogUpdated — доступна новая версия каталога.", new(idPath), nil, new(domain.Project), 200, notFound},
-		{http.MethodPatch, "/api/v1/projects/{id}", "projects", "Изменить проект", "JSON merge patch: название и горизонт. Статус меняют save и reopen; горизонт сохранённого проекта не меняется (409).", new(idPath), new(service.ProjectPatchInput), new(domain.Project), 200, withBodyNF},
+		{http.MethodPatch, "/api/v1/projects/{id}", "projects", "Изменить проект", "JSON merge patch: название, горизонт, задача, шаг и решения по шагам (inputs заменяются целиком). Статус меняют save и reopen; у сохранённого проекта меняется только название (409).", new(idPath), new(service.ProjectPatchInput), new(domain.Project), 200, withBodyNF},
 		{http.MethodDelete, "/api/v1/projects/{id}", "projects", "Удалить проект", "", new(idPath), nil, nil, 204, notFound},
 		{http.MethodPost, "/api/v1/projects/{id}/copy", "projects", "Копировать проект", "Со снимком, условиями и ручными кандидатами.", new(idPath), nil, new(domain.Project), 201, notFound},
 		{http.MethodPost, "/api/v1/projects/{id}/refresh-snapshot", "projects", "Обновить снимок", "«Данные изменились — пересчитать»: перечитывает локацию и задачу, снимает выбор робота (его цифры посчитаны на старых данных). Только для черновика.", new(idPath), nil, new(domain.Project), 200, draftOnly},
@@ -303,11 +306,22 @@ func Operations() []op {
 		{http.MethodGet, "/api/v1/projects/{id}/manual-candidates", "matching", "Решения, добавленные вручную", "", new(idPath), nil, new(ManualList), 200, notFound},
 		{http.MethodPost, "/api/v1/projects/{id}/manual-candidates", "matching", "Добавить решение вручную", "ТЗ 3.4.4: решение проверяется и показывается с предупреждением.", new(idPath), new(service.ManualCandidateInput), new(ManualList), 201, withBodyNF},
 		{http.MethodDelete, "/api/v1/projects/{id}/manual-candidates/{solutionId}", "matching", "Убрать решение, добавленное вручную", "", new(manualPath), nil, nil, 204, draftOnly},
-		{http.MethodPost, "/api/v1/projects/{id}/evaluate", "orchestrator", "Рассчитать подбор", "Вкладка «Подбор»: подбор по снимку проекта и расчёт парка и экономики каждого кандидата (прошёл, требует проверки, добавлен вручную) для покупки и RaaS. Поля кандидатов замораживаются во входе расчёта. Новый расчёт снимает выбор робота. 503 — сервис расчёта не ответил, прогон подбора при этом сохранён.", new(idPath), nil, new(service.Evaluation), 201, []int{404, 409, 503}},
+		{http.MethodPost, "/api/v1/projects/{id}/evaluate", "orchestrator", "Рассчитать подбор", "Вкладка «Подбор»: подбор по снимку проекта и расчёт парка и экономики каждого кандидата (прошёл, требует проверки, добавлен вручную) для покупки и RaaS. Поля кандидатов замораживаются во входе расчёта. calcOverrides — «Параметры расчёта» проекта (PRD 11.3), заменяют прежние; поля робота относятся к solutionId. Выбор робота переносится на новый расчёт, если вариант снова посчитан, иначе снимается. 503 — сервис расчёта не ответил, прогон подбора при этом сохранён.", new(idPath), new(service.EvaluateInput), new(service.Evaluation), 201, []int{404, 409, 422, 503}},
 		{http.MethodGet, "/api/v1/projects/{id}/evaluation", "orchestrator", "Последний расчёт подбора", "Читает сохранённые цифры, калькулятор не вызывается. stale — параметры проекта изменились после расчёта, modelOutdated — ядро расчёта обновилось.", new(idPath), nil, new(service.Evaluation), 200, notFound},
 		{http.MethodPut, "/api/v1/projects/{id}/selection", "orchestrator", "Выбрать робота", "Только из результатов последнего актуального расчёта. Поля робота копируются в snapshot.robot из входа расчёта. solutionId: null снимает выбор.", new(idPath), new(service.SelectionInput), new(domain.Project), 200, withBodyNF},
 		{http.MethodPost, "/api/v1/projects/{id}/save", "orchestrator", "Сохранить проект", "draft → saved: закрепляет снимок с выбранным роботом, расчёт и версию ядра. Нужен выбор по актуальному расчёту.", new(idPath), nil, new(domain.Project), 200, []int{404, 409}},
 		{http.MethodPost, "/api/v1/projects/{id}/reopen", "orchestrator", "Открыть проект для изменений", "saved → draft. Сохранённые расчёты остаются в истории.", new(idPath), nil, new(domain.Project), 200, notFound},
+		{http.MethodPost, "/api/v1/projects/{id}/simulation-runs", "simulation", "Запустить симуляцию выбранной конфигурации", "Шаг «Симуляция» (PRD 11.4): вход собирается из снимка проекта, выбранного робота и его расчёта; fleet — состав этапа 1 (пусто — из расчёта), conditions — условия этапа 2. Прогон ставится в очередь services/simulation от имени автора проекта; гость проверяет демо-проект через preview. 409 — вариант не выбран или проект сохранён, 422 — симуляция не приняла вход, 503 — сервис симуляции не ответил.", new(idPath), new(service.SimulationRunInput), new(service.SimulationRun), 201, []int{404, 409, 422, 503}},
+		{http.MethodPost, "/api/v1/projects/{id}/preview", "preview", "Расчёт демо-проекта без сохранения", "Гость (роли §5): подбор и расчёт парка и экономики демо-проекта с условиями задачи taskConditions и «Параметрами расчёта» calcOverrides из тела; пусто — как в проекте. Ничего не сохраняется: ни в api, ни в сервисе экономики; идентификаторы в ответе одноразовые. Ответ — как у evaluate. 403 — проект не демо.", new(idPath), new(service.PreviewInput), new(service.Evaluation), 200, []int{403, 404, 422, 503}},
+		{http.MethodPost, "/api/v1/projects/{id}/preview/simulation-runs", "preview", "Симуляция демо-проекта без сохранения", "Гость (роли §5): api пересчитывает демо-проект как в preview, берёт вариант solutionId + acquisitionModel и ставит задание в services/simulation от своего имени. В api ничего не сохраняется, задание удаляется в services/simulation через 24 ч. 409 — вариант не посчитан на этих условиях, 429 — демо-симуляций сейчас много.", new(idPath), new(service.PreviewSimulationInput), new(service.PreviewSimulationRun), 201, []int{403, 404, 409, 422, 429, 503}},
+		{http.MethodGet, "/api/v1/preview/simulation-runs/{jobId}", "preview", "Ход демо-симуляции", "Задание знают по его id: журнал строками и секунды; done — есть simulationId.", new(jobPath), nil, new(service.PreviewSimulationRun), 200, []int{404, 503}},
+		{http.MethodGet, "/api/v1/preview/simulation-runs/{jobId}/result", "preview", "Результат демо-симуляции", "SimulationRun services/simulation как есть.", new(jobPath), nil, new(map[string]any), 200, []int{404, 409, 503}},
+		{http.MethodGet, "/api/v1/preview/simulation-runs/{jobId}/traces", "preview", "2D-трассы демо-симуляции", "Как у /simulation-runs/{id}/traces.", new(jobPath), nil, new([]map[string]any), 200, []int{404, 409, 503}},
+		{http.MethodGet, "/api/v1/simulation-runs/{id}", "simulation", "Ход прогона симуляции", "Опрашивает задание services/simulation, пока оно в очереди или идёт: журнал строками и секунды. done — есть simulationId, результат и трассы. stale — параметры проекта изменились после запуска.", new(idPath), nil, new(service.SimulationRun), 200, []int{404, 503}},
+		{http.MethodDelete, "/api/v1/simulation-runs/{id}", "simulation", "Остановить прогон", "services/simulation не отменяет задание: api помечает прогон cancelled и не читает его результат. 409 — прогон уже завершён.", new(idPath), nil, nil, 204, []int{404, 409}},
+		{http.MethodGet, "/api/v1/simulation-runs/{id}/result", "simulation", "Результат прогона", "SimulationRun services/simulation как есть: вердикт, состав было → стало, KPI, загрузка по часам, поправки (services/simulation/docs/openapi.json).", new(idPath), nil, new(map[string]any), 200, []int{404, 409, 503}},
+		{http.MethodGet, "/api/v1/simulation-runs/{id}/traces", "simulation", "2D-трассы прогона", "Массив трасс simcore/viz.export_trace для 2D-плеера: из подбора и, если состав изменился, итоговая. С Accept-Encoding: gzip — сжатыми.", new(idPath), nil, new([]map[string]any), 200, []int{404, 409, 503}},
+		{http.MethodPost, "/api/v1/projects/{id}/quote-request", "orchestrator", "Запросить коммерческое предложение", "По выбранной конфигурации (08b): отметка quoteRequestedAt. Оценку не меняет — доступно и сохранённому проекту. 409 — вариант не выбран.", new(idPath), nil, new(domain.Project), 200, []int{404, 409}},
 		{http.MethodGet, "/api/v1/projects/{id}/evaluation-context", "matching", "Контекст для оркестратора оценки", "Снимок, условия и подходящие кандидаты последнего прогона с полными данными каталога.", new(idPath), nil, new(service.EvaluationContext), 200, notFound},
 	}
 }
@@ -331,6 +345,10 @@ func AccessOf(method, path string) Access {
 	switch {
 	case !strings.HasPrefix(path, "/api/v1/"):
 		return Public
+	case strings.HasPrefix(path, "/api/v1/data-sources"):
+		return Admin // the source registry is part of the admin section, reading too (roles model §4)
+	case strings.Contains(path, "/preview"):
+		return Guest // a guest recalculates a demo project without saving (roles model §5): the service allows demo only
 	case method == http.MethodGet:
 		return Guest
 	case strings.HasPrefix(path, "/api/v1/processes"):

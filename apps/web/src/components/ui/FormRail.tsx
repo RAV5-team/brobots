@@ -1,5 +1,5 @@
 import { ArrowRight } from 'lucide-react'
-import { useId, type ReactNode } from 'react'
+import { useId, useRef, type ChangeEvent, type ReactNode } from 'react'
 import { Button } from './Button'
 import { MergedButton } from './MergedButton'
 
@@ -15,8 +15,14 @@ export interface FormRailSubmit {
 export interface FormRailExcel {
   readonly importLabel: string
   readonly templateLabel: string
-  /** Почему Excel недоступен — до экрана загрузки (PRD 9.4, 6.4). */
+  /** Пояснение: почему кнопки недоступны или как заполнить шаблон. */
   readonly note: string
+  /** Имя скрытого поля файла для скринридера. */
+  readonly fileLabel?: string
+  /** Скачать шаблон. Без обработчика кнопка недоступна. */
+  readonly onDownload?: () => void
+  /** Загрузить заполненный шаблон. Без обработчика кнопка недоступна. */
+  readonly onImport?: (file: File) => void
 }
 
 interface FormRailProps {
@@ -30,7 +36,7 @@ interface FormRailProps {
   readonly status?: string | null
   /** Главное действие — отправка формы («Сохранить …»). */
   readonly submit?: FormRailSubmit
-  /** Импорт из Excel и шаблон — пока недоступны, с пояснением. */
+  /** Импорт из Excel и шаблон. Без обработчиков кнопки недоступны, с пояснением. */
   readonly excel?: FormRailExcel
   /** Прочее под действиями. */
   readonly children?: ReactNode
@@ -43,7 +49,13 @@ interface FormRailProps {
 export function FormRail({ label, summary, message, status, submit, excel, children }: FormRailProps) {
   const submitNoteId = useId()
   const excelNoteId = useId()
+  const fileRef = useRef<HTMLInputElement>(null)
   const submitNote = submit?.note ?? null
+  const chooseFile = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (file) excel?.onImport?.(file)
+  }
   return (
     <aside aria-label={label} className="sticky top-24 flex w-(--rav-form-rail-width) shrink-0 flex-col gap-16 self-start">
       {summary}
@@ -62,8 +74,11 @@ export function FormRail({ label, summary, message, status, submit, excel, child
       {submitNote && <p id={submitNoteId} className={submit?.noteHidden ? 'sr-only' : 'type-caption text-text-secondary'}>{submitNote}</p>}
       {excel && (
         <>
-          <Button className="w-full" disabled aria-describedby={excelNoteId}>{excel.importLabel}</Button>
-          <Button className="w-full" disabled aria-describedby={excelNoteId}>{excel.templateLabel}</Button>
+          <Button className="w-full" disabled={excel.onImport === undefined} aria-describedby={excelNoteId} onClick={() => { fileRef.current?.click() }}>{excel.importLabel}</Button>
+          <Button className="w-full" disabled={excel.onDownload === undefined} aria-describedby={excelNoteId} onClick={() => { excel.onDownload?.() }}>{excel.templateLabel}</Button>
+          {excel.onImport && (
+            <input ref={fileRef} type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="sr-only" aria-label={excel.fileLabel ?? excel.importLabel} onChange={chooseFile} />
+          )}
           <p id={excelNoteId} className="type-caption text-text-muted">{excel.note}</p>
         </>
       )}

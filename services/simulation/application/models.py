@@ -10,6 +10,11 @@ from collections.abc import Mapping, Sequence
 import dataclasses
 from typing import Any
 
+# Владелец заданий, которые api ставит за гостя демо-проекта (роли, §5). sub
+# Keycloak — UUID, поэтому с этой меткой он не совпадает. Такие задания видны
+# только внутренним путям и удаляются по сроку хранения.
+GUEST_OWNER = "guest"
+
 
 @dataclasses.dataclass(frozen=True)
 class ClaimedJob:

@@ -21,23 +21,52 @@ const CIRCLE: Record<ActionButtonTone, string> = {
  * Кнопка-капсула на всю ширину: подпись слева, круг 48 со стрелкой справа (components.md: ActionButton; 15935:68, 15935:101).
  * Состояния по D-02: наведение — фон на шаг темнее, нажатие — выпуклая тень меняется на вдавленную.
  */
-export function ActionButton({ tone = 'default', icon: Icon = ArrowRight, className, type = 'button', children, ...rest }: ActionButtonProps) {
+export function ActionButton({ tone = 'default', icon, className, type = 'button', children, ...rest }: ActionButtonProps) {
   return (
     <button
       type={type}
       className={clsx(
-        'group flex w-full items-center justify-between gap-12 rounded-full bg-bg ring-1 ring-highlight ring-inset py-8 pr-24 pl-28 text-text shadow-raised-md',
-        'transition-[background-color,box-shadow] not-disabled:hover:bg-surface-muted not-disabled:active:shadow-inset-sm',
+        ACTION_CAPSULE,
+        'not-disabled:hover:bg-surface-muted not-disabled:active:shadow-inset-sm',
         'disabled:cursor-not-allowed disabled:opacity-(--rav-disabled-opacity)',
         className,
       )}
       {...rest}
     >
+      <ActionContent tone={tone} icon={icon}>{children}</ActionContent>
+    </button>
+  )
+}
+
+interface ActionLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
+  readonly href: string
+  readonly tone?: ActionButtonTone
+  readonly icon?: LucideIcon
+  readonly children: ReactNode
+}
+
+/** Та же капсула ссылкой — переход на другой адрес («Продолжить», «Начать вход заново» в теме входа Keycloak). */
+export function ActionLink({ tone = 'default', icon, className, children, ...rest }: ActionLinkProps) {
+  return (
+    <a className={clsx(ACTION_CAPSULE, 'hover:bg-surface-muted active:shadow-inset-sm', className)} {...rest}>
+      <ActionContent tone={tone} icon={icon}>{children}</ActionContent>
+    </a>
+  )
+}
+
+const ACTION_CAPSULE = clsx(
+  'group flex w-full items-center justify-between gap-12 rounded-full bg-bg ring-1 ring-highlight ring-inset py-8 pr-24 pl-28 text-text shadow-raised-md',
+  'transition-[background-color,box-shadow]',
+)
+
+function ActionContent({ tone, icon: Icon = ArrowRight, children }: { readonly tone: ActionButtonTone; readonly icon: LucideIcon | undefined; readonly children: ReactNode }) {
+  return (
+    <>
       <span className={clsx('type-heading', tone === 'strong' ? 'font-semibold' : 'font-medium')}>{children}</span>
       <span aria-hidden className={clsx('flex size-48 shrink-0 items-center justify-center rounded-full transition-colors', CIRCLE[tone])}>
         <Icon size={16} />
       </span>
-    </button>
+    </>
   )
 }
 

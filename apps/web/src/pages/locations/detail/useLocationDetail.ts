@@ -11,24 +11,27 @@ export type LocationDetailState =
   | { readonly status: 'notFound' }
   | ({ readonly status: 'ready' } & LocationDetailData)
 
-/** Локация, затем справочники, процессы площадки и проекты параллельно. */
+/** Локация и её сводка одним `GET /locations/{id}`, проекты только этой площадки, затем параметры типа объекта. */
 async function loadLocationDetail(services: Services, locationId: LocationId | null): Promise<LocationDetailData> {
   const id = requireId(locationId, 'location')
-  const location = await services.locations.getLocation(id)
-  const [summaries, facilityTypes, processes, locationProcesses, operationClasses, robotsByClass, projects, parameters] =
+  const [location, summary, facilityTypes, processes, locationProcesses, operationClasses, robotsByClass] =
     await Promise.all([
-      services.locations.listLocationSummaries(),
+      services.locations.getLocation(id),
+      services.locations.getLocationSummary(id),
       services.locations.listFacilityTypes(),
       services.processes.listProcesses(),
       services.locations.listLocationProcesses(id),
       services.catalog.listOperationClasses(),
       services.catalog.countRobotsByClass(),
-      services.projects.listProjects(),
-      services.locations.listFacilityParameters(location.facilityType),
     ])
+  // У демо-локации — демо-проекты организатора, у своей — свои. Только эта площадка, не весь список.
+  const [projects, parameters] = await Promise.all([
+    services.projects.listProjects({ locationId: id, demo: location.isDemo === true }),
+    services.locations.listFacilityParameters(location.facilityType),
+  ])
   return {
     location,
-    summary: summaries.find((s) => s.locationId === id),
+    summary,
     facilityTypeName: facilityTypes.find((f) => f.code === location.facilityType)?.name ?? location.facilityType,
     facilityTypes,
     processes,

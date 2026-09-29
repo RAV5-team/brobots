@@ -36,7 +36,8 @@ describe('Sidebar', () => {
 
   it('shows the guest menu and new demo project button', () => {
     renderSidebar('guest')
-    expect(nav().getAllByRole('link').map((l) => l.textContent)).toEqual(['Демо-проекты5', 'Процессы12', 'Каталог20'])
+    // Ролевая модель, §3: дашборд, демо-проекты, процессы, локации и каталог — без интеграций и администрирования.
+    expect(nav().getAllByRole('link').map((l) => l.textContent)).toEqual(['Дашборд', 'Демо-проекты5', 'Процессы12', 'Локации4', 'Каталог20'])
     expect(screen.getByRole('link', { name: /Открыть демо-проект/ })).toBeInTheDocument()
   })
 

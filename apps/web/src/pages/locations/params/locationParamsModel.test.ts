@@ -5,6 +5,7 @@ import { LOCATIONS } from '@/mocks/fixtures/locations'
 import { readiness, validateLocation } from '../new/locationCheck'
 import { indexParameters, updateStaffRow } from '../new/locationForm'
 import { formFromLocation, toLocationUpdate } from './locationParamsModel'
+import { siteValuesFromLocation } from './siteProfileFields'
 
 const params = indexParameters(FACILITY_PARAMETERS.filter((p) => p.facilityType === 'warehouse'))
 const byId = (id: string): Location => {
@@ -23,7 +24,6 @@ describe('formFromLocation', () => {
 
     expect(form).toMatchObject({ facilityType: 'warehouse', name: 'РЦ Химки', city: 'Москва', address: 'Москва, Ленинградское ш., 12' })
     expect([form.totalArea, form.activeArea, form.shifts, form.shiftHours, form.peakFactor].map(digits)).toEqual(['20000', '10000', '2', '11', '1,5'])
-    // Текучести нет ни в профиле, ни в датасете — принятый 0 (допущение).
     expect(form.turnover).toBe('0')
   })
 
@@ -75,13 +75,29 @@ describe('toLocationUpdate', () => {
     expect(update.parameters).not.toHaveProperty('wh_floors')
   })
 
-  it('saves staff groups and their dataset parameters', () => {
+  it('saves staff groups; dataset staff codes stay out of parameters', () => {
     const base = formFromLocation(khimki, params)
     const form = { ...base, staff: updateStaffRow(base.staff, 'wh_packing_operators', { salary: '90 000' }) }
     const update = toLocationUpdate(form, params, khimki)
 
     expect(update.staffGroups).toContainEqual({ role: 'Операторы упаковочных линий', headcount: 20, salaryGrossMonthRub: 90000 })
-    expect(update.parameters.wh_pickers).toEqual({ value: 100, source: 'organizer' })
+    expect(update.parameters).not.toHaveProperty('wh_pickers')
+  })
+
+  it('saves a changed main aisle width without dropping the rest of the dataset profile', () => {
+    const site = { ...siteValuesFromLocation(khimki, [...params.values()]), wh_main_aisle_width: '4' }
+    const update = toLocationUpdate(formFromLocation(khimki, params), params, khimki, site)
+    expect(update.parameters.wh_main_aisle_width).toEqual({ value: 4, source: 'user' })
+    expect(update.parameters.wh_ceiling_height).toEqual({ value: 10, source: 'organizer' })
+  })
+
+  it('writes filled site_* values and drops empty ones (PRD 10.5)', () => {
+    const site = { ...siteValuesFromLocation(khimki, [...params.values()]), site_wifi_coverage: 'частично', site_aisle_min_m: '3' }
+    const update = toLocationUpdate(formFromLocation(khimki, params), params, khimki, site)
+
+    expect(update.parameters.site_wifi_coverage).toEqual({ value: 'частично', source: 'user' })
+    expect(update.parameters.site_aisle_min_m).toEqual({ value: 3, source: 'user' })
+    expect(update.parameters).not.toHaveProperty('site_floor_load_tm2')
   })
 
   it('changes only the basics of a non-warehouse location', () => {

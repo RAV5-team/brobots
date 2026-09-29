@@ -1,11 +1,14 @@
 import type { NewLocation, ParameterValue, StaffGroup } from '@/domain'
 import { formatNumber, parseDecimal } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
+import { siteFieldKind, siteSectionOf, type SiteGroup } from '../params/siteProfileFields'
 import {
   NUMERIC_KEYS,
   NUMERIC_SPECS,
   REQUIRED_TEXT,
   STAFF_PRESETS,
+  extraFields,
+  extraSections,
   isTurnoverAssumed,
   num,
   numericRange,
@@ -93,11 +96,35 @@ export function validateLocation(form: LocationForm, params: ParameterIndex, opt
   // Порядок на экране: сначала поля секции «Персонал» до таблицы, затем таблица, затем поля после неё.
   const beforeTable = numeric.filter(([key]) => !AFTER_TABLE.includes(key as NumericKey))
   const afterTable = numeric.filter(([key]) => AFTER_TABLE.includes(key as NumericKey))
-  return Object.fromEntries([...text, ...beforeTable, ...staffErrors(form.staff, options), ...afterTable])
+  return Object.fromEntries([...text, ...beforeTable, ...staffErrors(form.staff, options), ...afterTable, ...extraErrors(form, params)])
+}
+
+function extraErrors(form: LocationForm, params: ParameterIndex): [string, string][] {
+  const fields = extraFields(params)
+  const errors = fields.flatMap((field): [string, string][] => {
+    const raw = form.extras[field.code]?.trim() ?? ''
+    if (raw === '' || siteFieldKind(field) !== 'number') return []
+    const value = parseDecimal(raw)
+    if (value === null) return [[field.code, t.errors.number]]
+    if (field.valueType === 'integer' && !Number.isInteger(value)) return [[field.code, t.errors.integer]]
+    if (field.min !== null && field.max !== null && (value < field.min || value > field.max)) {
+      return [[field.code, t.errors.range(formatNumber(field.min, 3), formatNumber(field.max, 3))]]
+    }
+    return []
+  })
+  const min = parseDecimal(form.extras.site_temp_min_c ?? '')
+  const max = parseDecimal(form.extras.site_temp_max_c ?? '')
+  return min !== null && max !== null && min > max
+    ? [...errors, ['site_temp_max_c', ru.location.params.site.tempOrder]]
+    : errors
 }
 
 /** Секция, где стоит поле с ошибкой, — для перехода из панели готовности. */
-export function errorSection(key: string): SectionId {
+export function errorSection(key: string, parameters?: ParameterIndex): SectionId | SiteGroup | string {
+  const extra = parameters ? extraSections(parameters).find((section) => section.fields.some((field) => field.code === key)) : undefined
+  if (extra) return extra.id
+  const site = parameters ? siteSectionOf(key, [...parameters.values()]) : null
+  if (site) return site
   if (key === 'name' || key === 'city' || key === 'address') return 'basics'
   if (key in NUMERIC_SPECS) return NUMERIC_SPECS[key as NumericKey].section
   return 'staff'
@@ -117,7 +144,7 @@ export interface Readiness {
  * Счётчики панели «Готовность профиля» (PRD 10.2). Правило, снимающее противоречие PRD 15 · №44:
  * «N / M обязательных» — обязательные поля, заполненные без ошибки; «Заполнено полей» — непустые поля, верные или нет.
  * Поля: тип, название, город, адрес + 11 числовых + норматив начислений = 16 у склада; таблица групп — отдельное правило.
- * Допущения — значения с плашкой «допущение» (у склада — только текучесть, пока она принятый 0; PRD 15 · №45).
+ * Допущения панели формы — плашка у текучести, пока она принятый 0 (PRD 10.2). На карточке локации считаются все параметры с источником assumption.
  */
 export function readiness(form: LocationForm, errors: FormErrors, params: ParameterIndex): Readiness {
   const filledText = (key: 'name' | 'city' | 'address') => form[key].trim() !== ''
@@ -134,18 +161,25 @@ export function readiness(form: LocationForm, errors: FormErrors, params: Parame
   const filledNumeric = NUMERIC_KEYS.filter((key) => form[key].trim() !== '')
   const required = NUMERIC_KEYS.filter((key) => NUMERIC_SPECS[key].required)
   const payroll = payrollCoef(params) === null ? 0 : 1
+  const extras = extraFields(params)
+  const filledExtras = extras.filter((field) => (form.extras[field.code] ?? '').trim() !== '')
   return {
     requiredTotal: typeAndText.requiredTotal + required.length,
     requiredDone: typeAndText.requiredDone + required.filter((k) => filledNumeric.includes(k) && errors[k] === undefined).length,
-    filledTotal: typeAndText.filledTotal + NUMERIC_KEYS.length + payroll,
-    filled: typeAndText.filled + filledNumeric.length + payroll,
+    filledTotal: typeAndText.filledTotal + NUMERIC_KEYS.length + payroll + extras.length,
+    filled: typeAndText.filled + filledNumeric.length + payroll + filledExtras.length,
     errors: errorCount,
     assumptions: form.turnover.trim() !== '' && isTurnoverAssumed(form) ? 1 : 0,
-    optionalEmpty: typeAndText.optionalEmpty + NUMERIC_KEYS.filter((k) => !NUMERIC_SPECS[k].required && !filledNumeric.includes(k)).length,
+    optionalEmpty: typeAndText.optionalEmpty
+      + NUMERIC_KEYS.filter((k) => !NUMERIC_SPECS[k].required && !filledNumeric.includes(k)).length
+      + extras.length - filledExtras.length,
   }
 }
 
 const MILLION = 1_000_000
+/** Датасет склада, приложение А: горизонт ТЭО и ориентир CAPEX, если справочник тип объекта их не отдал. */
+const DEFAULT_HORIZON_YEARS = 5
+const DEFAULT_CAPEX_MLN = 80
 
 function numericParameters(form: LocationForm): [string, ParameterValue][] {
   return NUMERIC_KEYS.flatMap((key): [string, ParameterValue][] => {
@@ -156,18 +190,41 @@ function numericParameters(form: LocationForm): [string, ParameterValue][] {
   })
 }
 
-/** Стандартные группы дублируются в параметры датасета (wh_pickers, wh_picker_salary) — как у демо-локаций. */
-function presetParameters(staff: readonly StaffGroupRow[]): [string, ParameterValue][] {
-  return STAFF_PRESETS.flatMap((preset): [string, ParameterValue][] => {
-    const row = staff.find((r) => r.key === preset.headcountCode)
-    if (!row) return []
-    const headcount = parseDecimal(row.headcount)
-    const salary = parseDecimal(row.salary)
-    return [
-      ...(headcount === null ? [] : [[preset.headcountCode, { value: headcount, source: 'user' }] as [string, ParameterValue]]),
-      ...(salary === null || preset.salaryCode === null ? [] : [[preset.salaryCode, { value: salary, source: 'user' }] as [string, ParameterValue]]),
-    ]
+/** Коды групп персонала: в api это `staffGroups`, не `parameters` (PRD 10.2 — таблица ролей). */
+const STAFF_PARAMETER_CODES: ReadonlySet<string> = new Set(
+  STAFF_PRESETS.flatMap((p) => (p.salaryCode === null ? [p.headcountCode] : [p.headcountCode, p.salaryCode])),
+)
+
+/** Значения формы, которые api принимает как параметры типа объекта. */
+function extraParameters(form: LocationForm, params: ParameterIndex): [string, ParameterValue][] {
+  return extraFields(params).flatMap((field): [string, ParameterValue][] => {
+    const raw = form.extras[field.code]?.trim() ?? ''
+    if (raw === '') return []
+    if (siteFieldKind(field) === 'number') {
+      const value = parseDecimal(raw)
+      return value === null ? [] : [[field.code, { value, source: 'user' }]]
+    }
+    return [[field.code, { value: raw, source: 'user' }]]
   })
+}
+
+function profileParameters(form: LocationForm, params: ParameterIndex): Readonly<Record<string, ParameterValue>> {
+  const coef = payrollCoef(params)
+  const payroll: [string, ParameterValue][] = coef === null ? [] : [['wh_payroll_tax_coef', { value: coef, source: 'organizer' }]]
+  return Object.fromEntries(
+    [...numericParameters(form), ...payroll, ...extraParameters(form, params)]
+      .filter(([code]) => params.has(code) && !STAFF_PARAMETER_CODES.has(code)),
+  )
+}
+
+function datasetNumber(params: ParameterIndex, code: string, fallback: number): number {
+  const value = baseNumber(params, code)
+  return value > 0 ? value : fallback
+}
+
+function extraNumber(form: LocationForm, params: ParameterIndex, code: string, fallback: number): number {
+  const parsed = parseDecimal(form.extras[code] ?? '')
+  return parsed !== null && parsed > 0 ? parsed : datasetNumber(params, code, fallback)
 }
 
 function staffGroups(staff: readonly StaffGroupRow[]): readonly StaffGroup[] {
@@ -184,20 +241,18 @@ const baseNumber = (params: ParameterIndex, code: string): number => {
 }
 
 /**
- * Локация для `POST /locations`. Сохраняется только склад (D-36). Бюджет и горизонт на форме не задаются —
- * берём значения датасета, как у демо-локаций; меняются потом в параметрах проекта (PRD 11.1).
+ * Локация для `POST /locations` в модели api (PRD 10.2): поля склада, параметры справочника, группы персонала.
+ * Бюджет и горизонт на форме нет — из датасета (приложение А), иначе 80 млн ₽ и 5 лет.
  */
 export function toNewLocation(form: LocationForm, params: ParameterIndex): NewLocation {
-  const coef = payrollCoef(params)
-  const payroll: [string, ParameterValue][] = coef === null ? [] : [['wh_payroll_tax_coef', { value: coef, source: 'organizer' }]]
   return {
     name: form.name.trim(),
     city: form.city.trim(),
     address: form.address.trim(),
     facilityType: 'warehouse',
-    capexBudgetRub: baseNumber(params, 'wh_capex_budget') * MILLION,
-    horizonYears: baseNumber(params, 'wh_horizon_years'),
-    parameters: Object.fromEntries([...numericParameters(form), ...payroll, ...presetParameters(form.staff)]),
+    capexBudgetRub: extraNumber(form, params, 'wh_capex_budget', DEFAULT_CAPEX_MLN) * MILLION,
+    horizonYears: extraNumber(form, params, 'wh_horizon_years', DEFAULT_HORIZON_YEARS),
+    parameters: profileParameters(form, params),
     staffGroups: staffGroups(form.staff),
   }
 }

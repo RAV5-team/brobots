@@ -2,7 +2,7 @@
 
 Правила — docs/keycloak/middleware.md, раздел 3:
 
-    гость           — запрос без Authorization;
+    гость           — запрос без Authorization; пути заданий ему закрыты (401);
     присланный токен обязан быть валидным (401) даже там, где пускают гостя;
     сервисный токен на пользовательских путях — 403;
     внутренние пути — только сервисный токен от INTERNAL_CALLER_AZP, любой
@@ -109,6 +109,18 @@ async def optional_user(
     return principal
 
 
+async def require_user(request: fastapi.Request) -> models.Principal:
+    """Пользователь; гость — 401, сервисный токен — 403.
+
+    Задания пользователей видны только им, а гость проверяет демо-проект
+    через api: api ставит его задание на внутренний путь от своего имени.
+    """
+    principal = await optional_user(request)
+    if principal is None:
+        raise unauthorized()
+    return principal
+
+
 async def require_service(request: fastapi.Request) -> models.Principal:
     """Внутренние пути: только сервисный токен от INTERNAL_CALLER_AZP."""
     principal = await _principal(request)
@@ -121,4 +133,5 @@ async def require_service(request: fastapi.Request) -> models.Principal:
 OptionalUser = Annotated[
     models.Principal | None, fastapi.Depends(optional_user)
 ]
+User = Annotated[models.Principal, fastapi.Depends(require_user)]
 Service = Annotated[models.Principal, fastapi.Depends(require_service)]

@@ -23,6 +23,7 @@ func loadParameters(ctx context.Context, q store.Q) error {
 	defer f.Close() //nolint:errcheck // embedded read-only file
 	r := csv.NewReader(f)
 	r.Comma = ';'
+	r.FieldsPerRecord = -1
 	header, err := r.Read()
 	if err != nil {
 		return err
@@ -39,20 +40,42 @@ func loadParameters(ctx context.Context, q store.Q) error {
 		if err != nil {
 			return fmt.Errorf("parameters.csv: %w", err)
 		}
-		get := func(name string) string { return strings.TrimSpace(rec[col[name]]) }
+		get := func(name string) string {
+			i, ok := col[name]
+			if !ok || i >= len(rec) {
+				return ""
+			}
+			return strings.TrimSpace(rec[i])
+		}
 		d := domain.ParameterDefinition{
 			Code: get("code"), FacilityTypeCode: get("facility_type"), GroupName: get("group"), Name: get("name"),
 			Unit: optional(get("unit")), ValueType: get("value_type"), BaseValueNumber: optionalFloat(get("base_number")),
 			BaseValueText: optional(get("base_text")), MinValue: optionalFloat(get("min")), MaxValue: optionalFloat(get("max")),
-			IsRequired: get("is_required") == "true", IsConstant: get("is_constant") == "true", Role: optional(get("role")),
-			StaffRole: optional(get("staff_role")), StaffAttr: optional(get("staff_attr")), FormSection: get("form_section"),
-			SourceNote: optional(get("hint")),
+			EnumValues: splitList(get("enum")), IsRequired: get("is_required") == "true", IsConstant: get("is_constant") == "true",
+			Role: optional(get("role")), StaffRole: optional(get("staff_role")), StaffAttr: optional(get("staff_attr")),
+			FormSection: get("form_section"), SourceNote: optional(get("hint")),
+			RouteOnly: get("route_only") == "true", CheckedByMatching: get("checked_by_matching") == "true",
+			PairCode: optional(get("pair_code")),
 		}
 		d.Sort, _ = strconv.Atoi(get("sort"))
 		if err := q.SaveParameterDefinition(ctx, d); err != nil {
 			return fmt.Errorf("parameter %s: %w", d.Code, err)
 		}
 	}
+}
+
+func splitList(s string) []string {
+	if s == "" {
+		return []string{}
+	}
+	parts := strings.Split(s, "|")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func optional(s string) *string {
@@ -264,14 +287,19 @@ func loadCatalog(ctx context.Context, q store.Q, sources map[string]uuid.UUID) (
 		if isDemo {
 			code = sr.Code
 		}
-		if _, found, err := q.SolutionIDByCode(ctx, code); err != nil {
+		// Фото карточки — PNG из каталога организатора, имя файла совпадает с id строки CSV.
+		photoURL := "/catalog/" + id + ".png"
+		if existingID, found, err := q.SolutionIDByCode(ctx, code); err != nil {
 			return inserted, err
 		} else if found {
+			if err := q.SetSolutionPhotoIfEmpty(ctx, existingID, photoURL); err != nil {
+				return inserted, fmt.Errorf("solution %s photo: %w", code, err)
+			}
 			continue
 		}
 		sol := domain.Solution{ID: seedID("solution", code), Code: code, Kind: "robot", Name: first.Name,
 			Manufacturer: guillemets(first.Company), OrganizerIDs: []string{id}, IsActive: true,
-			SourceID: domain.Ptr(sources["catalog_v4"]), OrganizerScenarios: []string{}, AcquisitionModels: []string{"purchase", "raas"}}
+			PhotoURL: &photoURL, SourceID: domain.Ptr(sources["catalog_v4"]), OrganizerScenarios: []string{}, AcquisitionModels: []string{"purchase", "raas"}}
 		if first.Class == "software" {
 			sol.Kind = "software"
 			sol.CostType = domain.Ptr("capex")

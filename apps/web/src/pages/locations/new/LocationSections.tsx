@@ -1,19 +1,24 @@
+import type { FacilityParameter } from '@/domain'
 import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
 import { Field } from '@/components/ui/Field'
 import { FieldGrid, FormSection } from '@/components/ui/FormSection'
 import { Input } from '@/components/ui/Input'
 import { NumberField } from '@/components/ui/NumberField'
+import { Select } from '@/components/ui/Select'
 import { Segmented } from '@/components/ui/Segmented'
 import { formatNumber } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import type { FormErrors } from './locationCheck'
+import { siteFieldKind } from '../params/siteProfileFields'
 import {
   FACILITY_CHOICES,
   NUMERIC_SPECS,
+  extraSections,
   fieldDomId,
   isTurnoverAssumed,
   numericRange,
+  type ExtraSection,
   type FacilityChoice,
   type LocationForm,
   type NumericKey,
@@ -134,6 +139,59 @@ export function ScheduleSection(props: LocationSectionProps) {
  * Вместо секций 2–4 у аэропорта, медучреждения и своего объекта: их форм в макетах нет (PRD 10.2 [Предложение], D-36).
  * Утопленная плашка, как «Уточнения и проверки» 06.
  */
+const EMPTY = '__empty'
+
+function ExtraField({ field, form, errors, update }: LocationSectionProps & { readonly field: FacilityParameter }) {
+  const id = fieldDomId(field.code)
+  const value = form.extras[field.code] ?? ''
+  const error = errors[field.code]
+  const onChange = (text: string) => { update({ extras: { ...form.extras, [field.code]: text } }) }
+  const kind = siteFieldKind(field)
+  if (kind === 'number') {
+    const hint = field.min !== null && field.max !== null
+      ? `Допустимо ${formatNumber(field.min, 3)}–${formatNumber(field.max, 3)}`
+      : undefined
+    return (
+      <NumberField id={id} label={field.name} unit={field.unit || undefined} hint={hint} error={error} value={value} onChange={onChange} />
+    )
+  }
+  if (kind === 'select' && field.enumValues) {
+    const listed = field.enumValues.includes(value) || value === '' ? field.enumValues : [value, ...field.enumValues]
+    const options = [{ value: EMPTY, label: ru.location.params.site.noData }, ...listed.map((item) => ({ value: item, label: item }))]
+    return (
+      <Field id={id} label={field.name} error={error}>
+        <Select
+          aria-label={field.name}
+          options={options}
+          value={value === '' ? EMPTY : value}
+          onChange={(next) => { onChange(next === EMPTY ? '' : next) }}
+        />
+      </Field>
+    )
+  }
+  return (
+    <Field id={id} label={field.name} error={error}>
+      <Input autoComplete="off" value={value} onChange={(event) => { onChange(event.target.value) }} />
+    </Field>
+  )
+}
+
+/** Параметры справочника, которых нет в секциях 1–4: объёмы, хранение, проходы, пол, связь. */
+export function ExtraSections(props: LocationSectionProps) {
+  const sections: readonly ExtraSection[] = extraSections(props.params)
+  return (
+    <>
+      {sections.map((section, index) => (
+        <FormSection key={section.id} id={section.id} title={`${String(index + 5)}. ${section.title}`}>
+          <FieldGrid>
+            {section.fields.map((field) => <ExtraField key={field.code} field={field} {...props} />)}
+          </FieldGrid>
+        </FormSection>
+      ))}
+    </>
+  )
+}
+
 export function OtherTypeNotice({ facilityType, copy = t.otherType }: {
   readonly facilityType: Exclude<FacilityChoice, 'warehouse'>
   /** Тексты плашки: у формы 14 — «заведите склад», у сохранённой локации (17а) — что можно изменить. */

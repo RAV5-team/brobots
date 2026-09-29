@@ -63,9 +63,9 @@ describe('paramsView — шаг 1 «Параметры проекта» (PRD 11.
     expect(v.assumptions.map((a) => a.code)).not.toContain('operator_time_share_pct')
   })
 
-  it('25 параметров площадки в 5 группах; «нет данных» — ссылка в профиль, температура — одной строкой', () => {
+  it('параметры площадки из справочника в 5 группах; «нет данных» — ссылка в профиль, температура — одной строкой', () => {
     const rows = view('LP-01').siteGroups.flatMap((g) => g.rows)
-    expect(rows).toHaveLength(25)
+    expect(rows).toHaveLength(26)
     expect(rows.find((r) => r.key === 'site_floor_load_tm2')).toMatchObject({ value: null, origin: 'missing' })
     expect(plain(rows.find((r) => r.key === 'site_temp_min_c')?.value)).toBe('от +5 до +25 °C')
     expect(rows.find((r) => r.key === 'wh_main_aisle_width')).toMatchObject({ value: '3,5 м', origin: 'file' })

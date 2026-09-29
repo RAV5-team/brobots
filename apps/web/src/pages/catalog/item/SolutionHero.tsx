@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/Card'
 import { COMPARE_LIMIT, hasEntry, type CompareEntry } from '@/domain'
 import type { NewProjectContext } from '@/components/newProject/newProjectModel'
 import { useNewProjectLink } from '@/components/newProject/useNewProjectLink'
+import { useRole } from '@/shared/auth/useRole'
 import { useCompare } from '@/shared/compare/useCompare'
 import { ru } from '@/shared/i18n/ru'
 
@@ -36,6 +37,8 @@ interface SolutionHeroProps {
  * описание, «Добавить в сравнение» (как на К-1, D-67) и «Проверить на своём объекте», плитки фактов.
  */
 export function SolutionHero({ kicker, name, subtitle, photo, typeLabel, description, compareRef, checkOnSite, facts }: SolutionHeroProps) {
+  // «Проверить на объекте» открывает окно нового проекта — гостю его нет (ролевая модель, §4).
+  const isGuest = useRole() === 'guest'
   const newProjectLink = useNewProjectLink()
   const { entries, toggle } = useCompare()
   const inCompare = hasEntry(entries, compareRef)
@@ -70,7 +73,7 @@ export function SolutionHero({ kicker, name, subtitle, photo, typeLabel, descrip
               {inCompare && <Check aria-hidden size={16} />}
               {inCompare ? t.inCompare : t.addToCompare}
             </Button>
-            {checkOnSite && <ButtonLink to={newProjectLink(checkOnSite)} aria-haspopup="dialog">{t.checkOnSite}</ButtonLink>}
+            {checkOnSite && !isGuest && <ButtonLink to={newProjectLink(checkOnSite)} aria-haspopup="dialog">{t.checkOnSite}</ButtonLink>}
           </div>
         </div>
       </div>

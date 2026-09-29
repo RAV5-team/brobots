@@ -14,7 +14,8 @@ export type ProjectStepState =
 
 /**
  * Данные шага: проект и его локация. Открытый шаг запоминается (черновик хранит самый дальний, PRD 11.1);
- * закрытый шаг — перенаправление, неизвестный проект — «не найден», сбой — «Повторить» (D-07).
+ * следующий шаг записывает CTA через `openStep`; закрытый шаг по URL — перенаправление, неизвестный проект —
+ * «не найден», сбой — «Повторить» (D-07).
  */
 export function useProjectStep(rawProjectId: ProjectId | null, step: ProjectStep): { readonly state: ProjectStepState; readonly retry: () => void } {
   const services = useServices()

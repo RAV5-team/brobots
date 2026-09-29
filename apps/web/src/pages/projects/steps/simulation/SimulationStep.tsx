@@ -1,5 +1,5 @@
 import { useEffect, type ComponentProps, type ReactNode } from 'react'
-import { useNavigate, useSearchParams } from 'react-router'
+import { useSearchParams } from 'react-router'
 import { projectStepPath } from '@/app/routePaths'
 import { ButtonLink } from '@/components/ui/Button'
 import { Chip } from '@/components/ui/Chip'
@@ -11,13 +11,14 @@ import { SIMULATION_STAGES, isReadOnly, type Fleet, type SimulationRequest, type
 import { formatTime } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { useModelNorms } from '@/shared/norms/useModelNorms'
+import { useAdvanceStep } from '../useAdvanceStep'
 import { ProjectStepLayout } from '../ProjectStepLayout'
 import { demandOf } from '../matching/howCalculatedModel'
 import { findVariant } from '../matching/matchingModel'
 import { ConditionsStage } from './ConditionsStage'
 import { RunStage } from './RunStage'
 import { ChartsStage } from './charts/ChartsStage'
-import { CONDITION_DEFAULTS, conditionBases } from './conditionsModel'
+import { CONDITION_DEFAULTS, conditionBases, effectiveConditions } from './conditionsModel'
 import { ScopeRail, ScopeStage } from './ScopeStage'
 import {
   calcRows,
@@ -75,11 +76,11 @@ function StaleRunNotice({ runId }: { readonly runId: string }) {
  */
 export function SimulationStep({ project: initial, locationName, isGuest }: ProjectStepProps) {
   const readOnly = isReadOnly(initial)
-  const state = useSimulationStep(initial, !isGuest && !readOnly)
+  const advance = useAdvanceStep(initial.id, !readOnly)
+  const state = useSimulationStep(initial, !readOnly)
   const norms = useModelNorms()
   const { project, inputs, load } = state
   const [params, setParams] = useSearchParams()
-  const navigate = useNavigate()
   const requested = params.get('stage')
   const fallback: SimulationStage = state.run?.status === 'running' ? 'run' : inputs?.stage ?? 'scope'
   const stage: SimulationStage = isSimulationStage(requested) ? requested : fallback
@@ -175,7 +176,12 @@ export function SimulationStep({ project: initial, locationName, isGuest }: Proj
   const { demand } = demandOf(snapshot, evaluation, project)
   const fromMatching = matchingFleet(variant)
   const fleet = inputs?.fleet ?? fromMatching
-  const request: SimulationRequest = { fleet, conditions: inputs?.conditions ?? {} }
+  // На форме уже стоят значения задачи и пики по умолчанию. В прогон уходит то же самое: пустые поля сервис
+  // заменяет своим расписанием (по 3 ч пика в каждой смене), и оно не сходится с тем, что на экране.
+  const calcHours = evaluation.calcDefaults?.workHoursPerDay ?? demand?.hours ?? 24
+  const base = conditionBases({ snapshot, project, robot, calcHours, tolerance: norms.simulationTolerance }, project.inputs.params.assumptions)
+  const conditions = base ? effectiveConditions(base.bases, inputs?.conditions ?? {}) : (inputs?.conditions ?? {})
+  const request: SimulationRequest = { fleet, conditions }
   const run = () => {
     state.startRun(request)
     openStage('run')
@@ -211,11 +217,11 @@ export function SimulationStep({ project: initial, locationName, isGuest }: Proj
       onVerdict: state.setVerdict,
       onAccept: async () => {
         await state.commitVerdict()
-        await navigate(projectStepPath(project.id, 'economics'))
+        await advance.go('economics')
       },
       onRerun: (next: Fleet) => {
         state.setFleet(fleetToStore(next, fromMatching))
-        state.startRun({ fleet: next, conditions: inputs?.conditions ?? {} })
+        state.startRun({ fleet: next, conditions })
         openStage('run')
       },
       conditionsTo: `?${withStage(params, 'conditions').toString()}`,
@@ -239,8 +245,6 @@ export function SimulationStep({ project: initial, locationName, isGuest }: Proj
     )
   }
   if (stage === 'conditions') {
-    const calcHours = evaluation.calcDefaults?.workHoursPerDay ?? demand?.hours ?? 24
-    const base = conditionBases({ snapshot, project, robot, calcHours, tolerance: norms.simulationTolerance }, project.inputs.params.assumptions)
     if (!base) return layout(heading.title, <ErrorState title={t.loadError.title} message={t.loadError.message} onRetry={state.retry} />, heading.lead)
     return (
       <ConditionsStage
