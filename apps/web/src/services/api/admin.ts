@@ -4,8 +4,9 @@ import { dataSourceFromApi, dataSourceInput, normFromApi, normValueToApi } from 
 import { canAutoRefresh, type Norm } from '@/domain'
 import type { AdminService } from '../admin'
 import { NotFoundError, ValidationError } from '../errors'
+import { ru } from '@/shared/i18n/ru'
 
-const FILE_REFRESH = 'Автообновление доступно только для источника по ссылке — файл обновляется загрузкой нового'
+const FILE_REFRESH = ru.integration.adminFileRefresh
 const today = (): string => new Date().toISOString().slice(0, 10)
 
 /**

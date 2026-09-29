@@ -1,3 +1,5 @@
+import { ru } from '@/shared/i18n/ru'
+
 /** Поле формы, которое не прошло проверку сервиса: `errors[]` ответа API (ТЗ 4.5.4). */
 export interface FieldIssue {
   readonly field: string
@@ -83,7 +85,7 @@ export class UnauthorizedError extends Error {
 export class MissingApiError extends Error {
   override readonly name = 'MissingApiError'
   constructor(readonly service: string, readonly method: string) {
-    super(`В API нет ${service}.${method}`)
+    super(ru.integration.missingApi(service, method))
   }
 }
 

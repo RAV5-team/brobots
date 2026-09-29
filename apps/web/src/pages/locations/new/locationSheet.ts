@@ -21,7 +21,7 @@ import {
 const t = ru.locationNew
 
 /** Столбцы листа «Локация» (PRD 10.6). Пользователь меняет только «Значение». */
-const HEADERS = ['Код параметра', 'Группа', 'Параметр', 'Ед. изм.', 'Значение', 'Базовое значение', 'Min', 'Max', 'Обязательно', 'Примечание'] as const
+const HEADERS = t.sheet.headers
 const CODE_HEADER = HEADERS[0]
 const VALUE_HEADER = HEADERS[4]
 
@@ -32,8 +32,8 @@ const LOC_TYPE = 'loc_facility_type'
 /** Норматив платформы: в форме только для чтения, в файле — чтобы строка не потерялась. */
 const PAYROLL_CODE = 'wh_payroll_tax_coef'
 
-const YES = 'да'
-const NO = 'нет'
+const YES = t.sheet.yes
+const NO = t.sheet.no
 
 const TEXT_FIELDS: Readonly<Record<TextKey, { readonly code: string; readonly label: string }>> = {
   name: { code: LOC_NAME, label: t.text.name.label },
@@ -138,7 +138,7 @@ function sheetRows(form: LocationForm, params: ParameterIndex): string[][] {
   const basics = t.nav.basics
   const type = t.facilityType.options[form.facilityType]
   const head = [
-    plainRow(LOC_TYPE, basics, t.facilityType.label, '', type, '', YES, 'Склад, аэропорт, медучреждение или свой объект'),
+    plainRow(LOC_TYPE, basics, t.facilityType.label, '', type, '', YES, t.sheet.facilityTypes),
     ...REQUIRED_TEXT.map((key) => plainRow(TEXT_FIELDS[key].code, basics, TEXT_FIELDS[key].label, '', form[key], '', YES, '')),
     plainRow(TEXT_FIELDS.address.code, basics, TEXT_FIELDS.address.label, '', form.address, '', NO, ''),
   ]
@@ -249,4 +249,3 @@ function applyPatch(row: StaffGroupRow, patch: StaffPatch): StaffGroupRow {
     ...(patch.salary !== undefined ? { salary: patch.salary } : {}),
   }
 }
-

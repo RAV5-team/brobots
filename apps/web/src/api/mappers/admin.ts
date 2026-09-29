@@ -11,6 +11,7 @@ import { oneOf, required, type ApiSchemas } from '../contract'
 
 const PERCENT = 100
 /** Доли API экран А5 показывает процентами: «доля оборудования» → «% оборудования». */
+// i18n-scan-ignore: API unit prefix used only for wire-value mapping.
 const SHARE_PREFIX = 'доля'
 
 const isShare = (unit: string | undefined): boolean => (unit ?? '').startsWith(SHARE_PREFIX)

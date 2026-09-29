@@ -149,7 +149,7 @@ function ExtraField({ field, form, errors, update }: LocationSectionProps & { re
   const kind = siteFieldKind(field)
   if (kind === 'number') {
     const hint = field.min !== null && field.max !== null
-      ? `Допустимо ${formatNumber(field.min, 3)}–${formatNumber(field.max, 3)}`
+      ? ru.locationNew.fields.extraHint(`${formatNumber(field.min, 3)}–${formatNumber(field.max, 3)}`)
       : undefined
     return (
       <NumberField id={id} label={field.name} unit={field.unit || undefined} hint={hint} error={error} value={value} onChange={onChange} />

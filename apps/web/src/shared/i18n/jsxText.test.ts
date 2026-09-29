@@ -33,6 +33,15 @@ const literalText = (node: ts.Node): string | null => {
   return null
 }
 
+/** An explicit adjacent marker documents intentional Russian wire/domain matching tokens. */
+function isIgnoredLiteral(node: ts.Node, source: ts.SourceFile): boolean {
+  const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line
+  if (line === 0) return false
+  const starts = source.getLineStarts()
+  const previous = source.text.slice(starts[line - 1] ?? 0, (starts[line] ?? source.text.length) - 1)
+  return previous.includes('i18n-scan-ignore:')
+}
+
 /** Строка для разработчика: аргумент `console.*`, `new …Error(…)` или `throw`. */
 function isDeveloperText(node: ts.Node, source: ts.SourceFile): boolean {
   for (let parent = node.parent; !ts.isSourceFile(parent); parent = parent.parent) {
@@ -58,7 +67,7 @@ function cyrillicLiterals(code: string, fileName = 'file.tsx'): string[] {
       return
     }
     const trimmed = text.trim()
-    if (!CYRILLIC.test(trimmed) || NORMALIZATION.test(trimmed) || isDeveloperText(node, source)) return
+    if (!CYRILLIC.test(trimmed) || NORMALIZATION.test(trimmed) || isDeveloperText(node, source) || isIgnoredLiteral(node, source)) return
     found.push(`${String(source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1)}: ${trimmed}`)
   }
   visit(source)
@@ -85,6 +94,11 @@ describe('UI labels come from ru.ts (глоссарий)', () => {
       '// Комментарий',
       '<p>{ru.title}</p>',
     ].join('\n')
+    expect(cyrillicLiterals(code)).toEqual([])
+  })
+
+  it('allows a documented internal Russian matching token', () => {
+    const code = "// i18n-scan-ignore: API matching token, not a label.\nconst prefix = 'доля'"
     expect(cyrillicLiterals(code)).toEqual([])
   })
 

@@ -1,6 +1,7 @@
 import type Keycloak from 'keycloak-js'
 import type { Role } from '@/domain'
 import { setAccessTokenProvider } from './accessToken'
+import { ru } from '@/shared/i18n/ru'
 
 /** Realm Keycloak: `http://localhost/auth/realms/rav5`. Пусто — вход без Keycloak (гость, dev-режим api). */
 const OIDC_URL = (import.meta.env.VITE_OIDC_URL ?? '').replace(/\/+$/, '')
@@ -45,7 +46,7 @@ export function roleFromClaims(claims: TokenClaims): AuthUser['role'] {
 
 export function userFromClaims(claims: TokenClaims): AuthUser {
   const email = claims.email ?? null
-  return { name: claims.name || claims.preferred_username || email || 'Пользователь', email, role: roleFromClaims(claims) }
+  return { name: claims.name || claims.preferred_username || email || ru.roles.user, email, role: roleFromClaims(claims) }
 }
 
 let keycloak: Keycloak | null = null

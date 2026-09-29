@@ -1,5 +1,7 @@
-const CODE_HEADER = 'Код параметра'
-const VALUE_HEADER = 'Значение'
+import { ru } from '@/shared/i18n/ru'
+
+const CODE_HEADER = ru.locationNew.sheet.headers[0]
+const VALUE_HEADER = ru.locationNew.sheet.headers[4]
 
 /** Таблица из файла, который Excel сохраняет после правки шаблона: CSV, кодировка Windows или книга .xlsx. */
 export async function tableFromFile(buffer: ArrayBuffer): Promise<string[][]> {

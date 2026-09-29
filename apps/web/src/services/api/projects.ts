@@ -33,14 +33,15 @@ import type { ProcessService } from '../processes'
 import type { ProjectService } from '../projects'
 import { widthMarginM } from './processes'
 import { createDemoSession, type DemoSession, type DemoState } from './demoSession'
+import { ru } from '@/shared/i18n/ru'
 
 type ProjectDto = ApiSchemas['Project']
 type EvaluationDto = ApiSchemas['Evaluation']
 type SimulationRunDto = ApiSchemas['SimulationRun']
 type PreviewRunDto = ApiSchemas['PreviewSimulationRun']
 
-const READ_ONLY = 'Сохранённая оценка открывается только для просмотра — измените её в новом проекте на её основе'
-const DEMO_NOT_SAVED = 'Демо-проект не сохраняется — войдите, чтобы сохранить оценку в своём кабинете'
+const READ_ONLY = ru.integration.projects.readOnly
+const DEMO_NOT_SAVED = ru.integration.projects.demoNotSaved
 /** Задание services/simulation из гостевого прогона демо-проекта; у прогона api id — UUID с дефисами. */
 const PREVIEW_JOB = /^[0-9a-f]{32}$/u
 const now = (): string => new Date().toISOString()
@@ -67,11 +68,11 @@ function conditionsOf(dto: EvaluationDto, solutionId: string): readonly Conditio
     parameter: a.label ?? a.code ?? '',
     value: [a.value, a.unit].filter((part) => part != null && part !== '').join(' '),
     status: 'assumption',
-    source: 'Норматив модели RAV5',
+    source: ru.integration.projects.assumptionSource,
     acquisition: null,
     blocksConclusion: false,
-    impact: 'Значение принято по нормативу — цифры итога условные',
-    howToConfirm: 'Уточните значение в профиле локации или у поставщика и пересчитайте подбор',
+    impact: ru.integration.projects.assumptionImpact,
+    howToConfirm: ru.integration.projects.assumptionHowToConfirm,
   }))
 }
 

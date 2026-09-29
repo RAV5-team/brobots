@@ -8,7 +8,7 @@ import { NUMERIC_SPECS, replaceableMethods, type NumericKey, type ProcessForm, t
 const t = ru.processNew
 
 /** Столбцы листа «Процесс» — те же, что у локации (PRD 10.6). Пользователь меняет только «Значение». */
-const HEADERS = ['Код параметра', 'Группа', 'Параметр', 'Ед. изм.', 'Значение', 'Базовое значение', 'Min', 'Max', 'Обязательно', 'Примечание'] as const
+const HEADERS = t.sheet.headers
 const CODE_HEADER = HEADERS[0]
 const VALUE_HEADER = HEADERS[4]
 
@@ -21,9 +21,9 @@ const PROC_ROUTE = 'proc_route'
 const PROC_HANDLING = 'proc_handling'
 const PROC_INDOOR = 'proc_indoor'
 
-const YES = 'да'
-const NO = 'нет'
-const PROFILE_NOTE = 'Из профиля локации: в форме не меняется'
+const YES = t.sheet.yes
+const NO = t.sheet.no
+const PROFILE_NOTE = t.sheet.profileNote
 
 const VOLUME_KEYS = ['dailyVolume', 'workHours', 'peakFactor', 'automationPct'] as const satisfies readonly NumericKey[]
 const ROUTE_BEFORE_INDOOR = ['routeLengthM', 'speedLimitMps', 'widthMarginM', 'liftTripPct', 'liftWaitS'] as const satisfies readonly NumericKey[]
@@ -181,7 +181,7 @@ function staffRows(row: StaffRow): string[][] {
   const salary = row.salaryRub === null ? s.salaryMissing : formatNumber(row.salaryRub)
   return [
     choiceRow(`staff:${row.role}:selected`, 'staff', `${s.select}: ${row.role}`, yesNo(row.selected), false, ''),
-    choiceRow(`staff:${row.role}:headcount`, 'staff', `${s.headcount}: ${row.role}`, people, false, PROFILE_NOTE, 'чел.'),
+    choiceRow(`staff:${row.role}:headcount`, 'staff', `${s.headcount}: ${row.role}`, people, false, PROFILE_NOTE, t.sheet.people),
     choiceRow(`staff:${row.role}:salary`, 'staff', `${s.salary}: ${row.role}`, salary, false, PROFILE_NOTE, '₽'),
     choiceRow(`staff:${row.role}:share`, 'staff', s.timeShareLabel(row.role), row.timeSharePct, row.selected, s.note, '%'),
   ]

@@ -3,10 +3,11 @@ import type { HttpClient } from '@/api/http'
 import type { DashboardService } from '../dashboard'
 import type { SessionService } from '../session'
 import { PAGE_LIMIT } from './reference'
+import { ru } from '@/shared/i18n/ru'
 
-const SOURCE = 'ФЦ БАС'
+const SOURCE = ru.integration.overview.source
 
-const MISSING = 'нет в API'
+const MISSING = ru.integration.overview.missing
 
 /** Версии данных для блока «Версия данных» кабинета (ТЗ 3.1.5) — `GET /versions` и нормативы. */
 export function apiSession(http: HttpClient): Partial<SessionService> {

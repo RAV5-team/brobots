@@ -15,6 +15,7 @@ import type {
   WorkCategoryCode,
 } from '@/domain'
 import { oneOf, optional, required, type ApiSchemas } from '../contract'
+import { ru } from '@/shared/i18n/ru'
 
 type Summary = ApiSchemas['SolutionSummary']
 type Solution = ApiSchemas['Solution']
@@ -25,7 +26,7 @@ const HANDLING: readonly HandlingMethodCode[] = ['forks', 'platform', 'tow', 'bo
 const LAUNCH_TYPES: readonly LaunchItemType[] = ['infrastructure', 'software', 'service', 'support']
 const WORK_CATEGORIES: readonly WorkCategoryCode[] = ['internal_logistics', 'fulfillment', 'facility_maintenance', 'accounting_control', 'security']
 const LIST_SEPARATOR = /\s*[,;]\s*/u
-const SOURCE = 'Каталог RAV5 (services/api)'
+const SOURCE = ru.integration.catalogSource
 
 const readiness = (status: string | null | undefined): RobotReadiness => READINESS[status ?? ''] ?? 'unknown'
 const splitList = (text: string | null | undefined): readonly string[] => (text ?? '').split(LIST_SEPARATOR).filter(Boolean)
@@ -140,6 +141,7 @@ export function robotFromSolution(dto: Solution): Robot {
 /** Обязательная часть конфигурации по названию и типу позиции (D-63): в API категории нет. */
 function launchCategoryOf(type: LaunchItemType, name: string, solutionType: string): LaunchCategory | undefined {
   const text = `${name} ${solutionType}`.toLocaleLowerCase('ru')
+  // i18n-scan-ignore: source catalog values are classified here, never rendered as labels.
   if (type === 'infrastructure' && text.includes('зарядн')) return 'charging'
   if (type === 'software' && /fleet|управлени[ея] парк/u.test(text)) return 'fleet'
   if (type === 'software' && text.includes('wms')) return 'wms'

@@ -4,6 +4,7 @@ import { NewProjectDialog } from '@/components/newProject/NewProjectDialog'
 import { apiGaps, subscribeApiGaps } from '@/services/api/missing'
 import { useRole } from '@/shared/auth/useRole'
 import { SERVICES_MODE } from '@/shared/config/api'
+import { ru } from '@/shared/i18n/ru'
 import { activeNavKey } from './navigation'
 import { Sidebar } from './Sidebar'
 import { useShellData } from './useShellData'
@@ -14,7 +15,7 @@ function ApiGapBanner() {
   if (SERVICES_MODE !== 'api' || gaps.length === 0) return null
   return (
     <p role="status" className="type-body-sm rounded-xl border border-danger-border bg-danger-bg px-16 py-12 text-text">
-      Эти вызовы фронт больше не заполняет моками — в API их нет: {gaps.join(', ')}
+      {ru.integration.apiGap(gaps.join(', '))}
     </p>
   )
 }

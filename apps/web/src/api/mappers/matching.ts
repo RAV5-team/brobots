@@ -13,6 +13,7 @@ import type {
   VariantStatus,
 } from '@/domain'
 import { oneOf, optional, required, type ApiSchemas } from '../contract'
+import { ru } from '@/shared/i18n/ru'
 
 type EvaluatedCandidate = ApiSchemas['EvaluatedCandidate']
 type CalcResult = ApiSchemas['CalcResult']
@@ -142,7 +143,7 @@ function toExcluded(candidate: EvaluatedCandidate): ExcludedSolution {
 function toNotCalculated(candidate: EvaluatedCandidate): ExcludedSolution {
   const excluded = toExcluded(candidate)
   const reason = (candidate.results ?? []).map((r) => r.reason).find((r): r is string => Boolean(r)) ?? null
-  return { ...excluded, reasons: [...excluded.reasons, { code: 'calculation', label: 'Расчёт', status: 'fail', message: reason }] }
+  return { ...excluded, reasons: [...excluded.reasons, { code: 'calculation', label: ru.integration.calculation, status: 'fail', message: reason }] }
 }
 
 /** База сравнения — у всех результатов одна (текущий процесс); берём первую, где она есть. */

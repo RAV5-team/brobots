@@ -82,12 +82,14 @@ describe('Шаг 1 «Параметры проекта» (доска 16325, эк
 
   it('«↓» у незаполненного значения скроллит к строке на шаге (PRD 11.2)', async () => {
     renderAt('/projects/PJ-07/params?as=user')
-    const button = await screen.findByRole('button', { name: 'Перейти к значению: частота пересчёта' })
+    fireEvent.click(await screen.findByRole('button', { name: 'Блокирует подбор: Инвентаризация' }))
+    const popover = await screen.findByRole('dialog', { name: 'Подбор недоступен: нет частоты пересчёта' })
+    const button = within(popover).getByRole('button', { name: 'Перейти к значению: частота пересчёта' })
     const target = document.getElementById('param-recountsPerMonth')
     expect(target).not.toBeNull()
     const scroll = vi.spyOn(target as HTMLElement, 'scrollIntoView')
     fireEvent.click(button)
-    expect(scroll).toHaveBeenCalled()
+    await waitFor(() => { expect(scroll).toHaveBeenCalled() })
   })
 
   it('пользователь: смена процесса сохраняется в черновик (D-21, D-94)', async () => {

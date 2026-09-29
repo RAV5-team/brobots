@@ -23,6 +23,8 @@ const renderPage = (search = '', services: Services = createMockServices({ laten
 
 const cards = async () => within(await screen.findByRole('list', { name: 'Локации организации' })).getAllByRole('article')
 const cardNames = async () => (await cards()).map((c) => within(c).getByRole('heading').textContent)
+const textIs = (expected: string) => (_content: string, element: Element | null) =>
+  element !== null && element.textContent.replace(/\s+/gu, ' ').trim() === expected
 
 describe('LocationsPage (экран 12)', () => {
   it('shows the four demo locations, recently updated first (PRD 10.1)', async () => {
@@ -34,12 +36,12 @@ describe('LocationsPage (экран 12)', () => {
     renderPage()
     const card = within(await screen.findByRole('article', { name: 'РЦ Химки' }))
     expect(card.getByText('Склад · Москва')).toBeInTheDocument()
-    expect(card.getByText('2 допущения')).toBeInTheDocument()
-    expect(card.getByText('20 000 м²')).toBeInTheDocument()
+    expect(card.getByText(textIs('3 допущения'))).toBeInTheDocument()
+    expect(card.getByText(textIs('20 000 м²'))).toBeInTheDocument()
     expect(card.getByText('180 чел')).toBeInTheDocument()
     expect(card.getByText('2 × 11 ч')).toBeInTheDocument()
-    expect(card.getByText('231 млн ₽ / год')).toBeInTheDocument()
-    expect(card.getByText('затраты на персонал · 145 человек в операционных процессах')).toBeInTheDocument()
+    expect(card.getByText(textIs('231 млн ₽ / год'))).toBeInTheDocument()
+    expect(card.getByText(textIs('затраты на персонал · 145 человек в операционных процессах'))).toBeInTheDocument()
     expect(card.getByText('78 %')).toBeInTheDocument()
     expect(card.getByText('4 (2 завершено)')).toBeInTheDocument()
     expect(card.getByText('обновлено 14.09.2026')).toBeInTheDocument()
@@ -97,7 +99,7 @@ describe('LocationsPage · локация добавлена (экран 12а)',
   it('shows the success banner with the profile line from the dictionary (PRD 10.1; PRD 15 · №42)', async () => {
     const created = await renderAfterCreate()
     const banner = within(await screen.findByRole('status', { name: 'Локация «РЦ Подольск» создана' }))
-    expect(banner.getByText('Склад · Подольск · 20 000 м² · 180 сотрудников · профиль заполнен на 95 % — добавьте процессы'))
+    expect(banner.getByText(textIs('Склад · Подольск · 20 000 м² · 180 сотрудников · профиль заполнен на 83 % — добавьте процессы')))
       .toBeInTheDocument()
     expect(banner.queryByText(/RB-0224/)).not.toBeInTheDocument()
     expect(banner.getByRole('link', { name: 'Открыть локацию «РЦ Подольск»' })).toHaveAttribute('href', `/locations/${created.id}`)

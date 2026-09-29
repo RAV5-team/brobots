@@ -2,6 +2,7 @@ import type { Profile } from '@/domain'
 import { currentUser, login, type AuthUser } from '@/shared/auth/oidc'
 import type { Services } from '../index'
 import type { SessionService } from '../session'
+import { ru } from '@/shared/i18n/ru'
 
 /** «Анна Петрова» → «АП»; почта → первая буква. */
 export function initialsOf(name: string): string {
@@ -13,7 +14,7 @@ export function profileOf(user: AuthUser): Profile {
   return { role: user.role, name: user.name, initials: initialsOf(user.name), email: user.email, organization: null }
 }
 
-const GUEST_PROFILE: Profile = { role: 'guest', name: 'Гость', initials: 'Г', email: null, organization: null }
+const GUEST_PROFILE: Profile = { role: 'guest', name: ru.roles.guest, initials: ru.roles.guest[0] ?? '', email: null, organization: null }
 
 /**
  * Вход через Keycloak: signIn уводит на страницу входа (почта — подсказкой), профиль — из токена.

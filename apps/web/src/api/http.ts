@@ -7,6 +7,7 @@ import {
   ValidationError,
   type FieldIssue,
 } from '@/services/errors'
+import { ru } from '@/shared/i18n/ru'
 
 type QueryValue = string | number | boolean | readonly string[] | null | undefined
 export type Query = Readonly<Record<string, QueryValue>>
@@ -40,8 +41,8 @@ interface ProblemBody {
   readonly errors?: readonly { readonly field?: string; readonly message?: string; readonly hint?: string }[]
 }
 
-const FALLBACK_MESSAGE = 'Не удалось выполнить запрос, попробуйте ещё раз'
-const NETWORK_MESSAGE = 'Сервис недоступен. Проверьте подключение и повторите'
+const FALLBACK_MESSAGE = ru.integration.requestFailed
+const NETWORK_MESSAGE = ru.integration.networkUnavailable
 
 export function buildUrl(baseUrl: string, path: string, query?: Query): string {
   const params = new URLSearchParams()
