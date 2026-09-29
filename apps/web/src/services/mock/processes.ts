@@ -1,6 +1,6 @@
-import { modelNormsFrom, type Process, type ProcessCode, type ProcessRequirements } from '@/domain'
+import { modelNormsFrom, type Process, type ProcessCode } from '@/domain'
 import { NORMS } from '@/mocks/fixtures/norms'
-import { ENVIRONMENT_REQUIREMENTS, REQUIREMENTS_FROM_MOCKUP } from '@/mocks/fixtures/processRequirements'
+import { requirementsOf } from '@/mocks/fixtures/processRequirements'
 import { PROCESS_DEMO_TEXT, PROCESS_TEMPLATE_DEFAULTS } from '@/mocks/fixtures/processTemplateDefaults'
 import { PROCESSES } from '@/mocks/fixtures/processes'
 import { NotFoundError } from '../errors'
@@ -10,22 +10,6 @@ import { findOrReject, respond, type MockOptions } from './respond'
 /** Код по порядку в библиотеке: PR-0013 после двенадцати процессов источника. */
 function nextCode(processes: readonly Process[]): ProcessCode {
   return `PR-${String(processes.length + 1).padStart(4, '0')}`
-}
-
-/** Требования процесса без макета: масса — если есть груз, дистанция — если задана длина маршрута (D-33). */
-function requirementsOf(process: Process): ProcessRequirements {
-  const d = process.defaults
-  const drawn = REQUIREMENTS_FROM_MOCKUP[process.code] ?? {
-    required: [
-      ...(d.unitMassKg === undefined ? [] : [{ code: 'maxMass', unit: 'kg' } as const]),
-      { code: 'routeWidth', unit: 'm' },
-    ],
-    desirable: [
-      ...(d.routeLengthM === undefined ? [] : [{ code: 'avgDistance', unit: 'm' } as const]),
-      { code: 'peakFactor', unit: null },
-    ],
-  }
-  return { ...drawn, environment: ENVIRONMENT_REQUIREMENTS }
 }
 
 export function createMockProcesses(options: MockOptions): ProcessService {

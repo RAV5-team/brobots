@@ -1,6 +1,6 @@
 // Какие данные процесс запрашивает у локации (PRD 9.3, блок «Что нужно знать для подбора»).
 // В источниках списка нет: у «Перемещения паллет» он взят с макета 15935:1413, у остальных собирается из значений процесса (D-33).
-import type { ProcessCode, ProcessRequirement, ProcessRequirements } from '@/domain'
+import type { Process, ProcessCode, ProcessRequirement, ProcessRequirements } from '@/domain'
 
 /** Условия среды нужны жёстким проверкам любого процесса; задаёт их локация (PRD 10.5, PRD 15 · №46). */
 export const ENVIRONMENT_REQUIREMENTS: readonly ProcessRequirement[] = [
@@ -26,4 +26,20 @@ export const REQUIREMENTS_FROM_MOCKUP: Readonly<Partial<Record<ProcessCode, Omit
       { code: 'pickupPoints', unit: 'pcs' },
     ],
   },
+}
+
+/** Требования процесса без макета: масса — если есть груз, дистанция — если задана длина маршрута (D-33). */
+export function requirementsOf(process: Process): ProcessRequirements {
+  const defaults = process.defaults
+  const drawn = REQUIREMENTS_FROM_MOCKUP[process.code] ?? {
+    required: [
+      ...(defaults.unitMassKg === undefined ? [] : [{ code: 'maxMass', unit: 'kg' } as const]),
+      { code: 'routeWidth', unit: 'm' },
+    ],
+    desirable: [
+      ...(defaults.routeLengthM === undefined ? [] : [{ code: 'avgDistance', unit: 'm' } as const]),
+      { code: 'peakFactor', unit: null },
+    ],
+  }
+  return { ...drawn, environment: ENVIRONMENT_REQUIREMENTS }
 }
