@@ -60,6 +60,27 @@ describe('createHttpClient', () => {
     expect(new Headers(fetch.mock.calls[0]?.[1]?.headers).has('Authorization')).toBe(false)
   })
 
+  it('reuses a GET that is already in flight and fetches again after it settles', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>().mockImplementation(() => Promise.resolve(json(200, { ok: true })))
+    const http = createHttpClient({ baseUrl: '/api/v1', fetch })
+    const [first, second] = await Promise.all([http.get('/projects', { limit: 500 }), http.get('/projects', { limit: 500 })])
+    expect(first).toEqual({ ok: true })
+    expect(second).toBe(first)
+    expect(fetch).toHaveBeenCalledOnce()
+    await http.get('/projects', { limit: 500 })
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not reuse a GET that failed', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(json(500, { detail: 'нет' }))
+      .mockResolvedValueOnce(json(200, { ok: true }))
+    const http = createHttpClient({ baseUrl: '', fetch })
+    await expect(http.get('/projects')).rejects.toThrow()
+    await expect(http.get('/projects')).resolves.toEqual({ ok: true })
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
   it('reports 401 and a network failure', async () => {
     const onUnauthorized = vi.fn()
     const unauthorized = createHttpClient({

@@ -195,10 +195,13 @@ export function apiProjects(http: HttpClient, deps: Dependencies): Partial<Proje
 
   return {
     listProjects: async (options) => {
-      const page = await http.get<ApiSchemas['ProjectPage']>('/projects', { limit: 500 })
+      const page = await http.get<ApiSchemas['ProjectPage']>('/projects', {
+        limit: 500, ...(options?.locationId ? { locationId: options.locationId } : {}),
+      })
       return (page.items ?? [])
         .filter((p) => (p.isDemo === true) === (options?.demo === true))
         .map(toDomain)
+        .filter((p) => options?.locationId === undefined || p.locationId === options.locationId)
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     },
 

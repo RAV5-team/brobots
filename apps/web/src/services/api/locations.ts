@@ -17,7 +17,15 @@ import { PAGE_LIMIT, type Reference } from './reference'
 
 /** Локации, параметры и процессы на площадке (PRD 10) — `/locations`, `/tasks`, `/facility-types`. */
 export function apiLocations(http: HttpClient, reference: Reference): Partial<LocationService> {
-  const page = () => http.get<ApiSchemas['LocationPage']>('/locations', { limit: PAGE_LIMIT }).then((p) => p.items ?? [])
+  // Список и сводки читают один `GET /locations`. Пока запрос летит, повтор его же и ждёт.
+  let list: Promise<readonly ApiSchemas['Location'][]> | null = null
+  const page = (): Promise<readonly ApiSchemas['Location'][]> => {
+    if (list) return list
+    const request = http.get<ApiSchemas['LocationPage']>('/locations', { limit: PAGE_LIMIT }).then((p) => p.items ?? [])
+    list = request
+    void request.then(() => { list = null }, () => { list = null })
+    return request
+  }
   const parameters = (id: string) => http.get<ApiSchemas['LocationParameters']>(`/locations/${id}/parameters`).then(parametersFromApi)
   const withParameters = async (dto: ApiSchemas['Location']): Promise<Location> =>
     locationFromApi(dto, await parameters(idOf(dto)))
@@ -27,6 +35,7 @@ export function apiLocations(http: HttpClient, reference: Reference): Partial<Lo
   return {
     listLocations: async () => (await page()).map((dto) => locationFromApi(dto)),
     getLocation: async (id) => withParameters(await http.get<ApiSchemas['Location']>(`/locations/${id}`)),
+    getLocationSummary: async (id) => summaryFromApi(await http.get<ApiSchemas['Location']>(`/locations/${id}`)),
     createLocation: async (input) => withParameters(await http.post<ApiSchemas['Location']>('/locations', locationInput(input))),
     updateLocation: async (id, input) => {
       await http.patch<ApiSchemas['Location']>(`/locations/${id}`, {

@@ -43,7 +43,7 @@ export function createMockCatalog(options: MockOptions): CatalogService {
       robots = [...robots, created]
       return respond(created, options)
     },
-    listLaunchItems: () => respond(LAUNCH_ITEMS, options),
+    listLaunchItems: (types) => respond(types === undefined ? LAUNCH_ITEMS : LAUNCH_ITEMS.filter((item) => types.includes(item.type)), options),
     listOperationClasses: () => respond(classes, options),
     createOperationClass: (input) => {
       const created: OperationClass = { ...input, code: nextOperationClassCode(classes.map((c) => c.code)) }

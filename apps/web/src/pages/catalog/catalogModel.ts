@@ -26,6 +26,11 @@ const TAB_ITEM_TYPES: Record<Exclude<CatalogTab, 'robots'>, readonly LaunchItemT
   services: ['service', 'support'],
 }
 
+/** Виды позиций вкладки. У «Роботов» пусто: на старте каталог их не запрашивает. */
+export function launchTypesOf(tab: CatalogTab): readonly LaunchItemType[] {
+  return tab === 'robots' ? [] : TAB_ITEM_TYPES[tab]
+}
+
 export const INDUSTRIES = ru.catalog.industries
 
 export type ReadinessFilter = Exclude<RobotReadiness, 'unknown'>

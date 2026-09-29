@@ -1,5 +1,6 @@
 import type {
   DraftProject,
+  LocationId,
   LocationProcessId,
   EconomicsResult,
   MatchingEvaluation,
@@ -19,13 +20,16 @@ import type {
 
 /** Проекты оценки (PRD 11). Ответы API переводятся в модель экрана мапперами src/api/mappers. */
 export interface ProjectListOptions {
+  /** Демо-проекты организатора (гость). Без флага — свои проекты, без демо. */
   readonly demo?: boolean
+  /** Только проекты этой площадки (`GET /projects?locationId=`). */
+  readonly locationId?: LocationId
 }
 
 export interface ProjectService {
   /**
    * Сначала недавно изменённые. Вошедшему — свои проекты без демо; `demo` — демо-проекты организатора: их список
-   * видит гость (ролевая модель, §3).
+   * видит гость (ролевая модель, §3). `locationId` не тянет проекты других площадок.
    */
   listProjects(options?: ProjectListOptions): Promise<readonly Project[]>
   getProject(id: ProjectId): Promise<Project>

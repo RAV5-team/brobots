@@ -100,6 +100,9 @@ export function toServiceError(status: number, problem: ProblemBody): Error {
 
 export function createHttpClient({ baseUrl, getToken, onUnauthorized, fetch: fetchImpl }: HttpClientOptions): HttpClient {
   const doFetch = fetchImpl ?? ((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init))
+  // Пока одинаковый GET летит, повтор ждёт его же: меню и страница, StrictMode, сводка и список.
+  // Ответ не хранится — следующий заход на экран читает данные заново.
+  const inflight = new Map<string, Promise<unknown>>()
 
   async function request<T>(method: string, path: string, init: { query?: Query; body?: unknown; form?: FormData } = {}): Promise<T> {
     const headers = new Headers({ Accept: 'application/json' })
@@ -130,8 +133,18 @@ export function createHttpClient({ baseUrl, getToken, onUnauthorized, fetch: fet
     return (text ? JSON.parse(text) : undefined) as T
   }
 
+  const get = <T>(path: string, query?: Query): Promise<T> => {
+    const key = buildUrl('', path, query)
+    const pending = inflight.get(key)
+    if (pending) return pending as Promise<T>
+    const next = request<T>('GET', path, query ? { query } : {})
+    inflight.set(key, next)
+    void next.then(() => { inflight.delete(key) }, () => { inflight.delete(key) })
+    return next
+  }
+
   return {
-    get: (path, query) => request('GET', path, query ? { query } : {}),
+    get,
     post: (path, body) => request('POST', path, { body }),
     put: (path, body) => request('PUT', path, { body }),
     patch: (path, body) => request('PATCH', path, { body }),

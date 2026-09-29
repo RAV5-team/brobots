@@ -21,15 +21,15 @@ export type LocationDocumentsState =
 /** Локация, затем сводки, типы объектов и документы параллельно. */
 async function loadLocationDocuments(services: Services, locationId: LocationId | null): Promise<LocationDocumentsData> {
   const id = requireId(locationId, 'location')
-  const location = await services.locations.getLocation(id)
-  const [summaries, facilityTypes, documents] = await Promise.all([
-    services.locations.listLocationSummaries(),
+  const [location, summary, facilityTypes, documents] = await Promise.all([
+    services.locations.getLocation(id),
+    services.locations.getLocationSummary(id),
     services.locations.listFacilityTypes(),
     services.locations.listLocationDocuments(id),
   ])
   return {
     location,
-    summary: summaries.find((s) => s.locationId === id),
+    summary,
     facilityTypeName: facilityTypes.find((f) => f.code === location.facilityType)?.name ?? location.facilityType,
     documents,
   }

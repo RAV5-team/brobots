@@ -221,6 +221,7 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
     listProjects: (options) => attempt(() => [...store.values()]
       .filter((p) => (p.dto.isDemo === true) === (options?.demo === true))
       .map(toDomain)
+      .filter((p) => options?.locationId === undefined || p.locationId === options.locationId)
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))),
 
     getProject: (id) => attempt(() => toDomain(find(id))),

@@ -42,7 +42,7 @@ describe('CatalogPage (экран К-1)', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Каталог роботизированных решений' })).toBeInTheDocument()
   })
 
-  it('shows a robot card as in К-1: class, payload, price, TRL and «Для запуска» (PRD 7.2, D-63)', async () => {
+  it('shows a robot card as in К-1: class, payload, price and TRL (PRD 7.2)', async () => {
     renderPage()
     const amr = await card('AMR 100')
     expect(amr.getByText('ООО «Морос» · AMR')).toBeInTheDocument()
@@ -50,8 +50,7 @@ describe('CatalogPage (экран К-1)', () => {
     expect(amr.getByText('до 100 кг')).toBeInTheDocument()
     expect(amr.getByText('1,50 млн ₽')).toBeInTheDocument()
     expect(amr.getByText('УГТ 9 · эксплуатация')).toBeInTheDocument()
-    expect(within(amr.getByRole('list', { name: 'Для запуска' })).getAllByRole('listitem').map((li) => li.textContent))
-      .toEqual(['зарядка', 'Fleet Manager', 'внедрение'])
+    expect(amr.queryByRole('list', { name: 'Для запуска' })).toBeNull()
     expect(amr.getByRole('img', { name: 'Фото: AMR 100' })).toHaveAttribute('src', '/catalog/rb-0007.webp')
     expect((await card('AS-RS P')).getByText('нет данных')).toBeInTheDocument()
   })

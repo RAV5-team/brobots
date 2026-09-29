@@ -64,6 +64,11 @@ export function createMockLocations(options: MockOptions): LocationService {
     listLocations: () => respond(locations, options),
     getDemoProfile: () => respond(LOCATION_DEMO_PROFILE, options),
     getLocation: (id) => findOrReject(locations, (l) => l.id === id, `Локация ${id} не найдена`, options),
+    getLocationSummary: (id) => {
+      const location = locations.find((l) => l.id === id)
+      if (!location) return Promise.reject(new NotFoundError(`Локация ${id} не найдена`))
+      return respond(buildLocationSummary(location, { ...SUMMARY_SOURCES, processes: locationProcesses }), options)
+    },
     createLocation: (input) => {
       const created: Location = { ...input, id: nextId(locations), updatedAt: new Date().toISOString() }
       locations = [...locations, created]
