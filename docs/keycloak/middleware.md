@@ -14,7 +14,7 @@
 | Claim | Пример | Использование |
 | --- | --- | --- |
 | `sub` | `15a60d42-7ca7-40f1-9027-ad50f2fdb713` | ID пользователя (UUID, неизменный) — ключ пользователя в БД сервиса |
-| `email`, `preferred_username` | `user@example.com` | только для отображения: пользователь может их сменить |
+| `email`, `preferred_username` | `demo@rav5.ru` | только для отображения: пользователь может их сменить |
 | `realm_access.roles` | `["user", "admin", ...]` | роли realm: `user`, `admin`, `service` |
 | `azp` | `rav5-web` | клиент, которому выдан токен: `rav5-web` — браузер, `rav5-api-internal` — сервисный |
 | `aud` | `["rav5-api", "rav5-sim", "account"]` | для кого токен; строка или массив |
@@ -841,7 +841,7 @@ curl -s http://localhost/auth/realms/rav5/protocol/openid-connect/token \
 ```python
 import sys; sys.path.insert(0, "scripts")
 import auth_smoke as a
-tokens = a.Browser(insecure=False).login("user@example.com", a.ENV["DEMO_USER_PASSWORD"])
+tokens = a.Browser(insecure=False).login("demo@rav5.ru", a.ENV["DEMO_USER_PASSWORD"])
 print(tokens["access_token"])
 ```
 

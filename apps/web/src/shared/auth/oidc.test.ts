@@ -16,7 +16,9 @@ describe('token claims', () => {
   it('maps realm roles to the platform role', () => {
     expect(roleFromClaims({ realm_access: { roles: ['default-roles-rav5', 'user', 'admin'] } })).toBe('admin')
     expect(roleFromClaims({ realm_access: { roles: ['default-roles-rav5', 'user'] } })).toBe('user')
-    expect(roleFromClaims({})).toBe('user')
+    // Учётка без ролей платформы — гость: сервис не даст ей писать (ролевая модель, §1).
+    expect(roleFromClaims({})).toBe('guest')
+    expect(roleFromClaims({ realm_access: { roles: ['default-roles-rav5', 'offline_access'] } })).toBe('guest')
   })
 
   it('builds the cabinet profile from the token', () => {

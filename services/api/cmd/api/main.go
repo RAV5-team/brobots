@@ -62,7 +62,8 @@ func run() error {
 	if len(os.Args) > 1 {
 		cmd = os.Args[1]
 	}
-	calculator := newCalculator(cfg, log)
+	serviceAuth := newServiceAuth(ctx, cfg, log)
+	calculator := newCalculator(cfg, log, serviceAuth)
 	switch cmd {
 	case "migrate":
 		if err := migrate(ctx, pool); err != nil {
@@ -90,6 +91,11 @@ func run() error {
 		log.Info("simulation step by services/simulation", slog.String("url", cfg.SimulationURL),
 			slog.Duration("timeout", cfg.SimulationTimeout))
 		svc.WithSimulator(simulation.New(cfg.SimulationURL, cfg.SimulationTimeout))
+		if serviceAuth != nil {
+			svc.WithGuestSimulator(simulation.NewInternal(cfg.SimulationURL, cfg.SimulationTimeout, serviceAuth))
+		} else {
+			log.Warn("KC_CLIENT_ID is not set: guest simulation of demo projects answers 503")
+		}
 	} else {
 		log.Warn("SIMULATION_URL is not set: the simulation step answers 503")
 	}
@@ -128,15 +134,24 @@ func run() error {
 	return srv.Shutdown(shutdown)
 }
 
+// newServiceAuth adds the service token of api to calls of other services; nil when it is not configured.
+func newServiceAuth(ctx context.Context, cfg config.Config, log *slog.Logger) func(http.RoundTripper) http.RoundTripper {
+	if !cfg.ServiceTokenEnabled() {
+		log.Warn("KC_CLIENT_ID is not set: api calls other services without its service token")
+		return nil
+	}
+	return auth.ServiceTransport(ctx, cfg.OIDCTokenURL, cfg.ServiceClientID, cfg.ServiceClientSecret)
+}
+
 // newCalculator is the economics service when ECONOMICS_URL is set, otherwise the mock model.
-func newCalculator(cfg config.Config, log *slog.Logger) calc.Calculator {
+func newCalculator(cfg config.Config, log *slog.Logger, serviceAuth func(http.RoundTripper) http.RoundTripper) calc.Calculator {
 	if cfg.EconomicsURL == "" {
 		log.Warn("ECONOMICS_URL is not set: calculation uses the mock model", slog.String("model", mock.Version))
 		return mock.New()
 	}
 	log.Info("calculation by the economics service", slog.String("url", cfg.EconomicsURL),
 		slog.Duration("timeout", cfg.EconomicsTimeout))
-	return economics.New(cfg.EconomicsURL, cfg.EconomicsTimeout)
+	return economics.New(cfg.EconomicsURL, cfg.EconomicsTimeout, serviceAuth)
 }
 
 // authMiddleware verifies Keycloak tokens; ready reports whether the keys are loaded (nil: always).

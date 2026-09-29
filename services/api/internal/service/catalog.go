@@ -30,14 +30,18 @@ func workTypeInput(w domain.WorkType) WorkTypeInput {
 		WorkCategoryCode: w.WorkCategoryCode, IsActive: domain.Ptr(w.IsActive)}
 }
 
-// ListWorkTypes returns operation classes with robot and process counts.
+// ListWorkTypes returns operation classes with robot and process counts; hidden ones only to the admin.
 func (s *Service) ListWorkTypes(ctx context.Context, includeHidden bool) ([]domain.WorkType, error) {
-	return s.st.Q().ListWorkTypes(ctx, includeHidden)
+	return s.st.Q().ListWorkTypes(ctx, includeHidden && accessOf(ctx).seesHidden())
 }
 
-// GetWorkType returns one operation class.
+// GetWorkType returns one operation class; a hidden one is not found for anyone but the admin.
 func (s *Service) GetWorkType(ctx context.Context, id uuid.UUID) (domain.WorkType, error) {
-	return s.st.Q().GetWorkType(ctx, id)
+	w, err := s.st.Q().GetWorkType(ctx, id)
+	if err == nil && !w.IsActive && !accessOf(ctx).seesHidden() {
+		return domain.WorkType{}, domain.NotFound("work_type", id.String())
+	}
+	return w, err
 }
 
 // CreateWorkType creates an operation class with the next OP code.
@@ -220,7 +224,7 @@ type SolutionQuery struct {
 // ListSolutions returns the filtered catalog page.
 func (s *Service) ListSolutions(ctx context.Context, f SolutionQuery) (Page[domain.SolutionSummary], error) {
 	q := s.st.Q()
-	all, err := q.ListSolutions(ctx, store.SolutionFilter{Kind: f.Kind, IncludeHidden: f.IncludeHidden})
+	all, err := q.ListSolutions(ctx, store.SolutionFilter{Kind: f.Kind, IncludeHidden: f.IncludeHidden && accessOf(ctx).seesHidden()})
 	if err != nil {
 		return Page[domain.SolutionSummary]{}, err
 	}
@@ -363,9 +367,13 @@ func kindOrder(k string) string {
 	return fmt.Sprint(slices.Index(domain.Codes(domain.SolutionKinds), k))
 }
 
-// GetSolution returns the full catalog card.
+// GetSolution returns the full catalog card; a hidden position is not found for anyone but the admin.
 func (s *Service) GetSolution(ctx context.Context, id uuid.UUID) (domain.Solution, error) {
-	return s.st.Q().GetSolution(ctx, id)
+	sol, err := s.st.Q().GetSolution(ctx, id)
+	if err == nil && !sol.IsActive && !accessOf(ctx).seesHidden() {
+		return domain.Solution{}, domain.NotFound("solution", id.String())
+	}
+	return sol, err
 }
 
 // SolutionInput is the editable part of a catalog position.

@@ -1,4 +1,5 @@
-# Профиль stand: https://<домен>, TLS на nginx, HSTS, allowlist админки Keycloak.
+# Профиль stand: https://<домен>, TLS на nginx, HSTS, allowlist админки Keycloak. Наружу — только шлюз:
+# фронт и api за ним, simulation и economics — внутри сетей Docker.
 #
 #   docker compose -f docker-compose.yml -f docker-compose.stand.yml up -d --build
 #
@@ -11,18 +12,46 @@ services:
     ports: !override ["80:80", "443:443"]
     environment:
       PUBLIC_HOST: ${PUBLIC_HOST:?задайте PUBLIC_HOST в .env}
+      # Лимиты гостевого расчёта демо-проектов по IP (nginx limit_req): запуск симуляции и пересчёт.
+      SIM_RUN_RATE: ${SIM_RUN_RATE:-3r/m}
+      PREVIEW_RATE: ${PREVIEW_RATE:-20r/m}
+    depends_on:
+      web: { condition: service_healthy }
     volumes:
       # Тот же путь в контейнере — шаблон stand заменяет шаблон local.
       - ./infra/nginx/templates/gateway.stand.conf.template:/etc/nginx/templates/default.conf.template:ro
       - ./infra/nginx/certs:/etc/nginx/certs:ro
 
+  # Фронтенд: собранный SPA за шлюзом; /api/ его nginx проксирует в api (apps/web/nginx.conf).
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: runtime
+      args:
+        VITE_SERVICES: api
+        VITE_OIDC_URL: ${PUBLIC_URL:?}/auth/realms/rav5
+        VITE_OIDC_CLIENT_ID: rav5-web
+    restart: unless-stopped
+    networks: [edge]
+    depends_on:
+      api: { condition: service_healthy }
+
+  # Наружу — только шлюз с TLS: api и simulation доступны лишь внутри сетей Docker.
   # TODO(dev-auth): на стенде dev-режим запрещён — сервисы с ним не стартуют вне APP_ENV=local.
   api:
+    ports: !reset []
     environment:
       APP_ENV: stand
       AUTH_DEV_MODE: "false"
 
   simulation:
+    ports: !reset []
     environment:
       APP_ENV: stand
       AUTH_DEV_MODE: "false"
+
+  # Вне development economics без OIDC не стартует: API открылся бы любому.
+  economics:
+    environment:
+      ECONOMIC_SERVICE_ENV: stand

@@ -111,14 +111,15 @@ docker compose up -d --build
 
 Схемы БД применяют разовые контейнеры `simulation-migrate` и
 `economics-migrate` (`alembic upgrade head`); api мигрирует себя сам при
-старте. Economics не публикует порт на хост и не подключён к nginx gateway.
+старте. Economics не публикует порт на хост, не подключён к nginx gateway и
+принимает только сервисный токен api (клиент `rav5-api-internal`).
 Первый старт — **1–2 минуты**: Keycloak создаёт схему в своей БД и импортирует realm.
 Дождитесь `healthy` в `docker compose ps`.
 
 | Кто | Логин | Пароль | Где |
 |-----|-------|--------|-----|
-| Пользователь | `user@example.com` | `DemoUser2026` | realm `rav5` |
-| Администратор платформы | `admin@example.com` | `DemoAdmin2026` | realm `rav5` |
+| Пользователь | `demo@rav5.ru` | `DemoUser2026` | realm `rav5` |
+| Администратор платформы | `admin@rav5.ru` | `DemoAdmin2026` | realm `rav5` |
 | Администратор Keycloak | `kcadmin` | `rav5-local-kcadmin-5b8e36` | http://localhost/auth/admin/ |
 
 - Сброс (БД, realm, ключи подписи): `docker compose down -v`. Нужен и после правки

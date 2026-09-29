@@ -79,14 +79,14 @@ describe('Шаг 3 «Симуляция», этап 1 «Что проверяе�
     expect(await screen.findByRole('heading', { level: 1, name: 'Условия симуляции' })).toBeInTheDocument()
   })
 
-  it('гость меняет состав только на странице (D-14)', async () => {
+  it('гость меняет состав демо-проекта: решение идёт в сессию, не в кабинет (ролевая модель, §5)', async () => {
     const services = createMockServices({ latencyMs: 0 })
     const update = vi.spyOn(services.projects, 'updateInputs')
     renderAt('/projects/PJ-DEMO/simulation?as=guest&stage=scope', services)
     fireEvent.change(await screen.findByRole('textbox', { name: 'Роботов' }), { target: { value: '19' } })
     fireEvent.blur(robots())
     expect(robots()).toHaveValue('19')
-    expect(update).not.toHaveBeenCalled()
+    await waitFor(() => { expect(update).toHaveBeenCalledWith('PJ-DEMO', expect.objectContaining({ simulation: expect.any(Object) })) })
     // Статус сохранения у гостя заменяет демо-плашка каркаса.
     expect(screen.getByText('Демо-режим · изменения не сохраняются')).toBeInTheDocument()
   })
@@ -257,7 +257,7 @@ describe('Шаг 3 «Симуляция», этап 3 «Моделировани
     expect(update.mock.calls.some(([, patch]) => patch.simulation?.runId !== undefined)).toBe(false)
   })
 
-  it('гость: прогон по составу со страницы, в проект не пишется (D-14)', async () => {
+  it('гость: прогон по составу со страницы, прогон запоминается в решениях демо-проекта (ролевая модель, §5)', async () => {
     const services = fastServices()
     renderAt('/projects/PJ-DEMO/simulation?as=guest&stage=scope', services)
     fireEvent.change(await screen.findByRole('textbox', { name: 'Роботов' }), { target: { value: '15' } })
@@ -265,7 +265,7 @@ describe('Шаг 3 «Симуляция», этап 3 «Моделировани
     fireEvent.click(await screen.findByRole('button', { name: 'Запустить симуляцию' }))
     expect(await screen.findByRole('heading', { name: 'Прогон завершён' }, { timeout: 2_000 })).toBeInTheDocument()
     expect(services.simulationRuns.get('PJ-DEMO')).toMatchObject({ status: 'done', runId: 'SIM-0926-03' })
-    expect((await services.projects.getProject('PJ-DEMO')).inputs.simulation?.runId).toBe('SIM-0926-01')
+    await waitFor(async () => { expect((await services.projects.getProject('PJ-DEMO')).inputs.simulation?.runId).toBe('SIM-0926-03') })
   })
 
   it('без прогона в сессии: последний прогон и «Запустить заново»; у сохранённой оценки — только вердикт (D-17)', async () => {

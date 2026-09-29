@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/brobots/api/internal/auth"
 	"github.com/brobots/api/internal/clients/simulation"
 )
 
@@ -104,10 +105,10 @@ func TestSimulationRuns(t *testing.T) {
 		t.Fatalf("started run = %+v, want %d robots", run, *chosen.RobotCount)
 	}
 	fake.mu.Lock()
-	req, auth := fake.request, fake.auth
+	req, bearer := fake.request, fake.auth
 	fake.mu.Unlock()
-	if !strings.HasPrefix(auth, "Bearer ") {
-		t.Errorf("the user's token must be passed to the simulation, got %q", auth)
+	if !strings.HasPrefix(bearer, "Bearer ") {
+		t.Errorf("the user's token must be passed to the simulation, got %q", bearer)
 	}
 	cfg, _ := req["configuration"].(map[string]any)
 	if int(cfg["robot_count"].(float64)) != *chosen.RobotCount || cfg["robot"] == nil || cfg["calc"] == nil {
@@ -132,7 +133,9 @@ func TestSimulationRuns(t *testing.T) {
 	if run.Status != "done" || run.SimulationID == nil || *run.SimulationID != "sim-1" {
 		t.Fatalf("done = %+v", run)
 	}
-	var result struct{ SimulationID string `json:"simulation_id"` }
+	var result struct {
+		SimulationID string `json:"simulation_id"`
+	}
 	e.do(t, http.MethodGet, runPath+"/result", nil, 200, &result)
 	var traces []struct{ Name string }
 	e.do(t, http.MethodGet, runPath+"/traces", nil, 200, &traces)
@@ -149,14 +152,23 @@ func TestSimulationRuns(t *testing.T) {
 	}
 	e.as("").do(t, http.MethodGet, runPath, nil, 404, nil)
 
-	// A guest may start a run of a demo project: access is by reading, the selection is still required.
+	// A run belongs to the one who started it: another user neither reads nor cancels it, a guest cannot cancel.
+	bob := e.as(e.iss.User(t, "bob", auth.RoleUser))
+	bob.do(t, http.MethodGet, runPath, nil, 404, nil)
+	bob.do(t, http.MethodDelete, runPath, nil, 404, nil)
+	e.as("").do(t, http.MethodDelete, runPath, nil, 401, nil)
+
+	// A guest checks a demo project through the preview (preview_test.go): the saving run needs a signed-in author,
+	// and a user may not run the shared demo project either.
 	var demo struct{ Items []named }
 	e.as("").do(t, http.MethodGet, "/api/v1/projects?q="+url.QueryEscape("Химки"), nil, 200, &demo)
 	if len(demo.Items) == 0 {
 		t.Fatal("no demo project")
 	}
-	e.as("").do(t, http.MethodPost, "/api/v1/projects/"+demo.Items[0].ID+"/simulation-runs", map[string]any{}, 409, &problem)
-	if problem.Code != "selection_required" {
-		t.Errorf("guest on a demo project: %s", problem.Code)
+	demoRuns := "/api/v1/projects/" + demo.Items[0].ID + "/simulation-runs"
+	e.as("").do(t, http.MethodPost, demoRuns, map[string]any{}, 401, nil)
+	bob.do(t, http.MethodPost, demoRuns, map[string]any{}, 403, &problem)
+	if problem.Code != "demo_read_only" {
+		t.Errorf("user on a demo project: %s", problem.Code)
 	}
 }

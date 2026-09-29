@@ -20,4 +20,7 @@ server {
     }
 
     include /etc/nginx/snippets/keycloak.conf;
+
+    # Локально шлюз обслуживает только Keycloak: фронт — Vite, api — свой порт.
+    location / { return 404; }
 }

@@ -113,9 +113,15 @@ describe('router', () => {
     expect(screen.getByTestId('current-role')).toHaveTextContent('Пользователь')
   })
 
-  it('marks sections closed for the role (PRD 5.3)', () => {
-    renderAt('/admin/journal?as=guest')
-    expect(screen.getByTestId('route-access')).toHaveTextContent('Раздел недоступен для роли «Гость»')
+  it.each([
+    ['/admin/journal?as=guest', 'Гость'],
+    ['/processes/new?as=guest', 'Гость'],
+    ['/locations/new?as=guest', 'Гость'],
+    ['/integrations?as=guest', 'Гость'],
+    ['/admin/catalog?as=user', 'Пользователь'],
+  ])('closes %s by the route, not only in the menu (roles model §3)', (path, role) => {
+    renderAt(path)
+    expect(screen.getByText(`Раздел недоступен для роли «${role}»`)).toBeInTheDocument()
   })
 
   it('shows not found for unknown paths', () => {

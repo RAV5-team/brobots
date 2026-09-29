@@ -100,16 +100,18 @@ describe('Шаг 4 «Итог и экономика» (экран 08, PRD 11.5, 
     expect(screen.queryByRole('button', { name: 'Выбрать этот сценарий' })).not.toBeInTheDocument()
   })
 
-  it('гость: выбор только на странице, без сохранения и КП, выгрузки доступны', async () => {
+  it('гость: выбор сценария без сохранения в кабинет и КП, выгрузки и «Войти и сохранить» (ролевая модель, §5)', async () => {
     const services = renderAt('/projects/PJ-DEMO/economics?as=guest')
     await recommendation()
-    expect(within(footer()).getByText('Демо-режим: оценка не сохраняется, выгрузки доступны')).toBeInTheDocument()
+    expect(within(footer()).getByText('Результат виден, сохранение — после входа. Выгрузки доступны')).toBeInTheDocument()
+    expect(within(footer()).getByRole('link', { name: 'Войти и сохранить' })).toHaveAttribute('href', '/login')
     expect(within(footer()).getByRole('button', { name: 'Таблицы CSV' })).toBeEnabled()
     expect(within(footer()).queryByRole('button', { name: 'Сохранить оценку' })).not.toBeInTheDocument()
     expect(within(footer()).queryByRole('button', { name: 'Запросить КП' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Выбрать этот сценарий' }))
     expect(await screen.findByRole('columnheader', { name: 'Покупка · Выбран' })).toBeInTheDocument()
-    expect((await services.projects.getProject('PJ-DEMO')).inputs.economics?.scenario).toBe('raas')
+    // Выбор гостя — в решениях демо-проекта (в API — в браузере до закрытия вкладки).
+    await waitFor(async () => { expect((await services.projects.getProject('PJ-DEMO')).inputs.economics?.scenario).toBe('purchase') })
   })
 
   it('«Как мы к этому пришли»: три шага со ссылками, строка прогона из фикстуры', async () => {

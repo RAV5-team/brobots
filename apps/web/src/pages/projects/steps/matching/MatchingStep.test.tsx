@@ -140,15 +140,16 @@ describe('Шаг 2 «Подбор решений» (2.1, 16325:101; PRD 11.3)', 
     expect(screen.queryByRole('checkbox', { name: 'Ronavi SD' })).not.toBeInTheDocument()
   })
 
-  it('гость: выбор на странице без сохранения, демо-плашка вместо статуса (D-14)', async () => {
+  it('гость: выбор идёт в решения демо-проекта (в API — в браузер), демо-плашка вместо статуса (ролевая модель, §5)', async () => {
     const services = createMockServices({ latencyMs: 0 })
     const update = vi.spyOn(services.projects, 'updateInputs')
     renderAt('/projects/PJ-DEMO/matching?as=guest', services)
     await screen.findByRole('radiogroup', { name: 'Рейтинг вариантов подбора' })
     fireEvent.click(row('Ronavi H1500 · RaaS'))
     expect(row('Ronavi H1500 · RaaS')).toBeChecked()
-    expect(update).not.toHaveBeenCalled()
+    await waitFor(() => { expect(update).toHaveBeenCalledWith('PJ-DEMO', expect.objectContaining({ matching: expect.any(Object) })) })
     expect(screen.queryByText(/Черновик сохранён/)).not.toBeInTheDocument()
+    expect(screen.getByText('Демо-режим · изменения не сохраняются')).toBeInTheDocument()
   })
 
   it('сохранённая оценка — только просмотр (readOnly): выбор не меняется, разбор балла у всех строк, нет ручного добавления и параметров (D-17)', async () => {

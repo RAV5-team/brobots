@@ -2,6 +2,15 @@
 # автоматически через map $scheme $hsts.
 include /etc/nginx/snippets/http-common.conf;
 
+# Фронтенд RAV5: nginx контейнера web отдаёт SPA и проксирует /api/ в api.
+upstream web_app { zone web_app 64k; server web:80 resolve; }
+
+# Гостевой расчёт демо-проекта анонимен (ролевая модель, §5): лимит по IP клиента. Шлюз — первая точка входа,
+# $binary_remote_addr — адрес клиента. Считаются только POST: опрос хода симуляции (GET) не ограничен.
+map $request_method $rl_post_ip { POST $binary_remote_addr; default ""; }
+limit_req_zone $rl_post_ip zone=sim_run:10m rate=${SIM_RUN_RATE};
+limit_req_zone $rl_post_ip zone=preview:10m rate=${PREVIEW_RATE};
+
 server {
     listen 80 default_server;
     server_name _;
@@ -37,4 +46,30 @@ server {
     }
 
     include /etc/nginx/snippets/keycloak.conf;
+
+    location ~ ^/api/v1/projects/[^/]+/preview/simulation-runs$ {
+        limit_req zone=sim_run burst=2 nodelay;
+        error_page 429 = @rate_limited;
+        include /etc/nginx/snippets/proxy-headers.conf;
+        add_header Strict-Transport-Security $hsts always;
+        proxy_pass http://web_app;
+    }
+    location ~ ^/api/v1/projects/[^/]+/preview$ {
+        limit_req zone=preview burst=5 nodelay;
+        error_page 429 = @rate_limited;
+        include /etc/nginx/snippets/proxy-headers.conf;
+        add_header Strict-Transport-Security $hsts always;
+        proxy_pass http://web_app;
+    }
+    # Ответ в формате ошибок api (RFC 7807), чтобы фронт показал текст, а не страницу nginx.
+    location @rate_limited {
+        default_type application/problem+json;
+        add_header Retry-After 60 always;
+        return 429 '{"type":"https://rav5.local/problems/too-many-requests","title":"Слишком много запросов","status":429,"detail":"Подождите минуту и повторите","code":"rate_limited"}';
+    }
+    location / {
+        include /etc/nginx/snippets/proxy-headers.conf;
+        add_header Strict-Transport-Security $hsts always;
+        proxy_pass http://web_app;
+    }
 }

@@ -41,12 +41,14 @@ def _verifier_fixture() -> fakes.FakeTokenVerifier:
 
 def _services(verifier: fakes.FakeTokenVerifier) -> server.Services:
     store = fakes.FakeJobStore()
+    verification = submit.SubmitVerification(store, fakes.SequentialIds())
     return server.Services(
-        submit=submit.SubmitVerification(store, fakes.SequentialIds()),
+        submit=verification,
         preview=preview.preview_demand,
         reader=store,
         health=store,
         verifier=verifier,
+        submit_guest=submit.SubmitGuestVerification(verification, store, 1),
     )
 
 
@@ -59,16 +61,19 @@ def _bearer(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
 
-GUARDED = [
+REFERENCE = [
     ("get", "/api/meta"),
     ("get", "/api/openapi.json"),
     ("get", "/api/simulations/schema"),
+]
+USER_ONLY = [
     ("post", "/api/simulations/preview"),
     ("post", "/api/simulations"),
     ("get", f"/api/simulations/jobs/{_ID}"),
     ("get", f"/api/simulations/{_ID}"),
     ("get", f"/api/simulations/{_ID}/traces"),
 ]
+GUARDED = REFERENCE + USER_ONLY
 
 
 def _call(client, method: str, path: str, headers: dict | None = None):
@@ -82,9 +87,22 @@ def _call(client, method: str, path: str, headers: dict | None = None):
     return client.get(path, headers=headers)
 
 
-@pytest.mark.parametrize("method, path", GUARDED)
+@pytest.mark.parametrize("method, path", REFERENCE)
 def test_guest_and_user_pass(client, method, path):
     assert _call(client, method, path).status_code not in (401, 403)
+    assert _call(client, method, path, _bearer(USER)).status_code not in (
+        401,
+        403,
+    )
+
+
+@pytest.mark.parametrize("method, path", USER_ONLY)
+def test_job_routes_need_a_user(client, method, path):
+    """Гость проверяет демо-проект через api, а не напрямую (роли, §5)."""
+    resp = _call(client, method, path)
+
+    assert resp.status_code == 401
+    assert resp.json()["code"] == "unauthorized"
     assert _call(client, method, path, _bearer(USER)).status_code not in (
         401,
         403,
@@ -245,7 +263,7 @@ def _paths(job_id: str, sim_id: str) -> list[str]:
 
 @pytest.mark.parametrize(
     "headers, status",
-    [(_bearer(USER), 200), (_bearer(OTHER_USER), 404), ({}, 404)],
+    [(_bearer(USER), 200), (_bearer(OTHER_USER), 404), ({}, 401)],
     ids=["owner", "other user", "guest"],
 )
 def test_users_job_and_runs_are_visible_only_to_the_owner(
@@ -277,15 +295,67 @@ def test_foreign_job_is_indistinguishable_from_a_missing_one(owned):
     )
 
 
-@pytest.mark.parametrize("headers", [_bearer(USER), {}], ids=["user", "guest"])
-def test_guest_job_is_open_by_link(owned, headers):
+# --- гостевые задания: только api своим сервисным токеном ------------------
+def _guest_paths(job_id: str, sim_id: str) -> list[str]:
+    return [p.replace("/api/", "/internal/") for p in _paths(job_id, sim_id)]
+
+
+def _start_guest(client) -> str:
+    body = dict(conftest.request_body(), scenarios=[conftest.scenario()])
+    resp = client.post(
+        "/internal/simulations", json=body, headers=_bearer(SERVICE)
+    )
+    assert resp.status_code == 202
+    return resp.json()["job_id"]
+
+
+def test_guest_job_is_read_only_on_internal_paths(owned):
     client, store = owned
-    job_id = _start(client)
+    job_id = _start_guest(client)
     sim_id = _finish(store, job_id)
 
+    for path in _guest_paths(job_id, sim_id):
+        assert client.get(path, headers=_bearer(SERVICE)).status_code == 200
+        assert client.get(path, headers=_bearer(USER)).status_code == 401
+        assert client.get(path).status_code == 401
     for path in _paths(job_id, sim_id):
-        resp = client.get(path, headers=headers)
-        assert resp.status_code == 200, path
+        assert client.get(path, headers=_bearer(USER)).status_code == 404
+
+
+def test_user_job_is_not_read_on_internal_paths(owned):
+    client, store = owned
+    job_id = _start(client, _bearer(USER))
+    sim_id = _finish(store, job_id)
+
+    for path in _guest_paths(job_id, sim_id):
+        assert client.get(path, headers=_bearer(SERVICE)).status_code == 404
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [{}, _bearer(USER), _bearer(FOREIGN_SERVICE)],
+    ids=["guest", "user", "other client"],
+)
+def test_only_api_starts_guest_jobs(owned, headers):
+    client, _ = owned
+    body = dict(conftest.request_body(), scenarios=[conftest.scenario()])
+
+    resp = client.post("/internal/simulations", json=body, headers=headers)
+
+    assert resp.status_code == 401
+
+
+def test_guest_jobs_over_the_limit_are_429(owned):
+    client, _ = owned
+    _start_guest(client)
+    body = dict(conftest.request_body(), scenarios=[conftest.scenario()])
+
+    resp = client.post(
+        "/internal/simulations", json=body, headers=_bearer(SERVICE)
+    )
+
+    assert resp.status_code == 429
+    assert resp.json()["error"]
 
 
 def test_token_is_verified_once_per_request(owned, verifier):
@@ -360,4 +430,4 @@ def test_dev_user_header_is_ignored_outside_dev_mode(owned):
         headers={auth.DEV_USER_HEADER: fakes.principal("alice").sub},
     )
 
-    assert resp.status_code == 404
+    assert resp.status_code == 401

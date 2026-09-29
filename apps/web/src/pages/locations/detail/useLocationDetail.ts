@@ -23,7 +23,8 @@ async function loadLocationDetail(services: Services, locationId: LocationId | n
       services.locations.listLocationProcesses(id),
       services.catalog.listOperationClasses(),
       services.catalog.countRobotsByClass(),
-      services.projects.listProjects(),
+      // У демо-локации — демо-проекты организатора, у своей — свои.
+      services.projects.listProjects({ demo: location.isDemo === true }),
       services.locations.listFacilityParameters(location.facilityType),
     ])
   return {

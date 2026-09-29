@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test'
 import { click, openScenario } from './helpers'
-import { ADMIN, ALL, type ScreenRegistration } from './types'
+import { ADMIN, ALL, SIGNED_IN, type ScreenRegistration } from './types'
 
 /** Экраны вне проекта: вход, дашборд, каталог, процессы, локации, администрирование. */
 export const APP_SCREENS: ScreenRegistration = {
@@ -11,10 +11,11 @@ export const APP_SCREENS: ScreenRegistration = {
     { path: '/catalog/compare', roles: ALL },
     { path: '/catalog/RB-0008', roles: ALL },
     { path: '/processes', roles: ALL },
-    { path: '/processes/new', roles: ALL },
+    // Формы создания гостю закрыты маршрутом (ролевая модель, §3): у него «нет доступа», проверка — routes.e2e.ts.
+    { path: '/processes/new', roles: SIGNED_IN },
     { path: '/processes/PR-0001', roles: ALL },
     { path: '/locations', roles: ALL },
-    { path: '/locations/new', roles: ALL },
+    { path: '/locations/new', roles: SIGNED_IN },
     { path: '/locations/LOC-01', roles: ALL },
     { path: '/locations/LOC-01/processes', roles: ALL },
     { path: '/locations/LOC-01/processes/LP-01', roles: ALL },

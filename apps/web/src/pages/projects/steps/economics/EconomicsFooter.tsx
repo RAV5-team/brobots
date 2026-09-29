@@ -1,4 +1,5 @@
 import { Card } from '@/components/ui/Card'
+import { ROUTE_PATHS } from '@/app/routePaths'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import { StatusBanner } from '@/components/ui/StatusBanner'
 import { formatDate } from '@/shared/format'
@@ -35,7 +36,8 @@ interface EconomicsFooterProps {
 /**
  * Нижняя панель итога (PRD 11.6; 16197:2270): вывод строкой, дисклеймер (ТЗ 3.7.5), выгрузки и главное действие.
  * Черновик — «Сохранить оценку» (при скачивании сохраняем текущую версию), сохранённая — «Новый расчёт на основе»,
- * гость — только выгрузки (D-14). «Запросить КП» и его состояние после отправки — 08b (D-106).
+ * гость — выгрузки и «Войти и сохранить» на экран входа (D-14, ролевая модель §5): результат гостевой сессии в кабинет
+ * не переносится. «Запросить КП» и его состояние после отправки — 08b (D-106).
  */
 export function EconomicsFooter({
   mode, summary, savedAt, saving, error, hasRun, basedOnTo, onSave, onTables, onSimulation, onReport, quote,
@@ -60,6 +62,7 @@ export function EconomicsFooter({
           )}
           {mode === 'draft' && <Button variant="primary" disabled={saving} onClick={onSave}>{saving ? t.saving : t.save}</Button>}
           {mode === 'saved' && <ButtonLink variant="primary" to={basedOnTo}>{t.basedOn}</ButtonLink>}
+          {mode === 'guest' && <ButtonLink variant="primary" to={ROUTE_PATHS.login}>{t.signInToSave}</ButtonLink>}
         </div>
       </div>
       {error && <p role="alert" className="type-body-sm text-danger">{error}</p>}

@@ -145,13 +145,13 @@ describe('Этап 4 «Вердикт» (3.4 need_more, 16325:176; 3.6 confirmed
     expect(await screen.findByRole('heading', { level: 2, name: 'Загрузка по часам' })).toBeInTheDocument()
   })
 
-  it('гость меняет план только на странице (D-14)', async () => {
+  it('гость меняет план демо-проекта: решение идёт в сессию, не в кабинет (ролевая модель, §5)', async () => {
     const services = await servicesWith('can_reduce')
     const update = vi.spyOn(services.projects, 'updateInputs')
     renderAt('/projects/PJ-DEMO/simulation?as=guest&stage=verdict', services)
     fireEvent.keyDown(await screen.findByRole('spinbutton', { name: 'Роботов' }), { key: 'ArrowUp' })
     expect(robots()).toHaveAttribute('aria-valuenow', '17')
-    expect(update).not.toHaveBeenCalled()
+    await waitFor(() => { expect(update).toHaveBeenCalled() })
   })
 
   it('сохранённая оценка — план только для просмотра, переход «К итогу и экономике» (D-17)', async () => {

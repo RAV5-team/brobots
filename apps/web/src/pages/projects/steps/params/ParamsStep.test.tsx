@@ -100,14 +100,17 @@ describe('Шаг 1 «Параметры проекта» (доска 16325, эк
     expect(matchButton()).toBeEnabled()
   })
 
-  it('гость: выбор работает на странице, но не сохраняется (D-14)', async () => {
+  it('гость: процесс демо-проекта закреплён, профиль процесса не правится (ролевая модель, §5)', async () => {
     const services = createMockServices({ latencyMs: 0 })
     const selectProcess = vi.spyOn(services.projects, 'selectProcess')
     renderAt('/projects/PJ-DEMO/params?as=guest', services)
-    fireEvent.click(await screen.findByRole('radio', { name: 'Упаковка' }))
-    expect(screen.getByRole('radio', { name: 'Упаковка' })).toBeChecked()
-    expect(screen.queryByText(/Черновик сохранён/)).not.toBeInTheDocument()
+    const packing = await screen.findByRole('radio', { name: 'Упаковка' })
+    expect(screen.getByRole('radiogroup', { name: 'Процесс проекта' })).toHaveAttribute('aria-readonly', 'true')
+    fireEvent.click(packing)
+    expect(packing).not.toBeChecked()
     expect(selectProcess).not.toHaveBeenCalled()
+    expect(screen.queryByRole('link', { name: 'Изменить процесс в профиле' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Черновик сохранён/)).not.toBeInTheDocument()
   })
 
   it('«всё раскрыто» (16992:10): группы, разбор нагрузки и все параметры локации открыты, поповер закрыт', async () => {

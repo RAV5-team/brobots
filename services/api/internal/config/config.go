@@ -25,6 +25,11 @@ type Config struct {
 	// SimulationURL is services/simulation for the «Симуляция» step; empty — the step answers 503.
 	SimulationURL     string
 	SimulationTimeout time.Duration
+	// Service token of api (client credentials): economics and the guest simulation runs are called with it.
+	// Empty — economics is called without a token and guest simulation answers 503.
+	OIDCTokenURL        string
+	ServiceClientID     string
+	ServiceClientSecret string
 	// Keycloak access token verification (docs/keycloak/middleware.md).
 	OIDCIssuer   string
 	OIDCJWKSURL  string
@@ -103,8 +108,23 @@ func (c Config) finish() (Config, error) {
 	if c.SimulationTimeout, err = parseDuration("SIMULATION_TIMEOUT", 30*time.Second); err != nil {
 		return Config{}, err
 	}
+	c.OIDCTokenURL = strings.TrimSpace(os.Getenv("OIDC_TOKEN_URL"))
+	c.ServiceClientID = strings.TrimSpace(os.Getenv("KC_CLIENT_ID"))
+	c.ServiceClientSecret = os.Getenv("KC_CLIENT_SECRET")
+	set := 0
+	for _, v := range []string{c.OIDCTokenURL, c.ServiceClientID, c.ServiceClientSecret} {
+		if v != "" {
+			set++
+		}
+	}
+	if set != 0 && set != 3 {
+		return Config{}, fmt.Errorf("OIDC_TOKEN_URL, KC_CLIENT_ID and KC_CLIENT_SECRET go together: set all three or none")
+	}
 	return c, nil
 }
+
+// ServiceTokenEnabled reports whether api can call other services with its own token.
+func (c Config) ServiceTokenEnabled() bool { return c.ServiceClientID != "" }
 
 func parseDuration(key string, def time.Duration) (time.Duration, error) {
 	v := os.Getenv(key)

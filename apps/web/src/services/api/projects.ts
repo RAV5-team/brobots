@@ -7,6 +7,7 @@ import { toSimulationRun } from '@/api/mappers/simulation'
 import { toSimulationTrace } from '@/api/mappers/trace'
 import {
   applyInputsPatch,
+  type AcquisitionModel,
   canAdvanceTo,
   canOpenStep,
   furthestStep,
@@ -20,6 +21,7 @@ import {
   type ParamsProcessEntry,
   type Project,
   type ProjectInputs,
+  type ProjectSelection,
   type SavedProject,
   type SimulationJob,
 } from '@/domain'
@@ -29,12 +31,18 @@ import type { CatalogService } from '../catalog'
 import type { LocationService } from '../locations'
 import type { ProcessService } from '../processes'
 import type { ProjectService } from '../projects'
+import { widthMarginM } from './processes'
+import { createDemoSession, type DemoSession, type DemoState } from './demoSession'
 
 type ProjectDto = ApiSchemas['Project']
 type EvaluationDto = ApiSchemas['Evaluation']
 type SimulationRunDto = ApiSchemas['SimulationRun']
+type PreviewRunDto = ApiSchemas['PreviewSimulationRun']
 
 const READ_ONLY = 'Сохранённая оценка открывается только для просмотра — измените её в новом проекте на её основе'
+const DEMO_NOT_SAVED = 'Демо-проект не сохраняется — войдите, чтобы сохранить оценку в своём кабинете'
+/** Задание services/simulation из гостевого прогона демо-проекта; у прогона api id — UUID с дефисами. */
+const PREVIEW_JOB = /^[0-9a-f]{32}$/u
 const now = (): string => new Date().toISOString()
 
 /** Поля «Параметров расчёта» экрана и API совпадают по именам; пустое поле — исходное значение. */
@@ -81,10 +89,31 @@ function jobOf(dto: SimulationRunDto): SimulationJob {
   }
 }
 
+/** Гостевой прогон демо-проекта: id — задание services/simulation, результат и трассы читаются по нему же. */
+function previewJobOf(dto: PreviewRunDto): SimulationJob {
+  return {
+    id: dto.id,
+    status: JOB_STATUS[dto.status] ?? 'error',
+    log: dto.log ?? [],
+    elapsedS: dto.elapsedS,
+    runId: dto.status === 'done' ? dto.id : null,
+    error: dto.error ?? (dto.errors?.map((e) => e.message).join('; ') || null),
+  }
+}
+
+/** Выбор варианта из проекта API: у демо-проекта его ставит сид. */
+function selectionOf(dto: ProjectDto): ProjectSelection | null {
+  const selected = dto.selection
+  if (!selected?.solutionId) return null
+  return { solutionId: selected.solutionId, acquisition: (selected.acquisitionModel ?? 'purchase') as AcquisitionModel }
+}
+
 interface Dependencies {
   readonly catalog: Pick<CatalogService, 'getRobot' | 'listOperationClasses' | 'listHandlingMethods'>
   readonly locations: Pick<LocationService, 'getLocation' | 'listLocationProcesses' | 'listFacilityParameters'>
   readonly processes: Pick<ProcessService, 'listProcesses'>
+  /** Решения гостя по демо-проектам; по умолчанию — вкладка браузера. */
+  readonly demo?: DemoSession
 }
 
 /**
@@ -92,12 +121,44 @@ interface Dependencies {
  * правило «что устаревает» (D-89) применяет фронт; выбор варианта, «Параметры расчёта», прогоны и сохранение — API.
  */
 export function apiProjects(http: HttpClient, deps: Dependencies): Partial<ProjectService> {
+  const demo = deps.demo ?? createDemoSession()
   const getDto = (id: string) => http.get<ProjectDto>(`/projects/${id}`)
-  const toDomain = (dto: ProjectDto): Project => toProject(dto, localStateFromApi(dto))
+
+  /**
+   * Демо-проект (ролевая модель, §5): решения гостя — в браузере, поверх того, что положил сид (выбранный вариант
+   * подбора и его сценарий итога). Сервер демо-проект не меняет.
+   */
+  const demoState = (dto: ProjectDto): DemoState => {
+    const kept = demo.get(dto.id ?? '')
+    if (kept) return kept
+    const inputs = localStateFromApi(dto).inputs
+    const selection = inputs.matching?.selection ?? selectionOf(dto)
+    if (!selection) return { inputs, evaluation: null }
+    return {
+      evaluation: null,
+      inputs: {
+        ...inputs,
+        matching: { calcParams: {}, manualSolutionIds: [], ...inputs.matching, selection },
+        economics: inputs.economics ?? { scenario: selection.acquisition },
+      },
+    }
+  }
+  const toDomain = (dto: ProjectDto): Project => {
+    const local = localStateFromApi(dto)
+    return toProject(dto, dto.isDemo === true ? { ...local, inputs: demoState(dto).inputs } : local)
+  }
   const editableDto = async (id: string): Promise<ProjectDto> => {
     const dto = await getDto(id)
     if (dto.status === 'saved') throw new ConflictError(READ_ONLY, 'project_saved')
     return dto
+  }
+  /** Оценка, на которой стоят шаги: пересчёт гостя или расчёт из сида. */
+  const evaluationOf = async (dto: ProjectDto): Promise<EvaluationDto> =>
+    (dto.isDemo === true ? demoState(dto).evaluation : null) ?? http.get<EvaluationDto>(`/projects/${dto.id ?? ''}/evaluation`)
+  const calcOverridesOf = (inputs: ProjectInputs) => {
+    const matching = inputs.matching
+    const solutionId = matching?.selection?.solutionId
+    return { ...matching?.calcParams, ...(solutionId ? { solutionId } : {}) }
   }
   const patch = async (id: string, body: ApiSchemas['ProjectPatchInput']): Promise<Project> =>
     toDomain(await http.patch<ProjectDto>(`/projects/${id}`, body))
@@ -120,6 +181,9 @@ export function apiProjects(http: HttpClient, deps: Dependencies): Partial<Proje
     return { ...evaluation, stale: evaluation.stale || inputs.stale.matching }
   }
 
+  /** Прогон api или гостевой прогон демо-проекта: у второго свои пути. */
+  const runPath = (runId: string): string => PREVIEW_JOB.test(runId) ? `/preview/simulation-runs/${runId}` : `/simulation-runs/${runId}`
+
   const syncManual = async (id: string, wanted: readonly string[]) => {
     const current = (await http.get<ApiSchemas['ManualList']>(`/projects/${id}/manual-candidates`)).items ?? []
     const have = new Set(current.map((m) => m.solutionId))
@@ -130,9 +194,12 @@ export function apiProjects(http: HttpClient, deps: Dependencies): Partial<Proje
   }
 
   return {
-    listProjects: async () => {
+    listProjects: async (options) => {
       const page = await http.get<ApiSchemas['ProjectPage']>('/projects', { limit: 500 })
-      return (page.items ?? []).filter((p) => !p.isDemo).map(toDomain).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      return (page.items ?? [])
+        .filter((p) => (p.isDemo === true) === (options?.demo === true))
+        .map(toDomain)
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     },
 
     getProject: async (id) => toDomain(await getDto(id)),
@@ -147,7 +214,13 @@ export function apiProjects(http: HttpClient, deps: Dependencies): Partial<Proje
 
     updateInputs: async (id, inputsPatch) => {
       const dto = await editableDto(id)
-      const current = toDomain(dto)
+      if (dto.isDemo === true) {
+        const state = demoState(dto)
+        demo.set(id, { ...state, inputs: applyInputsPatch(state.inputs, inputsPatch, now()) })
+        return toDomain(dto)
+      }
+      // editableDto отсекает сохранённую оценку: здесь черновик.
+      const current = toDomain(dto) as DraftProject
       const inputs = applyInputsPatch(localStateFromApi(dto).inputs, inputsPatch, now())
       const step = stepAfterMatchingStale(current.step, matchingStaleCause(inputsPatch, inputs))
       const project = await patch(id, step === current.step ? { inputs } : { inputs, step })
@@ -158,12 +231,13 @@ export function apiProjects(http: HttpClient, deps: Dependencies): Partial<Proje
     getParamsSnapshot: async (id) => {
       const dto = await getDto(id)
       const locationId = dto.locationId ?? ''
-      const [location, locationProcesses, processes, classes, handlingMethods] = await Promise.all([
+      const [location, locationProcesses, processes, classes, handlingMethods, margin] = await Promise.all([
         deps.locations.getLocation(locationId),
         deps.locations.listLocationProcesses(locationId),
         deps.processes.listProcesses(),
         deps.catalog.listOperationClasses(),
         deps.catalog.listHandlingMethods(),
+        widthMarginM(http),
       ])
       const facilityParameters = await deps.locations.listFacilityParameters(location.facilityType)
       const entries = locationProcesses.flatMap((locationProcess): ParamsProcessEntry[] => {
@@ -177,13 +251,14 @@ export function apiProjects(http: HttpClient, deps: Dependencies): Partial<Proje
       return {
         location, facilityParameters, siteParameters,
         siteValues: siteValuesFromParameters(location.parameters, siteParameters),
-        processes: entries, handlingMethods, pinnedSolution: pinned,
+        processes: entries, handlingMethods, pinnedSolution: pinned, widthMarginM: margin,
       }
     },
 
     selectProcess: async (id, locationProcessId) => {
       const dto = await editableDto(id)
       if (dto.task?.id === locationProcessId) return toDomain(dto)
+      if (dto.isDemo === true) throw new ConflictError('В демо-проекте процесс не меняется — войдите, чтобы оценить свой', 'demo_read_only')
       return patch(id, { taskId: locationProcessId })
     },
 
@@ -192,18 +267,26 @@ export function apiProjects(http: HttpClient, deps: Dependencies): Partial<Proje
       if (!canOpenStep(project, step) && !canAdvanceTo(project, step)) {
         throw new ConflictError('Этот шаг откроется, когда будут пройдены предыдущие')
       }
-      if (project.status !== 'draft') return project
+      if (project.status !== 'draft' || project.isDemo === true) return project
       const next = furthestStep(project.step, step)
       return next === project.step ? project : patch(id, { step: next })
     },
 
     getMatching: async (id) => {
-      const [evaluation, dto] = await Promise.all([http.get<EvaluationDto>(`/projects/${id}/evaluation`), getDto(id)])
-      return matchingOf(evaluation, localStateFromApi(dto).inputs)
+      const dto = await getDto(id)
+      return matchingOf(await evaluationOf(dto), toDomain(dto).inputs)
     },
 
     evaluateMatching: async (id) => {
       const dto = await editableDto(id)
+      if (dto.isDemo === true) {
+        // Гость пересчитывает демо-проект без записи (роли, §5): цифры — в браузере до закрытия вкладки.
+        const { inputs } = demoState(dto)
+        const evaluation = await http.post<EvaluationDto>(`/projects/${id}/preview`, { calcOverrides: calcOverridesOf(inputs) })
+        const fresh = markFresh(inputs, 'matching', now())
+        demo.set(id, { inputs: fresh, evaluation })
+        return matchingOf(evaluation, fresh)
+      }
       const { inputs } = localStateFromApi(dto)
       const matching = inputs.matching
       if (matching) await syncManual(id, matching.manualSolutionIds)
@@ -217,29 +300,40 @@ export function apiProjects(http: HttpClient, deps: Dependencies): Partial<Proje
     },
 
     startSimulation: async (id, request) => {
-      await editableDto(id)
+      const dto = await editableDto(id)
+      if (dto.isDemo === true) {
+        const { inputs } = demoState(dto)
+        const selection = inputs.matching?.selection
+        if (!selection) throw new ConflictError('Выберите вариант на шаге «Подбор» — симуляция проверяет выбранную конфигурацию', 'selection_required')
+        const run = await http.post<PreviewRunDto>(`/projects/${id}/preview/simulation-runs`, {
+          calcOverrides: calcOverridesOf(inputs), solutionId: selection.solutionId, acquisitionModel: selection.acquisition,
+          fleet: request.fleet, conditions: request.conditions,
+        })
+        return previewJobOf(run)
+      }
       const run = await http.post<SimulationRunDto>(`/projects/${id}/simulation-runs`, { fleet: request.fleet, conditions: request.conditions })
       return jobOf(run)
     },
 
-    getSimulationJob: async (jobId) => jobOf(await http.get<SimulationRunDto>(`/simulation-runs/${jobId}`)),
+    getSimulationJob: async (jobId) => PREVIEW_JOB.test(jobId)
+      ? previewJobOf(await http.get<PreviewRunDto>(`/preview/simulation-runs/${jobId}`))
+      : jobOf(await http.get<SimulationRunDto>(`/simulation-runs/${jobId}`)),
 
     getSimulationRun: async (runId) => {
-      const dto = await http.get(`/simulation-runs/${runId}/result`)
+      const dto = await http.get<Parameters<typeof toSimulationRun>[0]>(`${runPath(runId)}/result`)
       // Результат — тело services/simulation (`simulation_id`). Трассы читаются по id прогона api.
       return { ...toSimulationRun(dto), id: runId }
     },
 
     getSimulationTraces: async (runId) => {
-      const traces = await http.get<readonly unknown[]>(`/simulation-runs/${runId}/traces`)
+      const traces = await http.get<readonly unknown[]>(`${runPath(runId)}/traces`)
       return traces.map(toSimulationTrace)
     },
 
     getEconomics: async (id) => {
-      const [dto, evaluation, snapshot] = await Promise.all([
-        getDto(id), http.get<EvaluationDto>(`/projects/${id}/evaluation`), http.get<ApiSchemas['ProjectSnapshot']>(`/projects/${id}/snapshot`),
-      ])
-      const solutionId = localStateFromApi(dto).inputs.matching?.selection?.solutionId ?? dto.selection?.solutionId
+      const [dto, snapshot] = await Promise.all([getDto(id), http.get<ApiSchemas['ProjectSnapshot']>(`/projects/${id}/snapshot`)])
+      const evaluation = await evaluationOf(dto)
+      const solutionId = toDomain(dto).inputs.matching?.selection?.solutionId ?? dto.selection?.solutionId
       if (!solutionId) throw new NotFoundError('Итог появится, когда на подборе выбран вариант')
       return toEconomics(evaluation, solutionId, {
         conditions: conditionsOf(evaluation, solutionId),
@@ -248,10 +342,14 @@ export function apiProjects(http: HttpClient, deps: Dependencies): Partial<Proje
       })
     },
 
-    requestQuote: async (id) => toDomain(await http.post<ProjectDto>(`/projects/${id}/quote-request`)),
+    requestQuote: async (id) => {
+      if ((await getDto(id)).isDemo === true) throw new ConflictError(DEMO_NOT_SAVED, 'demo_read_only')
+      return toDomain(await http.post<ProjectDto>(`/projects/${id}/quote-request`))
+    },
 
     save: async (id) => {
       const dto = await editableDto(id)
+      if (dto.isDemo === true) throw new ConflictError(DEMO_NOT_SAVED, 'demo_read_only')
       const { inputs } = localStateFromApi(dto)
       const selection = inputs.matching?.selection
       if (!selection) throw new ConflictError('Сохранить можно, когда на подборе выбран вариант', 'selection_required')

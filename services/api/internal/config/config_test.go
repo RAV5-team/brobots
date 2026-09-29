@@ -58,3 +58,20 @@ func TestDevModeOnlyLocalAndWithoutKeycloak(t *testing.T) {
 		t.Fatal("dev mode must be refused outside APP_ENV=local")
 	}
 }
+
+func TestServiceTokenSettingsGoTogether(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://x")
+	t.Setenv("AUTH_DEV_MODE", "true")
+	if c, err := Load(); err != nil || c.ServiceTokenEnabled() {
+		t.Fatalf("without KC_CLIENT_ID the service token is off: %v %v", c.ServiceTokenEnabled(), err)
+	}
+	t.Setenv("KC_CLIENT_ID", "rav5-api-internal")
+	if _, err := Load(); err == nil {
+		t.Fatal("KC_CLIENT_ID without the secret and the token URL must be rejected")
+	}
+	t.Setenv("KC_CLIENT_SECRET", "secret")
+	t.Setenv("OIDC_TOKEN_URL", "http://keycloak:8080/auth/realms/rav5/protocol/openid-connect/token")
+	if c, err := Load(); err != nil || !c.ServiceTokenEnabled() {
+		t.Fatalf("service token = %v, err = %v", c.ServiceTokenEnabled(), err)
+	}
+}

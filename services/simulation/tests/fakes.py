@@ -102,6 +102,31 @@ class FakeJobStore:
             owner_sub=owner_sub,
         )
 
+    def count_active(self, owner_sub: str) -> int:
+        return sum(
+            1
+            for job in self._jobs.values()
+            if job.owner_sub == owner_sub
+            and job.status in ("queued", "running")
+        )
+
+    # --- GuestJobCleanup -------------------------------------------------
+    def purge_owner(self, owner_sub: str, older_than_s: float) -> int:
+        now = self._clock()
+        old = [
+            job.job_id
+            for job in self._jobs.values()
+            if job.owner_sub == owner_sub
+            and job.status != "running"
+            and job.created_at <= now - older_than_s
+        ]
+        for job_id in old:
+            del self._jobs[job_id]
+        self._runs = {
+            sid: run for sid, run in self._runs.items() if run[0] not in old
+        }
+        return len(old)
+
     # --- JobQueue --------------------------------------------------------
     def claim_next_job(self, worker_id: str) -> models.ClaimedJob | None:
         del worker_id
@@ -221,9 +246,9 @@ class FakeJobStore:
 
     # --- ResultReader ----------------------------------------------------
     def _visible(self, job_id: str, viewer: str | None) -> _Job | None:
-        """Задание, если viewer его видит: без владельца — все, иначе он."""
+        """Задание, если viewer — его владелец; без владельца — никому."""
         job = self._jobs.get(job_id)
-        if job is None or job.owner_sub not in (None, viewer):
+        if job is None or job.owner_sub is None or job.owner_sub != viewer:
             return None
         return job
 

@@ -2,7 +2,7 @@ import { Navigate, useParams } from 'react-router'
 import { ROUTE_PATHS } from '@/app/routePaths'
 import { ButtonLink } from '@/components/ui/Button'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
-import { parseProjectId, type ProjectStep } from '@/domain'
+import { isDemoOpen, parseProjectId, type ProjectStep } from '@/domain'
 import { useRole } from '@/shared/auth/useRole'
 import { ru } from '@/shared/i18n/ru'
 import type { ProjectStepComponent } from './stepProps'
@@ -35,6 +35,17 @@ export function ProjectStepPage({ step, Step }: { readonly step: ProjectStep; re
     )
   }
   const isGuest = role === 'guest'
+  if (isGuest && state.project.isDemo === true && !isDemoOpen(state.location.facilityType)) {
+    // Демо-проект виден в списке, но ещё не проработан (ролевая модель, §5): прямая ссылка его не открывает.
+    return (
+      <EmptyState
+        size="lg"
+        title={t.demoClosed.title}
+        description={t.demoClosed.description}
+        action={<ButtonLink to={ROUTE_PATHS.projects}>{t.demoClosed.back}</ButtonLink>}
+      />
+    )
+  }
   return (
     <>
       <title>{t.documentTitle(title, state.project.name)}</title>

@@ -11,8 +11,8 @@ describe('navItemsFor (PRD 5.1, 5.3; D-01)', () => {
   })
 
   it('gives the guest the demo menu', () => {
-    expect(navItemsFor('guest').map((i) => i.key)).toEqual(['projects', 'processes', 'catalog'])
-    expect(navItemsFor('guest')[0]?.label).toBe('Демо-проекты')
+    expect(navItemsFor('guest').map((i) => i.key)).toEqual(['dashboard', 'projects', 'processes', 'locations', 'catalog'])
+    expect(navItemsFor('guest')[1]?.label).toBe('Демо-проекты')
   })
 })
 

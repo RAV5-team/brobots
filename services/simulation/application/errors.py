@@ -37,3 +37,7 @@ class InvalidSubmissionError(ValueError):
 
 class InvalidTokenError(Exception):
     """Токен доступа невалиден, просрочен или не является access token."""
+
+
+class GuestLimitError(Exception):
+    """Гостевых заданий в работе столько, сколько сервис допускает."""

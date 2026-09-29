@@ -7,6 +7,7 @@ import fakes
 import pytest
 
 from application import errors
+from application import models
 from application import submit
 from simcore import version
 
@@ -66,14 +67,14 @@ def test_valid_body_is_queued_with_request_split_from_scenarios():
     scenarios = [conftest.scenario(), conftest.scenario()]
     body = dict(conftest.request_body(), scenarios=scenarios)
 
-    job_id = use_case(body)
+    job_id = use_case(body, "alice")
 
     assert job_id == f"{1:032x}"
     job = store.claim_next_job("w")
     assert job.job_id == job_id
     assert job.request == conftest.request_body()
     assert list(job.scenarios) == scenarios
-    assert store.get_job(job_id).status == "running"
+    assert store.get_job(job_id, viewer="alice").status == "running"
 
 
 def test_job_records_the_simulation_version():
@@ -98,10 +99,16 @@ def test_job_is_owned_by_the_submitter():
     assert store.get_job(job_id) is None
 
 
-def test_guest_job_has_no_owner():
-    use_case, store = _submit()
+def test_guest_jobs_wait_for_a_free_slot():
+    _, store = _submit()
+    verification = submit.SubmitVerification(store, fakes.SequentialIds())
+    use_case = submit.SubmitGuestVerification(verification, store, 1)
     body = dict(conftest.request_body(), scenarios=[conftest.scenario()])
 
-    job_id = use_case(body, None)
+    job_id = use_case(body)
 
-    assert store.get_job(job_id, viewer="bob") is not None
+    assert store.get_job(job_id, viewer=models.GUEST_OWNER) is not None
+    assert store.get_job(job_id, viewer="bob") is None
+    with pytest.raises(errors.GuestLimitError):
+        use_case(body)
+    assert store.count_active(models.GUEST_OWNER) == 1

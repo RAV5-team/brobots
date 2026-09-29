@@ -21,7 +21,7 @@ const CABINET: readonly NavItem[] = [
   item('integrations', ru.nav.integrations, ROUTE_PATHS.integrations),
 ]
 
-/** Пункты левого меню по роли: кабинет (PRD 5.1), + «Администрирование» у админа, меню гостя (PRD 5.3). */
+/** Пункты левого меню по роли: кабинет (PRD 5.1), + «Администрирование» у админа, меню гостя (ролевая модель, §3). */
 export function navItemsFor(role: Role): readonly NavItem[] {
   switch (role) {
     case 'admin':
@@ -29,9 +29,12 @@ export function navItemsFor(role: Role): readonly NavItem[] {
     case 'user':
       return CABINET
     case 'guest':
+      // Ролевая модель, §3: демо-данные организатора без интеграций и администрирования.
       return [
+        item('dashboard', ru.nav.dashboard, ROUTE_PATHS.dashboard),
         item('projects', ru.nav.guestProjects, ROUTE_PATHS.projects),
         item('processes', ru.nav.processes, ROUTE_PATHS.processes),
+        item('locations', ru.nav.locations, ROUTE_PATHS.locations),
         item('catalog', ru.nav.catalog, ROUTE_PATHS.catalog),
       ]
   }

@@ -23,6 +23,10 @@ from simcore import version
 pytestmark = pytest.mark.db
 
 
+# Владелец заданий: без владельца задание не видно никому.
+_OWNER = "owner-sub"
+
+
 def _new_job(repo: repository.PostgresJobRepository) -> str:
     job_id = uuid.uuid4().hex
     repo.create_job(
@@ -30,6 +34,7 @@ def _new_job(repo: repository.PostgresJobRepository) -> str:
         conftest.request_body(),
         [conftest.scenario()],
         version.SIM_VERSION,
+        owner_sub=_OWNER,
     )
     return job_id
 
@@ -68,7 +73,7 @@ def test_claim_skips_soft_deleted_jobs(repo, pool):
     _soft_delete(pool, "jobs", "job_id", job_id)
 
     assert repo.claim_next_job("w") is None
-    assert repo.get_job(job_id) is None
+    assert repo.get_job(job_id, viewer=_OWNER) is None
 
 
 def test_finished_run_keeps_the_full_simulation_run(repo, verified):
@@ -78,7 +83,7 @@ def test_finished_run_keeps_the_full_simulation_run(repo, verified):
 
     assert repo.finish_job(job_id, job.lease, [run])
 
-    assert repo.get_run(run.simulation_id) == run.result
+    assert repo.get_run(run.simulation_id, viewer=_OWNER) == run.result
 
 
 def test_error_detail_is_stored_but_not_read_back(repo, pool):
@@ -87,7 +92,7 @@ def test_error_detail_is_stored_but_not_read_back(repo, pool):
 
     repo.fail_job(job_id, job.lease, "Ошибка", None, "Traceback…")
 
-    assert not hasattr(repo.get_job(job_id), "error_detail")
+    assert not hasattr(repo.get_job(job_id, viewer=_OWNER), "error_detail")
     with pool.connection() as conn:
         detail = conn.execute(
             "SELECT error_detail FROM jobs WHERE job_id = %s", (job_id,)
@@ -117,9 +122,9 @@ def test_soft_deleted_run_and_traces_are_hidden(repo, pool, verified):
 
     _soft_delete(pool, "runs", "simulation_id", run.simulation_id)
 
-    assert repo.get_run(run.simulation_id) is None
-    assert repo.get_traces_gz(run.simulation_id) is None
-    assert repo.get_job(job_id).runs == ()
+    assert repo.get_run(run.simulation_id, viewer=_OWNER) is None
+    assert repo.get_traces_gz(run.simulation_id, viewer=_OWNER) is None
+    assert repo.get_job(job_id, viewer=_OWNER).runs == ()
 
 
 def test_soft_deleted_job_hides_its_runs(repo, pool, verified):
@@ -130,8 +135,8 @@ def test_soft_deleted_job_hides_its_runs(repo, pool, verified):
 
     _soft_delete(pool, "jobs", "job_id", job_id)
 
-    assert repo.get_run(run.simulation_id) is None
-    assert repo.get_traces_gz(run.simulation_id) is None
+    assert repo.get_run(run.simulation_id, viewer=_OWNER) is None
+    assert repo.get_traces_gz(run.simulation_id, viewer=_OWNER) is None
 
 
 def test_soft_deleted_job_accepts_no_writes(repo, pool):
@@ -148,15 +153,15 @@ def test_soft_deleted_job_accepts_no_writes(repo, pool):
 def test_elapsed_grows_while_running_and_freezes_after_finish(repo, verified):
     job_id = _new_job(repo)
     job = repo.claim_next_job("w")
-    first = repo.get_job(job_id).elapsed_s
+    first = repo.get_job(job_id, viewer=_OWNER).elapsed_s
     time.sleep(0.05)
-    assert repo.get_job(job_id).elapsed_s > first
+    assert repo.get_job(job_id, viewer=_OWNER).elapsed_s > first
 
     repo.finish_job(job_id, job.lease, [_finished_run(verified)])
-    done = repo.get_job(job_id).elapsed_s
+    done = repo.get_job(job_id, viewer=_OWNER).elapsed_s
     time.sleep(0.05)
 
-    assert repo.get_job(job_id).elapsed_s == done
+    assert repo.get_job(job_id, viewer=_OWNER).elapsed_s == done
 
 
 def test_schema_revision_and_readiness(pool, repo):

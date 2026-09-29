@@ -9,7 +9,7 @@ import type { ProcessService } from '../processes'
 import type { Reference } from './reference'
 
 /** Запас по ширине прохода из текущего справочника А5; нет норматива — значение PRD, 0,6 м. */
-async function widthMarginM(http: HttpClient): Promise<number> {
+export async function widthMarginM(http: HttpClient): Promise<number> {
   const set = await http.get<ApiSchemas['NormSet']>('/norms')
   const margin = (set.values ?? []).find((item) => item.code === 'width_margin_m')?.value
   return typeof margin === 'number' ? margin : DEFAULT_MODEL_NORMS.widthMarginM

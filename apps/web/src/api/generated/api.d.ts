@@ -70,7 +70,7 @@ export interface paths {
         };
         /**
          * Источники данных
-         * @description Экран A6.
+         * @description Экран A6. Только администратор.
          */
         get: {
             parameters: {
@@ -1616,6 +1616,259 @@ export interface paths {
                 };
                 /** @description Not Found */
                 404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/preview/simulation-runs/{jobId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ход демо-симуляции
+         * @description Задание знают по его id: журнал строками и секунды; done — есть simulationId.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    jobId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PreviewSimulationRun"];
+                    };
+                };
+                /** @description Токен не прислан (где он обязателен), невалиден или просрочен */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthError"];
+                    };
+                };
+                /** @description Нет нужной роли или прислан сервисный токен */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthError"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Service Unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/preview/simulation-runs/{jobId}/result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Результат демо-симуляции
+         * @description SimulationRun services/simulation как есть.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    jobId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+                /** @description Токен не прислан (где он обязателен), невалиден или просрочен */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthError"];
+                    };
+                };
+                /** @description Нет нужной роли или прислан сервисный токен */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthError"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Service Unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/preview/simulation-runs/{jobId}/traces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 2D-трассы демо-симуляции
+         * @description Как у /simulation-runs/{id}/traces.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    jobId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: unknown;
+                        }[];
+                    };
+                };
+                /** @description Токен не прислан (где он обязателен), невалиден или просрочен */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthError"];
+                    };
+                };
+                /** @description Нет нужной роли или прислан сервисный токен */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthError"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Service Unavailable */
+                503: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -3281,6 +3534,206 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Расчёт демо-проекта без сохранения
+         * @description Гость (роли §5): подбор и расчёт парка и экономики демо-проекта с условиями задачи taskConditions и «Параметрами расчёта» calcOverrides из тела; пусто — как в проекте. Ничего не сохраняется: ни в api, ни в сервисе экономики; идентификаторы в ответе одноразовые. Ответ — как у evaluate. 403 — проект не демо.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["PreviewInput"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Evaluation"];
+                    };
+                };
+                /** @description Токен не прислан (где он обязателен), невалиден или просрочен */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthError"];
+                    };
+                };
+                /** @description Нет нужной роли или прислан сервисный токен */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthError"];
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Service Unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/preview/simulation-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Симуляция демо-проекта без сохранения
+         * @description Гость (роли §5): api пересчитывает демо-проект как в preview, берёт вариант solutionId + acquisitionModel и ставит задание в services/simulation от своего имени. В api ничего не сохраняется, задание удаляется в services/simulation через 24 ч. 409 — вариант не посчитан на этих условиях, 429 — демо-симуляций сейчас много.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["PreviewSimulationInput"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PreviewSimulationRun"];
+                    };
+                };
+                /** @description Токен не прислан (где он обязателен), невалиден или просрочен */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthError"];
+                    };
+                };
+                /** @description Нет нужной роли или прислан сервисный токен */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthError"];
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Service Unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/quote-request": {
         parameters: {
             query?: never;
@@ -3681,7 +4134,7 @@ export interface paths {
         put?: never;
         /**
          * Запустить симуляцию выбранной конфигурации
-         * @description Шаг «Симуляция» (PRD 11.4): вход собирается из снимка проекта, выбранного робота и его расчёта; fleet — состав этапа 1 (пусто — из расчёта), conditions — условия этапа 2. Прогон ставится в очередь services/simulation от имени вызывающего. Гость запускает прогон и на демо-проекте. 409 — вариант не выбран или проект сохранён, 422 — симуляция не приняла вход, 503 — сервис симуляции не ответил.
+         * @description Шаг «Симуляция» (PRD 11.4): вход собирается из снимка проекта, выбранного робота и его расчёта; fleet — состав этапа 1 (пусто — из расчёта), conditions — условия этапа 2. Прогон ставится в очередь services/simulation от имени автора проекта; гость проверяет демо-проект через preview. 409 — вариант не выбран или проект сохранён, 422 — симуляция не приняла вход, 503 — сервис симуляции не ответил.
          */
         post: {
             parameters: {
@@ -6220,6 +6673,36 @@ export interface components {
         PeakHours: {
             inbound?: number[] | null;
             outbound?: number[] | null;
+        };
+        PreviewInput: {
+            calcOverrides?: components["schemas"]["CalcParams"];
+            /** @description Условия задачи; пусто — как в проекте */
+            taskConditions?: components["schemas"]["Override"][] | null;
+        };
+        PreviewSimulationInput: {
+            /** @enum {string|null} */
+            acquisitionModel: "purchase" | "raas" | null;
+            calcOverrides?: components["schemas"]["CalcParams"];
+            conditions?: components["schemas"]["SimulationConditions"];
+            fleet?: components["schemas"]["Fleet"];
+            solutionId: components["schemas"]["UUID"];
+            /** @description Условия задачи; пусто — как в проекте */
+            taskConditions?: components["schemas"]["Override"][] | null;
+        };
+        PreviewSimulationRun: {
+            /** @description Есть в ответе на запуск; при опросе пусто */
+            assumptions: string[] | null;
+            /** Format: double */
+            elapsedS: number;
+            error?: string | null;
+            errors?: components["schemas"]["FieldError"][] | null;
+            fleet?: components["schemas"]["Fleet"];
+            /** @description Задание в services/simulation */
+            id: string;
+            log: string[] | null;
+            simulationId?: string | null;
+            /** @enum {string} */
+            status: "queued" | "running" | "done" | "error";
         };
         Price: {
             amountRub?: number | null;

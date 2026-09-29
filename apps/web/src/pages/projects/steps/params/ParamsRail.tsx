@@ -60,7 +60,7 @@ function Counter({ label, count, href, onClick }: CounterProps) {
 }
 
 /** Правая колонка шага 1 (16975:2): «Готовность к подбору» над «Подобрать решения», решение из каталога. */
-export function ParamsRail({ project, snapshot, readiness, missing, onRevealMissing, onProceed, proceeding, proceedError }: ParamsRailProps) {
+export function ParamsRail({ snapshot, readiness, missing, onRevealMissing, onProceed, proceeding, proceedError }: ParamsRailProps) {
   const r = t.readiness
   const canMatch = readiness?.canMatch ?? false
   const text = readiness ? readinessText(readiness, missing) : null

@@ -9,6 +9,7 @@ import { COMPARE_LIMIT, isReadOnly, siteFactsOf, type Project } from '@/domain'
 import { numberParameter } from '@/pages/processes/locationStaffing'
 import { formatCount, formatDayTime, formatNumber } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
+import { SERVICES_MODE } from '@/shared/config/api'
 import { useAdvanceStep } from '../useAdvanceStep'
 import { ProjectStepLayout } from '../ProjectStepLayout'
 import { paramsView } from '../params/paramsModel'
@@ -44,7 +45,8 @@ function StaleNotice({ state }: { readonly state: MatchingStepState }) {
         </Button>
       )}
     >
-      <p className="type-caption text-on-accent">{t.stale.mock}</p>
+      {/* Моки не пересчитывают рейтинг; services/api считает по-настоящему, в том числе демо-проект гостя. */}
+      {SERVICES_MODE === 'mock' && <p className="type-caption text-on-accent">{t.stale.mock}</p>}
       {state.recalcError && <p role="alert" className="type-caption text-danger">{t.stale.failed}</p>}
     </StatusBanner>
   )
@@ -81,8 +83,8 @@ function SaveStatus({ state }: { readonly state: MatchingStepState }) {
  */
 export function MatchingStep({ project: initial, locationName, isGuest }: ProjectStepProps) {
   const readOnly = isReadOnly(initial)
-  const advance = useAdvanceStep(initial.id, !isGuest && !readOnly)
-  const state = useMatchingStep(initial, !isGuest && !readOnly)
+  const advance = useAdvanceStep(initial.id, !readOnly)
+  const state = useMatchingStep(initial, !readOnly)
   const { project, draft, load } = state
   const [paramsOpen, setParamsOpen] = useState(false)
   // Экраны-состояния из /dev/screens: «всё раскрыто» и режим «Сравнить» (состояние навигации, не адрес).
@@ -120,7 +122,7 @@ export function MatchingStep({ project: initial, locationName, isGuest }: Projec
   if (load.status === 'loading') return layout(<div aria-busy="true"><Skeleton className="h-(--rav-location-card-height)" /></div>)
   if (load.status === 'error') return layout(<ErrorState title={t.loadError.title} message={t.loadError.message} onRetry={state.retry} />)
   if (load.status === 'notCalculated') {
-    const canCalculate = !isGuest && !readOnly
+    const canCalculate = !readOnly
     return layout(
       <EmptyState
         title={t.notCalculated.title}

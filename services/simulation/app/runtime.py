@@ -144,17 +144,44 @@ def http_services(
     verifier: ports.TokenVerifier | None,
     internal_caller_azp: str = "rav5-api-internal",
     dev: models.Principal | None = None,
+    guest_max_active: int = 4,
 ) -> web_server.Services:
     """Сценарии и порты для HTTP API поверх хранилища."""
+    verification = submit.SubmitVerification(repo, new_id)
     return web_server.Services(
-        submit=submit.SubmitVerification(repo, new_id),
+        submit=verification,
         preview=preview.preview_demand,
         reader=repo,
         health=repo,
         verifier=verifier,
         internal_caller_azp=internal_caller_azp,
         dev_principal=dev,
+        submit_guest=submit.SubmitGuestVerification(
+            verification, repo, guest_max_active
+        ),
     )
+
+
+def purge_guest_jobs(
+    cleanup: ports.GuestJobCleanup,
+    settings: config.Settings,
+    stop: threading.Event,
+) -> None:
+    """Удаляет просроченные гостевые задания, пока не выставлен stop.
+
+    Гость демо-проекта не оставляет данных (роли, §5, §9): его задания живут
+    guest_ttl_s и удаляются вместе с прогонами и трассами.
+    """
+    while not stop.is_set():
+        try:
+            removed = cleanup.purge_owner(
+                models.GUEST_OWNER, settings.guest_ttl_s
+            )
+            if removed:
+                _log.info("удалены гостевые задания: %d", removed)
+        except errors.StorageUnavailableError as e:
+            _log.warning("чистка гостевых заданий не удалась: %s", e)
+        stop.wait(settings.guest_cleanup_s)
 
 
 def job_executor(

@@ -407,46 +407,11 @@ func (s *Service) Conditions(ctx context.Context, id uuid.UUID) ([]matching.Cond
 
 // PutConditions replaces the project overrides of task conditions (panel «Условия задачи»).
 func (s *Service) PutConditions(ctx context.Context, id uuid.UUID, items []matching.Override) ([]matching.Condition, error) {
-	var v domain.Validator
-	seen := map[string]bool{}
 	err := s.st.Tx(ctx, func(q store.Q) error {
 		if _, err := s.draftProject(ctx, q, id); err != nil {
 			return err
 		}
-		for i, o := range items {
-			field := fmt.Sprintf("items[%d]", i)
-			if !slices.Contains(matching.OverridableCodes, o.Code) {
-				v.Add(field+".code", "invalid_value", fmt.Sprintf("Условие «%s» нельзя изменить в проекте", o.Code),
-					"Допустимо: "+strings.Join(matching.OverridableCodes, ", "))
-				continue
-			}
-			if seen[o.Code] {
-				v.Add(field+".code", "duplicate", "Условие указано дважды", "Оставьте одну строку")
-			}
-			seen[o.Code] = true
-			switch o.Code {
-			case "handling":
-				if len(o.List) == 0 {
-					v.Add(field+".list", "required", "Не выбраны способы обработки", "Отметьте хотя бы один способ")
-				}
-				for _, h := range o.List {
-					if err := s.checkDict(ctx, q, &v, store.HandlingMethod, field+".list", "Способ обработки", &h); err != nil {
-						return err
-					}
-				}
-			case "environment":
-				if o.Text == nil {
-					v.Add(field+".text", "required", "Не указана среда", "indoor или outdoor")
-				} else {
-					v.OneOf(field+".text", "Среда", *o.Text, domain.Codes(domain.TaskEnvironments))
-				}
-			case "aisle_width", "min_temperature":
-				if o.Number == nil {
-					v.Add(field+".number", "required", "Не указано значение", "Укажите число")
-				}
-			}
-		}
-		if err := v.Err(); err != nil {
+		if err := s.validateOverrides(ctx, q, items); err != nil {
 			return err
 		}
 		return q.ReplaceOverrides(ctx, id, items)
@@ -455,6 +420,46 @@ func (s *Service) PutConditions(ctx context.Context, id uuid.UUID, items []match
 		return nil, err
 	}
 	return s.Conditions(ctx, id)
+}
+
+// validateOverrides checks the project overrides of task conditions.
+func (s *Service) validateOverrides(ctx context.Context, q store.Q, items []matching.Override) error {
+	var v domain.Validator
+	seen := map[string]bool{}
+	for i, o := range items {
+		field := fmt.Sprintf("items[%d]", i)
+		if !slices.Contains(matching.OverridableCodes, o.Code) {
+			v.Add(field+".code", "invalid_value", fmt.Sprintf("Условие «%s» нельзя изменить в проекте", o.Code),
+				"Допустимо: "+strings.Join(matching.OverridableCodes, ", "))
+			continue
+		}
+		if seen[o.Code] {
+			v.Add(field+".code", "duplicate", "Условие указано дважды", "Оставьте одну строку")
+		}
+		seen[o.Code] = true
+		switch o.Code {
+		case "handling":
+			if len(o.List) == 0 {
+				v.Add(field+".list", "required", "Не выбраны способы обработки", "Отметьте хотя бы один способ")
+			}
+			for _, h := range o.List {
+				if err := s.checkDict(ctx, q, &v, store.HandlingMethod, field+".list", "Способ обработки", &h); err != nil {
+					return err
+				}
+			}
+		case "environment":
+			if o.Text == nil {
+				v.Add(field+".text", "required", "Не указана среда", "indoor или outdoor")
+			} else {
+				v.OneOf(field+".text", "Среда", *o.Text, domain.Codes(domain.TaskEnvironments))
+			}
+		case "aisle_width", "min_temperature":
+			if o.Number == nil {
+				v.Add(field+".number", "required", "Не указано значение", "Укажите число")
+			}
+		}
+	}
+	return v.Err()
 }
 
 // RunMatching screens the catalog for the project task and saves the run.
@@ -476,20 +481,28 @@ func (s *Service) RunMatching(ctx context.Context, id uuid.UUID) (matching.Run, 
 		for i, m := range manual {
 			ids[i] = m.SolutionID
 		}
-		cands, _, err := s.screen(ctx, rec.Snapshot.Task.WorkType, conds, ids)
-		if err != nil {
+		if run, err = s.screenProject(ctx, q, rec, conds, ids); err != nil {
 			return err
 		}
-		version, err := q.VersionOf(ctx, "catalog")
-		if err != nil {
-			return err
-		}
-		run = matching.Run{ProjectID: &rec.ID, TaskID: rec.TaskID, WorkType: rec.Snapshot.Task.WorkType,
-			CatalogVersion: version, RulesetVersion: matching.RulesetVersion, Conditions: conds.List(),
-			Counts: matching.Count(cands), Candidates: cands}
 		return q.SaveRun(ctx, &run, conds)
 	})
 	return run, err
+}
+
+// screenProject screens the catalog for the project task under the conditions; the run is not saved.
+func (s *Service) screenProject(ctx context.Context, q store.Q, rec store.ProjectRecord, conds matching.Conditions,
+	manual []uuid.UUID) (matching.Run, error) {
+	cands, _, err := s.screen(ctx, rec.Snapshot.Task.WorkType, conds, manual)
+	if err != nil {
+		return matching.Run{}, err
+	}
+	version, err := q.VersionOf(ctx, "catalog")
+	if err != nil {
+		return matching.Run{}, err
+	}
+	return matching.Run{ProjectID: &rec.ID, TaskID: rec.TaskID, WorkType: rec.Snapshot.Task.WorkType,
+		CatalogVersion: version, RulesetVersion: matching.RulesetVersion, Conditions: conds.List(),
+		Counts: matching.Count(cands), Candidates: cands}, nil
 }
 
 // LatestRun returns the latest saved run of a project.
