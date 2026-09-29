@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/codex/fix-yc-iam-token'
     runs-on: ubuntu-latest
     environment: production
     permissions:
