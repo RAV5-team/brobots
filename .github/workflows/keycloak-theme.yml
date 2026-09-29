@@ -1,0 +1,53 @@
+name: keycloak-theme
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/keycloak-theme/**
+      - apps/web/src/components/ui/**
+      - apps/web/src/styles/**
+      - apps/web/src/pages/login/**
+      - apps/web/src/shared/**
+      - infra/keycloak/**
+      - .github/workflows/keycloak-theme.yml
+  pull_request:
+    paths:
+      - apps/keycloak-theme/**
+      - apps/web/src/components/ui/**
+      - apps/web/src/styles/**
+      - apps/web/src/pages/login/**
+      - apps/web/src/shared/**
+      - infra/keycloak/**
+      - .github/workflows/keycloak-theme.yml
+
+concurrency:
+  group: keycloak-theme-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: apps/keycloak-theme
+
+jobs:
+  theme:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/keycloak-theme/package-lock.json
+      # keycloakify упаковывает jar через Maven.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:coverage
+      - run: npm run build-keycloak-theme
+      - name: jar темы собран
+        run: test -f dist_keycloak/rav5-theme.jar

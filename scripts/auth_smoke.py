@@ -139,6 +139,8 @@ class Browser(Client):
     """Клиент rav5-web: authorization code + PKCE S256, формы входа и регистрации."""
 
     FORM_RE = re.compile(r'<form[^>]*id="(kc-form-login|kc-register-form)"[^>]*action="([^"]+)"', re.S)
+    # Тема rav5 (Keycloakify) рисует форму в браузере: адрес отправки — в kcContext на странице.
+    KC_CONTEXT_ACTION_RE = re.compile(r'"(loginAction|registrationAction)"\s*:\s*"([^"]+)"')
 
     def __init__(self, insecure: bool) -> None:
         super().__init__(insecure)
@@ -156,10 +158,18 @@ class Browser(Client):
         expect(resp.status == 200, f"страница {endpoint}: {resp.status}")
         return resp.body
 
-    def post_form(self, page: str, fields: dict[str, str]) -> Resp:
+    def form_action(self, page: str) -> str:
+        """Адрес формы входа или регистрации: из HTML стандартной темы или из kcContext темы rav5."""
         match = self.FORM_RE.search(page)
-        expect(match is not None, "на странице нет формы Keycloak")
-        return self.request(html.unescape(match.group(2)), data=fields)
+        if match is not None:
+            return html.unescape(match.group(2))
+        actions = dict(self.KC_CONTEXT_ACTION_RE.findall(page))
+        action = actions.get("registrationAction") or actions.get("loginAction")
+        expect(action is not None, "на странице нет формы Keycloak")
+        return json.loads(f'"{action}"')
+
+    def post_form(self, page: str, fields: dict[str, str]) -> Resp:
+        return self.request(self.form_action(page), data=fields)
 
     def submit(self, page: str, fields: dict[str, str]) -> str:
         resp = self.post_form(page, fields)
@@ -419,6 +429,18 @@ class Smoke:
         expect("max-age=" in hsts, f"HSTS: {hsts!r}")
         return f"301 -> https, HSTS {hsts}"
 
+    def t23_no_secrets_on_login_pages(self) -> str:
+        # Тема rav5 (Keycloakify) кладёт переменные окружения в данные каждой страницы входа. Ни один пароль или
+        # секрет из .env не должен туда попасть — кроме паролей, которые явно отданы плашкам (DEMO_PLATES_*).
+        shown = {value for key, value in ENV.items() if key.startswith("DEMO_PLATES_") and value}
+        secrets_ = {key: value for key, value in ENV.items()
+                    if re.search(r"(PASSWORD|SECRET)$", key) and len(value) >= 6 and value not in shown}
+        pages = {"вход": Browser(self.insecure).open_form(), "регистрация": Browser(self.insecure).open_form("registrations")}
+        leaks = [f"{key} на странице «{name}»" for name, page in pages.items() for key, value in secrets_.items() if value in page]
+        expect(not leaks, "секреты в HTML: " + ", ".join(sorted(leaks)))
+        plates = "плашки: " + ("пароли показаны явно (DEMO_PLATES_*)" if shown else "выключены")
+        return f"{len(secrets_)} секретов из .env не найдены на страницах входа и регистрации; {plates}"
+
     def t18_restart(self) -> str:
         tokens = Browser(self.insecure).login(DEMO_USER, ENV["DEMO_USER_PASSWORD"])
         gateway_before = started_at("gateway")
@@ -456,6 +478,7 @@ def main() -> int:
     runner.check("T14", "сервисный токен client credentials", s.t14_service_token)
     runner.check("T17", "закрытые пути: DCR, health, админка", s.t17_closed_paths)
     runner.check("T21", "пароли в БД — хэши", s.t21_password_hashes)
+    runner.check("T23", "секреты .env не попадают на страницы входа", s.t23_no_secrets_on_login_pages)
     runner.check("T20", "выход из системы", s.t20_logout)
     runner.check("T22", "stand: редирект на https и HSTS", s.t22_stand)
     if args.restart:

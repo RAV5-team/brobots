@@ -95,10 +95,19 @@ function CabinetMenu({ profile, dataVersion, onNavigate }: UserMenuProps & { rea
       </li>
       <MenuLink to={ROUTE_PATHS.help} onNavigate={onNavigate}>{ru.cabinetMenu.help}</MenuLink>
       <Divider />
-      {/* С Keycloak выход завершает его сессию, и он сам вернёт на экран входа. */}
-      <MenuLink to={ROUTE_PATHS.login} onNavigate={OIDC_ENABLED ? () => { void logout() } : onNavigate} danger>
-        {ru.cabinetMenu.logout}
-      </MenuLink>
+      {/* С Keycloak выход — действие, а не переход: Keycloak завершает сессию и сам вернёт на экран входа.
+          Ссылка на /login перебила бы выход — экран входа сразу уводит на Keycloak, и сессия осталась бы жива. */}
+      {OIDC_ENABLED ? (
+        <li>
+          <button type="button" onClick={() => { void logout() }} className={clsx(MENU_ITEM, 'w-full text-left text-danger')}>
+            {ru.cabinetMenu.logout}
+          </button>
+        </li>
+      ) : (
+        <MenuLink to={ROUTE_PATHS.login} onNavigate={onNavigate} danger>
+          {ru.cabinetMenu.logout}
+        </MenuLink>
+      )}
     </ul>
   )
 }
