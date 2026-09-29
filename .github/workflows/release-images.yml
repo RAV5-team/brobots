@@ -100,7 +100,7 @@ jobs:
       run:
         working-directory: services/simulation
     env:
-      TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/simulation_test
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/simulation_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
