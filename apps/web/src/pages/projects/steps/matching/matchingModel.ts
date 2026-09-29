@@ -14,12 +14,13 @@ import { ru } from '@/shared/i18n/ru'
 
 const t = ru.project.matching
 
+const MILLION = 1_000_000
+
 export type AcquisitionFilter = 'all' | AcquisitionModel
-export type RankingSort = 'score' | 'payback' | 'capex' | 'effect' | 'raas'
+export type RankingSort = 'score' | 'payback' | 'effect' | 'capex'
 
 export interface RankingQuery {
   readonly filter: AcquisitionFilter
-  readonly query: string
   readonly sort: RankingSort
 }
 
@@ -46,22 +47,23 @@ const SORTS: Record<RankingSort, (a: RankedVariant, b: RankedVariant) => number>
   payback: byNumber((v) => v.paybackYears, 1),
   capex: byNumber((v) => v.capexRub, 1),
   effect: byNumber((v) => v.annualEffectRub, -1),
-  raas: byNumber((v) => v.raasMonthlyRub, 1),
 }
 
-const normalize = (text: string): string => text.trim().toLocaleLowerCase('ru').replaceAll('ё', 'е')
-
-/** Строки рейтинга (PRD 11.3): только варианты с местом — добавленные вручную идут отдельно, вне рейтинга. */
-export function rankingRows(variants: readonly RankedVariant[], { filter, query, sort }: RankingQuery): readonly RankedVariant[] {
-  const needle = normalize(query)
+/** Строки рейтинга 2.1 (PRD 11.3): только варианты с местом — добавленные вручную идут в конце, вне рейтинга. */
+export function rankingRows(variants: readonly RankedVariant[], { filter, sort }: RankingQuery): readonly RankedVariant[] {
   return variants
     .filter((v) => v.status !== 'manual' && v.rank !== null)
     .filter((v) => filter === 'all' || v.acquisition === filter)
-    .filter((v) => needle === '' || normalize(`${v.solutionName} ${v.manufacturer}`).includes(needle))
     .toSorted(SORTS[sort])
 }
 
-/** Главные слагаемые балла — «почему» строки рейтинга: по убыванию вклада, без пустых. */
+export const formatScore = (score: number): string => formatNumber(score, 2, { fixed: true })
+
+/** Суммы подбора всегда в миллионах, как в макете: «6,1 млн ₽», платёж RaaS — «0,83 млн ₽» (16742:40, 16828:54). */
+export const rubMillions = (value: number | null, digits = 1): string =>
+  value === null ? '—' : t.millions(formatNumber(value / MILLION, digits, { fixed: true }))
+
+/** Главные слагаемые балла по убыванию вклада, без пустых (отчёт 09, `VariantsSection`). */
 export function topContributions(criteria: readonly ScoreContribution[], count = 3): readonly ScoreContribution[] {
   return criteria
     .filter((c): c is ScoreContribution & { readonly contribution: number } => c.contribution !== null && c.contribution > 0)
@@ -69,19 +71,27 @@ export function topContributions(criteria: readonly ScoreContribution[], count =
     .slice(0, count)
 }
 
-export const formatScore = (score: number): string => formatNumber(score, 2, { fixed: true })
-
-/** Подпись внутри строки со строчной: «окупаемость», но «ROI», «TCO», «CAPEX к бюджету». */
-const inline = (label: string): string =>
-  label.length > 1 && label.charAt(1) === label.charAt(1).toLocaleLowerCase('ru') ? label.charAt(0).toLocaleLowerCase('ru') + label.slice(1) : label
-
-/** «окупаемость 0,30 + ROI 0,15 + …»; вклад только у критериев с данными. */
+/** «окупаемость 0,30 + ROI 0,15 + …»; вклад только у критериев с данными (отчёт 09). */
 export function contributionsText(criteria: readonly ScoreContribution[]): string {
   return criteria
     .filter((c) => c.contribution !== null)
     .map((c) => `${inline(c.label)} ${formatScore(c.contribution ?? 0)}`)
     .join(' + ')
 }
+
+/** Порядок строк разбора на макете 2.1 (16828:86): CAPEX к бюджету — перед TCO; неизвестные критерии — в конце. */
+const BREAKDOWN_ORDER: readonly string[] = ['payback', 'roi', 'budget_fit', 'tco_savings', 'maturity', 'annual_effect', 'fleet_utilization', 'data_quality']
+const orderOf = (code: string): number => {
+  const index = BREAKDOWN_ORDER.indexOf(code)
+  return index === -1 ? BREAKDOWN_ORDER.length : index
+}
+
+/** Разбор балла строки рейтинга в порядке макета. */
+export const breakdownOf = (v: RankedVariant): readonly ScoreContribution[] => v.criteria.toSorted((a, b) => orderOf(a.code) - orderOf(b.code))
+
+/** Полоса разбора: вклад как доля веса критерия (полная полоса — вклад равен весу), 0–100. */
+export const barPercent = (c: ScoreContribution): number =>
+  c.contribution === null || c.weight <= 0 ? 0 : Math.min(100, (c.contribution / c.weight) * 100)
 
 /** Значение условия отбора: «≥ 800 кг», «вилы / платформа», «OP-01 · Перемещение грузов». */
 export function conditionValue(condition: MatchCondition): string {
@@ -116,13 +126,6 @@ export function manualEntries(excluded: readonly ExcludedSolution[], ids: readon
     .filter((e): e is ExcludedSolution => e !== undefined)
 }
 
-/** Отметить или снять вариант для сравнения; сверх лимита — null. */
-export function toggleKey(keys: readonly string[], key: string, limit: number): readonly string[] | null {
-  if (keys.includes(key)) return keys.filter((k) => k !== key)
-  if (keys.length >= limit) return null
-  return [...keys, key]
-}
-
 // «Параметры расчёта» (PRD 11.3, ТЗ 3.5.3). Диапазоны в PRD не заданы — разумные границы команды (D-97).
 
 export interface CalcFieldSpec {
@@ -137,16 +140,15 @@ export interface CalcFieldSpec {
   readonly perSolution: boolean
 }
 
-const MILLION = 1_000_000
-
-export const CALC_FIELDS: readonly CalcFieldSpec[] = [
+/** Поля панели; горизонт не короче норматива А5 `horizon_years` — он же горизонт по умолчанию. */
+export const calcFields = (minHorizonYears: number): readonly CalcFieldSpec[] => [
   { key: 'staffCostRubPerMonth', scale: 1, digits: 0, min: 20_000, max: 1_000_000, perSolution: false },
   { key: 'workHoursPerDay', scale: 1, digits: 1, min: 1, max: 24, perSolution: false },
   { key: 'robotTripsPerHour', scale: 1, digits: 2, min: 0.5, max: 100, perSolution: true },
   { key: 'robotPriceRub', scale: 1, digits: 0, min: 10_000, max: 200_000_000, perSolution: true },
   { key: 'serviceCostRubPerYear', scale: MILLION, digits: 2, min: 0, max: 100, perSolution: false },
   { key: 'utilization', scale: 1, digits: 2, min: 0.05, max: 1, perSolution: false },
-  { key: 'horizonYears', scale: 1, digits: 0, min: 5, max: 15, perSolution: false },
+  { key: 'horizonYears', scale: 1, digits: 0, min: minHorizonYears, max: 15, perSolution: false },
 ]
 
 /** Значение в единицах поля: «1,8» для 1 800 000 ₽ обслуживания. */
@@ -174,14 +176,36 @@ export function effectiveOverrides(overrides: Partial<CalcParams>, defaults: Cal
   )
 }
 
-/** «ООО «Морос» · AMR · до 800 кг» — подпись решения в рейтинге и рекомендации. */
+const LEGAL_FORM = /^(?:ООО|ОАО|ЗАО|ПАО|АО|ИП)\s+/u
+
+/** Бренд без организационно-правовой формы и кавычек: «ООО «Морос»» → «Морос» (строки рейтинга 2.1). */
+export const brandOf = (manufacturer: string): string => manufacturer.trim().replace(LEGAL_FORM, '').replace(/^«(.*)»$/u, '$1')
+
+/** «Морос · AMR · до 800 кг» — подпись решения в исключённых и строке вне рейтинга. */
 export function solutionLine(manufacturer: string, robot: Robot | undefined): string {
   const payload = robot?.specs.payloadKg
-  return [manufacturer, robot?.subtype, payload === undefined ? null : ru.catalog.comparePage.kg(`до ${formatNumber(payload)}`)]
+  return [brandOf(manufacturer), robot?.subtype, payload === undefined ? null : ru.catalog.comparePage.payloadUpTo(formatNumber(payload))]
     .filter((part): part is string => Boolean(part))
     .join(' · ')
 }
 
-/** Причины исключения: «Класс операции: нужно OP-01…, есть OP-08…». */
+/** Сообщение проверки расчёта: «нужно ≥ 800 кг, есть 10 кг». */
+const NEED_HAVE = /^нужно (.+), есть (.+)$/u
+
+/** Подпись внутри фразы со строчной: «класс операции», но «OP-01», «CAPEX». */
+export const inline = (label: string): string =>
+  label.length > 1 && label.charAt(1) === label.charAt(1).toLocaleLowerCase('ru') ? label.charAt(0).toLocaleLowerCase('ru') + label.slice(1) : label
+
+/** Причины исключения полностью: «Класс операции: нужно OP-01…, есть OP-08…» (отчёт 09, `VariantsSection`). */
 export const reasonsText = (solution: ExcludedSolution): string =>
   solution.reasons.map((r) => (r.message ? `${r.label}: ${r.message}` : r.label)).join(' · ')
+
+/** Причины исключения коротко, как в макете: «грузоподъёмность 10 кг вместо ≥ 800 кг; среда улица вместо в помещении» (16742:183). */
+export const shortReasonsText = (solution: ExcludedSolution): string =>
+  solution.reasons
+    .map((r) => {
+      const match = r.message === null ? null : NEED_HAVE.exec(r.message)
+      if (match) return t.reason(inline(r.label), match[2] ?? '', match[1] ?? '')
+      return r.message === null ? inline(r.label) : `${inline(r.label)}: ${r.message}`
+    })
+    .join('; ')

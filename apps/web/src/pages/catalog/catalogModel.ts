@@ -3,6 +3,7 @@ import { formatRubMillions } from '@/shared/format/money'
 import { ru } from '@/shared/i18n/ru'
 import { ROUTE_PATHS } from '@/app/routePaths'
 import {
+  parseRobotId,
   specsCompleteness,
   type CompareEntry,
   type FacilityTypeCode,
@@ -25,10 +26,7 @@ const TAB_ITEM_TYPES: Record<Exclude<CatalogTab, 'robots'>, readonly LaunchItemT
   services: ['service', 'support'],
 }
 
-export const INDUSTRIES = [
-  'Торговля и услуги', 'Промышленность', 'Сельское хозяйство', 'ЖКХ', 'Строительство',
-  'ТЭК', 'Безопасность', 'Транспорт и логистика', 'Лесное хозяйство',
-] as const
+export const INDUSTRIES = ru.catalog.industries
 
 export type ReadinessFilter = Exclude<RobotReadiness, 'unknown'>
 export const READINESS_VALUES: readonly ReadinessFilter[] = ['operation', 'pilot', 'rnd']
@@ -88,13 +86,13 @@ export function priceRangeOf(priceRub: number): PriceRange {
 }
 
 /** Цена в рублях; у позиции «10 % CAPEX в год» и у робота без цены — null. */
-export function priceRubOf(entry: CatalogEntry): number | null {
+function priceRubOf(entry: CatalogEntry): number | null {
   if (entry.kind === 'robot') return entry.robot.priceRub
   return entry.item.price.kind === 'rub' ? entry.item.price.amountRub : null
 }
 
 /** Робот — всегда разовая покупка (CAPEX); у позиции — её тип затрат. */
-export function costTypeOf(entry: CatalogEntry): CostTypeFilter {
+function costTypeOf(entry: CatalogEntry): CostTypeFilter {
   if (entry.kind === 'robot') return 'capex'
   return entry.item.costType === 'capex' ? 'capex' : 'opex'
 }
@@ -223,7 +221,7 @@ export function parseCatalogSearch(params: URLSearchParams, operationClasses: re
     readiness: allOf(READINESS_VALUES, params.getAll(PARAM.readiness)),
     costTypes: allOf(COST_TYPES, params.getAll(PARAM.costTypes)),
     priceRanges: allOf(PRICE_RANGES, params.getAll(PARAM.priceRanges)),
-    compatibleWith: /^RB-\d+$/.test(params.get(PARAM.compatibleWith) ?? '') ? (params.get(PARAM.compatibleWith) as RobotId) : null,
+    compatibleWith: parseRobotId(params.get(PARAM.compatibleWith)),
     sort: oneOf(SORT_KEYS, params.get(PARAM.sort), EMPTY_FILTER.sort),
   }
 }

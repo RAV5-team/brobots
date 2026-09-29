@@ -29,7 +29,7 @@ describe('effectChain — «Из чего складываются затрат�
 
 describe('staffEquivalent и breakEvenYear', () => {
   it('16,7 млн ₽ при окладе 120 000 ₽ — 8,9 ставки, «≈ 9»', () => {
-    expect(staffEquivalent(16.7 * M, 120_000)).toBeCloseTo(8.9, 1)
+    expect(staffEquivalent(16.7 * M, 120_000, 1.302)).toBeCloseTo(8.9, 1)
   })
 
   it('выход в плюс: 0,7 года — год 1, 2,8 года — год 3, не окупается — нет', () => {
@@ -72,7 +72,7 @@ describe('shiftedResult — строки PRD 11.5 «Устойчивость р�
 
 describe('sensitivity — вывод строки', () => {
   it('RaaS: при +20 % тарифа предпочтение по TCO переходит к покупке, труд и объём его не меняют', () => {
-    const rows = sensitivity(raas, [purchase], economics.current, 5)
+    const rows = sensitivity(raas, [purchase], economics.current, 5, 0.2)
     expect(rows.map((r) => [r.parameter, r.flipsTo, r.staysPositive])).toEqual([
       ['price', 'purchase', true],
       ['labor', null, true],
@@ -81,7 +81,7 @@ describe('sensitivity — вывод строки', () => {
   })
 
   it('покупка: при −20 % цены робота покупка становится дешевле RaaS по TCO', () => {
-    expect(sensitivity(purchase, [raas], economics.current, 5)[0]?.flipsTo).toBe('purchase')
+    expect(sensitivity(purchase, [raas], economics.current, 5, 0.2)[0]?.flipsTo).toBe('purchase')
   })
 })
 

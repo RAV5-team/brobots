@@ -36,10 +36,20 @@ describe('SCREENS registry', () => {
   })
 
   it('lists four project steps (PRD 0.9) and no separate result step', () => {
-    const steps = SCREENS.filter((s) => s.series === 'pending' && s.code.startsWith('Шаг')).map((s) => [s.code, s.title])
+    const steps = SCREENS.filter((s) => s.series === 'prototype' && s.code.startsWith('Шаг')).map((s) => [s.code, s.title])
     expect(steps).toEqual([
       ['Шаг 1', 'Параметры проекта'], ['Шаг 2', 'Подбор решения'], ['Шаг 3', 'Симуляция'], ['Шаг 4', 'Итог и экономика'],
     ])
+  })
+
+  it('keeps project steps out of «waiting for mockups» and archived screens in the archive series', () => {
+    const projectRoutes = new Set<string>([ROUTE_PATHS.projectParams, ROUTE_PATHS.projectMatching, ROUTE_PATHS.projectSimulation, ROUTE_PATHS.projectEconomics])
+    expect(SCREENS.filter((s) => s.series === 'pending' && s.route !== null && projectRoutes.has(s.route))).toEqual([])
+    expect(SCREENS.filter((s) => /^first-1[24][a-e]?$/.test(s.id)).every((s) => s.series === 'archive')).toBe(true)
+  })
+
+  it('treats А3 as a state of the admin catalog (D-48)', () => {
+    expect(SCREENS.find((s) => s.id === 'А3')).toMatchObject({ kind: 'state', route: ROUTE_PATHS.adminCatalog })
   })
 
   it('includes the clean-series screens from screens.md', () => {

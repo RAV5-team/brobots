@@ -27,11 +27,11 @@ export function createMockAdmin(options: MockOptions): AdminService {
     listDataSources: () => respond(sources, options),
     createDataSource: (input) => {
       if (input.refresh !== 'manual' && !canAutoRefresh(input)) {
-        return Promise.reject(new ValidationError('Автообновление доступно только для источника по ссылке — файл обновляется загрузкой нового'))
+        return Promise.reject(new ValidationError({ kind: 'refreshNeedsUrl' }, 'Автообновление доступно только для источника по ссылке — файл обновляется загрузкой нового'))
       }
       const sameName = (name: string) => name.trim().toLocaleLowerCase('ru') === input.name.trim().toLocaleLowerCase('ru')
       if (sources.some((source) => sameName(source.name))) {
-        return Promise.reject(new ValidationError(`Источник «${input.name}» уже есть в реестре`))
+        return Promise.reject(new ValidationError({ kind: 'dataSourceDuplicate', name: input.name }, `Источник «${input.name}» уже есть в реестре`))
       }
       created += 1
       const source: DataSource = { ...input, key: `source_${String(created)}`, actualizedOn: `${input.actualizedOn}T00:00:00Z` }
@@ -41,7 +41,7 @@ export function createMockAdmin(options: MockOptions): AdminService {
     updateDataSource: (key, patch) => {
       const current = sources.find((source) => source.key === key)
       if (current && patch.refresh !== 'manual' && !canAutoRefresh(current)) {
-        return Promise.reject(new ValidationError('Автообновление доступно только для источника по ссылке — файл обновляется загрузкой нового'))
+        return Promise.reject(new ValidationError({ kind: 'refreshNeedsUrl' }, 'Автообновление доступно только для источника по ссылке — файл обновляется загрузкой нового'))
       }
       return replaceSource(key, (source) => ({ ...source, ...patch }))
     },

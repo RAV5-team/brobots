@@ -1,5 +1,6 @@
 import { useSearchParams } from 'react-router'
 import { Button } from '@/components/ui/Button'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
 import { COMPARE_LIMIT, hasEntry } from '@/domain'
 import { useCompare } from '@/shared/compare/useCompare'
@@ -101,10 +102,7 @@ export function CatalogPage() {
 
   return (
     <>
-      <header className="flex flex-col gap-4">
-        <h1 className="type-display-lg text-text">{t.title}</h1>
-        <p className="type-body text-text-secondary">{t.lead}</p>
-      </header>
+      <PageHeader title={t.title} lead={t.lead} />
 
       {state.status === 'loading' && <CatalogSkeleton />}
       {state.status === 'error' && <ErrorState title={t.error.title} message={t.error.message} onRetry={retry} />}

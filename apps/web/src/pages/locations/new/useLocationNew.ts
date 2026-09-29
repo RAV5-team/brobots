@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useServices } from '@/services/useServices'
-import { buildInitialForm, indexParameters, type LocationForm, type ParameterIndex } from './locationForm'
-import { LOCATION_DEMO_PROFILE } from './locationNew.mock'
+import { DEMO_FILL } from '@/shared/auth/demoMode'
+import { buildInitialForm, indexParameters, type LocationForm, type ParameterIndex, type ProfileText } from './locationForm'
+
+/** Без демо-режима имя, город и адрес пустые: форма не предлагает имя, которое при сохранении даст дубль. */
+const NO_DEMO_PROFILE: ProfileText = { name: '', city: '', address: '' }
 
 export interface LocationNewData {
   /** Параметры склада из датасета: диапазоны, подсказки, норматив начислений. */
@@ -22,12 +25,14 @@ export function useLocationNew(): { readonly state: LocationNewState; readonly r
 
   useEffect(() => {
     let cancelled = false
-    services.locations
-      .listFacilityParameters('warehouse')
-      .then((list) => {
+    Promise.all([
+      services.locations.listFacilityParameters('warehouse'),
+      DEMO_FILL ? services.locations.getDemoProfile() : Promise.resolve(NO_DEMO_PROFILE),
+    ])
+      .then(([list, profile]) => {
         if (cancelled) return
         const params = indexParameters(list)
-        setState({ status: 'ready', params, initialForm: buildInitialForm(params, LOCATION_DEMO_PROFILE) })
+        setState({ status: 'ready', params, initialForm: buildInitialForm(params, profile) })
       })
       .catch((error: unknown) => {
         if (cancelled) return

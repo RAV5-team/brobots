@@ -6,6 +6,7 @@ import { createMockServices } from '@/services/mock'
 import { ServicesProvider } from '@/services/ServicesProvider'
 import { RoleProvider } from '@/shared/auth/RoleProvider'
 import { ProjectStepPage } from '../ProjectStepPage'
+import { EconomicsStep } from './EconomicsStep'
 
 function Search() {
   return <output data-testid="search">{useLocation().search}</output>
@@ -17,7 +18,7 @@ const renderAt = (path: string, services: Services = createMockServices({ latenc
       <ServicesProvider services={services}>
         <RoleProvider>
           <Routes>
-            <Route path="/projects/:projectId/economics" element={<><ProjectStepPage step="economics" /><Search /></>} />
+            <Route path="/projects/:projectId/economics" element={<><ProjectStepPage step="economics" Step={EconomicsStep} /><Search /></>} />
             <Route path="*" element={<p>другая страница</p>} />
           </Routes>
         </RoleProvider>

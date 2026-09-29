@@ -1,11 +1,13 @@
 import type {
   FacilityParameter, FacilityType, FacilityTypeCode, Location, LocationDocument, LocationId, LocationProcess, LocationProcessId, LocationProcessUpdate,
-  LocationSummary, NewLocation, ProcessCode,
+  LocationDemoProfile, LocationSummary, NewLocation, ProcessCode,
 } from '@/domain'
 
 /** Локации, их параметры и процессы на площадке (PRD 10). */
 export interface LocationService {
   listLocations(): Promise<readonly Location[]>
+  /** Тексты демо-профиля формы 14 (PRD 10.2); экран запрашивает их только в демо-режиме. */
+  getDemoProfile(): Promise<LocationDemoProfile>
   getLocation(id: LocationId): Promise<Location>
   /** Сохранить локацию из формы 14; вернёт её с присвоенным id — после этого список показывает состояние 12а. */
   createLocation(input: NewLocation): Promise<Location>

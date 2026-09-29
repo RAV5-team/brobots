@@ -1,26 +1,25 @@
 import { ArrowRight, Plus } from 'lucide-react'
-import { generatePath, useLocation, useSearchParams } from 'react-router'
+import { generatePath, useSearchParams } from 'react-router'
 import { ROUTE_PATHS } from '@/app/routePaths'
-import type { RobotId } from '@/domain'
+import { parseRobotId } from '@/domain'
 import { ButtonLink } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Chip } from '@/components/ui/Chip'
 import { IconButtonLink } from '@/components/ui/IconButton'
 import { MergedButtonLink } from '@/components/ui/MergedButton'
 import { Search } from '@/components/ui/Search'
-import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
+import { EmptyState, ErrorState, SkeletonList } from '@/components/ui/States'
 import { StatusBanner } from '@/components/ui/StatusBanner'
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/Table'
-import { canAccess } from '@/shared/auth/resolveRole'
-import { useRole } from '@/shared/auth/useRole'
 import { ru } from '@/shared/i18n/ru'
 import { AdminHeader } from '../AdminHeader'
 import { CatalogTableHead } from './CatalogTableHead'
 import { ADDED_PARAM, filterCatalogRows, shownLabel, type CatalogRow } from './catalogModel'
 import { useAdminCatalog, type AdminCatalogState } from './useAdminCatalog'
+import { AdminGuard } from '../AdminGuard'
 
 const t = ru.adminCatalog
-const SKELETON_ROWS = [0, 1, 2, 3, 4, 5]
+const SKELETON_ROWS = 6
 const QUERY_PARAM = 'q'
 
 function SolutionCell({ row }: { readonly row: CatalogRow }) {
@@ -63,7 +62,7 @@ function CatalogTableRow({ row }: { readonly row: CatalogRow }) {
             size={36}
             icon={ArrowRight}
             label={t.open(row.name)}
-            to={generatePath(ROUTE_PATHS.adminRobot, { robotId: row.id })}
+            to={generatePath(ROUTE_PATHS.catalogItem, { itemId: row.id })}
           />
         </div>
       </TableCell>
@@ -96,11 +95,6 @@ function CatalogResults({ rows, query }: { readonly rows: readonly CatalogRow[];
   )
 }
 
-/** Параметр ?added= из адреса: берём только идентификатор вида RB-…, остальное — обычный А1. */
-function parseRobotId(value: string | null): RobotId | null {
-  return value !== null && value.startsWith('RB-') ? (value as RobotId) : null
-}
-
 /** А3: «Каталог обновлён» и переход к решению в пользовательском каталоге (PRD 6.2, раздел 7). */
 function AddedBanner({ row }: { readonly row: CatalogRow }) {
   const to = { pathname: ROUTE_PATHS.catalog, search: `?${new URLSearchParams({ [QUERY_PARAM]: row.name }).toString()}` }
@@ -131,9 +125,7 @@ function CatalogPanel({ query, onQueryChange, state, retry }: {
         <MergedButtonLink to={ROUTE_PATHS.adminCatalogNew} label={t.add} icon={Plus} />
       </div>
       {state.status === 'loading' && (
-        <div className="flex flex-col gap-8" aria-busy="true">
-          {SKELETON_ROWS.map((i) => <Skeleton key={i} className="h-64" />)}
-        </div>
+        <SkeletonList rows={SKELETON_ROWS} rowClassName="h-(--rav-admin-catalog-skeleton-height)" />
       )}
       {state.status === 'error' && <ErrorState title={t.error.title} message={t.error.message} onRetry={retry} />}
       {state.status === 'ready' && <CatalogResults rows={state.rows} query={query} />}
@@ -143,15 +135,8 @@ function CatalogPanel({ query, onQueryChange, state, retry }: {
 
 /** Экран А1 «Администрирование · каталог решений» (PRD 6.2; 15997:2) и его состояние А3 «Робот добавлен» (?added=, 15966:6268). */
 export function AdminCatalogPage() {
-  const role = useRole()
-  const { pathname } = useLocation()
-
   // Каталог ведёт только администратор (PRD 5.3, 6).
-  if (!canAccess(role, pathname)) {
-    return <ErrorState title={ru.errors.accessDenied(ru.roles[role])} message={ru.admin.accessHint} />
-  }
-
-  return <AdminCatalogContent />
+  return <AdminGuard><AdminCatalogContent /></AdminGuard>
 }
 
 function AdminCatalogContent() {

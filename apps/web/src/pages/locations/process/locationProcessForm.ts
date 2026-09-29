@@ -6,6 +6,7 @@ import type {
   Location,
   LocationProcess,
   LocationProcessUpdate,
+  ProcessTemplateDefaults,
   OperationClass,
   Process,
   ProcessDefaults,
@@ -15,7 +16,7 @@ import type {
 import { numberParameter } from '@/pages/processes/locationStaffing'
 import { toNewProcess } from '@/pages/processes/new/processCalc'
 import { categoryValue, parseDecimal, type NumericKey, type ProcessForm, type StaffRow } from '@/pages/processes/new/processForm'
-import { MACRO_DEFAULTS, REPLACEMENT, warehouseBase, type WarehouseBase } from '@/pages/processes/new/processNew.mock'
+import { warehouseBase, type WarehouseBase } from '@/pages/processes/new/processDemoForm'
 import { numericHints } from '@/pages/processes/new/processNewModel'
 import { STAFF_PARAMETERS } from '@/pages/processes/staffParameters'
 import { formatNumber } from '@/shared/format'
@@ -34,7 +35,7 @@ export interface ProcessValues {
 }
 
 /** Параметры типа объекта со значениями этой локации вместо базы датасета. */
-export function siteParameters(location: Location, parameters: readonly FacilityParameter[]): readonly FacilityParameter[] {
+function siteParameters(location: Location, parameters: readonly FacilityParameter[]): readonly FacilityParameter[] {
   return parameters.map((p) => {
     const value = location.parameters[p.code]?.value
     return value === undefined ? p : { ...p, base: value }
@@ -47,7 +48,7 @@ export function siteBase(location: Location, parameters: readonly FacilityParame
 }
 
 /** Группы из профиля локации; нет своих — группы датасета типа объекта с численностью и окладом площадки. */
-export function profileGroups(location: Location, parameters: readonly FacilityParameter[]) {
+function profileGroups(location: Location, parameters: readonly FacilityParameter[]) {
   if (location.staffGroups.length > 0) return location.staffGroups.map((g) => ({ role: g.role, headcount: g.headcount, salaryRub: g.salaryGrossMonthRub }))
   return STAFF_PARAMETERS[location.facilityType].map((g) => ({
     role: g.role,
@@ -62,32 +63,34 @@ function routeText(points: readonly string[]): string {
 }
 
 /** Поля шаблона, которых у процессов из источника пока нет, — значения по умолчанию формы 09а (PRD 15 · №22). */
-function templateOf(process: Process, location: Location, cls: OperationClass | undefined): ProcessTemplate {
+function templateOf(process: Process, location: Location, cls: OperationClass | undefined, defaults: ProcessTemplateDefaults): ProcessTemplate {
   if (process.template) return process.template
   const d = process.defaults
   return {
     category: { facilityType: location.facilityType, workCategory: cls?.workCategory ?? 'internal_logistics' },
     route: routeText(d.routePoints ?? []),
     peakFactor: d.peakFactor ?? 1,
-    speedLimitMps: MACRO_DEFAULTS.speedLimitMps,
-    widthMarginM: MACRO_DEFAULTS.widthMarginM,
-    liftTripShare: MACRO_DEFAULTS.liftTripPct / PERCENT,
-    liftWaitS: MACRO_DEFAULTS.liftWaitS,
+    speedLimitMps: defaults.speedLimitMps,
+    widthMarginM: defaults.widthMarginM,
+    liftTripShare: defaults.liftTripPct / PERCENT,
+    liftWaitS: defaults.liftWaitS,
     indoor: true,
     minAisleWidthM: 0,
     staff: process.defaultWorkerRole === null ? [] : [{ role: process.defaultWorkerRole, timeShare: 1 }],
-    staffTurnoverShare: MACRO_DEFAULTS.turnoverPct / PERCENT,
+    staffTurnoverShare: defaults.turnoverPct / PERCENT,
     workTimeLossShare: 0,
-    fleetOperatorsPerShift: MACRO_DEFAULTS.fleetOperators,
+    fleetOperatorsPerShift: defaults.fleetOperators,
     fleetOperatorSalaryRub: 0,
-    sitePreparationShare: MACRO_DEFAULTS.sitePrepPct / PERCENT,
-    itIntegrationRub: MACRO_DEFAULTS.itIntegrationRub,
-    consumablesRubPerYear: MACRO_DEFAULTS.consumablesRub,
-    otherEffectsRubPerYear: MACRO_DEFAULTS.otherEffectsRub,
+    sitePreparationShare: defaults.sitePrepPct / PERCENT,
+    itIntegrationRub: defaults.itIntegrationRub,
+    consumablesRubPerYear: defaults.consumablesRub,
+    otherEffectsRubPerYear: defaults.otherEffectsRub,
   }
 }
 
 interface SiteContext {
+  /** Значения по умолчанию формы 09а из сервиса процессов (PRD 15 · №22). */
+  readonly defaults: ProcessTemplateDefaults
   readonly process: Process
   readonly operationClass: OperationClass | undefined
   readonly location: Location
@@ -98,8 +101,8 @@ interface SiteContext {
  * Шаблон на этой локации — «значения уже взяты из профиля по формулам процесса» (PRD 10.4):
  * часы = смены × часы смены, пик и потери времени — из профиля, проход — «Параметры объекта», оклад оператора флота — оклад первой группы.
  */
-export function siteValues({ process, operationClass, location, parameters }: SiteContext): ProcessValues {
-  const template = templateOf(process, location, operationClass)
+export function siteValues({ defaults, process, operationClass, location, parameters }: SiteContext): ProcessValues {
+  const template = templateOf(process, location, operationClass, defaults)
   const base = siteBase(location, parameters)
   const firstRole = template.staff[0]?.role
   const salary = profileGroups(location, parameters).find((g) => g.role === firstRole)?.salaryRub
@@ -146,7 +149,7 @@ function staffRows(values: ProcessValues, location: Location, parameters: readon
 export function formOf(values: ProcessValues, ctx: Omit<SiteContext, 'operationClass'>): ProcessForm {
   const { defaults: d, template: tpl } = values
   const ratios = Object.fromEntries(values.handling.flatMap((h) => (h.laborReplacementRatio === undefined ? [] : [[h.method, h.laborReplacementRatio]])))
-  const replacement = { ...REPLACEMENT, ...ratios }
+  const replacement = { ...ctx.defaults.replacement, ...ratios }
   return {
     operationClass: ctx.process.operationClass,
     name: values.name,

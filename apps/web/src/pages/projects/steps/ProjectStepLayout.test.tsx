@@ -68,3 +68,49 @@ describe('ProjectStepLayout', () => {
     expect(screen.queryByRole('complementary')).not.toBeInTheDocument()
   })
 })
+
+describe('ProjectStepLayout · board (доска 16325)', () => {
+  const board = (props: Partial<Parameters<typeof ProjectStepLayout>[0]> = {}) =>
+    renderLayout({ layout: 'board', step: 'simulation', status: <span>Черновик сохранён · 15.09 14:32</span>, ...props })
+
+  it('«← Проекты» ссылкой и статус вместо крошек', () => {
+    board()
+    expect(screen.queryByRole('navigation', { name: 'Путь к проекту' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Проекты' })).toHaveAttribute('href', '/projects')
+    expect(screen.getByText('Черновик сохранён · 15.09 14:32')).toBeInTheDocument()
+  })
+
+  it('гостю «Проекты» текстом (D-82) и демо-плашка вместо статуса', () => {
+    board({ isGuest: true })
+    expect(screen.queryByRole('link', { name: 'Проекты' })).not.toBeInTheDocument()
+    expect(screen.getByText('Проекты')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Демо-режим · изменения не сохраняются')
+    expect(screen.queryByText('Черновик сохранён · 15.09 14:32')).not.toBeInTheDocument()
+  })
+
+  it('сохранённая оценка — «только просмотр» вместо статуса', () => {
+    board({ project: saved })
+    expect(screen.getByText('Оценка готова · только просмотр')).toBeInTheDocument()
+    expect(screen.queryByText('Черновик сохранён · 15.09 14:32')).not.toBeInTheDocument()
+  })
+
+  it('степпер с короткими подписями, текущий шаг отмечен', () => {
+    board()
+    const steps = within(screen.getByRole('navigation', { name: 'Шаги проекта' }))
+    expect(steps.getByRole('link', { name: 'Шаг 2. Подбор, пройден' })).toHaveAttribute('href', '/projects/PJ-DEMO/matching')
+    expect(steps.getByText('Симуляция').closest('[aria-current]')).toHaveAttribute('aria-current', 'step')
+  })
+
+  it('заголовок вне колонок; этапы и содержание — в основной колонке, rail — рядом с ней', () => {
+    board({ stages: <nav aria-label="Этапы симуляции" />, rail: <p>Что проверит симуляция</p> })
+    const heading = screen.getByRole('heading', { level: 1, name: 'Подбор решения под процесс' })
+    const rail = screen.getByRole('complementary')
+    expect(rail).not.toContainElement(heading)
+    const columns = rail.parentElement as HTMLElement
+    expect(columns).not.toContainElement(heading)
+    expect(columns).toHaveClass('gap-24')
+    const main = within(columns.firstElementChild as HTMLElement)
+    expect(main.getByRole('navigation', { name: 'Этапы симуляции' })).toBeInTheDocument()
+    expect(main.getByText('Содержание шага')).toBeInTheDocument()
+  })
+})

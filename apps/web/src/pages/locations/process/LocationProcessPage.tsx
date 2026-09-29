@@ -3,7 +3,7 @@ import { generatePath, useNavigate, useParams } from 'react-router'
 import { ROUTE_PATHS } from '@/app/routePaths'
 import { ButtonLink } from '@/components/ui/Button'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
-import type { LocationId, LocationProcessId } from '@/domain'
+import { parseLocationId, parseLocationProcessId } from '@/domain'
 import { ProcessFormLayout } from '@/pages/processes/new/ProcessFormLayout'
 import { countFormulas, countRequired, type ProcessForm } from '@/pages/processes/new/processForm'
 import { carrierOptions, categoryOptions, classOptions } from '@/pages/processes/new/processNewModel'
@@ -14,13 +14,12 @@ import { useServices } from '@/services/useServices'
 import { useRole } from '@/shared/auth/useRole'
 import { formatNumber } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
+import { useModelNorms } from '@/shared/norms/useModelNorms'
 import { copyValues, countChanged, formOf, siteBase, siteHints, siteValues, toLocationUpdate } from './locationProcessForm'
 import { useLocationProcess, type LocationProcessData } from './useLocationProcess'
 
 const t = ru.locationProcess
 const rail = ru.processNew.rail
-/** Начисления на ФОТ, если в профиле их нет: коэффициент демо-склада (ТЗ, приложение А). */
-const DEFAULT_PAYROLL_COEF = 1.302
 
 function LocationProcessSkeleton() {
   return (
@@ -34,14 +33,16 @@ function LocationProcessSkeleton() {
 /** Форма копии: значения шаблона с профилем, поверх — переопределения площадки; сохраняются только отличия. */
 function LocationProcessForm({ data, canSave }: { readonly data: LocationProcessData; readonly canSave: boolean }) {
   const services = useServices()
+  // Начисления на ФОТ, если в профиле их нет, — норматив А5 `payroll_tax_ratio`.
+  const { payrollTaxRatio } = useModelNorms()
   const navigate = useNavigate()
-  const { location, locationProcess: lp, process, parameters } = data
+  const { location, locationProcess: lp, process, parameters, templateDefaults } = data
   const { siteForm, initialForm, hints } = useMemo(() => {
-    const ctx = { process, location, parameters, operationClass: data.operationClasses.find((c) => c.code === process.operationClass) }
+    const ctx = { defaults: templateDefaults, process, location, parameters, operationClass: data.operationClasses.find((c) => c.code === process.operationClass) }
     const site = siteValues(ctx)
     const baseline = formOf(site, ctx)
     return { siteForm: baseline, initialForm: formOf(copyValues(site, lp), ctx), hints: siteHints(siteBase(location, parameters), baseline) }
-  }, [process, location, parameters, lp, data.operationClasses])
+  }, [templateDefaults, process, location, parameters, lp, data.operationClasses])
   const locationPath = generatePath(ROUTE_PATHS.location, { locationId: location.id })
 
   const state = useProcessFormState({
@@ -73,7 +74,7 @@ function LocationProcessForm({ data, canSave }: { readonly data: LocationProcess
         categoryOptions={categoryOptions(data.facilityTypes)}
         carrierOptions={carrierOptions(data.processes, data.operationClasses, form)}
         handlingMethods={data.handlingMethods}
-        payrollCoef={numberParameter(location, parameters, PAYROLL_COEF_PARAMETER[location.facilityType]) ?? DEFAULT_PAYROLL_COEF}
+        payrollCoef={numberParameter(location, parameters, PAYROLL_COEF_PARAMETER[location.facilityType]) ?? payrollTaxRatio}
         rail={{
           copy: { title: t.rail.title, note: t.rail.note(location.name), save: t.rail.save },
           rows: [
@@ -94,9 +95,10 @@ function LocationProcessForm({ data, canSave }: { readonly data: LocationProcess
  * Гость видит форму без сохранения и черновика (D-14).
  */
 export function LocationProcessPage() {
-  const { locationId = '', locationProcessId = '' } = useParams()
+  const params = useParams()
+  const locationId = parseLocationId(params.locationId)
   const role = useRole()
-  const { state, retry } = useLocationProcess(locationId as LocationId, locationProcessId as LocationProcessId)
+  const { state, retry } = useLocationProcess(locationId, parseLocationProcessId(params.locationProcessId))
 
   if (state.status === 'loading') return <LocationProcessSkeleton />
   if (state.status === 'error') return <ErrorState title={t.error.title} message={t.error.message} onRetry={retry} />
@@ -105,7 +107,7 @@ export function LocationProcessPage() {
       <EmptyState
         title={t.notFound.title}
         description={t.notFound.description}
-        action={<ButtonLink to={generatePath(ROUTE_PATHS.location, { locationId })}>{t.notFound.back}</ButtonLink>}
+        action={<ButtonLink to={generatePath(ROUTE_PATHS.location, { locationId: params.locationId ?? '' })}>{t.notFound.back}</ButtonLink>}
       />
     )
   }

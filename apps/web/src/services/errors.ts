@@ -3,14 +3,34 @@ export class NotFoundError extends Error {
   override readonly name = 'NotFoundError'
 }
 
+/** Id из адреса не прошёл `parse*Id` — для экрана это то же «не найдено», что и неизвестный id. */
+export function requireId<T extends string>(id: T | null, entity: 'project' | 'location' | 'locationProcess' | 'process'): T {
+  if (id === null) throw new NotFoundError(`Неверный идентификатор в адресе: ${entity}`)
+  return id
+}
+
 /** Почта или пароль не подошли. Текст для пользователя берёт экран. */
 export class InvalidCredentialsError extends Error {
   override readonly name = 'InvalidCredentialsError'
 }
 
-/** Запрос противоречит правилам данных. Текст — для пользователя (ТЗ 4.5.4). */
+/**
+ * Какое правило данных нарушено. Экран показывает текст из словаря по причине, а не `message`:
+ * `message` — для журнала разработчика (аудит 2026-09-28, §2).
+ */
+export type ValidationReason =
+  | { readonly kind: 'compareLimit'; readonly limit: number }
+  | { readonly kind: 'robotDuplicate'; readonly robotId: string }
+  | { readonly kind: 'refreshNeedsUrl' }
+  | { readonly kind: 'dataSourceDuplicate'; readonly name: string }
+
+/** Запрос противоречит правилам данных (ТЗ 4.5.4). Текст для пользователя — по `reason` из словаря. */
 export class ValidationError extends Error {
   override readonly name = 'ValidationError'
+
+  constructor(readonly reason: ValidationReason, message: string) {
+    super(message)
+  }
 }
 
 /** Действие противоречит текущему состоянию: например, шаблон уже на локации. Текст — для пользователя. */

@@ -4,7 +4,7 @@ import { ROUTE_PATHS } from '@/app/routePaths'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import { SectionNav } from '@/components/ui/SectionNav'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
-import type { LocationId } from '@/domain'
+import { parseLocationId } from '@/domain'
 import { useServices } from '@/services/useServices'
 import { useRole } from '@/shared/auth/useRole'
 import { useActiveSection } from '@/shared/dom/useActiveSection'
@@ -143,9 +143,9 @@ function ParamsForm({ data, editing, onSaved, status }: ParamsFormProps) {
  * в режиме просмотра с «Изменить» (D-41). Гость только смотрит: своих локаций и сохранения у него нет (D-14).
  */
 export function LocationParamsPage() {
-  const { locationId = '' } = useParams()
+  const locationId = parseLocationId(useParams().locationId)
   const role = useRole()
-  const { state, retry, refresh } = useLocationParams(locationId as LocationId)
+  const { state, retry, refresh } = useLocationParams(locationId)
   const [editing, setEditing] = useState(false)
   // Сеанс правки: «Отменить изменения» и сохранение пересоздают форму со значениями локации.
   const [session, setSession] = useState(0)

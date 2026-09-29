@@ -3,7 +3,8 @@ import { Card } from '@/components/ui/Card'
 import { Chip } from '@/components/ui/Chip'
 import type { AcquisitionModel, EconomicsResult, ScenarioEconomics } from '@/domain'
 import { ru } from '@/shared/i18n/ru'
-import { Well } from '../simulation/VerdictCard'
+import { StatTile } from '@/components/ui/StatTile'
+import { Well } from '@/components/ui/Well'
 import { acquisitionName, fleetText, summaryLine, tiles, type ConclusionView } from './economicsView'
 
 const t = ru.project.economics
@@ -52,11 +53,7 @@ export function RecommendationCard({ economics, scenario, selected, conclusion, 
       </div>
       <ul aria-label={t.tiles.label} className="grid grid-cols-5 gap-8">
         {tiles(scenario, economics).map((tile) => (
-          <li key={tile.key} className="flex flex-col gap-4 rounded-lg bg-inverse-well px-16 py-14">
-            <span className="type-caption text-text-disabled">{tile.label}</span>
-            <span className="type-title-md text-bg">{tile.value}</span>
-            <span className="type-caption text-text-disabled">{tile.caption}</span>
-          </li>
+          <StatTile key={tile.key} tone="inverse" label={tile.label} value={tile.value} caption={tile.caption} />
         ))}
       </ul>
       <p className="type-body-sm text-bg">{summaryLine(scenario, economics)}</p>

@@ -6,7 +6,7 @@ import { Button, ButtonLink } from '@/components/ui/Button'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
 import { StatusBanner } from '@/components/ui/StatusBanner'
 import { TextLink } from '@/components/ui/TextLink'
-import type { ProjectId } from '@/domain'
+import { parseProjectId } from '@/domain'
 import { useRole } from '@/shared/auth/useRole'
 import { formatDate } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
@@ -112,9 +112,9 @@ function Report({ ctx }: { readonly ctx: ReportContext }) {
  * кабинета — лист 1240 на экране, A4 в печати, каждый из 12 разделов с новой страницы. Числа — функциями итога 08.
  */
 export function ReportPage() {
-  const { projectId = '' } = useParams()
+  const projectId = parseProjectId(useParams().projectId)
   const role = useRole()
-  const { load, retry } = useReport(projectId as ProjectId)
+  const { load, retry } = useReport(projectId)
   const ctx = load.status === 'ready' ? reportContext(load.data, role === 'guest') : null
 
   const body = (() => {

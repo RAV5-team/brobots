@@ -1,7 +1,7 @@
 import { ButtonLink } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
+import { Card, CardTitle } from '@/components/ui/Card'
 import { ru } from '@/shared/i18n/ru'
-import { useNewProjectLink } from '@/pages/projects/new/useNewProjectLink'
+import { useNewProjectLink } from '@/components/newProject/useNewProjectLink'
 import { newProjectContext, type LocationUsage } from './processDetailModel'
 
 const t = ru.processCard.locations
@@ -11,7 +11,7 @@ export function LocationsSection({ usages }: { readonly usages: readonly Locatio
   const newProjectLink = useNewProjectLink()
   return (
     <Card aria-labelledby="locations-title">
-      <h2 id="locations-title" className="type-overline text-text-muted">{t.title}</h2>
+      <CardTitle as="h2" id="locations-title">{t.title}</CardTitle>
       {usages.length === 0 ? (
         <p className="type-body text-text-secondary">{t.empty}</p>
       ) : (

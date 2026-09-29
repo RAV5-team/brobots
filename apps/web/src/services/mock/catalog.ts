@@ -21,7 +21,7 @@ export function createMockCatalog(options: MockOptions): CatalogService {
     getRobot: (id) => findOrReject(robots, (r) => r.id === id, `Робот ${id} не найден`, options),
     createRobot: (input) => {
       const twin = robots.find((r) => isSameRobot(r, input))
-      if (twin) return Promise.reject(new ValidationError(`Решение уже есть в каталоге: ${twin.id}`))
+      if (twin) return Promise.reject(new ValidationError({ kind: 'robotDuplicate', robotId: twin.id }, `Решение уже есть в каталоге: ${twin.id}`))
       const id = nextRobotId(robots.map((r) => r.id))
       const created: Robot = {
         ...input,
@@ -51,9 +51,9 @@ export function createMockCatalog(options: MockOptions): CatalogService {
       return respond(created, options)
     },
     countRobotsByClass: () => {
-      const counts = Object.fromEntries(
+      const counts: Readonly<Record<OperationClassCode, number>> = Object.fromEntries(
         classes.map((c) => [c.code, robots.filter((r) => r.operationClasses.some((rc) => rc.code === c.code)).length]),
-      ) as Record<OperationClassCode, number>
+      )
       return respond(counts, options)
     },
     listHandlingMethods: () => respond(HANDLING_METHODS, options),

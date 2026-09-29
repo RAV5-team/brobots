@@ -13,7 +13,7 @@ import {
   type ValueSource,
 } from '@/domain'
 import { numberParameter, staffing, type Staffing } from '@/pages/processes/locationStaffing'
-import { formatNumber, formatPercent, formatRub } from '@/shared/format'
+import { formatCount, formatNumber, formatPercent, formatRub } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 
 const t = ru.project.params
@@ -22,8 +22,6 @@ const t = ru.project.params
 const NO_ROUTE_CLASSES: readonly OperationClassCode[] = ['OP-05']
 /** Инвентаризация: без частоты пересчёта не посчитать парк — подбор недоступен (PRD 11.2). */
 const INVENTORY_CLASS: OperationClassCode = 'OP-06'
-/** Запас по ширине, когда в шаблоне процесса его нет: норматив модели прототипа (PRD 11.2; PRD 15 · №128). */
-const DEFAULT_WIDTH_MARGIN_M = 0.5
 const DAYS_PER_MONTH = 30
 
 /** Строка значения: подпись, значение и статус; `anchor` — цель кнопки «↓» у незаполненного значения. */
@@ -57,8 +55,12 @@ export interface SiteRowGroup {
 export interface ProcessCard {
   readonly id: LocationProcessId
   readonly name: string
+  readonly operationClass: OperationClassCode
   readonly workers: string
   readonly volume: string
+  /** Колонка «Объём» таблицы процессов: число и единица второй строкой («2 000» · «паллет/сутки»). */
+  readonly volumeValue: string
+  readonly volumeUnit: string
   readonly object: string | null
   readonly missing: readonly MissingItem[]
   readonly canMatch: boolean
@@ -66,11 +68,22 @@ export interface ProcessCard {
 
 export const ASSUMPTION_CODES = ['route_length_m', 'operator_time_share_pct', 'peak_factor', 'width_margin_m'] as const
 export type AssumptionCode = (typeof ASSUMPTION_CODES)[number]
+/** Допущения, которые берутся из справочника нормативов А5 (`width_margin_m`), — счётчик «Нормативы» (доска 16325). */
+const NORM_CODES: readonly AssumptionCode[] = ['width_margin_m']
+
+/** Тип строки таблицы «Нормативы и допущения»: норматив справочника А5 или допущение. */
+export const isNormCode = (code: AssumptionCode): boolean => NORM_CODES.includes(code)
+
+/** Единица допущения; factor — безразмерный коэффициент: число показывается без подписи. */
+export type AssumptionUnit = 'm' | 'percent' | 'factor'
+
+/** Подпись единицы допущения: «м», «%», «коэф.». */
+export const assumptionUnitLabel = (unit: AssumptionUnit): string => ru.units[unit]
 
 /** Допущение блока 3: исходное значение и уточнение пользователя (значения — в единицах экрана: м, %, коэф.). */
 export interface AssumptionRow {
   readonly code: AssumptionCode
-  readonly unit: string
+  readonly unit: AssumptionUnit
   readonly base: number
   readonly min: number
   readonly max: number
@@ -92,7 +105,14 @@ export interface ParamsView {
   readonly assumptions: readonly AssumptionRow[]
   readonly missing: readonly MissingItem[]
   readonly readiness: ParamsReadiness | null
+  /** Часы собственного графика процесса, если он отличается от режима локации (упаковка: 16 ч); null — режим локации. */
+  readonly ownScheduleHours: number | null
+  /** Маршрут у процесса есть; у упаковки — стационарный пост, группы «Маршрут» нет (D-93). */
+  readonly routeApplies: boolean
 }
+
+/** Якорь таблицы «Нормативы и допущения» — цель счётчиков «Допущения ↓ · Нормативы ↓» в rail. */
+export const ASSUMPTIONS_ANCHOR = 'params-assumptions'
 
 /** Якорь строки значения на странице — цель «↓» в плашке незаполненных значений. */
 export const valueAnchor = (code: string): string => `param-${code}`
@@ -105,6 +125,9 @@ export const defaultsOf = (entry: ParamsProcessEntry) => ({ ...entry.process.def
 
 const staffOf = (entry: ParamsProcessEntry, snapshot: ProjectParamsSnapshot): Staffing | null =>
   staffing(entry.process, entry.locationProcess, snapshot.location, snapshot.facilityParameters)
+
+/** Исполнители процесса: группа персонала локации, численность, оклад и доля времени (группа «Исполнители»). */
+export const processStaff = staffOf
 
 export const locationNumber = (snapshot: ProjectParamsSnapshot, code: string): number | null =>
   numberParameter(snapshot.location, snapshot.facilityParameters, code)
@@ -137,11 +160,26 @@ export function missingOf(entry: ParamsProcessEntry, snapshot: ProjectParamsSnap
 const siteValue = (snapshot: ProjectParamsSnapshot, code: string): ParameterValue | undefined =>
   snapshot.siteValues[code] ?? snapshot.location.parameters[code]
 
-export const missingLabel = (m: MissingValue, snapshot: ProjectParamsSnapshot): string =>
-  t.missingLabels[m.code] ?? snapshot.siteParameters.find((p) => p.code === m.code)?.name.toLowerCase() ?? m.code
+function missingLabel(m: MissingValue, snapshot: ProjectParamsSnapshot, entry: ParamsProcessEntry): string {
+  // Оклад — чей именно: «оклад · Операторы упаковочных линий» (17009:1010).
+  const role = m.code === 'salary' ? staffOf(entry, snapshot)?.role : undefined
+  if (role !== undefined) return t.salaryOf(role)
+  return t.missingLabels[m.code] ?? snapshot.siteParameters.find((p) => p.code === m.code)?.name.toLowerCase() ?? m.code
+}
 
-const labelled = (missing: readonly MissingValue[], snapshot: ProjectParamsSnapshot): readonly MissingItem[] =>
-  missing.map((m) => ({ ...m, label: missingLabel(m, snapshot) }))
+const labelled = (missing: readonly MissingValue[], snapshot: ProjectParamsSnapshot, entry: ParamsProcessEntry): readonly MissingItem[] =>
+  missing.map((m) => ({ ...m, label: missingLabel(m, snapshot, entry) }))
+
+/**
+ * Свой график процесса вместо режима локации (PRD 11.2: упаковка — 833 ÷ 16 ч). Плашка объясняет расчёт нагрузки,
+ * поэтому без расчёта (инвентаризация без частоты пересчёта) её нет.
+ */
+function ownScheduleHours(entry: ParamsProcessEntry, snapshot: ProjectParamsSnapshot): number | null {
+  const hours = defaultsOf(entry).workHoursPerDay
+  if (peakDemand(entry, hours, 1) === null) return null
+  const location = locationHours(snapshot)
+  return location === null || hours !== location ? hours : null
+}
 
 function volumeText(entry: ParamsProcessEntry): string {
   const volume = formatNumber(defaultsOf(entry).dailyVolume)
@@ -150,13 +188,17 @@ function volumeText(entry: ParamsProcessEntry): string {
 
 function processCard(entry: ParamsProcessEntry, snapshot: ProjectParamsSnapshot): ProcessCard {
   const staff = staffOf(entry, snapshot)
-  const missing = labelled(missingOf(entry, snapshot), snapshot)
+  const missing = labelled(missingOf(entry, snapshot), snapshot, entry)
   const carrier = defaultsOf(entry).carrier
+  const unit = entry.process.volumeUnit
   return {
     id: entry.locationProcess.id,
     name: entry.locationProcess.name ?? entry.process.name,
+    operationClass: entry.process.operationClass,
     workers: staff?.headcount == null ? t.process.noWorkers : t.process.workers(formatNumber(staff.headcount), staff.role),
     volume: volumeText(entry),
+    volumeValue: formatNumber(defaultsOf(entry).dailyVolume),
+    volumeUnit: entry.process.volumePeriod === 'cycle' ? t.process.perCycleUnit(unit) : t.process.perDayUnit(unit),
     object: carrier ? t.process.object(carrier) : null,
     missing,
     canMatch: !missing.some((m) => m.impact === 'blocks'),
@@ -172,15 +214,15 @@ function assumptionBases(entry: ParamsProcessEntry, snapshot: ProjectParamsSnaps
     ...(route && defaults.routeLengthM !== undefined ? { route_length_m: defaults.routeLengthM } : {}),
     ...(staff ? { operator_time_share_pct: staff.timeShare * 100 } : {}),
     peak_factor: locationNumber(snapshot, 'wh_peak_factor') ?? defaults.peakFactor ?? 1,
-    ...(route ? { width_margin_m: entry.process.template?.widthMarginM ?? DEFAULT_WIDTH_MARGIN_M } : {}),
+    ...(route ? { width_margin_m: entry.process.template?.widthMarginM ?? snapshot.widthMarginM } : {}),
   }
 }
 
 const ASSUMPTION_LIMITS: Record<AssumptionCode, Pick<AssumptionRow, 'unit' | 'min' | 'max' | 'digits'>> = {
-  route_length_m: { unit: 'м', min: 5, max: 5000, digits: 0 },
-  operator_time_share_pct: { unit: '%', min: 1, max: 100, digits: 0 },
-  peak_factor: { unit: 'коэф.', min: 1, max: 3, digits: 2 },
-  width_margin_m: { unit: 'м', min: 0.1, max: 1.5, digits: 2 },
+  route_length_m: { unit: 'm', min: 5, max: 5000, digits: 0 },
+  operator_time_share_pct: { unit: 'percent', min: 1, max: 100, digits: 0 },
+  peak_factor: { unit: 'factor', min: 1, max: 3, digits: 2 },
+  width_margin_m: { unit: 'm', min: 0.1, max: 1.5, digits: 2 },
 }
 
 export function assumptionRows(entry: ParamsProcessEntry, snapshot: ProjectParamsSnapshot, overrides: readonly AssumptionOverride[]): readonly AssumptionRow[] {
@@ -202,8 +244,7 @@ const refinedOrigin = (row: AssumptionRow | undefined, fallback: ValueOrigin): V
 /** Значение допущения с единицей: «100 м», «1,5», «95 %». */
 export function assumptionValueText(row: Pick<AssumptionRow, 'unit' | 'digits'>, value: number): string {
   const number = formatNumber(value, row.digits)
-  if (row.unit === 'коэф.') return number
-  return row.unit === '%' ? `${number} %` : `${number} ${row.unit}`
+  return row.unit === 'factor' ? number : `${number} ${assumptionUnitLabel(row.unit)}`
 }
 
 const row = (key: string, label: string, value: string | null, origin: ValueOrigin, extra: Pick<ValueRow, 'note' | 'anchor'> = {}): ValueRow =>
@@ -216,7 +257,7 @@ function objectGroup(entry: ParamsProcessEntry, snapshot: ProjectParamsSnapshot)
   const handlingNames = handling
     .map((h) => snapshot.handlingMethods.find((m) => m.code === h.method)?.name)
     .filter((name): name is string => name !== undefined)
-  const kg = (value: number) => `${formatNumber(value)} кг`
+  const kg = (value: number) => `${formatNumber(value)} ${ru.units.kg}`
   const rows: readonly (ValueRow | null)[] = [
     row('operationClass', r.operationClass, `${entry.process.operationClass} · ${entry.operationClass?.name ?? entry.process.name}`, 'specified'),
     d.carrier ? row('object', r.object, capitalize(d.carrier), 'specified') : null,
@@ -224,7 +265,7 @@ function objectGroup(entry: ParamsProcessEntry, snapshot: ProjectParamsSnapshot)
     d.unitMassKg === undefined ? null
       : d.maxUnitMassKg === undefined ? row('mass', r.massAvg, kg(d.unitMassKg), 'specified')
         : row('mass', r.mass, `${kg(d.unitMassKg)} / ${kg(d.maxUnitMassKg)}`, 'specified'),
-    d.unitDimensionsMm ? row('dimensions', r.dimensions, `${d.unitDimensionsMm.map((v) => formatNumber(v)).join(' × ')} мм`, 'specified') : null,
+    d.unitDimensionsMm ? row('dimensions', r.dimensions, `${d.unitDimensionsMm.map((v) => formatNumber(v)).join(' × ')} ${ru.units.mm}`, 'specified') : null,
     d.cargoDivisible === undefined ? null : row('divisible', r.divisible, d.cargoDivisible ? r.divisibleYes : r.divisibleNo, 'specified'),
     isInventory(entry)
       ? d.recountsPerMonth === undefined
@@ -259,7 +300,7 @@ export function peakDemand(entry: ParamsProcessEntry, hours: number, peakFactor:
 
 /** «2 000 ÷ 22 ч × 1,5 × 95 %». */
 export const peakDemandFormula = (p: PeakDemand): string =>
-  `${formatNumber(p.perDay)} ÷ ${formatNumber(p.hours)} ч × ${formatNumber(p.peakFactor, 2)} × ${formatPercent(p.share)}`
+  `${formatNumber(p.perDay)} ÷ ${formatNumber(p.hours)} ${ru.units.hours} × ${formatNumber(p.peakFactor, 2)} × ${formatPercent(p.share)}`
 
 /** Нагрузка в пик: объём ÷ часы × пик × доля (PRD 11.2); у инвентаризации объём — за цикл, нужна частота пересчёта. */
 function peakLoadRow(entry: ParamsProcessEntry, hours: number, peak: number): ValueRow {
@@ -329,7 +370,7 @@ function workersGroup(entry: ParamsProcessEntry, snapshot: ProjectParamsSnapshot
 }
 
 /** Группы А–Г выбранного процесса (PRD 11.2); у процесса без маршрута группы «В» нет. */
-export function processGroups(entry: ParamsProcessEntry, snapshot: ProjectParamsSnapshot, assumptions: readonly AssumptionRow[]): readonly RowGroup[] {
+function processGroups(entry: ParamsProcessEntry, snapshot: ProjectParamsSnapshot, assumptions: readonly AssumptionRow[]): readonly RowGroup[] {
   return [
     objectGroup(entry, snapshot),
     loadGroup(entry, snapshot, assumptions),
@@ -351,7 +392,7 @@ function siteValueText(snapshot: ProjectParamsSnapshot, code: string, pairCode: 
 }
 
 /** 25 параметров площадки по группам PRD 10.5 (D-92); «нет данных» — ссылка в профиль локации. */
-export function siteGroups(snapshot: ProjectParamsSnapshot, entry: ParamsProcessEntry | null): readonly SiteRowGroup[] {
+function siteGroups(snapshot: ProjectParamsSnapshot, entry: ParamsProcessEntry | null): readonly SiteRowGroup[] {
   const route = entry === null || hasRoute(entry)
   const groups = [...new Set(snapshot.siteParameters.map((p) => p.group))]
   return groups.map((group) => ({
@@ -376,10 +417,13 @@ export function siteGroups(snapshot: ProjectParamsSnapshot, entry: ParamsProcess
 export function paramsView(snapshot: ProjectParamsSnapshot, selectedId: LocationProcessId | null, overrides: readonly AssumptionOverride[]): ParamsView {
   const selected = snapshot.processes.find((p) => p.locationProcess.id === selectedId) ?? null
   const cards = snapshot.processes.map((p) => processCard(p, snapshot))
-  if (!selected) return { cards, selected, groups: [], siteGroups: siteGroups(snapshot, null), assumptions: [], missing: [], readiness: null }
+  if (!selected) {
+    return { cards, selected, groups: [], siteGroups: siteGroups(snapshot, null), assumptions: [], missing: [], readiness: null, ownScheduleHours: null, routeApplies: true }
+  }
   const assumptions = assumptionRows(selected, snapshot, overrides)
-  const missing = labelled(missingOf(selected, snapshot), snapshot)
+  const missing = labelled(missingOf(selected, snapshot), snapshot, selected)
   const assumptionsCount = assumptions.filter((a) => a.override?.kind !== 'fact').length
+  const normsCount = assumptions.filter((a) => a.override?.kind !== 'fact' && NORM_CODES.includes(a.code)).length
   return {
     cards,
     selected,
@@ -387,22 +431,21 @@ export function paramsView(snapshot: ProjectParamsSnapshot, selectedId: Location
     siteGroups: siteGroups(snapshot, selected),
     assumptions,
     missing,
-    readiness: paramsReadiness(missing, assumptionsCount),
+    readiness: paramsReadiness(missing, assumptionsCount, normsCount),
+    ownScheduleHours: ownScheduleHours(selected, snapshot),
+    routeApplies: hasRoute(selected),
   }
 }
 
-/** Проверка нового значения панели «Уточнить допущение»: пусто или вне диапазона — текст исправления. */
-export function validateAssumption(row: Pick<AssumptionRow, 'min' | 'max' | 'unit' | 'digits'>, value: number | null): string | null {
-  const p = t.panel.errors
-  if (value === null) return p.empty
-  if (value < row.min || value > row.max) return p.range(formatNumber(row.min, row.digits), formatNumber(row.max, row.digits), row.unit)
-  return null
-}
-
-/** Уточнения после правки: новое значение заменяет прежнее уточнение того же допущения, null — вернуть исходное. */
-export function withOverride(overrides: readonly AssumptionOverride[], code: AssumptionCode, next: AssumptionOverride | null): readonly AssumptionOverride[] {
-  const rest = overrides.filter((o) => o.code !== code)
-  return next === null ? rest : [...rest, next]
+/** Подпись-счётчик группы (16969:10): «4 параметра · 1 по допущению», «8 параметров · 1 нет данных». */
+export function groupCaption(rows: readonly ValueRow[]): string {
+  const assumed = rows.filter((r) => r.origin === 'assumption').length
+  const missing = rows.filter((r) => r.origin === 'missing').length
+  return [
+    formatCount(rows.length, ru.plural.parameters),
+    assumed > 0 ? t.groupCaption.byAssumption(assumed) : null,
+    missing > 0 ? t.groupCaption.noData(missing) : null,
+  ].filter((part): part is string => part !== null).join(' · ')
 }
 
 function capitalize(text: string): string {

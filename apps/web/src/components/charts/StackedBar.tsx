@@ -1,7 +1,7 @@
-import { ChartLegend } from './ChartLegend'
+import { ChartLegend, type LegendMarker } from './ChartLegend'
 import { ChartTable } from './ChartTable'
 import { shares } from './chartScale'
-import { TONE_FILL, type ChartSeries } from './chartTones'
+import { TONE_FILL, type ChartSeries, type ChartTone } from './chartTones'
 
 export interface StackedRow {
   readonly key: string
@@ -16,6 +16,10 @@ interface StackedBarProps {
   readonly segments: readonly ChartSeries[]
   readonly rows: readonly StackedRow[]
   readonly formatShare: (share: number) => string
+  /** Тона сегментов по ключу вместо тонов серий: набор доски `BOARD_TIME_TONES` (3.5 — ремонт лаймом, ожидание серым). */
+  readonly tones?: Readonly<Partial<Record<string, ChartTone>>>
+  /** Знак легенды: по умолчанию квадрат; доска 3.5 — `dot`. */
+  readonly legendShape?: LegendMarker
 }
 
 const pct = (share: number): string => `${String(Number((share * 100).toFixed(4)))}%`
@@ -24,7 +28,8 @@ const pct = (share: number): string => `${String(Number((share * 100).toFixed(4)
  * Полосы 100 % на SVG (D-87): «На что уходит время робота» (07a, 16198:677) — подпись, полоса 22 со скруглением,
  * общая легенда. Те же доли — скрытой таблицей.
  */
-export function StackedBar({ label, segments, rows, formatShare }: StackedBarProps) {
+export function StackedBar({ label, segments: baseSegments, rows, formatShare, tones, legendShape }: StackedBarProps) {
+  const segments = tones ? baseSegments.map((s) => ({ ...s, tone: tones[s.key] ?? s.tone })) : baseSegments
   const rowShares = rows.map((row) => shares(segments.map((s) => row.values[s.key] ?? 0)))
   return (
     <div className="flex flex-col gap-14">
@@ -44,7 +49,7 @@ export function StackedBar({ label, segments, rows, formatShare }: StackedBarPro
           )
         })}
       </div>
-      <ChartLegend series={segments} />
+      <ChartLegend series={segments} {...(legendShape ? { shape: legendShape } : {})} />
       <ChartTable
         caption={label}
         categoryLabel={label}

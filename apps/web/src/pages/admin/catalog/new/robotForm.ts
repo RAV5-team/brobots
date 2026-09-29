@@ -9,8 +9,9 @@ import type {
   RobotReadiness,
   RobotSpecs,
 } from '@/domain'
-import { isSameRobot } from '@/domain'
+import { isOperationClassCode, isSameRobot } from '@/domain'
 import { formatCount, pluralize } from '@/shared/format'
+import { isArrayOf, isObject, isString } from '@/shared/guards'
 import { ru } from '@/shared/i18n/ru'
 
 const t = ru.robotNew
@@ -71,7 +72,7 @@ export const EMPTY_ROBOT_FORM: RobotForm = {
 }
 
 /** Числовые технические параметры одной величиной; габариты и загрузка / разгрузка разбираются отдельно. */
-export const SIMPLE_SPECS = ['payloadKg', 'maxSpeedMps', 'autonomyH', 'chargeTimeMin', 'minTempC', 'avgPowerKw'] as const
+const SIMPLE_SPECS = ['payloadKg', 'maxSpeedMps', 'autonomyH', 'chargeTimeMin', 'minTempC', 'avgPowerKw'] as const
 type SimpleSpec = (typeof SIMPLE_SPECS)[number]
 
 /** Может быть нулём или меньше: температура. Остальные величины — строго больше нуля. */
@@ -86,7 +87,7 @@ const REQUIRED_TEXT = ['name', 'manufacturer', 'readiness', 'trl', 'price', 'sol
 export const REQUIRED_TOTAL = REQUIRED_TEXT.length + 3
 
 /** Число из ввода: «1 800 000», «1,5», «-25». Пусто или не число — null. */
-export function parseNumber(raw: string): number | null {
+function parseNumber(raw: string): number | null {
   const text = raw.replace(/\s/g, '').replace(',', '.')
   if (text === '' || !/^-?\d+(\.\d+)?$/.test(text)) return null
   return Number(text)
@@ -180,22 +181,9 @@ export function filledRequired(form: RobotForm, photoCount: number): number {
 
 const lowerFirst = (text: string) => text.charAt(0).toLocaleLowerCase('ru') + text.slice(1)
 
-/** Короткие пояснения плашек из макета А2 (15966:6055, PRD 6.3); у новых классов — описание из справочника. */
-const CHIP_HINTS: Readonly<Record<string, string>> = {
-  'OP-01': 'паллеты, тележки, короба',
-  'OP-02': 'отбор по строкам',
-  'OP-03': 'по направлениям',
-  'OP-04': 'стеллажи, АСХ',
-  'OP-05': 'линии, паллетайзеры',
-  'OP-06': 'пересчёт и контроль',
-  'OP-07': 'сухая и влажная',
-  'OP-08': 'по точкам маршрута',
-  'OP-09': 'обходы, видео',
-  'OP-10': 'датчики, осмотр',
-}
-
+/** Пояснение плашки класса: из словаря (макет А2), у новых классов — описание из справочника. */
 export function classChipHint(cls: OperationClass): string {
-  return CHIP_HINTS[cls.code] ?? lowerFirst(cls.description)
+  return t.chipHints[cls.code] ?? lowerFirst(cls.description)
 }
 
 /**
@@ -211,11 +199,10 @@ export function classesHint(classes: readonly OperationClassCode[], processes: r
   return t.classesHint.matched(checked, formatCount(matched.length, ru.plural.processesOf), names)
 }
 
+const CODE_LIST = new Intl.ListFormat('ru', { type: 'conjunction' })
+
 /** «OP-01 и OP-08», «OP-01, OP-03 и OP-08». */
-function joinCodes(codes: readonly string[]): string {
-  if (codes.length <= 1) return codes.join('')
-  return `${codes.slice(0, -1).join(', ')} и ${codes.at(-1) ?? ''}`
-}
+const joinCodes = (codes: readonly string[]): string => CODE_LIST.format(codes)
 
 /** Подпись правой панели: что произойдёт после сохранения (PRD 6.3). */
 export function railNote(classes: readonly OperationClassCode[]): string {
@@ -234,10 +221,9 @@ export function solutionTypeOptions(catalog: readonly Robot[]): readonly Solutio
   return [...pairs].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label, 'ru'))
 }
 
-/** Черновик из браузера той же версии формы: строки на месте, классы — массив. */
+/** Черновик из браузера той же версии формы: строки на месте, классы — массив кодов `OP-…`. */
 export function isRobotForm(value: unknown): value is RobotForm {
-  if (typeof value !== 'object' || value === null) return false
-  const v = value as Partial<Record<RobotFormKey, unknown>>
+  if (!isObject(value)) return false
   const keys = Object.keys(EMPTY_ROBOT_FORM) as RobotFormKey[]
-  return keys.every((key) => (key === 'classes' ? Array.isArray(v.classes) : typeof v[key] === 'string'))
+  return keys.every((key) => (key === 'classes' ? isArrayOf(value.classes, isOperationClassCode) : isString(value[key])))
 }

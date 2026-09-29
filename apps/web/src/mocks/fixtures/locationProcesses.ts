@@ -8,7 +8,7 @@ export const LOCATION_PROCESSES: readonly LocationProcess[] = [
   { id: "LP-01", locationId: "LOC-01", processCode: "PR-0001", name: "Перемещение паллет", overrides: { maxUnitMassKg: 1000, unitDimensionsMm: [1200, 800, 1500], routePoints: ["Ворота приёмки 1–6", "Стеллажи A–F"] }, workers: [] },
   { id: "LP-02", locationId: "LOC-01", processCode: "PR-0002", name: null, overrides: {}, workers: [] },
   { id: "LP-03", locationId: "LOC-01", processCode: "PR-0003", name: null, overrides: {"dailyVolume": 833}, workers: [] },
-  { id: "LP-04", locationId: "LOC-01", processCode: "PR-0004", name: "Уборка склада", overrides: {}, workers: [] },
+  { id: "LP-04", locationId: "LOC-01", processCode: "PR-0004", name: "Уборка склада", overrides: {"cleaningsPerDay": 2}, workers: [] },
   { id: "LP-05", locationId: "LOC-01", processCode: "PR-0005", name: null, overrides: {}, workers: [] },
   { id: "LP-06", locationId: "LOC-02", processCode: "PR-0001", name: "Перемещение паллет", overrides: {"dailyVolume": 620}, workers: [] },
   { id: "LP-07", locationId: "LOC-02", processCode: "PR-0002", name: null, overrides: {}, workers: [] },

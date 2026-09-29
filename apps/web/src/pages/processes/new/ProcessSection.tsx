@@ -3,10 +3,10 @@ import { Field } from '@/components/ui/Field'
 import { Input } from '@/components/ui/Input'
 import { Segmented } from '@/components/ui/Segmented'
 import { Select, type SelectOption } from '@/components/ui/Select'
-import type { HandlingMethod } from '@/domain'
+import type { HandlingMethod, OperationClassCode } from '@/domain'
 import { ru } from '@/shared/i18n/ru'
 import { FieldGrid, FormSection } from '@/components/ui/FormSection'
-import { NumberField, type SectionProps } from './FormParts'
+import { ProcessNumberField, type SectionProps } from './FormParts'
 import { toggleHandling } from './processForm'
 
 const t = ru.processNew
@@ -18,7 +18,7 @@ const DIVISIBLE_OPTIONS = [
 interface ProcessSectionProps extends SectionProps {
   /** Копия на локации: класс задан шаблоном и не меняется (PRD 10.4). */
   readonly classLocked?: boolean
-  readonly classOptions: readonly SelectOption<string>[]
+  readonly classOptions: readonly SelectOption<OperationClassCode>[]
   readonly categoryOptions: readonly SelectOption<string>[]
   readonly carrierOptions: readonly SelectOption<string>[]
   readonly handlingMethods: readonly HandlingMethod[]
@@ -37,7 +37,7 @@ export function ProcessSection({ classOptions, classLocked = false, categoryOpti
             options={classOptions}
             value={form.operationClass}
             disabled={classLocked}
-            onChange={(v) => { update({ operationClass: v as typeof form.operationClass }) }}
+            onChange={(v) => { update({ operationClass: v }) }}
           />
         </Field>
         <Field label={f.name.label} required hint={f.name.hint} error={errors.name}>
@@ -49,7 +49,7 @@ export function ProcessSection({ classOptions, classLocked = false, categoryOpti
         <Field label={f.carrier.label} required error={errors.carrier}>
           <Select options={carrierOptions} value={form.carrier} onChange={(v) => { update({ carrier: v }) }} />
         </Field>
-        <NumberField name="unitMassKg" {...props} />
+        <ProcessNumberField name="unitMassKg" {...props} />
         <Field label={f.cargoDivisible.label} required hint={f.cargoDivisible.hint}>
           <Segmented
             label={f.cargoDivisible.label}

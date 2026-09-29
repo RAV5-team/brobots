@@ -1,11 +1,22 @@
 import type { CompareCell, CompareCellTone, CompareGroup } from '@/components/ui/CompareTable'
-import type { HandlingMethod, RankedVariant, Robot, SolutionCheck } from '@/domain'
-import { specsCompleteness } from '@/domain'
-import { formatCount, formatNumber, formatPercent, formatRubCompact, formatYears } from '@/shared/format'
+import {
+  needsCheckCount,
+  siteRequirementChecks,
+  type Characteristic,
+  type MatchBaseline,
+  type RankedVariant,
+  type Robot,
+  type RobotCharacteristicKey,
+  type SiteFacts,
+  type SolutionCheck,
+} from '@/domain'
+import { robotCharacteristics, summarize, type CharacteristicContext } from '@/pages/catalog/characteristics'
+import { formatCount, formatNumber, formatPercent, formatYears } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
-import { formatScore } from './matchingModel'
+import { rubMillions } from './matchingModel'
 
 const t = ru.project.matching.compare
+const plural = ru.project.matching.plural
 
 /** Колонка сравнения: вариант рейтинга или решение, добавленное вручную (вне рейтинга, без расчёта). */
 export interface CompareEntry {
@@ -17,95 +28,133 @@ export interface CompareEntry {
   readonly violations: readonly SolutionCheck[] | null
 }
 
-interface Context {
-  readonly handlingMethods: readonly HandlingMethod[]
-  /** Требования площадки без данных (шаг 1): одни для всех вариантов этой локации. */
-  readonly siteUnchecked: number
+export interface CompareContext {
+  /** Справочники характеристик К-4 — те же значения и статусы, что на странице решения и в сравнении К-3. */
+  readonly characteristics: CharacteristicContext
+  readonly baseline: MatchBaseline | null
+  readonly horizonYears: number
+  /** Площадка проекта (шаг 1) и норматив запаса по ширине — для «Требует проверки» (D-99). */
+  readonly site: SiteFacts
+  readonly widthMarginM: number
 }
 
-type Row = readonly [key: string, label: string, value: (e: CompareEntry) => string | null, tone?: (e: CompareEntry) => CompareCellTone]
+interface Value {
+  readonly content: string
+  readonly tone: CompareCellTone
+}
 
-const money = (value: number | null | undefined): string | null => (value == null ? null : formatRubCompact(value, { fractionDigits: 1 }))
-const years = (value: number | null): string => (value === null ? ru.project.matching.ranking.notPaying : formatYears(value))
+type Row = readonly [key: string, label: string, value: (e: CompareEntry) => Value]
+
+const plain = (content: string | null, tone: CompareCellTone = 'default'): Value =>
+  (content === null ? { content: t.noData, tone: 'unconfirmed' } : { content, tone })
+
+/** Характеристика К-4 → ячейка: подтверждено — обычным цветом, оценка и нет данных — серым (как в К-3, D-64, D-76). */
+const fromCharacteristic = (c: Characteristic): Value =>
+  (c.status === 'missing' || c.value === null ? plain(null) : plain(c.value, c.status === 'confirmed' ? 'default' : 'unconfirmed'))
 
 /** У решения вне рейтинга расчёта нет — «не рассчитано», а не «нет данных». */
-const calc = (pick: (v: RankedVariant) => string | null) => (e: CompareEntry): string | null =>
-  e.variant === null ? t.notCalculated : pick(e.variant)
+const calc = (pick: (v: RankedVariant) => string | null) => (e: CompareEntry): Value =>
+  (e.variant === null ? plain(t.notCalculated, 'unconfirmed') : plain(pick(e.variant)))
 
-function environment(robot: Robot): string | null {
-  const { indoor, outdoor } = robot.specs
-  if (indoor && outdoor) return t.both
-  if (indoor) return t.indoor
-  if (outdoor) return t.outdoor
-  return null
+/** Нарушенное условие отбора у добавленного вручную — красная ячейка (FitCell К-3, `misfit`). */
+const VIOLATION_ROWS: Readonly<Record<string, readonly string[]>> = {
+  payload: ['payload'],
+  dimensions: ['aisle_width'],
+  conditions: ['environment', 'min_temperature', 'handling', 'work_type'],
 }
+const withViolation = (key: string, value: Value, e: CompareEntry): Value =>
+  (e.violations?.some((v) => VIOLATION_ROWS[key]?.includes(v.code)) ? { ...value, tone: 'misfit' } : value)
 
-function temperature(robot: Robot): string | null {
-  const { minTempC, maxTempC } = robot.specs
-  const c = ru.catalog.comparePage
-  const degrees = (value: number) => formatNumber(value, 0, { signed: true })
-  if (minTempC !== undefined && maxTempC !== undefined) return c.temperatureRange(degrees(minTempC), degrees(maxTempC))
-  if (minTempC !== undefined) return c.temperatureFrom(degrees(minTempC))
-  if (maxTempC !== undefined) return c.temperatureTo(degrees(maxTempC))
-  return null
-}
-
-function dimensions(robot: Robot): string | null {
-  const { lengthMm, widthMm, heightMm } = robot.specs
-  if (lengthMm === undefined || widthMm === undefined || heightMm === undefined) return null
-  return `${[lengthMm, widthMm, heightMm].map((n) => formatNumber(n)).join(' × ')} мм`
-}
-
-const spec = (pick: (r: Robot) => string | null) => (e: CompareEntry): string | null => (e.robot ? pick(e.robot) : null)
-
-const violationTone = (code: SolutionCheck['code']) => (e: CompareEntry): CompareCellTone =>
-  e.violations?.some((v) => v.code === code) ? 'misfit' : 'default'
-
-function rows(ctx: Context): Readonly<Record<'economics' | 'technical' | 'data', readonly Row[]>> {
+function economics(ctx: CompareContext): readonly Row[] {
   const r = t.rows
-  return {
-    economics: [
-      ['rank', r.rank, (e) => (e.variant?.rank == null || e.variant.score === null ? t.outOfRanking : t.rankValue(e.variant.rank, formatScore(e.variant.score)))],
-      ['robots', r.robots, calc((v) => formatNumber(v.robots))],
-      ['stations', r.stations, calc((v) => (v.stations === null ? null : formatNumber(v.stations)))],
-      ['capex', r.capex, calc((v) => money(v.capexRub))],
-      ['raas', r.raas, calc((v) => (v.acquisition === 'raas' ? money(v.raasMonthlyRub) : '—'))],
-      ['opex', r.opex, calc((v) => money(v.opexRubPerYear))],
-      ['effect', r.effect, calc((v) => money(v.annualEffectRub)), (e) => ((e.variant?.annualEffectRub ?? 0) < 0 ? 'misfit' : 'default')],
-      ['labor', r.labor, calc((v) => money(v.laborSavingsRubPerYear))],
-      ['payback', r.payback, calc((v) => years(v.paybackYears))],
-      ['roi', r.roi, calc((v) => (v.roi === null ? null : formatPercent(v.roi)))],
-      ['tco', r.tco, calc((v) => money(v.tcoRub))],
-    ],
-    technical: [
-      ['payload', r.payload, spec((x) => (x.specs.payloadKg === undefined ? null : `${formatNumber(x.specs.payloadKg)} кг`)), violationTone('payload')],
-      ['dimensions', r.dimensions, spec(dimensions), violationTone('aisle_width')],
-      ['speed', r.speed, spec((x) => (x.specs.maxSpeedMps === undefined ? null : `${formatNumber(x.specs.maxSpeedMps, 2)} м/с`))],
-      ['autonomy', r.autonomy, spec((x) => (x.specs.autonomyH === undefined ? null : `${formatNumber(x.specs.autonomyH)} ч`))],
-      ['handling', r.handling, spec((x) => ctx.handlingMethods.find((h) => h.code === x.specs.handlingMethod)?.name ?? null), violationTone('handling')],
-      ['environment', r.environment, spec(environment), violationTone('environment')],
-      ['temperature', r.temperature, spec(temperature), violationTone('min_temperature')],
-      ['readiness', r.readiness, spec((x) => ru.catalog.item.readiness[x.readiness])],
-      ['trl', r.trl, spec((x) => (x.trl === null ? null : String(x.trl)))],
-    ],
-    data: [
-      ['siteChecks', r.siteChecks, () => (ctx.siteUnchecked === 0 ? t.siteChecked : t.siteUnchecked(formatCount(ctx.siteUnchecked, ru.plural.parameters))), () => (ctx.siteUnchecked === 0 ? 'fit' : 'unknown')],
-      ['completeness', r.completeness, spec((x) => formatPercent(specsCompleteness(x.specs)))],
-      ['confidence', r.confidence, spec((x) => ru.catalog.comparePage.confidence[x.specs.confidence])],
-    ],
+  const years = formatCount(ctx.horizonYears, plural.years)
+  const aux = (v: RankedVariant): string | null => {
+    const parts = [
+      v.stations === null ? null : formatCount(v.stations, plural.stations),
+      v.auxEquipment?.wifiPoints == null ? null : formatCount(v.auxEquipment.wifiPoints, plural.wifiPoints),
+    ].filter((p): p is string => p !== null)
+    return parts.length === 0 ? null : parts.join(' · ')
   }
+  const opexChange = (v: RankedVariant): string | null => {
+    if (!ctx.baseline) return null
+    const delta = v.opexRubPerYear - ctx.baseline.opexRubPerYear
+    return t.perYear(`${delta < 0 ? '−' : '+'}${rubMillions(Math.abs(delta))}`)
+  }
+  return [
+    ['robots', r.robots, calc((v) => formatNumber(v.robots))],
+    ['aux', r.aux, calc(aux)],
+    ['capex', r.capex, calc((v) => rubMillions(v.capexRub))],
+    ['raas', r.raas, calc((v) => (v.acquisition === 'raas' ? rubMillions(v.raasMonthlyRub, 2) : '—'))],
+    ['opex', r.opex, calc((v) => rubMillions(v.opexRubPerYear))],
+    ['opexChange', r.opexChange, calc(opexChange)],
+    ['labor', r.labor, calc((v) => (v.laborSavingsRubPerYear === null ? null : rubMillions(v.laborSavingsRubPerYear)))],
+    ['effect', r.effect, (e) => {
+      const value = calc((v) => rubMillions(v.annualEffectRub))(e)
+      return (e.variant?.annualEffectRub ?? 0) < 0 ? { ...value, tone: 'misfit' } : value
+    }],
+    ['payback', r.payback, calc((v) => (v.paybackYears === null ? ru.project.matching.ranking.notPaying : formatYears(v.paybackYears)))],
+    ['roi', r.roi(years), calc((v) => (v.roi === null ? null : formatPercent(v.roi)))],
+    ['tco', r.tco(years), calc((v) => (v.tcoRub === null ? null : rubMillions(v.tcoRub)))],
+  ]
 }
 
-/** Группы сравнения (PRD 11.3): экономика, техника, инфраструктура и данные. Нарушенное условие — красная ячейка. */
-export function compareGroups(entries: readonly CompareEntry[], ctx: Context): readonly CompareGroup[] {
-  const groups = rows(ctx)
+function technical(ctx: CompareContext): readonly Row[] {
+  const r = t.rows
+  const char = (key: RobotCharacteristicKey) => (e: CompareEntry): Value =>
+    (e.robot ? fromCharacteristic(robotCharacteristics(e.robot, ctx.characteristics)[key]) : plain(null))
+  const mass = (e: CompareEntry): Value => {
+    const kg = e.robot?.specs.massKg
+    if (!e.robot || kg === undefined) return plain(null)
+    return plain(`${formatNumber(kg)} ${ru.units.kg}`, e.robot.specs.confidence === 'confirmed' ? 'default' : 'unconfirmed')
+  }
+  const effective = calc((v) => (v.effectiveProductivity ? t.trips(formatNumber(v.effectiveProductivity.tripsPerHour, 1)) : null))
+  const rows: readonly Row[] = [
+    ['payload', r.payload, char('payload')],
+    ['mass', r.mass, mass],
+    ['dimensions', r.dimensions, char('dimensions')],
+    ['speed', r.speed, char('speed')],
+    ['productivity', r.productivity, char('productivity')],
+    ['effective', r.effective, effective],
+    ['autonomy', r.autonomy, char('autonomy')],
+    ['accuracy', r.accuracy, char('positioningAccuracy')],
+    ['navigation', r.navigation, char('navigation')],
+    ['conditions', r.conditions, char('operatingConditions')],
+  ]
+  return rows.map(([key, label, value]) => [key, label, (e: CompareEntry) => withViolation(key, value(e), e)])
+}
+
+function data(ctx: CompareContext): readonly Row[] {
+  const r = t.rows
+  // Требования площадки — одно правило с «Недостающими данными» и правой колонкой 2.1 (D-99); тоны — ячейки соответствия К-3.
+  const siteChecks = (e: CompareEntry): Value => {
+    if (!e.robot) return plain(null)
+    const checks = siteRequirementChecks(e.robot.specs, ctx.site, ctx.widthMarginM)
+    const open = needsCheckCount(checks)
+    const tone: CompareCellTone = checks.some((c) => c.status === 'misfit') ? 'misfit' : open > 0 ? 'unknown' : 'fit'
+    return { content: t.needsCheck(open, checks.length), tone }
+  }
+  const completeness = (e: CompareEntry): Value => {
+    if (!e.robot) return plain(null)
+    const { filled, total } = summarize(robotCharacteristics(e.robot, ctx.characteristics))
+    return plain(t.completenessValue(formatPercent(filled / total)))
+  }
+  return [
+    ['siteChecks', r.siteChecks, siteChecks],
+    ['completeness', r.completeness, completeness],
+    ['availability', r.availability, (e) => (e.robot ? fromCharacteristic(robotCharacteristics(e.robot, ctx.characteristics).availability) : plain(null))],
+  ]
+}
+
+/** Группы окна 2.1б (16833:474; PRD 11.3): экономика 11 строк, техника 10, инфраструктура и данные 3. */
+export function compareGroups(entries: readonly CompareEntry[], ctx: CompareContext): readonly CompareGroup[] {
+  const groups = { economics: economics(ctx), technical: technical(ctx), data: data(ctx) }
   return (Object.keys(groups) as (keyof typeof groups)[]).map((group) => ({
     key: group,
     title: t.groups[group],
-    rows: groups[group].map(([key, label, value, tone]) => ({
+    rows: groups[group].map(([key, label, value]) => ({
       key,
       label,
-      cells: entries.map((e): CompareCell => ({ key: e.key, tone: tone?.(e) ?? 'default', content: value(e) ?? t.noData })),
+      cells: entries.map((e): CompareCell => ({ key: e.key, ...value(e) })),
     })),
   }))
 }

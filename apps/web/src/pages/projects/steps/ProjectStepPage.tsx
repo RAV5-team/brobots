@@ -2,25 +2,23 @@ import { Navigate, useParams } from 'react-router'
 import { ROUTE_PATHS } from '@/app/routePaths'
 import { ButtonLink } from '@/components/ui/Button'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
-import type { ProjectId, ProjectStep } from '@/domain'
+import { parseProjectId, type ProjectStep } from '@/domain'
 import { useRole } from '@/shared/auth/useRole'
 import { ru } from '@/shared/i18n/ru'
-import { EconomicsStep } from './economics/EconomicsStep'
-import { MatchingStep } from './matching/MatchingStep'
-import { ParamsStep } from './params/ParamsStep'
-import { SimulationStep } from './simulation/SimulationStep'
+import type { ProjectStepComponent } from './stepProps'
 import { useProjectStep } from './useProjectStep'
 
 const t = ru.project.page
 
 /**
  * Шаг проекта `/projects/:projectId/<step>` (D-22): каркас шага на данных проекта.
- * Шаги 02–08: параметры, подбор, симуляция, итог и экономика.
+ * Шаги 02–08: параметры, подбор, симуляция, итог и экономика. Компонент шага `Step` приходит от маршрута —
+ * каждый шаг в своём чанке (router.tsx), каркас их не импортирует.
  */
-export function ProjectStepPage({ step }: { readonly step: ProjectStep }) {
-  const { projectId = '' } = useParams()
+export function ProjectStepPage({ step, Step }: { readonly step: ProjectStep; readonly Step: ProjectStepComponent }) {
+  const projectId = parseProjectId(useParams().projectId)
   const role = useRole()
-  const { state, retry } = useProjectStep(projectId as ProjectId, step)
+  const { state, retry } = useProjectStep(projectId, step)
   const title = ru.projectStepTitles[step]
 
   if (state.status === 'redirect') return <Navigate to={state.to} replace />
@@ -40,10 +38,7 @@ export function ProjectStepPage({ step }: { readonly step: ProjectStep }) {
   return (
     <>
       <title>{t.documentTitle(title, state.project.name)}</title>
-      {step === 'params' && <ParamsStep project={state.project} locationName={state.location.name} isGuest={isGuest} />}
-      {step === 'matching' && <MatchingStep project={state.project} locationName={state.location.name} isGuest={isGuest} />}
-      {step === 'simulation' && <SimulationStep project={state.project} locationName={state.location.name} isGuest={isGuest} />}
-      {step === 'economics' && <EconomicsStep project={state.project} locationName={state.location.name} isGuest={isGuest} />}
+      <Step project={state.project} locationName={state.location.name} isGuest={isGuest} />
     </>
   )
 }

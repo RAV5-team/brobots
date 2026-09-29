@@ -1,19 +1,18 @@
 import { ArrowLeft } from 'lucide-react'
 import { useMemo, useState, type SyntheticEvent } from 'react'
-import { useLocation, useNavigate } from 'react-router'
+import { useNavigate } from 'react-router'
 import { ROUTE_PATHS } from '@/app/routePaths'
 import { Chip } from '@/components/ui/Chip'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { ErrorState, Skeleton } from '@/components/ui/States'
 import { TextLink } from '@/components/ui/TextLink'
 import { nextRobotId } from '@/domain'
 import { useServices } from '@/services/useServices'
 import { ValidationError } from '@/services/errors'
-import { canAccess } from '@/shared/auth/resolveRole'
-import { useRole } from '@/shared/auth/useRole'
 import { clearDraft, readDraft, useDraftAutosave } from '@/shared/dom/useDraftAutosave'
 import { formatNumber, formatTime } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
-import { ADDED_PARAM } from '../catalogModel'
+import { adminCatalogAddedPath } from '../catalogModel'
 import { RobotPhotosSection } from './RobotPhotosSection'
 import { RobotReadinessRail } from './RobotReadinessRail'
 import { ClassesSection, ConditionsSection, MainSection, SpecsSection } from './RobotSections'
@@ -30,6 +29,7 @@ import {
 } from './robotForm'
 import { usePhotoList } from './usePhotoList'
 import { useRobotNew, type RobotNewData } from './useRobotNew'
+import { AdminGuard } from '../../AdminGuard'
 
 const t = ru.robotNew
 /** Черновик карточки в браузере (D-21); фото в него не пишутся (D-53). */
@@ -84,10 +84,10 @@ function RobotNewForm({ data }: { readonly data: RobotNewData }) {
       const created = await services.catalog.createRobot(toNewRobot(form, photos.photos.map((p) => p.name)))
       clearDraft(DRAFT_KEY)
       // А3 «Робот добавлен» — состояние каталога А1 (PRD 6.2).
-      void navigate({ pathname: ROUTE_PATHS.adminCatalog, search: `?${ADDED_PARAM}=${created.id}` })
+      void navigate(adminCatalogAddedPath(created.id))
     } catch (error) {
       console.error('Не удалось сохранить робота', error)
-      setMessage(error instanceof ValidationError ? error.message : t.errors.saveFailed)
+      setMessage(error instanceof ValidationError && error.reason.kind === 'robotDuplicate' ? t.errors.duplicate(error.reason.robotId) : t.errors.saveFailed)
       setSaving(false)
     }
   }
@@ -99,10 +99,7 @@ function RobotNewForm({ data }: { readonly data: RobotNewData }) {
         <TextLink to={ROUTE_PATHS.adminCatalog} icon={ArrowLeft}>{t.back}</TextLink>
         {savedAt && <Chip tone="muted" size="md"><span role="status">{t.draftSaved(formatTime(savedAt.toISOString()))}</span></Chip>}
       </div>
-      <header className="flex flex-col gap-8">
-        <h1 className="type-display-lg text-text">{t.title}</h1>
-        <p className="type-body text-text-secondary">{t.lead}</p>
-      </header>
+      <PageHeader title={t.title} lead={t.lead} gap={8} />
       <div className="flex items-start gap-24">
         <div className="flex min-w-0 flex-1 flex-col gap-20">
           <MainSection {...sectionProps} solutionTypes={solutionTypes} />
@@ -131,13 +128,7 @@ function RobotNewForm({ data }: { readonly data: RobotNewData }) {
  * Только администратор (PRD 5.3, 6); после сохранения — А3 «Каталог обновлён».
  */
 export function RobotNewPage() {
-  const role = useRole()
-  const { pathname } = useLocation()
-
-  if (!canAccess(role, pathname)) {
-    return <ErrorState title={ru.errors.accessDenied(ru.roles[role])} message={ru.admin.accessHint} />
-  }
-  return <RobotNewContent />
+  return <AdminGuard><RobotNewContent /></AdminGuard>
 }
 
 function RobotNewContent() {

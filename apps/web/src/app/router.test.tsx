@@ -13,13 +13,6 @@ describe('router', () => {
     expect(screen.queryByTestId('current-role')).not.toBeInTheDocument()
   })
 
-  it('redirects the old saved-assessment path /result to the result step /economics with the same query', async () => {
-    const router = createMemoryRouter(routes, { initialEntries: ['/projects/PJ-01/result?as=user'] })
-    render(<RouterProvider router={router} />)
-    await waitFor(() => { expect(router.state.location.pathname).toBe('/projects/PJ-01/economics') })
-    expect(router.state.location.search).toBe('?as=user')
-  })
-
   it('renders the processes screen on /processes', () => {
     renderAt('/processes')
     expect(screen.getByRole('heading', { level: 1, name: 'Процессы' })).toBeInTheDocument()
@@ -84,7 +77,7 @@ describe('router', () => {
     expect(screen.getByRole('link', { name: 'Процессы локации' })).toHaveAttribute('aria-current', 'page')
   })
 
-  it('renders the new robot card А2 on the static /admin/catalog/new, not /admin/catalog/:robotId', async () => {
+  it('renders the new robot card А2 on /admin/catalog/new', async () => {
     renderAt('/admin/catalog/new?as=admin')
     expect(await screen.findByRole('heading', { level: 1, name: 'Новый робот' })).toBeInTheDocument()
   })

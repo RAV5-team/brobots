@@ -254,6 +254,14 @@ describe('LocationPage (экраны 15 и 17)', () => {
     expect(screen.getByRole('link', { name: 'К списку локаций' })).toHaveAttribute('href', '/locations')
   })
 
+  it('shows «not found» for a malformed id without asking the service', async () => {
+    const services = createMockServices({ latencyMs: 0 })
+    const getLocation = vi.spyOn(services.locations, 'getLocation')
+    renderPage('/locations/PJ-01', services)
+    expect(await screen.findByText('Локация не найдена')).toBeInTheDocument()
+    expect(getLocation).not.toHaveBeenCalled()
+  })
+
   it('shows an error with retry when the service fails (D-07)', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const services = createMockServices({ latencyMs: 0 })

@@ -1,5 +1,5 @@
 import { Outlet, useLocation } from 'react-router'
-import { NewProjectDialog } from '@/pages/projects/new/NewProjectDialog'
+import { NewProjectDialog } from '@/components/newProject/NewProjectDialog'
 import { useRole } from '@/shared/auth/useRole'
 import { activeNavKey } from './navigation'
 import { Sidebar } from './Sidebar'

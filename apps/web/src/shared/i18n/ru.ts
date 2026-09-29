@@ -1,8 +1,15 @@
 import type { DataVersion, ProjectStep } from '@/domain'
-import type { PluralForms } from '@/shared/format'
+import { pluralize, type PluralForms } from '@/shared/format/plural'
 import { project } from './project'
 import { report } from './report'
 import { robotNew } from './robotNew'
+
+/** Лимиты правила загрузки, от которых строится подсказка. */
+interface UploadHintLimits {
+  readonly maxSizeMb: number
+  readonly minFiles: number
+  readonly maxFiles: number
+}
 
 /**
  * Словарь интерфейса. Все подписи — отсюда, не строками в JSX (глоссарий).
@@ -12,7 +19,6 @@ export const ru = {
   app: {
     name: 'RAV5',
     tagline: 'Оценка роботизации',
-    title: 'RAV5 — платформа оценки роботизации',
   },
 
   roles: {
@@ -44,6 +50,8 @@ export const ru = {
 
   shell: {
     mainNavigation: 'Основная навигация',
+    /** Имя боковой панели: на формах рядом есть вторая aside (правая панель), безымянные совпадают (landmark-unique). */
+    sidebar: 'Боковое меню',
     openCabinetMenu: 'Меню кабинета',
   },
 
@@ -194,12 +202,27 @@ export const ru = {
       kpi: 'Основной KPI',
       facilities: 'Отрасли',
       routePoints: 'Типовые точки',
-      routeSegment: (from: string, to: string) => `${from} → ${to}`,
     },
     requirements: {
       title: 'Что нужно знать для подбора',
       lead: 'Процесс определяет, какие данные RAV5 запрашивает у локации. Без обязательных параметров подбор идёт с допущениями',
       groups: { required: 'Обязательно', desirable: 'Желательно', environment: 'Среда' },
+      /** Параметры, которые процесс запрашивает у локации, по коду (сервис процессов отдаёт коды). */
+      items: {
+        flow: 'Объём потока',
+        maxMass: 'Максимальная масса',
+        palletType: 'Тип паллеты',
+        routeWidth: 'Ширина маршрута',
+        avgDistance: 'Средняя дистанция',
+        peakFactor: 'Коэффициент пиковой нагрузки',
+        liftHeight: 'Высота подъёма',
+        pickupPoints: 'Точек pickup/dropoff',
+        floor: 'Покрытие и плоскость пола',
+        slopes: 'Уклоны и пороги',
+        temperature: 'Температурный режим',
+        wifi: 'Wi\u2011Fi на маршруте',
+        peopleOnRoute: 'Люди на маршруте',
+      },
       /** Единицы нет: тип или качественное условие (PRD 15 · №46 — значения среды задаёт локация). */
       noUnit: '—',
     },
@@ -369,7 +392,6 @@ export const ru = {
       otherFacilityType: 'другой тип объекта',
       onLocation: 'уже на локации',
       add: (name: string) => `Добавить «${name}» на локацию`,
-      adding: 'Добавляем…',
       cancel: 'Отмена',
       /** Новый шаблон в справочнике — форма 09а (PRD 10.4). */
       createProcess: 'Создать процесс',
@@ -777,7 +799,7 @@ export const ru = {
         'Три демонстрационных объекта: склад, аэропорт, стационар',
         'Подбор решений и три варианта роботизации',
         'Экономика, сценарии и проверка производительности',
-        'Каталог из 223 решений и сравнение',
+        'Каталог из 187 решений и сравнение',
         'Выгрузка PDF, Excel и данных симуляции',
       ],
       unavailable: 'Свои локации и сохранение результатов',
@@ -880,6 +902,11 @@ export const ru = {
     tabsLabel: 'Что показываем',
     tabs: { robots: 'Роботы', infrastructure: 'Инфраструктура', software: 'ПО и интеграции', services: 'Сервисы' },
     listLabel: 'Позиции каталога',
+    /** Отрасли фильтра каталога: значение фильтра и адреса — само название, как в данных каталога (`Robot.industries`). */
+    industries: [
+      'Торговля и услуги', 'Промышленность', 'Сельское хозяйство', 'ЖКХ', 'Строительство',
+      'ТЭК', 'Безопасность', 'Транспорт и логистика', 'Лесное хозяйство',
+    ],
     filters: {
       operationClass: 'Класс операции',
       industry: 'Отрасль',
@@ -934,7 +961,7 @@ export const ru = {
       added: 'В сравнении',
       /** Имя кнопки содержит видимую подпись (WCAG 2.5.3): «Сравнить: AMR 100», «В сравнении: AMR 100». */
       itemLabel: (action: string, name: string) => `${action}: ${name}`,
-      full: 'В сравнении уже 4 позиции — уберите одну, чтобы добавить другую',
+      full: (limit: number) => `В сравнении уже ${String(limit)} ${pluralize(limit, ['позиция', 'позиции', 'позиций'])} — уберите одну, чтобы добавить другую`,
       open: (count: number) => `Сравнить (${String(count)})`,
       failed: 'Не удалось изменить набор сравнения. Попробуйте ещё раз',
     },
@@ -971,9 +998,9 @@ export const ru = {
       openItem: (name: string) => `Открыть позицию: ${name}`,
       compatibleAll: 'Посмотреть все совместимые компоненты',
       compatibleTitle: 'Совместимо',
-      specsTitle: 'Характеристики',
       allTitle: 'Все технические характеристики',
-      catalogSource: 'Каталог ФЦ БАС v4',
+      /** `version` — версия каталога из данных сессии (`DataVersion.catalog`): «v4». */
+      catalogSource: (version: string) => `Каталог ФЦ БАС ${version}`,
       vendorSite: 'Сайт производителя',
       vendorSiteLabel: (host: string) => `Сайт производителя: ${host} (откроется в новой вкладке)`,
       groups: {
@@ -1006,26 +1033,26 @@ export const ru = {
       confirmednessValue: (confirmed: number, estimate: number, missing: number) =>
         `${String(confirmed)} подтверждено · ${String(estimate)} оценка · ${String(missing)} нет данных`,
       platformCalc: 'расчёт платформы',
-      itemRows: { supplier: 'Поставщик', id: 'Уникальный идентификатор', type: 'Тип позиции', price: 'Цена', costType: 'Тип затрат', quantityNorm: 'Норма на объект', source: 'Источник' },
+      itemRows: { supplier: 'Поставщик', id: 'Уникальный идентификатор', type: 'Тип позиции', price: 'Цена', costType: 'Тип затрат', quantityNorm: 'Норма на объект' },
       /** Подпись характеристики позиции по порядку: в данных у неё только значение (D-79). */
       specLabel: (index: number) => (index === 0 ? 'Категория' : index === 1 ? 'Вид' : 'Параметр'),
       itemTypes: { infrastructure: 'Инфраструктура', software: 'ПО и интеграции', service: 'Услуги внедрения', support: 'Поддержка' },
       /** Выведенные из полей значения (D-76). */
       derived: {
-        catalog: 'каталог v4',
-        catalogFile: 'catalog_export_v4',
+        catalog: (version: string) => `каталог ${version}`,
+        catalogFile: (version: string) => `catalog_export_${version}`,
         registry: 'реестр источников',
         region: 'регион производителя в каталоге',
         facilities: 'по процессам классов операций (D-72)',
         notInData: 'нет в данных организатора',
         noClass: 'класс не назначен',
-        catalogWithTrl: (trl: number) => `каталог v4 · УГТ ${String(trl)}`,
+        catalogWithTrl: (version: string, trl: number) => `каталог ${version} · УГТ ${String(trl)}`,
         kg: (value: string) => `${value} кг`,
         mm: (l: string, w: string, h: string) => `${l} × ${w} × ${h} мм`,
         speed: (value: string) => `до ${value} м/с`,
         hours: (value: string) => `${value} ч`,
         priceWithVat: (price: string) => `${price} · с НДС`,
-        dataSource: 'каталог ФЦ БАС v4',
+        dataSource: (version: string) => `каталог ФЦ БАС ${version}`,
       },
     },
     comparePage: {
@@ -1086,6 +1113,8 @@ export const ru = {
       status: { operation: 'в эксплуатации', pilot: 'пилот', rnd: 'НИОКР' },
       noClass: 'без класса операции',
       kg: (value: string) => `${value} кг`,
+      /** Грузоподъёмность в подписи решения: «до 800 кг». */
+      payloadUpTo: (value: string) => `до ${value} кг`,
       hours: (value: string) => `${value} ч`,
       temperatureRange: (min: string, max: string) => `${min}…${max} °C`,
       temperatureFrom: (min: string) => `от ${min} °C`,
@@ -1356,19 +1385,14 @@ export const ru = {
     computed: 'рассчитано',
     preliminary: 'предварительно',
     missing: 'нет данных',
-  },
-
-  entities: {
-    operationClass: 'Класс операции',
-    operationClasses: 'Классы операций',
-    robot: 'Робот',
-    process: 'Процесс',
-    locationProcesses: 'Процессы локации',
-    location: 'Локация',
-    carrier: 'Носитель',
-    handlingMethod: 'Способ обработки груза',
-    project: 'Проект',
-    norms: 'Нормативы и допущения',
+    /** Решение вне расчёта (шаг 2, 16325:101). */
+    outOfScope: 'вне расчёта',
+    /** Статусы проверки характеристик решения (2.1а, 16830:10). */
+    confirmed: 'подтверждено',
+    analog: 'по аналогу',
+    estimate: 'оценка',
+    pending: 'ещё не проверено',
+    needsCheck: 'требует проверки',
   },
 
   /** Экран A1 «Проекты» (PRD 11.1; 16325:14). */
@@ -1438,14 +1462,6 @@ export const ru = {
     },
   },
 
-  projectSteps: {
-    params: 'Параметры',
-    matching: 'Подбор',
-    simulation: 'Симуляция',
-    economics: 'Итог и экономика',
-  } satisfies Record<ProjectStep, string>,
-
-  /** Короткие названия стадий черновика (PRD 11.1: «Параметры · Подбор · Симуляция · Итог»). */
   /** Короткое название стадии черновика: «остановились на: Итог» (PRD 11.1). Ключи — ProjectStep. */
   projectStages: {
     params: 'Параметры',
@@ -1462,21 +1478,68 @@ export const ru = {
     economics: 'Итог и экономика',
   },
 
+  /** Короткая подпись шага в степпере доски 16325: «Параметры ✓ · Подбор ✓ · Симуляция 3 · Итог и экономика 4». */
+  projectStepShortTitles: {
+    params: 'Параметры',
+    matching: 'Подбор',
+    simulation: 'Симуляция',
+    economics: 'Итог и экономика',
+  } satisfies Record<ProjectStep, string>,
+
+  /** Группы исполнителей склада из датасета (приложение А): форма процесса 09а, карточка процесса 11, профиль локации. */
+  staffRoles: {
+    forkliftOperators: 'Операторы погрузчиков',
+    pickers: 'Отборщики (комплектовщики)',
+    packingOperators: 'Операторы упаковочных линий',
+  },
+
+  /** Единицы в значениях моделей: «940 × 640 × 230 мм», «800 кг». Суммы и сроки — форматтеры `shared/format`. */
+  units: {
+    mm: 'мм',
+    m: 'м',
+    kg: 'кг',
+    hours: 'ч',
+    pcs: 'шт',
+    percent: '%',
+    factor: 'коэф.',
+  },
+
+  /** Загрузка файлов (D-18): подсказки строятся от лимитов правила, лимиты — в `shared/config/upload.ts`. */
+  upload: {
+    document: {
+      hint: ({ maxSizeMb }: UploadHintLimits) => `PDF, Excel, CSV или изображение до ${String(maxSizeMb)} МБ`,
+      formatFix: 'Загрузите PDF, Excel, CSV или изображение',
+      empty: 'Добавьте файл',
+      countNoun: 'файлов',
+    },
+    locationDocument: {
+      hint: ({ maxSizeMb }: UploadHintLimits) => `PDF, Excel, CSV, DWG или изображения, каждый файл до ${String(maxSizeMb)} МБ`,
+      formatFix: 'Загрузите PDF, Excel, CSV, DWG или изображение',
+      empty: 'Добавьте файл',
+      countNoun: 'файлов',
+    },
+    robotPhoto: {
+      hint: ({ minFiles, maxFiles, maxSizeMb }: UploadHintLimits) => `От ${String(minFiles)} до ${String(maxFiles)} изображений, каждое до ${String(maxSizeMb)} МБ`,
+      formatFix: 'Загрузите изображение',
+      empty: 'Добавьте хотя бы одно фото',
+      countNoun: 'фото',
+    },
+    errors: {
+      tooMany: (max: number, noun: string, extra: number) => `Не больше ${String(max)} ${noun}. Уберите лишние: ${String(extra)}`,
+      format: (extension: string, fix: string) => `Формат .${extension} не поддерживается. ${fix}`,
+      size: (maxSizeMb: number) => `Файл больше ${String(maxSizeMb)} МБ. Уменьшите размер или разделите файл`,
+    },
+  },
+
   plural: {
     robots: ['робот', 'робота', 'роботов'],
-    /** Родительный падеж: «экономия 1 робота», «докупка 3 роботов». */
-    robotsOf: ['робота', 'роботов', 'роботов'],
     stations: ['станция', 'станции', 'станций'],
-    /** Родительный падеж: «и 1 станции», «и 5 станций». */
-    stationsOf: ['станции', 'станций', 'станций'],
     /** Родительный падеж после «из»: «из 1 решения», «из 20 решений». */
     solutionsOf: ['решения', 'решений', 'решений'],
     processes: ['процесс', 'процесса', 'процессов'],
     /** Родительный падеж после «для»: «для 1 процесса», «для 6 процессов». */
     processesOf: ['процесса', 'процессов', 'процессов'],
     classes: ['класс', 'класса', 'классов'],
-    locations: ['локация', 'локации', 'локаций'],
-    projects: ['проект', 'проекта', 'проектов'],
     parameters: ['параметр', 'параметра', 'параметров'],
     people: ['человек', 'человека', 'человек'],
     positions: ['позиция', 'позиции', 'позиций'],
@@ -1499,6 +1562,7 @@ export const ru = {
       /** Номер шага для чтения с экрана: «Шаг 1. Параметры, пройден». */
       stepPrefix: (n: number) => `Шаг ${String(n)}.`,
       done: ', пройден',
+      locked: ', недоступен',
     },
     numberStepper: {
       decrease: (label: string) => `Уменьшить: ${label}`,
@@ -1521,6 +1585,21 @@ export const ru = {
     chipList: {
       more: (count: number) => `ещё ${String(count)}`,
       moreLabel: (labels: readonly string[]) => `ещё: ${labels.join(', ')}`,
+    },
+    /** Скорость плеера словами из множителя (доска 16325, 17083:1232): «Сутки за 2 мин 24 с» / «1 ч суток — за 6 с». */
+    playback: {
+      day: (duration: string) => `Сутки за ${duration}`,
+      hour: (duration: string) => `1 ч суток — за ${duration}`,
+      minutes: (n: number) => `${String(n)} мин`,
+      seconds: (n: number) => `${String(n)} с`,
+    },
+    /** Окна пиковых часов «08:00 — 11:00 · 3 ч · ×» (3.2, 16325:158). */
+    timeWindows: {
+      start: (list: string, n: number) => `${list}: начало окна ${String(n)}`,
+      end: (list: string, n: number) => `${list}: конец окна ${String(n)}`,
+      remove: (list: string, n: number) => `${list}: удалить окно ${String(n)}`,
+      hours: (n: number) => `${String(n)} ч`,
+      add: 'Добавить окно',
     },
   },
 
@@ -1558,23 +1637,6 @@ export const ru = {
     typeSample: 'Подбор роботов · 591 млн ₽',
     uiTitle: 'Примитивы UI',
     uiHint: 'Выберите примитив: варианты по строкам, состояния по столбцам.',
-    spike2d: {
-      title: '2D-плеер · спайк',
-      lead: 'Два записанных прогона с общим временем (07a, PRD 11.4). SVG + requestAnimationFrame; критерий — не меньше 30 кадров/с на ×1800 с двумя плеерами на 1366×768 (D-87)',
-      loading: 'Загружаем трассы прогонов…',
-      error: 'Не удалось загрузить трассы',
-      play: 'Пуск',
-      pause: 'Пауза',
-      toStart: 'В начало',
-      speed: 'Скорость воспроизведения',
-      speedOption: (x: number) => `×${String(x)}`,
-      timeline: 'Время дня',
-      measure: 'Замер: 10 с на ×1800',
-      measuring: 'Идёт замер…',
-      result: (fps: string, p95: string, long: number, frames: number) => `${fps} кадров/с · p95 кадра ${p95} мс · длинных кадров ${String(long)} из ${String(frames)}`,
-      passed: 'критерий выполнен',
-      failed: 'критерий не выполнен — нужен Canvas 2D',
-    },
     variant: 'Вариант',
     states: {
       default: 'Обычное',

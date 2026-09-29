@@ -6,7 +6,7 @@ import { PROCESSES } from '@/mocks/fixtures/processes'
 import { ROBOTS } from '@/mocks/fixtures/robots'
 import { robotCharacteristics, summarize } from './characteristics'
 
-const CTX = { operationClasses: OPERATION_CLASSES, processes: PROCESSES, facilityTypes: FACILITY_TYPES }
+const CTX = { operationClasses: OPERATION_CLASSES, processes: PROCESSES, facilityTypes: FACILITY_TYPES, catalogVersion: 'v4' }
 const robot = (name: string) => ROBOTS.find((r) => r.name === name) as Robot
 
 describe('robot characteristics (К-4, D-76, D-77)', () => {

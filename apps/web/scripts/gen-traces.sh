@@ -4,3 +4,5 @@ set -eu
 REPO=$(cd ../.. && pwd)
 docker run --rm -v "$REPO":/repo -w /repo python:3.12-slim sh -c \
   'pip install -q --root-user-action=ignore --disable-pip-version-check simpy networkx && python apps/web/scripts/gen2dTraces.py'
+# Почасовые срезы для кадра отчёта 09 — из только что записанных трасс.
+node scripts/genHourlyTraces.ts

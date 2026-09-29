@@ -7,6 +7,7 @@ import { createMockServices } from '@/services/mock'
 import { ServicesProvider } from '@/services/ServicesProvider'
 import { RoleProvider } from '@/shared/auth/RoleProvider'
 import { ProjectStepPage } from '../ProjectStepPage'
+import { SimulationStep } from './SimulationStep'
 
 const RUNS: Readonly<Record<SimulationVerdict, string>> = {
   confirmed: 'SIM-0926-01',
@@ -34,7 +35,7 @@ const renderAt = (path: string, services: Services) =>
       <ServicesProvider services={services}>
         <RoleProvider>
           <Routes>
-            <Route path="/projects/:projectId/simulation" element={<><ProjectStepPage step="simulation" /><Search /></>} />
+            <Route path="/projects/:projectId/simulation" element={<><ProjectStepPage step="simulation" Step={SimulationStep} /><Search /></>} />
             <Route path="/projects/:projectId/economics" element={<p>итог и экономика</p>} />
             <Route path="*" element={<p>другая страница</p>} />
           </Routes>
@@ -45,30 +46,55 @@ const renderAt = (path: string, services: Services) =>
 
 const USER = '/projects/PJ-DEMO/simulation?as=user&stage=verdict'
 const robots = () => screen.getByRole('spinbutton', { name: 'Роботов' })
-const plan = () => screen.getByRole('region', { name: 'План изменений по итогам прогона' })
+const plan = (name: RegExp = /^(Что докупить|Состав парка)$/) => screen.getByRole('region', { name })
 
 afterEach(() => { sessionStorage.clear() })
 
-describe('Этап 4 «Вердикт» (экран 07, PRD 11.4, D-104)', () => {
-  it('можно уменьшить: вердикт, рекомендация подставлена, «было» и дельта, экономика было → стало', async () => {
+describe('Этап 4 «Вердикт» (3.4 need_more, 16325:176; 3.6 confirmed, 16325:194; PRD 11.4, D-104)', () => {
+  it('можно уменьшить: светлая карточка, «Узкое место», состав с чипами, экономика с OPEX и процентами', async () => {
     renderAt(USER, await servicesWith('can_reduce'))
     expect(await screen.findByRole('heading', { level: 2, name: 'Можно уменьшить до 16 роботов и 5 станций' })).toBeInTheDocument()
-    expect(screen.getByText('Можно уменьшить · обновлено по 2D-модели')).toBeInTheDocument()
-    expect(screen.getByRole('region', { name: 'Где тоньше всего' })).toHaveTextContent('17:00')
+    expect(screen.getByText('Оценка по худшему из смоделированных дней')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Узкое место' })).toHaveTextContent('17:00')
+    expect(screen.queryByText(/обновлено по 2D-модели/)).not.toBeInTheDocument()
     expect(robots()).toHaveAttribute('aria-valuenow', '16')
-    expect(within(plan()).getByText(/^Экономия 2\sроботов и 1\sстанции$/u)).toBeInTheDocument()
-    expect(within(plan()).getAllByText(/было 18 · из подбора/)).toHaveLength(1)
-    expect(within(plan()).getByText(/проверен симуляцией/)).toBeInTheDocument()
+    expect(within(plan(/^Состав парка$/)).getByText('−2')).toBeInTheDocument()
+    expect(within(plan()).getByText(/Состав подтверждён симуляцией/)).toBeInTheDocument()
     const economics = screen.getByRole('table', { name: 'Предварительная экономика по составу плана' })
-    expect(within(economics).getByRole('row', { name: /CAPEX/ })).toHaveTextContent(/6,1\sмлн\s₽/u)
-    expect(screen.getByRole('button', { name: 'Принять план и к экономике' })).toBeEnabled()
+    expect(within(economics).getByRole('row', { name: /Вложения \(CAPEX\)/ })).toHaveTextContent(/6,1\sмлн\s₽/u)
+    expect(within(economics).getByRole('row', { name: /OPEX роботов в год/ })).toHaveTextContent(/−\d+\s%/u)
+    expect(screen.getByRole('button', { name: 'Учесть и перейти к экономике' })).toBeEnabled()
+    expect(screen.getByRole('link', { name: 'Изменить условия симуляции' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Выбрать другое решение' })).toHaveAttribute('href', '/projects/PJ-DEMO/matching')
   })
 
-  it('«Принять план» записывает план и открывает итог и экономику', async () => {
+  it('подтверждено (3.6): «Состав парка», оба «без изменений», лаймовая плашка подтверждения', async () => {
+    renderAt(USER, await servicesWith('confirmed'))
+    expect(await screen.findByRole('region', { name: 'Состав парка' })).toBeInTheDocument()
+    expect(within(plan()).getAllByText('без изменений')).toHaveLength(2)
+    expect(within(plan()).getByRole('status')).toHaveTextContent(/Состав подтверждён симуляцией: 130 из 130 рейсов в пик, в срок 98,4\s% в худший день/u)
+  })
+
+  it('«Уточнить методику»: поправки прогона, выбор сохраняется и не делает прогон устаревшим (D-89)', async () => {
+    const services = await servicesWith('confirmed')
+    const update = vi.spyOn(services.projects, 'updateInputs')
+    renderAt(USER, services)
+    const calibration = await screen.findByRole('region', { name: 'Уточнить методику по данным симуляции' })
+    expect(within(calibration).getByText('необязательно')).toBeInTheDocument()
+    const route = within(calibration).getByRole('checkbox', { name: 'Длина рейса в одну сторону, м' })
+    expect(route).not.toBeChecked()
+    expect(within(calibration).getByRole('row', { name: /Длина рейса/ })).toHaveTextContent(/100\s*86/)
+    fireEvent.click(route)
+    expect(route).toBeChecked()
+    expect(update).toHaveBeenLastCalledWith('PJ-DEMO', { simulation: { calibration: ['route_len_m'] } })
+    expect(screen.queryByText(/прогон устарел/)).not.toBeInTheDocument()
+  })
+
+  it('«Учесть и перейти к экономике» записывает план и открывает итог и экономику', async () => {
     const services = await servicesWith('can_reduce')
     const update = vi.spyOn(services.projects, 'updateInputs')
     renderAt(USER, services)
-    fireEvent.click(await screen.findByRole('button', { name: 'Принять план и к экономике' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Учесть и перейти к экономике' }))
     expect(await screen.findByText('итог и экономика')).toBeInTheDocument()
     expect(update).toHaveBeenLastCalledWith('PJ-DEMO', { simulation: { plan: null, acceptRisk: false } })
   })
@@ -79,35 +105,33 @@ describe('Этап 4 «Вердикт» (экран 07, PRD 11.4, D-104)', () =>
     renderAt(USER, services)
     fireEvent.keyDown(await screen.findByRole('spinbutton', { name: 'Роботов' }), { key: 'ArrowUp' })
     expect(within(plan()).getByText(/Состав 19 \/ 6 симуляцией не проверялся/)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Принять план/ })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Вернуть как в подборе' }))
-    expect(robots()).toHaveAttribute('aria-valuenow', '18')
-    fireEvent.keyDown(robots(), { key: 'ArrowUp' })
+    expect(within(plan()).getByText('+1')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Проверить состав прогоном' }))
-    await waitFor(() => { expect(start).toHaveBeenCalledWith('PJ-DEMO', { fleet: { robots: 19, stations: 6 }, conditions: {} }) })
-    expect(screen.getByTestId('search')).toHaveTextContent('stage=run')
+    expect(start).toHaveBeenCalledWith('PJ-DEMO', expect.objectContaining({ fleet: { robots: 19, stations: 6 } }))
+    await waitFor(() => { expect(screen.getByTestId('search')).toHaveTextContent('stage=run') })
   })
 
-  it('нужно докупить (07b): прежний состав — только с принятым риском, текст риска и кнопка «с риском»', async () => {
+  it('нужно докупить (3.4, 07b): «Что докупить», проверено и рекомендация, риск — кнопка «с риском»', async () => {
     const services = await servicesWith('need_more')
-    const update = vi.spyOn(services.projects, 'updateInputs')
     renderAt(USER, services)
     expect(await screen.findByRole('heading', { level: 2, name: /докупить \+3 робота/ })).toBeInTheDocument()
-    expect(robots()).toHaveAttribute('aria-valuenow', '18')
-    expect(within(plan()).getByText(/было 15 · проверено/)).toBeInTheDocument()
+    const card = plan(/^Что докупить$/)
+    expect(within(card).getByText('+3')).toBeInTheDocument()
+    expect(within(card).getByText('проверено: 15')).toBeInTheDocument()
+    expect(within(card).getByText(/рекомендация: 18/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('checkbox', { name: 'Продолжить без изменений (15 / 6) и принять риск' }))
     expect(robots()).toHaveAttribute('aria-valuenow', '15')
     expect(robots()).toHaveAttribute('aria-disabled', 'true')
     expect(screen.getByText(/В пик вывозится 93,8\s% потребности/u)).toBeInTheDocument()
-    expect(update).toHaveBeenLastCalledWith('PJ-DEMO', { simulation: { plan: { robots: 15, stations: 6 }, acceptRisk: true } })
     fireEvent.click(screen.getByRole('button', { name: 'Перейти к экономике с 15 / 6 — с риском' }))
     expect(await screen.findByText('итог и экономика')).toBeInTheDocument()
   })
 
-  it.each(['layout_bottleneck', 'unreachable'] as const)('%s: переход к экономике закрыт, плана нет', async (verdict) => {
+  it.each(['layout_bottleneck', 'unreachable'] as const)('%s: без состава и экономики, только другие условия или решение', async (verdict) => {
     renderAt(USER, await servicesWith(verdict))
     expect(await screen.findByText(/Переход к экономике закрыт/)).toBeInTheDocument()
-    expect(screen.queryByRole('region', { name: 'План изменений по итогам прогона' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: /Что докупить|Состав парка/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Уточнить методику по данным симуляции' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Изменить условия симуляции' })).toHaveAttribute('href', expect.stringContaining('stage=conditions'))
     expect(screen.getByRole('link', { name: 'Выбрать другое решение' })).toHaveAttribute('href', '/projects/PJ-DEMO/matching')
   })

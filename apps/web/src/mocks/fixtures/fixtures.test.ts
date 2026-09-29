@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { NORM_GROUPS, specsCompleteness } from '@/domain'
 import { formatCount } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
+import { DASHBOARD_INPUTS } from './dashboard'
 import { DATA_SOURCES } from './dataSources'
 import { FACILITY_PARAMETERS } from './facilityParameters'
 import { LOCATION_PROCESSES } from './locationProcesses'
@@ -77,17 +78,32 @@ describe('fixtures: integrity', () => {
 })
 
 describe('fixtures: resolved PRD 15 discrepancies (README)', () => {
-  it('№10: the norms reference has 34 rows in 6 groups, 12 norms and 22 assumptions (PRD 6.8, D-49)', () => {
-    expect(NORMS).toHaveLength(34)
-    expect(new Set(NORMS.map((n) => n.code)).size).toBe(34)
+  it('№10: the norms reference has 34 rows of PRD 6.8 plus width_margin_m — 35 in 6 groups, 13 norms and 22 assumptions (D-49)', () => {
+    expect(NORMS).toHaveLength(35)
+    expect(new Set(NORMS.map((n) => n.code)).size).toBe(35)
     const countOf = (group: string) => NORMS.filter((n) => n.group === group).length
     expect(Object.fromEntries(NORM_GROUPS.map((group) => [group, countOf(group)]))).toEqual({
-      staff: 3, fleet: 5, capex: 7, opex: 7, finance: 8, interpretation: 4,
+      staff: 3, fleet: 6, capex: 7, opex: 7, finance: 8, interpretation: 4,
     })
-    expect(NORMS.filter((n) => n.kind === 'norm')).toHaveLength(12)
+    expect(NORMS.filter((n) => n.kind === 'norm')).toHaveLength(13)
   })
 
-  it('№10: the norms source on А6 counts the same 34 rows as А5', () => {
+  it('№128: one width margin — the А5 norm of the А2 rule, the matching condition is the 2,8 m aisle minus it (D-108)', () => {
+    const margin = NORMS.find((n) => n.code === 'width_margin_m')?.value
+    expect(margin).toBe(0.6)
+    const aisle = LOCATIONS.find((l) => l.id === 'LOC-01')?.parameters.wh_rack_aisle_width?.value
+    expect(aisle).toBe(2.8)
+  })
+
+  it('№12: labour costs are PRD 8.2 values; the dataset covers only forklift and picker payroll of РЦ Химки (D-108)', () => {
+    const khimki = LOCATIONS.find((l) => l.id === 'LOC-01')
+    const value = (code: string) => Number(khimki?.parameters[code]?.value)
+    const computable = (value('wh_forklift_operators') * value('wh_forklift_salary') + value('wh_pickers') * value('wh_picker_salary')) * 12 * value('wh_payroll_tax_coef')
+    expect(Math.round(computable / 100_000) / 10).toBe(203.1)
+    expect(DASHBOARD_INPUTS.laborCosts.map((c) => c.annualRub / 1_000_000)).toEqual([231, 84, 183, 93])
+  })
+
+  it('№10: the norms source on А6 counts the same rows as А5', () => {
     const norms = DATA_SOURCES.find((s) => s.kind === 'norms')
     expect(norms?.provides).toBe(formatCount(NORMS.length, ru.plural.norms))
   })

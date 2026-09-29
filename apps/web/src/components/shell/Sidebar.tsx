@@ -2,7 +2,7 @@ import { clsx } from 'clsx'
 import { Plus } from 'lucide-react'
 import { Link } from 'react-router'
 import { ROUTE_PATHS } from '@/app/routePaths'
-import { useNewProjectLink } from '@/pages/projects/new/useNewProjectLink'
+import { useNewProjectLink } from '@/components/newProject/useNewProjectLink'
 import type { DataVersion, Profile, Role } from '@/domain'
 import { ru } from '@/shared/i18n/ru'
 import { NavLinkItem } from './NavLinkItem'
@@ -25,7 +25,7 @@ export function Sidebar({ role, activeKey, counts, profile, dataVersion }: Sideb
   const newProjectLink = useNewProjectLink()()
 
   return (
-    <aside className="sticky top-0 flex h-screen w-sidebar shrink-0 flex-col gap-16 rounded-r-3xl border border-highlight bg-bg px-16 py-20 shadow-raised-lg">
+    <aside aria-label={ru.shell.sidebar} className="sticky top-0 flex h-screen w-sidebar shrink-0 flex-col gap-16 rounded-r-3xl border border-highlight bg-bg px-16 py-20 shadow-raised-lg">
       <div className="flex flex-col">
         <span className="type-heading text-text">{ru.app.name}</span>
         <span className="type-caption-xs uppercase text-text-secondary">{ru.app.tagline}</span>

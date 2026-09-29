@@ -1,8 +1,6 @@
 /** Статус значения характеристики (ТЗ 3.3.4, PRD 7.7): подтверждено, оценка, нет данных (D-76). */
 export type CharacteristicStatus = 'confirmed' | 'estimate' | 'missing'
 
-export const CHARACTERISTIC_STATUSES: readonly CharacteristicStatus[] = ['confirmed', 'estimate', 'missing']
-
 /**
  * Характеристика позиции каталога: готовое значение для показа, статус, источник и дата (D-76).
  * `missing` — значения нет (`value: null`), в `source` — что с этим делать («требует уточнения у поставщика»).

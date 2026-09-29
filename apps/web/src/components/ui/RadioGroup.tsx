@@ -1,6 +1,7 @@
 import * as RadixRadio from '@radix-ui/react-radio-group'
 import { clsx } from 'clsx'
 import { useId, type ReactNode } from 'react'
+import { optionValue } from './optionValue'
 
 export interface RadioOption<T extends string> {
   readonly value: T
@@ -79,7 +80,7 @@ export function RadioGroup<T extends string>({ label, options, value, defaultVal
       aria-label={label}
       {...(value !== undefined ? { value } : {})}
       {...(defaultValue !== undefined ? { defaultValue } : {})}
-      {...(onChange ? { onValueChange: (v: string) => { onChange(v as T) } } : {})}
+      {...(onChange ? { onValueChange: (v: string) => { const next = optionValue(options, v); if (next !== undefined) onChange(next) } } : {})}
       disabled={disabled}
       orientation={orientation}
       className={clsx(
@@ -93,8 +94,10 @@ export function RadioGroup<T extends string>({ label, options, value, defaultVal
       ))}
       {variant === 'list' && options.map((option, index) => {
         const id = `${groupId}-${option.value}`
+        // Выключенная группа уже полупрозрачна целиком — у варианта прозрачность не удваиваем.
+        const optionDisabled = !disabled && option.disabled === true
         return (
-          <span key={option.value} className="inline-flex items-center gap-12">
+          <span key={option.value} className={clsx('inline-flex items-center gap-12', optionDisabled && 'opacity-(--rav-disabled-opacity)')}>
             <RadixRadio.Item
               id={id}
               value={option.value}
@@ -104,7 +107,7 @@ export function RadioGroup<T extends string>({ label, options, value, defaultVal
             >
               <RadixRadio.Indicator className="size-8 rounded-full bg-on-inverse" />
             </RadixRadio.Item>
-            <label htmlFor={id} className={clsx('type-body text-text', !disabled && 'cursor-pointer')}>
+            <label htmlFor={id} className={clsx('type-body text-text', disabled || optionDisabled ? 'cursor-not-allowed' : 'cursor-pointer')}>
               {option.label}
             </label>
           </span>

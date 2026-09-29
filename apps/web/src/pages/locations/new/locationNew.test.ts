@@ -10,7 +10,8 @@ import {
   updateStaffRow,
   type LocationForm,
 } from './locationForm'
-import { LOCATION_DEMO_PROFILE, mockupForm } from './locationNew.mock'
+import { LOCATION_DEMO_PROFILE } from '@/mocks/fixtures/locationDemo'
+import { mockupForm } from '@/pages/dev/locationMockup'
 
 const params = indexParameters(FACILITY_PARAMETERS.filter((p) => p.facilityType === 'warehouse'))
 const initial = buildInitialForm(params, LOCATION_DEMO_PROFILE)
@@ -117,5 +118,10 @@ describe('isLocationForm', () => {
     expect(isLocationForm(JSON.parse(JSON.stringify(initial)))).toBe(true)
     expect(isLocationForm({ ...initial, facilityType: 'factory' })).toBe(false)
     expect(isLocationForm({ name: 'x' })).toBe(false)
+  })
+
+  it('rejects a draft with a malformed staff row', () => {
+    expect(isLocationForm({ ...initial, staff: [{ key: 'custom-1', role: 'Кладовщики', headcount: 3 }] })).toBe(false)
+    expect(isLocationForm({ ...initial, staff: ['Кладовщики'] })).toBe(false)
   })
 })

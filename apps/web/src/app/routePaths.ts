@@ -33,8 +33,6 @@ export const ROUTE_PATHS = {
   adminCatalog: '/admin/catalog',
   adminCatalogImport: '/admin/catalog/import',
   adminCatalogNew: '/admin/catalog/new',
-  adminCatalogUpdate: '/admin/catalog/update',
-  adminRobot: '/admin/catalog/:robotId',
   adminJournal: '/admin/journal',
   adminNorms: '/admin/norms',
   adminSources: '/admin/sources',
@@ -64,15 +62,9 @@ export function projectOpenPath(project: Project): string {
   return projectStepPath(project.id, project.status === 'draft' ? project.step : 'economics')
 }
 
-/** Старые адреса, которые перенаправляются: сохранённая оценка жила на отдельном `/result` (D-22). */
-export const LEGACY_PATHS = {
-  projectResult: '/projects/:projectId/result',
-} as const
-
 // Служебные страницы разработки, в продуктовую навигацию не входят.
 export const DEV_PATHS = {
   screens: '/dev/screens',
   tokens: '/dev/tokens',
   ui: '/dev/ui/:primitive?',
-  spike2d: '/dev/spike-2d',
 } as const

@@ -76,3 +76,36 @@ describe('NumberStepper', () => {
     expect(screen.getByRole('spinbutton')).toHaveAttribute('aria-disabled', 'true')
   })
 })
+
+describe('NumberStepper · block (правая колонка вердикта)', () => {
+  it('подпись, пояснение и чип входят в описание; кнопки и клавиатура работают как в строке', () => {
+    const onChange = vi.fn()
+    render(
+      <NumberStepper
+        layout="block"
+        label="Зарядных станций"
+        description="из подбора: 5"
+        previous="рекомендация: 6"
+        badge={<span>+1</span>}
+        value={6}
+        min={1}
+        max={20}
+        onChange={onChange}
+      />,
+    )
+    const spin = screen.getByRole('spinbutton', { name: 'Зарядных станций' })
+    expect(spin).toHaveAccessibleDescription('из подбора: 5 рекомендация: 6 +1')
+    fireEvent.click(screen.getByRole('button', { name: 'Увеличить: Зарядных станций' }))
+    expect(onChange).toHaveBeenLastCalledWith(7)
+    fireEvent.keyDown(spin, { key: 'Home' })
+    expect(onChange).toHaveBeenLastCalledWith(1)
+  })
+
+  it('без чипа — описание только из пояснения; чип в строчном виде не выводится', () => {
+    const { rerender } = render(<NumberStepper layout="block" label="Роботов" description="из подбора: 18" value={18} min={1} max={60} onChange={() => undefined} />)
+    expect(screen.getByRole('spinbutton')).toHaveAccessibleDescription('из подбора: 18')
+    rerender(<NumberStepper label="Роботов" badge={<span>без изменений</span>} value={18} min={1} max={60} onChange={() => undefined} />)
+    expect(screen.queryByText('без изменений')).not.toBeInTheDocument()
+    expect(screen.getByRole('spinbutton')).not.toHaveAttribute('aria-describedby')
+  })
+})

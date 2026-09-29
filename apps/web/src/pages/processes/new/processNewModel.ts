@@ -3,12 +3,12 @@ import type { FacilityType, Location, OperationClass, OperationClassCode, Proces
 import { formatCount, formatNumber, formatPercent } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { categoryValue, countFormulas, countRequired, parseCategory, type NumericKey, type ProcessForm } from './processForm'
-import type { WarehouseBase } from './processNew.mock'
+import type { WarehouseBase } from './processDemoForm'
 import type { CheckRow } from './ProcessCheckRail'
 
 const t = ru.processNew
 
-export function classOptions(classes: readonly OperationClass[]): readonly SelectOption<string>[] {
+export function classOptions(classes: readonly OperationClass[]): readonly SelectOption<OperationClassCode>[] {
   return classes.map((c) => ({ value: c.code, label: t.classOption(c.code, c.name) }))
 }
 

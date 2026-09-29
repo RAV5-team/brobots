@@ -1,7 +1,5 @@
-import { ArrowRight } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
 import { Card, CardStat, CardTitle } from '@/components/ui/Card'
-import { MergedButton } from '@/components/ui/MergedButton'
+import { FormRail } from '@/components/ui/FormRail'
 import { ru } from '@/shared/i18n/ru'
 
 const t = ru.processNew.rail
@@ -33,27 +31,20 @@ interface ProcessCheckRailProps {
  */
 export function ProcessCheckRail({ copy, rows, canSave, saving, message }: ProcessCheckRailProps) {
   return (
-    <aside className="sticky top-24 flex w-(--rav-form-rail-width) shrink-0 flex-col gap-16 self-start">
-      <Card>
-        <CardTitle>{copy.title}</CardTitle>
-        <dl className="flex flex-col gap-12">
-          {rows.map((row) => <CardStat key={row.label} label={row.label} value={row.value} />)}
-        </dl>
-        <p className="type-caption text-text-secondary">{copy.note}</p>
-      </Card>
-      {message && <p role="alert" className="type-caption font-medium text-danger">{message}</p>}
-      <MergedButton
-        type="submit"
-        block
-        label={saving ? t.saving : copy.save}
-        icon={ArrowRight}
-        disabled={!canSave || saving}
-        aria-describedby={canSave ? undefined : 'guest-save-note'}
-      />
-      {!canSave && <p id="guest-save-note" className="type-caption text-text-secondary">{t.guestSave}</p>}
-      <Button className="w-full" disabled aria-describedby="excel-note">{t.importExcel}</Button>
-      <Button className="w-full" disabled aria-describedby="excel-note">{t.downloadTemplate}</Button>
-      <p id="excel-note" className="type-caption text-text-muted">{t.excelSoon}</p>
-    </aside>
+    <FormRail
+      label={copy.title}
+      summary={(
+        <Card>
+          <CardTitle>{copy.title}</CardTitle>
+          <dl className="flex flex-col gap-12">
+            {rows.map((row) => <CardStat key={row.label} label={row.label} value={row.value} />)}
+          </dl>
+          <p className="type-caption text-text-secondary">{copy.note}</p>
+        </Card>
+      )}
+      message={message}
+      submit={{ label: saving ? t.saving : copy.save, disabled: !canSave || saving, note: canSave ? null : t.guestSave }}
+      excel={{ importLabel: t.importExcel, templateLabel: t.downloadTemplate, note: t.excelSoon }}
+    />
   )
 }

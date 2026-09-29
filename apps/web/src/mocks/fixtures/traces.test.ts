@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { toSimulationTrace } from '@/api/mappers/trace'
 import { positionsAt, traceDuration } from '@/domain'
 import demo166 from './traces/demo-16-5.json'
+import demo166Hourly from './traces/demo-16-5.hourly.json'
 import demo186 from './traces/demo-18-6.json'
+import demo186Hourly from './traces/demo-18-6.hourly.json'
 
 // Единственный тест, который читает настоящие трассы (1,5–1,7 МБ): остальные подставляют маленькие.
 describe('2D-трассы движка — формат export_trace и связность с проектом', { timeout: 30_000 }, () => {
@@ -33,6 +35,17 @@ describe('2D-трассы движка — формат export_trace и связ
         }
       }
       expect(positionsAt(trace, 3600)).toHaveLength(trace.robots)
+    }
+  })
+
+  it('почасовой срез для отчёта 09 — кадры записи на границах часа: в любой час позиции те же (npm run gen:traces)', () => {
+    const pairs = [[demo186, demo186Hourly], [demo166, demo166Hourly]] as const
+    for (const [full, hourly] of pairs) {
+      const [fullTrace, hourlyTraceModel] = [toSimulationTrace(full), toSimulationTrace(hourly)]
+      expect(traceDuration(hourlyTraceModel)).toBe(traceDuration(fullTrace))
+      for (let t = 0; t <= traceDuration(fullTrace); t += 3600) {
+        expect(positionsAt(hourlyTraceModel, t)).toEqual(positionsAt(fullTrace, t))
+      }
     }
   })
 })

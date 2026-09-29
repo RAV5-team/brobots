@@ -1,53 +1,82 @@
 import { useState } from 'react'
-import { generatePath } from 'react-router'
+import { Link, generatePath } from 'react-router'
 import { ROUTE_PATHS } from '@/app/routePaths'
+import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { TextLink } from '@/components/ui/TextLink'
-import { Toggle } from '@/components/ui/Toggle'
-import type { LocationId } from '@/domain'
+import { Disclosure } from '@/components/ui/Disclosure'
+import type { Location } from '@/domain'
+import { formatNumber } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
-import type { SiteRowGroup } from './paramsModel'
-import { ValueTable } from './ValueTable'
+import { ParamRows } from './ParamRows'
+import { groupCaption, type SiteRowGroup } from './paramsModel'
+import { siteGroupKey, type GroupReveal } from './useGroupReveal'
 
 const t = ru.project.params.site
 
 interface SiteBlockProps {
   readonly groups: readonly SiteRowGroup[]
-  readonly locationId: LocationId
+  readonly location: Location
+  readonly reveal: GroupReveal
+  /** «Всё раскрыто»: сразу все параметры локации, не только применимые. */
+  readonly showAllInitially?: boolean
+  /** Свой график выбранного процесса (упаковка, 17009:1404): расчёт берёт его, а не режим локации. */
+  readonly ownScheduleHours?: number | null
 }
 
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
+
 /**
- * Блок 2 «Условия площадки»: параметры площадки из снимка профиля (PRD 11.2, 10.5). Только чтение: «нет данных»
- * ведёт в профиль локации. По умолчанию показаны только применимые к процессу (D-93).
+ * Блок 2 «Локация» (16969:367): параметры площадки из снимка профиля (PRD 11.2). Только чтение: «нет данных» ведёт
+ * в профиль локации. Группы свёрнуты; по умолчанию — только применимые к процессу (D-93), «Все параметры локации» — все.
+ * Группы пока по PRD 10.5 (5 групп), а не 4 группы доски — ждёт D-92.
  */
-export function SiteBlock({ groups, locationId }: SiteBlockProps) {
-  const [onlyApplicable, setOnlyApplicable] = useState(true)
-  const total = groups.reduce((sum, g) => sum + g.rows.length, 0)
+export function SiteBlock({ groups, location, reveal, showAllInitially = false, ownScheduleHours = null }: SiteBlockProps) {
+  const [showAll, setShowAll] = useState(showAllInitially)
   const visible = groups
-    .map((g) => ({ ...g, rows: onlyApplicable ? g.rows.filter((r) => r.applicable) : g.rows }))
+    .map((g) => ({ ...g, rows: showAll ? g.rows : g.rows.filter((r) => r.applicable) }))
     .filter((g) => g.rows.length > 0)
-  const shown = visible.reduce((sum, g) => sum + g.rows.length, 0)
-  const profile = generatePath(ROUTE_PATHS.locationParams, { locationId })
+  const profile = generatePath(ROUTE_PATHS.locationParams, { locationId: location.id })
   return (
-    <Card aria-labelledby="params-site-title" gap={16}>
-      <header className="flex items-start justify-between gap-16">
-        <div className="flex flex-col gap-4">
-          <h2 id="params-site-title" className="type-heading text-text">{t.title}</h2>
-          <p className="type-caption text-text-secondary">{t.hint}</p>
-        </div>
-        <div className="flex shrink-0 items-center gap-12">
-          <span className="type-caption text-text-muted">{t.count(shown, total)}</span>
-          <Toggle label={t.onlyApplicable} checked={onlyApplicable} onCheckedChange={setOnlyApplicable} />
-        </div>
+    <Card aria-labelledby="params-site-title" padding={28} gap={20}>
+      <header className="flex flex-col gap-4">
+        <h2 id="params-site-title" className="type-heading text-text">{t.title}</h2>
+        <p className="type-caption text-text-secondary">{t.hint}</p>
       </header>
-      {visible.map((group) => (
-        <ValueTable
-          key={group.key}
-          title={group.title}
-          rows={group.rows}
-          missingAction={(row) => <TextLink to={`${profile}#${row.key}`}>{row.note}</TextLink>}
-        />
-      ))}
+      <div className="flex flex-col gap-4">
+        <p className="type-title-md text-text">{location.name}</p>
+        <p className="type-caption text-text-secondary">{capitalize(ru.facilityTypesLower[location.facilityType])} · {location.address}</p>
+      </div>
+      {ownScheduleHours !== null && (
+        <Card variant="sunken" padding={16} as="div" className="px-20">
+          <p className="type-caption text-text">{t.ownSchedule(formatNumber(ownScheduleHours))}</p>
+        </Card>
+      )}
+      <div className="flex flex-col">
+        {visible.map((group) => {
+          const key = siteGroupKey(group.key)
+          return (
+            <Disclosure
+              key={group.key}
+              variant="group"
+              title={group.title}
+              caption={groupCaption(group.rows)}
+              open={reveal.isOpen(key)}
+              onOpenChange={(open) => { reveal.setOpen(key, open) }}
+            >
+              <Card variant="sunken" padding={16} gap={0} as="div" className="px-20">
+                <ParamRows
+                  label={group.title}
+                  rows={group.rows}
+                  missingAction={(row) => <Link to={`${profile}#${row.key}`} className="rounded-xs type-caption text-text-muted underline-offset-4 transition-colors hover:text-text hover:underline">{row.note}</Link>}
+                />
+              </Card>
+            </Disclosure>
+          )
+        })}
+      </div>
+      <div className="flex justify-end">
+        <Button onClick={() => { setShowAll(!showAll) }}>{showAll ? t.onlyApplicable : t.showAll}</Button>
+      </div>
     </Card>
   )
 }

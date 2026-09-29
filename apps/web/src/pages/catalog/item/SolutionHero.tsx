@@ -3,8 +3,8 @@ import type { ReactNode } from 'react'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { COMPARE_LIMIT, hasEntry, type CompareEntry } from '@/domain'
-import type { NewProjectContext } from '@/pages/projects/new/newProjectModel'
-import { useNewProjectLink } from '@/pages/projects/new/useNewProjectLink'
+import type { NewProjectContext } from '@/components/newProject/newProjectModel'
+import { useNewProjectLink } from '@/components/newProject/useNewProjectLink'
 import { useCompare } from '@/shared/compare/useCompare'
 import { ru } from '@/shared/i18n/ru'
 
@@ -64,7 +64,7 @@ export function SolutionHero({ kicker, name, subtitle, photo, typeLabel, descrip
             <Button
               aria-pressed={inCompare}
               disabled={full}
-              title={full ? ru.catalog.compare.full : undefined}
+              title={full ? ru.catalog.compare.full(COMPARE_LIMIT) : undefined}
               onClick={() => { toggle(compareRef) }}
             >
               {inCompare && <Check aria-hidden size={16} />}

@@ -4,7 +4,7 @@ import type { ProjectService } from './projects'
 /** Запуск или пересчёт модели — до 60 секунд (ТЗ 4.3.3): дольше прогон не ждём. */
 export const SIMULATION_TIME_LIMIT_S = 60
 /** Опрос задания раз в секунду: журнал и секунды на экране обновляются не реже. */
-export const SIMULATION_POLL_MS = 1_000
+const SIMULATION_POLL_MS = 1_000
 
 /** Почему прогон не выполнен: ошибка задания или запроса, превышен лимит 60 с, готовый прогон не записался в черновик. */
 export type SimulationRunFailure = 'failed' | 'timeout' | 'save'

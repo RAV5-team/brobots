@@ -10,6 +10,7 @@ import {
   emptyInputs,
   furthestStep,
   markFresh,
+  modelNormsFrom,
   type DraftProject,
   type Fleet,
   type MatchingEvaluation,
@@ -18,17 +19,21 @@ import {
   type ProjectId,
   type ProjectParamsSnapshot,
   type SavedProject,
+  type TraceResolution,
 } from '@/domain'
 import { FACILITY_PARAMETERS } from '@/mocks/fixtures/facilityParameters'
 import { LOCATION_PROCESSES } from '@/mocks/fixtures/locationProcesses'
 import { LOCATIONS } from '@/mocks/fixtures/locations'
+import { NORMS } from '@/mocks/fixtures/norms'
 import { HANDLING_METHODS, OPERATION_CLASSES } from '@/mocks/fixtures/operationClasses'
 import { PROCESSES } from '@/mocks/fixtures/processes'
 import { ROBOTS } from '@/mocks/fixtures/robots'
 import { SITE_PARAMETERS, SITE_VALUES } from '@/mocks/fixtures/siteParameters'
 import { CONDITIONS_LP01, OPERATIONS_PER_DAY_LP01 } from '@/mocks/fixtures/projectEconomics'
 import { CALC_DEFAULTS_BY_PROCESS, EVALUATIONS_BY_PROCESS } from '@/mocks/fixtures/projectMatching'
-import { DEMO_PROJECT_DTO, PROJECT_DTOS, PROJECT_LOCAL_STATE } from '@/mocks/fixtures/projects'
+import { DEMO_PROJECT_DTO, PROJECT_DTOS, PROJECT_LOCAL_STATE, PROJECT_VERSIONS } from '@/mocks/fixtures/projects'
+import demo165Url from '@/mocks/fixtures/traces/demo-16-5.json?url'
+import demo186Url from '@/mocks/fixtures/traces/demo-18-6.json?url'
 import { formatNumber } from '@/shared/format'
 import { ConflictError, NotFoundError } from '../errors'
 import type { ProjectService } from '../projects'
@@ -44,17 +49,28 @@ const READ_ONLY = 'Сохранённая оценка открывается т
 const DEFAULT_RUN_ID = 'SIM-0926-01'
 
 /**
- * Записанные 2D-трассы (scripts/gen2dTraces.py — настоящий движок simcore): грузятся по запросу, в основной бандл
- * не попадают. Есть у прогонов 01 (состав не менялся — одна трасса) и 02 (18/6 → 16/5); у остальных — пусто.
+ * Записанные 2D-трассы (scripts/gen2dTraces.py — настоящий движок simcore): в основной бандл не попадают.
+ * Полная запись (1,6–1,8 МБ) — отдельным файлом через fetch: разбор JSON дешевле, чем JS-модуля того же размера.
+ * Почасовой срез (scripts/genHourlyTraces.ts, около 50 КБ) — для кадра отчёта 09, которому нужна одна минута.
+ * Есть у прогонов 01 (состав не менялся — одна трасса) и 02 (18/6 → 16/5); у остальных — пусто.
  */
-const TRACE_FILES = {
-  'demo-18-6': () => import('@/mocks/fixtures/traces/demo-18-6.json'),
-  'demo-16-5': () => import('@/mocks/fixtures/traces/demo-16-5.json'),
+const TRACE_URLS = { 'demo-18-6': demo186Url, 'demo-16-5': demo165Url } as const
+const HOURLY_TRACES = {
+  'demo-18-6': () => import('@/mocks/fixtures/traces/demo-18-6.hourly.json'),
+  'demo-16-5': () => import('@/mocks/fixtures/traces/demo-16-5.hourly.json'),
 } as const
-export type TraceFile = keyof typeof TRACE_FILES
-/** Ответ сервиса трасс по файлу; тесты подставляют маленькие трассы вместо файлов по 1,7 МБ. */
-export type TraceLoader = (file: TraceFile) => Promise<unknown>
-const loadTraceFile: TraceLoader = (file) => TRACE_FILES[file]().then((module) => module.default)
+export type TraceFile = keyof typeof TRACE_URLS
+/** Ответ сервиса трасс по файлу; тесты подставляют маленькие трассы вместо настоящих файлов. */
+export type TraceLoader = (file: TraceFile, resolution: TraceResolution) => Promise<unknown>
+
+async function fetchTrace(url: string): Promise<unknown> {
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`Трасса ${url}: HTTP ${String(response.status)}`)
+  return response.json()
+}
+
+const loadTraceFile: TraceLoader = (file, resolution) =>
+  resolution === 'hourly' ? HOURLY_TRACES[file]().then((module) => module.default) : fetchTrace(TRACE_URLS[file])
 const TRACES_BY_RUN: Readonly<Record<string, readonly TraceFile[]>> = {
   'SIM-0926-01': ['demo-18-6'],
   'SIM-0926-02': ['demo-18-6', 'demo-16-5'],
@@ -85,6 +101,17 @@ function nextId(ids: readonly string[]): ProjectId {
 
 const now = (): string => new Date().toISOString()
 
+/** Статус после создания черновика и сохранения оценки известен заранее — проверяем его, а не приводим тип. */
+function asDraft(project: Project): DraftProject {
+  if (project.status !== 'draft') throw new Error(`Проект ${project.id}: ожидался черновик, статус «${project.status}»`)
+  return project
+}
+
+function asSaved(project: Project): SavedProject {
+  if (project.status !== 'saved') throw new Error(`Проект ${project.id}: ожидалась сохранённая оценка, статус «${project.status}»`)
+  return project
+}
+
 type RunDto = SimulationSchemas['SimulationRun']
 
 /** Прогоны симуляции грузятся при первом обращении: в основной бандл кабинета они не входят. */
@@ -92,6 +119,13 @@ let runsLoading: Promise<readonly RunDto[]> | null = null
 const loadRuns = (): Promise<readonly RunDto[]> => {
   runsLoading ??= import('@/mocks/fixtures/simulationRuns.generated').then((module) => module.SIMULATION_RUNS)
   return runsLoading
+}
+
+/** Поля окна 2.1а (цена, условия RaaS, оборудование, разбор балла) — тоже при первом обращении. */
+let detailsLoading: Promise<typeof import('./variantDetails')> | null = null
+const loadVariantDetails = (): Promise<typeof import('./variantDetails')> => {
+  detailsLoading ??= import('./variantDetails')
+  return detailsLoading
 }
 
 /** Прогон, который мок «насчитает» для состава: у кого проверенный состав совпал, иначе — основной (confirmed). */
@@ -128,6 +162,7 @@ function paramsSnapshot(dto: ProjectDto): ProjectParamsSnapshot {
     processes: processesOf(location.id),
     handlingMethods: HANDLING_METHODS,
     pinnedSolution: pinned ? { id: pinned.id, name: pinned.name } : null,
+    widthMarginM: modelNormsFrom(NORMS).widthMarginM,
   }
 }
 
@@ -159,10 +194,15 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
     if (!evaluation) throw new NotFoundError('Подбор для этого проекта ещё не рассчитан')
     return evaluation
   }
-  const matchingOf = (stored: StoredProject): MatchingEvaluation => ({
-    ...toMatchingEvaluation(evaluationOf(stored), CALC_DEFAULTS_BY_PROCESS[stored.dto.task?.id ?? ''] ?? null),
-    stale: stored.local.inputs.stale.matching,
-  })
+  const matchingOf = async (stored: StoredProject): Promise<MatchingEvaluation> => {
+    const processId = stored.dto.task?.id ?? ''
+    const evaluation: MatchingEvaluation = {
+      ...toMatchingEvaluation(evaluationOf(stored), CALC_DEFAULTS_BY_PROCESS[processId] ?? null),
+      stale: stored.local.inputs.stale.matching,
+    }
+    const { withVariantDetails } = await loadVariantDetails()
+    return withVariantDetails(evaluation, processId)
+  }
   /** Ошибки — отказом промиса, как у настоящего запроса. */
   const attempt = <T>(action: () => T): Promise<T> => {
     try {
@@ -185,12 +225,12 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
       const at = now()
       const dto: ProjectDto = {
         id, name, locationId, status: 'draft', updatedAt: at, snapshotTakenAt: at,
-        versions: { catalog: 4, model: '2.1', norms: 3, dictionaries: 1 },
+        versions: PROJECT_VERSIONS,
         ...(locationProcessId ? { task: { id: locationProcessId } } : {}),
         ...(solutionId ? { pinnedSolutionId: solutionId } : {}),
       }
       put(id, { dto, local: { step: 'params', inputs: emptyInputs(at), result: null } })
-      return toDomain(find(id)) as DraftProject
+      return asDraft(toDomain(find(id)))
     }),
 
     updateInputs: (id, patch) => attempt(() => {
@@ -222,16 +262,16 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
       return toDomain(find(id))
     }),
 
-    getMatching: (id) => attempt(() => matchingOf(find(id))),
+    getMatching: async (id) => respond(await matchingOf(find(id)), options),
 
-    evaluateMatching: (id) => attempt(() => {
+    evaluateMatching: async (id) => {
       const stored = editable(id)
       evaluationOf(stored)
       // Мок не пересчитывает: числа рейтинга из фикстуры, снимается только пометка «устарело» (api-contract.md, №11).
       const at = now()
       put(id, { dto: { ...stored.dto, updatedAt: at }, local: { ...stored.local, inputs: markFresh(stored.local.inputs, 'matching', at) } })
-      return matchingOf(find(id))
-    }),
+      return respond(await matchingOf(find(id)), options)
+    },
 
     startSimulation: async (id, request) => {
       editable(id)
@@ -263,10 +303,10 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
       return respond(toSimulationRun(run), options)
     },
 
-    getSimulationTraces: async (runId) => {
+    getSimulationTraces: async (runId, resolution = 'full') => {
       const files = TRACES_BY_RUN[runId]
       if (!files) throw new NotFoundError(`Прогон ${runId} не найден`)
-      const dtos = await Promise.all(files.map(loadTrace))
+      const dtos = await Promise.all(files.map((file) => loadTrace(file, resolution)))
       return respond(dtos.map(toSimulationTrace), options)
     },
 
@@ -313,7 +353,7 @@ export function createMockProjects(options: MockOptions, loadTrace: TraceLoader 
           result: { capexRub: scenario.capexRub, opexRubPerYear: scenario.opexRubPerYear, paybackYears: scenario.paybackYears, annualEffectRub: scenario.annualEffectRub },
         },
       })
-      return toDomain(find(id)) as SavedProject
+      return asSaved(toDomain(find(id)))
     }),
   }
 }

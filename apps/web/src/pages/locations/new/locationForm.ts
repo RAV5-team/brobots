@@ -1,5 +1,7 @@
 import type { FacilityParameter, FacilityTypeCode } from '@/domain'
 import { formatNumber, parseDecimal } from '@/shared/format'
+import { isArrayOf, isBoolean, isObject, isOneOf, isString } from '@/shared/guards'
+import { ru } from '@/shared/i18n/ru'
 
 /** Секции формы в порядке навигации (PRD 10.2). */
 export const SECTION_IDS = ['basics', 'area', 'schedule', 'staff'] as const
@@ -65,7 +67,7 @@ export interface Range {
  * Годовая текучесть: в датасете склада её нет (PRD 10.2) — принимаем 0 и помечаем допущением.
  * Код — свой, в духе кодов датасета: сохраняется в профиль, чтобы допущение увидел список локаций (PRD 15 · №45).
  */
-export const TURNOVER_CODE = 'wh_annual_turnover'
+const TURNOVER_CODE = 'wh_annual_turnover'
 export const ASSUMED_TURNOVER = 0
 const PAYROLL_CODE = 'wh_payroll_tax_coef'
 
@@ -89,9 +91,9 @@ export const REQUIRED_TEXT: readonly TextKey[] = ['name', 'city']
 
 /** Стандартные группы склада и их параметры в датасете; у упаковщиков оклада в датасете нет (PRD 15 · №48). */
 export const STAFF_PRESETS: readonly { readonly role: string; readonly headcountCode: string; readonly salaryCode: string | null }[] = [
-  { role: 'Отборщики (комплектовщики)', headcountCode: 'wh_pickers', salaryCode: 'wh_picker_salary' },
-  { role: 'Операторы погрузчиков', headcountCode: 'wh_forklift_operators', salaryCode: 'wh_forklift_salary' },
-  { role: 'Операторы упаковочных линий', headcountCode: 'wh_packing_operators', salaryCode: null },
+  { role: ru.staffRoles.pickers, headcountCode: 'wh_pickers', salaryCode: 'wh_picker_salary' },
+  { role: ru.staffRoles.forkliftOperators, headcountCode: 'wh_forklift_operators', salaryCode: 'wh_forklift_salary' },
+  { role: ru.staffRoles.packingOperators, headcountCode: 'wh_packing_operators', salaryCode: null },
 ]
 
 /** Параметры склада по коду. */
@@ -127,7 +129,7 @@ export const num = (form: LocationForm, key: NumericKey): number | null => parse
 /** Годовая текучесть осталась принятым нулём — значение считается допущением, а не данными площадки. */
 export const isTurnoverAssumed = (form: LocationForm): boolean => num(form, 'turnover') === ASSUMED_TURNOVER
 
-export function presetStaffRows(params: ParameterIndex): readonly StaffGroupRow[] {
+function presetStaffRows(params: ParameterIndex): readonly StaffGroupRow[] {
   return STAFF_PRESETS.map((p) => ({
     key: p.headcountCode,
     role: p.role,
@@ -143,11 +145,24 @@ export interface ProfileText {
   readonly address: string
 }
 
+/** Числовые поля формы по ключам, а не через Object.fromEntries: новое поле без значения не соберётся. */
+export const numericValues = (text: (key: NumericKey) => string): NumericValues => ({
+  totalArea: text('totalArea'),
+  activeArea: text('activeArea'),
+  floors: text('floors'),
+  shifts: text('shifts'),
+  workingDays: text('workingDays'),
+  shiftHours: text('shiftHours'),
+  peakFactor: text('peakFactor'),
+  staffTotal: text('staffTotal'),
+  pickerProductivity: text('pickerProductivity'),
+  workTimeLoss: text('workTimeLoss'),
+  turnover: text('turnover'),
+})
+
 /** Форма на значениях датасета склада — демо-профиль, как на 09а (D-31); тексты — из макета. */
 export function buildInitialForm(params: ParameterIndex, profile: ProfileText): LocationForm {
-  const numeric = Object.fromEntries(
-    NUMERIC_KEYS.map((key) => [key, key === 'turnover' ? String(ASSUMED_TURNOVER) : baseText(params, NUMERIC_SPECS[key].code)]),
-  ) as unknown as NumericValues
+  const numeric = numericValues((key) => (key === 'turnover' ? String(ASSUMED_TURNOVER) : baseText(params, NUMERIC_SPECS[key].code)))
   return { facilityType: 'warehouse', ...profile, ...numeric, staff: presetStaffRows(params) }
 }
 
@@ -164,16 +179,17 @@ export function updateStaffRow(staff: readonly StaffGroupRow[], key: string, pat
 
 export const removeStaffRow = (staff: readonly StaffGroupRow[], key: string): readonly StaffGroupRow[] => staff.filter((r) => r.key !== key)
 
-/** Черновик из браузера годится, если у него форма той же версии. */
+const isStaffGroupRow = (value: unknown): value is StaffGroupRow =>
+  isObject(value) && [value.key, value.role, value.headcount, value.salary].every(isString) && isBoolean(value.preset)
+
+/** Черновик из браузера годится, если у него форма той же версии: все поля и строки групп нужного вида. */
 export function isLocationForm(value: unknown): value is LocationForm {
-  if (typeof value !== 'object' || value === null) return false
-  const v = value as Partial<LocationForm>
   return (
-    typeof v.facilityType === 'string' &&
-    FACILITY_CHOICES.includes(v.facilityType) &&
-    typeof v.name === 'string' &&
-    Array.isArray(v.staff) &&
-    NUMERIC_KEYS.every((key) => typeof v[key] === 'string')
+    isObject(value) &&
+    isOneOf(FACILITY_CHOICES, value.facilityType) &&
+    [value.name, value.city, value.address].every(isString) &&
+    isArrayOf(value.staff, isStaffGroupRow) &&
+    NUMERIC_KEYS.every((key) => isString(value[key]))
   )
 }
 

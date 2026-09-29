@@ -18,7 +18,7 @@
   /* --- Цвета: текст --- */
   --rav-color-text: #111111;
   --rav-color-text-secondary: #5e5e59;
-  --rav-color-text-muted: #8a867d; /* контраст 3.13 — D-23 */
+  --rav-color-text-muted: #66625b; /* макет #8a867d; ≥ 4.69 на всех поверхностях — D-23 */
   --rav-color-text-disabled: #b9b3a7;
 
   /* --- Цвета: инверсия и акцент --- */
@@ -34,7 +34,7 @@
   --rav-color-accent-border: #c9d62a;
 
   /* --- Цвета: статусы и слои --- */
-  --rav-color-danger: #ce2c31;
+  --rav-color-danger: #bf282d; /* макет #ce2c31; ≥ 4.57 на всех поверхностях — D-23 */
   --rav-color-danger-border: #e5484d;
   --rav-color-danger-bg: #f7e3de;
   --rav-color-scrim: rgb(17 17 17 / 0.32);
@@ -121,6 +121,9 @@
   --rav-size-38: 38px;
   --rav-size-44: 44px;
   --rav-size-48: 48px;
+  /* Обводка поля в фокусе и с ошибкой (Input, Select, FileInput); кольцо логотипа. */
+  --rav-border-width-control: 1.5px;
+  --rav-border-width-logo: 1.2px;
   /* Ширина колонки экрана входа 05: 1366 − 2 × 200 (15935:17). */
   --rav-login-width: 966px;
 
@@ -130,6 +133,16 @@
   --rav-modal-wide-width: 640px;
   /* Боковая панель «Как рассчитано», «Параметры расчёта» (03a, 16202:490; 16202:979): вариант Modal side. */
   --rav-modal-side-width: 560px;
+  /* Окно сравнения 2.1б (16833:10) — Modal size="detail" по числу колонок: 2 — 640 (wide), 3 — 820, 4 — 1000. */
+  --rav-modal-compare-3-width: 820px;
+  --rav-modal-compare-4-width: 1000px;
+  /* Popover: панель у чипа статуса (шаг 1, 16969:10) и разбор балла (шаг 2). */
+  --rav-popover-width: 320px;
+  /* Окна Modal md / form (620) и sm (560): «Новый проект», формы справочников, подтверждения. */
+  --rav-modal-md-width: 620px;
+  --rav-modal-sm-width: 560px;
+  /* Меню пользователя над блоком профиля в sidebar (15935:244). */
+  --rav-user-menu-width: 300px;
   /* Графики (D-87): подпись и значение строки «Устойчивость ±20 %» (08, 16197:2216). */
   --rav-chart-row-label-width: 360px;
   --rav-chart-row-value-width: 160px;
@@ -207,6 +220,11 @@
   --rav-compare-label-width-compact: 180px;
   /* 03 «Исключённые решения»: колонка названия 200 (16197:998). */
   --rav-excluded-name-width: 200px;
+  /* 2.1 «Подбор решений»: колонки рейтинга CAPEX 76, эффект/год 84, окупаемость 92, балл 64; «Решение» — остаток (16742:30). */
+  --rav-ranking-capex-width: 76px;
+  --rav-ranking-effect-width: 84px;
+  --rav-ranking-payback-width: 92px;
+  --rav-ranking-score-width: 64px;
   /* К-4 «Карточка решения»: строка характеристики — подпись 160, статус 128, источник 172, значение — остаток (16777:987). */
   --rav-characteristic-label-width: 160px;
   --rav-characteristic-status-width: 128px;
@@ -215,6 +233,13 @@
   --rav-solution-photo-width: 200px;
   --rav-solution-photo-height: 180px;
   --rav-solution-fact-height: 108px;
+  /* 11 «Процесс»: плитки «по степени готовности» 108 и карточки решений 88 (раздел «Решения для процесса»). */
+  --rav-process-robots-stat-height: 108px;
+  --rav-process-robot-card-height: 88px;
+  /* А1 «Каталог решений»: строка-скелетон на время загрузки — высота строки таблицы. */
+  --rav-admin-catalog-skeleton-height: 64px;
+  /* 07 «Экономика, предварительно»: колонки «из подбора», «с изменениями», «разница» — по 150 (16197:1922). */
+  --rav-verdict-economics-col-width: 150px;
   /*
    * A1 «Проекты» (16362:8226): колонки 150 / 176 / 100 / 100 / 104 плюс зазор 16 таблицы roomy; действие 36 без зазора; «Название» — остаток.
    * На макете статус 160, CAPEX и OPEX по 110, окупаемость 120, зазор 12: подпись «остановились на: Параметры» (169 px, D-83)

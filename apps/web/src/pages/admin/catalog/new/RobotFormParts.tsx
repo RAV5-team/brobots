@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
 import { Field } from '@/components/ui/Field'
 import { Input } from '@/components/ui/Input'
+import { NumberField } from '@/components/ui/NumberField'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { ru } from '@/shared/i18n/ru'
 import type { RobotForm, RobotFormErrors } from './robotForm'
@@ -88,16 +89,16 @@ export function RobotSpecField({ name, form, errors, update, exact = false }: Sp
   const copy = t.fields[name]
   const isList = name === 'dimensions' || name === 'loadUnload'
   return (
-    <Field label={copy.label} error={errors[name]} badge={exact ? <Badge kind="exact" variant="pill" /> : <BadgeSpacer />}>
-      <Input
-        inputMode={isList ? 'text' : 'decimal'}
-        autoComplete="off"
-        placeholder={copy.placeholder}
-        suffix={copy.unit}
-        value={form[name]}
-        onChange={(e) => { update({ [name]: e.target.value }) }}
-      />
-    </Field>
+    <NumberField
+      label={copy.label}
+      error={errors[name]}
+      badge={exact ? <Badge kind="exact" variant="pill" /> : <BadgeSpacer />}
+      inputMode={isList ? 'text' : 'decimal'}
+      placeholder={copy.placeholder}
+      unit={copy.unit}
+      value={form[name]}
+      onChange={(text) => { update({ [name]: text }) }}
+    />
   )
 }
 

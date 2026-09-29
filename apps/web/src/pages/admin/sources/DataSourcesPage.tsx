@@ -1,26 +1,24 @@
 import { clsx } from 'clsx'
 import { ArrowRight } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { useLocation } from 'react-router'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Chip } from '@/components/ui/Chip'
 import { MergedButton } from '@/components/ui/MergedButton'
-import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
+import { EmptyState, ErrorState, SkeletonList } from '@/components/ui/States'
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from '@/components/ui/Table'
 import { Toggle } from '@/components/ui/Toggle'
 import { canAutoRefresh, type DataSource } from '@/domain'
-import { canAccess } from '@/shared/auth/resolveRole'
-import { useRole } from '@/shared/auth/useRole'
 import { formatDayOf } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { AdminHeader } from '../AdminHeader'
 import { refreshLabel, sourceTypeLabel } from './dataSourcesModel'
 import { NewDataSourceModal } from './NewDataSourceModal'
 import { useDataSources, type DataSourcesModel } from './useDataSources'
+import { AdminGuard } from '../AdminGuard'
 
 const t = ru.dataSources
-const SKELETON_ROWS = [0, 1, 2, 3, 4, 5]
+const SKELETON_ROWS = 6
 
 interface SourceRowProps {
   readonly source: DataSource
@@ -102,9 +100,7 @@ function SourcesPanel({ model }: { readonly model: DataSourcesModel }) {
       {/* Живая область есть всегда, чтобы итог «Обновить» прочитала экранная читалка; пустая — скрыта. */}
       <p role="status" className="pb-12 type-body-sm text-text-secondary empty:hidden">{model.notice}</p>
       {state.status === 'loading' && (
-        <div className="flex flex-col gap-8 py-16" aria-busy="true">
-          {SKELETON_ROWS.map((i) => <Skeleton key={i} className="h-48" />)}
-        </div>
+        <SkeletonList rows={SKELETON_ROWS} rowClassName="h-48" className="py-16" />
       )}
       {state.status === 'error' && <ErrorState title={t.error.title} message={t.error.message} onRetry={model.retry} />}
       {state.status === 'ready' && <SourcesTable model={model} sources={state.sources} />}
@@ -146,12 +142,6 @@ function SourcesContent() {
 
 /** Экран А6 «Администрирование · источники данных»: откуда данные, подтверждены ли и как обновляются (PRD 6.9; 15966:7246). */
 export function DataSourcesPage() {
-  const role = useRole()
-  const { pathname } = useLocation()
-
   // Реестр источников ведёт только администратор (PRD 5.3, 6.9).
-  if (!canAccess(role, pathname)) {
-    return <ErrorState title={ru.errors.accessDenied(ru.roles[role])} message={ru.admin.accessHint} />
-  }
-  return <SourcesContent />
+  return <AdminGuard><SourcesContent /></AdminGuard>
 }

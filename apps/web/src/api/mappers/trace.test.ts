@@ -31,6 +31,17 @@ describe('toSimulationTrace — формат simcore.viz.export_trace', () => {
     expect(() => toSimulationTrace({ ...dto, frames: [{ t: 0, r: [] }] })).toThrow('Trace: в кадре 0 роботов 0, ожидалось 1')
   })
 
+  it('позиция робота или слот зарядки не из чисел — ошибка контракта', () => {
+    expect(() => toSimulationTrace({ ...dto, frames: [{ t: 0, r: [[2.5, 0]] }] })).toThrow('Trace.frames[0]: в ответе нет поля «r» нужного вида')
+    expect(() => toSimulationTrace({ ...dto, frames: [{ t: 0, r: [[2.5, '0', 0]] }] })).toThrow(ContractError)
+    expect(() => toSimulationTrace({ ...dto, layout: { ...dto.layout, charger_slots: [[75.5]] } })).toThrow(ContractError)
+  })
+
+  it('неизвестный тип узла — ошибка контракта', () => {
+    const nodes = [{ id: 'X', x: 0, y: 0, type: 'teleport' }]
+    expect(() => toSimulationTrace({ ...dto, layout: { ...dto.layout, nodes } })).toThrow('Trace.layout: тип узла «teleport» неизвестен')
+  })
+
   it('не объект — ошибка контракта', () => {
     expect(() => toSimulationTrace(null)).toThrow('Trace: ответ не объект')
   })

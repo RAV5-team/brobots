@@ -6,7 +6,7 @@ import { ButtonLink } from '@/components/ui/Button'
 import { MergedButton } from '@/components/ui/MergedButton'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
 import { TextLink } from '@/components/ui/TextLink'
-import type { ProcessCode } from '@/domain'
+import { parseProcessCode } from '@/domain'
 import { useRole } from '@/shared/auth/useRole'
 import { ru } from '@/shared/i18n/ru'
 import { LocationsSection } from './LocationsSection'
@@ -55,7 +55,7 @@ function ProcessDetail({ data, isGuest }: { readonly data: ProcessDetailData; re
       <div className="flex items-start gap-16">
         <div className="flex min-w-0 flex-1 flex-col gap-24">
           <AutomationSection process={process} operationClass={operationClass} facilities={facilities} />
-          <RequirementsSection process={process} />
+          <RequirementsSection process={process} requirements={data.requirements} />
           <RobotsSection classCode={process.operationClass} summary={robotSummary(data.robots)} />
           <LocationsSection usages={locationUsages(data)} />
         </div>
@@ -70,9 +70,9 @@ function ProcessDetail({ data, isGuest }: { readonly data: ProcessDetailData; re
  * сколько роботов подходит по классу и на каких локациях процесс уже используется.
  */
 export function ProcessDetailPage() {
-  const { processId = '' } = useParams()
+  const processCode = parseProcessCode(useParams().processId)
   const role = useRole()
-  const { state, retry } = useProcessDetail(processId as ProcessCode)
+  const { state, retry } = useProcessDetail(processCode)
 
   if (state.status === 'loading') return <ProcessDetailSkeleton />
   if (state.status === 'error') return <ErrorState title={t.error.title} message={t.error.message} onRetry={retry} />

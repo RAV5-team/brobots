@@ -1,34 +1,13 @@
-import { Table, TableBody, TableCell, TableHeaderCell, TableRow } from '@/components/ui/Table'
-import type { CostItem } from '@/domain'
+import { Table, TableBody, TableHeaderCell } from '@/components/ui/Table'
 import { formatCount } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
-import { acquisitionName, money } from '../../steps/economics/economicsView'
+import { acquisitionName } from '../../steps/economics/economicsView'
 import { scenarioName, type FactRow, type ReportContext } from '../reportModel'
 import { FactTable, ReportHeadRow, ReportSection, ReportSubheading } from '../ReportSection'
+import { CostItemRows } from '../../shared/CostItemRows'
 
 const t = ru.report.supply
 const costs = ru.project.economics.costs
-
-function ItemRows({ title, items }: { readonly title: string; readonly items: readonly CostItem[] }) {
-  const total = items.reduce((sum, item) => sum + item.amountRub, 0)
-  return (
-    <>
-      <TableRow>
-        <TableHeaderCell scope="rowgroup" colSpan={2} tone="label" className="pl-10">{title}</TableHeaderCell>
-      </TableRow>
-      {items.map((item) => (
-        <TableRow key={item.code}>
-          <TableCell className="pl-10">{item.label}</TableCell>
-          <TableCell align="end" className="whitespace-nowrap">{money(item.amountRub)}</TableCell>
-        </TableRow>
-      ))}
-      <TableRow>
-        <TableCell className="pl-10 font-semibold">{costs.total}</TableCell>
-        <TableCell align="end" className="font-semibold whitespace-nowrap">{money(total)}</TableCell>
-      </TableRow>
-    </>
-  )
-}
 
 /**
  * 6. Состав поставки и внедрения (16197:2479; PRD 11.6): роботы, станции и модель приобретения, затем статьи
@@ -56,8 +35,8 @@ export function SupplySection({ ctx }: { readonly ctx: ReportContext }) {
                 <TableHeaderCell tone="label" align="end">{costs.itemsColumns.amount}</TableHeaderCell>
               </ReportHeadRow>
               <TableBody>
-                <ItemRows title={costs.capexGroup} items={s.capexItems} />
-                <ItemRows title={costs.opexGroup} items={s.opexItems} />
+                <CostItemRows variant="report" title={costs.capexGroup} items={s.capexItems} />
+                <CostItemRows variant="report" title={costs.opexGroup} items={s.opexItems} />
               </TableBody>
             </Table>
           )

@@ -1,3 +1,4 @@
+import { clsx } from 'clsx'
 import { X } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router'
 import { ROUTE_PATHS } from '@/app/routePaths'
@@ -112,13 +113,14 @@ export function CatalogFilters({ filter, onChange, operationClasses, facilityTyp
           value={costValue}
           onChange={(v) => {
             set({
-              costTypes: v.filter((x) => x.startsWith('cost:')).map((x) => x.slice('cost:'.length) as CostTypeFilter),
-              priceRanges: v.filter((x) => x.startsWith('price:')).map((x) => x.slice('price:'.length) as PriceRange),
+              costTypes: v.flatMap((x) => COST_TYPES.find((c) => x === `cost:${c}`) ?? []),
+              priceRanges: v.flatMap((x) => PRICE_RANGES.find((p) => x === `price:${p}`) ?? []),
             })
           }}
         />
         {compatibleName !== null && (
-          <span data-active="true" className={FILTER_PILL_CLASSES}>
+          // Тёмная пилюля: кольцо фокуса «×» внутри — лаймовое, #111 на bg-inverse не видно (D-02).
+          <span data-active="true" className={clsx(FILTER_PILL_CLASSES, 'surface-inverse')}>
             {t.filters.compatibleWith(compatibleName)}
             <button
               type="button"

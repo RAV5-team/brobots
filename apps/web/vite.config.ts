@@ -12,6 +12,13 @@ export default defineConfig({
   resolve: {
     alias: { '@': '/src' },
   },
+  build: {
+    rolldownOptions: {
+      // Стартовые модули (метка $initial) — одним чанком. Иначе rolldown выносит в отдельные предзагружаемые чанки то,
+      // что ещё импортируют ленивые шаги (Field, chevron-down), и каждый лишний файл — байты gzip в бюджете (D-109).
+      output: { codeSplitting: { groups: [{ name: 'index', tags: ['$initial'] }] } },
+    },
+  },
   server: {
     port: DEV_PORT,
     strictPort: true,

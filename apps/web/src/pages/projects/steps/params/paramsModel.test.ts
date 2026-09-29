@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import type { LocationProcessId, ProjectParamsSnapshot } from '@/domain'
 import { createMockProjects } from '@/services/mock/projects'
-import { paramsView, validateAssumption, withOverride, type RowGroup } from './paramsModel'
+import { groupCaption, isNormCode, paramsView, type RowGroup, type ValueRow } from './paramsModel'
 
 let snapshot: ProjectParamsSnapshot
 
@@ -32,9 +32,9 @@ describe('paramsView — шаг 1 «Параметры проекта» (PRD 11.
   it('на демо-локации без данных нагрузка на пол и Wi-Fi: подбор выполним, 4 допущения', () => {
     const v = view('LP-01')
     expect(v.missing.map((m) => m.label)).toEqual(['нагрузка на пол', 'Wi-Fi'])
-    expect(v.readiness).toMatchObject({ canMatch: true, assumptionsCount: 4, missingCount: 2 })
+    expect(v.readiness).toMatchObject({ canMatch: true, assumptionsCount: 4, missingCount: 2, normsCount: 1 })
     expect(v.assumptions.map((a) => [a.code, a.value])).toEqual([
-      ['route_length_m', 100], ['operator_time_share_pct', 100], ['peak_factor', 1.5], ['width_margin_m', 0.5],
+      ['route_length_m', 100], ['operator_time_share_pct', 100], ['peak_factor', 1.5], ['width_margin_m', 0.6],
     ])
   })
 
@@ -89,19 +89,42 @@ describe('paramsView — шаг 1 «Параметры проекта» (PRD 11.
   })
 })
 
-describe('панель «Уточнить допущение»', () => {
-  const row = { min: 5, max: 5000, unit: 'м', digits: 0 }
-
-  it('пусто или вне диапазона — понятный текст исправления', () => {
-    expect(validateAssumption(row, null)).toBe('Введите число')
-    expect(plain(validateAssumption(row, 9000))).toBe('Введите значение от 5 до 5 000 м')
-    expect(validateAssumption(row, 120)).toBeNull()
+describe('доска 16325: строка процесса, подписи групп, счётчики', () => {
+  it('объём — число и единица отдельно, как в колонке «Объём»', () => {
+    const card = view('LP-01').cards.find((c) => c.id === 'LP-01')
+    expect(card).toMatchObject({ operationClass: 'OP-01', volumeUnit: 'паллет/сутки' })
+    expect(plain(card?.volumeValue)).toBe('2 000')
   })
 
-  it('новое уточнение заменяет прежнее, null — возвращает исходное', () => {
-    const once = withOverride([], 'peak_factor', { code: 'peak_factor', value: 1.8, kind: 'fact' })
-    const twice = withOverride(once, 'peak_factor', { code: 'peak_factor', value: 2, kind: 'estimate' })
-    expect(twice).toEqual([{ code: 'peak_factor', value: 2, kind: 'estimate' }])
-    expect(withOverride(twice, 'peak_factor', null)).toEqual([])
+  it('подпись группы считает параметры, допущения и «нет данных»', () => {
+    const rows: readonly ValueRow[] = [
+      { key: 'a', label: 'А', value: '1', origin: 'specified' },
+      { key: 'b', label: 'Б', value: '2', origin: 'assumption' },
+      { key: 'c', label: 'В', value: null, origin: 'missing' },
+    ]
+    expect(plain(groupCaption(rows))).toBe('3 параметра · 1 по допущению · 1 нет данных')
+    expect(plain(groupCaption(rows.slice(0, 1)))).toBe('1 параметр')
+  })
+
+  it('упаковка (1.3): свой график, маршрут не применяется, оклад — с группой персонала', () => {
+    const v = view('LP-03')
+    expect(v.ownScheduleHours).toBe(16)
+    expect(v.routeApplies).toBe(false)
+    expect(v.missing.find((m) => m.code === 'salary')?.label).toBe('оклад · Операторы упаковочных линий')
+    expect(v.readiness?.canMatch).toBe(true)
+  })
+
+  it('комплектация (1.2): режим локации, маршрут есть, подбор выполним', () => {
+    const v = view('LP-02')
+    expect(v.ownScheduleHours).toBeNull()
+    expect(v.routeApplies).toBe(true)
+    expect(v.readiness?.canMatch).toBe(true)
+  })
+
+  it('«Допущения» и «Нормативы» в rail совпадают с типами строк таблицы', () => {
+    const v = view('LP-01')
+    const norms = v.assumptions.filter((a) => isNormCode(a.code)).length
+    expect(v.readiness?.normsCount).toBe(norms)
+    expect((v.readiness?.assumptionsCount ?? 0) - (v.readiness?.normsCount ?? 0)).toBe(v.assumptions.length - norms)
   })
 })

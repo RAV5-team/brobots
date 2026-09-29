@@ -7,9 +7,10 @@ import type { Process } from './process'
 
 /**
  * Происхождение значения на шаге 1 (PRD 11.2): из файла организатора, указано пользователем, из профиля локации,
- * рассчитано, предварительно (формула с допущениями), допущение (по нормативу), нет данных.
+ * рассчитано, предварительно (формула с допущениями), допущение (по нормативу), нет данных, вне расчёта (доска 16325:101 —
+ * значение есть, но в расчёт процесса не входит). Значения совпадают с метками `Badge` (`ru.valueBadges`).
  */
-export type ValueOrigin = 'file' | 'specified' | 'location' | 'computed' | 'preliminary' | 'assumption' | 'missing'
+export type ValueOrigin = 'file' | 'specified' | 'location' | 'computed' | 'preliminary' | 'assumption' | 'missing' | 'outOfScope'
 
 /**
  * Что делает незаполненное значение с подбором (PRD 11.2, «Правила готовности к подбору»):
@@ -65,6 +66,8 @@ export interface ProjectParamsSnapshot {
   readonly handlingMethods: readonly HandlingMethod[]
   /** Решение из каталога («Проверить на объекте», D-57): подбор начнёт с него. */
   readonly pinnedSolution: { readonly id: string; readonly name: string } | null
+  /** Норматив А5 `width_margin_m` на дату снимка: запас по ширине прохода, если у шаблона процесса своего нет. */
+  readonly widthMarginM: number
 }
 
 /** Готовность процесса к подбору (PRD 11.2). */
@@ -77,10 +80,15 @@ export interface ParamsReadiness {
   readonly laborSaving: readonly MissingValue[]
   readonly missingCount: number
   readonly assumptionsCount: number
+  /**
+   * Нормативы и допущения справочника А5 в таблице шага (доска 16325, «счётчики = таблица»). Отдельно от
+   * `assumptionsCount` (уточняемые допущения панели «Уточнить»); не передан — 0.
+   */
+  readonly normsCount: number
 }
 
 /** Правило готовности (PRD 11.2): блокирует только значение с impact «blocks», остальное — предупреждения. */
-export function paramsReadiness(missing: readonly MissingValue[], assumptionsCount: number): ParamsReadiness {
+export function paramsReadiness(missing: readonly MissingValue[], assumptionsCount: number, normsCount = 0): ParamsReadiness {
   const blocking = missing.filter((m) => m.impact === 'blocks')
   return {
     canMatch: blocking.length === 0,
@@ -89,5 +97,6 @@ export function paramsReadiness(missing: readonly MissingValue[], assumptionsCou
     laborSaving: missing.filter((m) => m.impact === 'no_labor_saving'),
     missingCount: missing.length,
     assumptionsCount,
+    normsCount,
   }
 }

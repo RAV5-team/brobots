@@ -1,6 +1,6 @@
 import { ru } from '@/shared/i18n/ru'
 import { paramsView } from '../../steps/params/paramsModel'
-import { ValueTable } from '../../steps/params/ValueTable'
+import { ValueTable } from '../../shared/ValueTable'
 import type { ReportContext } from '../reportModel'
 import { ReportSection, ReportSubheading } from '../ReportSection'
 

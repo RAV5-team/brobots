@@ -7,6 +7,7 @@ import { createMockServices } from '@/services/mock'
 import { ServicesProvider } from '@/services/ServicesProvider'
 import { RoleProvider } from '@/shared/auth/RoleProvider'
 import { ProjectStepPage } from '../../ProjectStepPage'
+import { SimulationStep } from '../SimulationStep'
 
 const RUNS: Partial<Record<SimulationVerdict, string>> = { confirmed: 'SIM-0926-01', can_reduce: 'SIM-0926-02', need_more: 'SIM-0926-03' }
 const LOAD = { timeout: 5_000 }
@@ -38,7 +39,7 @@ const renderTab = (services: Services) =>
       <ServicesProvider services={services}>
         <RoleProvider>
           <Routes>
-            <Route path="/projects/:projectId/simulation" element={<ProjectStepPage step="simulation" />} />
+            <Route path="/projects/:projectId/simulation" element={<ProjectStepPage step="simulation" Step={SimulationStep} />} />
             <Route path="/projects/:projectId/economics" element={<p>итог и экономика</p>} />
           </Routes>
         </RoleProvider>
@@ -50,38 +51,65 @@ const card = (name: string) => screen.getByRole('region', { name })
 
 afterEach(() => { sessionStorage.clear() })
 
-describe('Вкладка «Графики и 2D-сравнение» (07a, PRD 11.4, D-105)', () => {
-  it('можно уменьшить: переключатель составов, таблица по часам, время роботов по обоим составам', async () => {
+describe('Вкладка «Графики и 2D-сравнение» (3.5 · облегчённый, 17040:10; PRD 11.4, D-105)', () => {
+  it('можно уменьшить: оба состава без переключателя, итог в пик в легенде, часы от начала смены', async () => {
     renderTab(await servicesWith('can_reduce', [trace(18, 6), trace(16, 5)]))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Вердикт по составу парка' }, LOAD)).toBeInTheDocument()
     const load = await screen.findByRole('region', { name: 'Загрузка по часам' }, LOAD)
-    expect(within(load).getByRole('radio', { name: 'С уменьшением · 16/5' })).toHaveAttribute('aria-checked', 'true')
-    expect(within(load).getByRole('img', { name: /^Загрузка по часам · С уменьшением: 16\sроботов, 5\sстанций$/u })).toBeInTheDocument()
-    const table = within(card('Что происходило по часам')).getByRole('table')
-    expect(within(table).getAllByRole('row')).toHaveLength(9)
-    expect(within(table).getByRole('rowheader', { name: 'Роботы заняты работой, %' })).toBeInTheDocument()
-
-    fireEvent.click(within(load).getByRole('radio', { name: 'Из подбора · 18/6' }))
-    expect(within(load).getByRole('img', { name: /^Загрузка по часам · Из подбора: 18\sроботов, 6\sстанций$/u })).toBeInTheDocument()
-
-    const time = card('На что уходит время робота')
-    // Подпись полосы и строка скрытой таблицы с теми же долями.
-    expect(within(time).getAllByText(/^Из подбора: 18\sроботов, 6\sстанций — в рейсе \d+\s% времени$/u)).toHaveLength(2)
-    expect(within(time).getAllByText(/^С уменьшением: 16\sроботов, 5\sстанций — в рейсе \d+\s% времени$/u)).toHaveLength(2)
-    expect(screen.getByRole('button', { name: 'Принять план и к экономике' })).toBeEnabled()
+    expect(within(load).queryByRole('radiogroup')).not.toBeInTheDocument()
+    expect(within(load).getByText('Оба состава, текущий объём')).toBeInTheDocument()
+    // Легенда: оба состава с итогом в пик — «вывод первым».
+    // Подпись состава — в легенде и в заголовке колонки скрытой таблицы графика.
+    expect(within(load).getAllByText('Из подбора · 18/6').length).toBeGreaterThan(0)
+    expect(within(load).getAllByText('С изменениями · 16/5').length).toBeGreaterThan(0)
+    expect(within(load).getAllByText(/^в пик \d+ из 130 рейсов$/)).toHaveLength(2)
+    const table = within(load).getByRole('table', { name: 'Что происходило по часам' })
+    expect(within(table).getAllByRole('columnheader')[1]).toHaveTextContent('07')
+    expect(screen.queryByRole('button', { name: /Принять план|Учесть и перейти/ })).not.toBeInTheDocument()
   })
 
-  it('два плеера с общим временем: старт — первый пиковый час на паузе, «Пуск», «Сначала», скорости', async () => {
+  it('таблица по часам: группы, строки по составам, по умолчанию — только различия; «Показать все строки»', async () => {
     renderTab(await servicesWith('can_reduce', [trace(18, 6), trace(16, 5)]))
-    const player = await screen.findByRole('region', { name: 'Воспроизведение дня · 2D' }, LOAD)
-    expect(await within(player).findByRole('img', { name: /^Из подбора: 18\sроботов, 6\sстанций$/u })).toBeInTheDocument()
-    expect(within(player).getByRole('img', { name: /^С уменьшением: 16\sроботов, 5\sстанций$/u })).toBeInTheDocument()
+    const load = await screen.findByRole('region', { name: 'Загрузка по часам' }, LOAD)
+    const table = within(load).getByRole('table', { name: 'Что происходило по часам' })
+    expect(within(table).getByText('Нагрузка на парк')).toBeInTheDocument()
+    expect(within(table).getByText('Результат')).toBeInTheDocument()
+    expect(table).toHaveTextContent(/требование — от 95\s%/u)
+    expect(within(table).getAllByRole('rowheader', { name: /: С изменениями$/ }).length).toBeGreaterThan(0)
+    const shown = within(table).getAllByRole('row').length
+    const toggle = within(load).queryByRole('button', { name: /^Показать все строки · \d+$/ })
+    if (toggle) {
+      fireEvent.click(toggle)
+      expect(within(within(load).getByRole('table', { name: 'Что происходило по часам' })).getAllByRole('row').length).toBeGreaterThan(shown)
+      expect(within(load).getByRole('button', { name: 'Только различия' })).toBeInTheDocument()
+    }
+  })
+
+  it('время роботов: «Куда уходит время роботов», подписи «Из подбора» и «С изменениями»', async () => {
+    renderTab(await servicesWith('can_reduce', [trace(18, 6), trace(16, 5)]))
+    const time = await screen.findByRole('region', { name: 'Куда уходит время роботов' }, LOAD)
+    expect(within(time).getAllByText(/^Из подбора: 18\sроботов, 6\sстанций — в рейсе \d+\s% времени$/u).length).toBeGreaterThan(0)
+    expect(within(time).getAllByText(/^С изменениями: 16\sроботов, 5\sстанций — в рейсе \d+\s% времени$/u).length).toBeGreaterThan(0)
+  })
+
+  it('два плеера: пауза в начале пика, иконки «Пуск» и «Сначала», скорость «Сутки за 2 мин 24 с», готовность по атрибуту', async () => {
+    renderTab(await servicesWith('can_reduce', [trace(18, 6), trace(16, 5)]))
+    const player = await screen.findByRole('region', { name: '2D-сравнение: один и тот же смоделированный день' }, LOAD)
+    expect(await within(player).findByRole('img', { name: 'Из подбора: 18/6' })).toBeInTheDocument()
+    expect(within(player).getByText('Слева состав из подбора, справа — с изменениями; время общее')).toBeInTheDocument()
+    expect(player).toHaveAttribute('data-players', 'ready')
+    expect(within(player).getByRole('img', { name: 'С изменениями: 16/5' })).toBeInTheDocument()
     expect(within(player).getByRole('timer', { name: 'Время дня' })).toHaveTextContent('08:00')
     expect(within(player).getByText('пиковый час')).toBeInTheDocument()
-    expect(within(player).getAllByText('Роботов в работе')).toHaveLength(2)
-    expect(['×120', '×600', '×1800'].map((name) => within(player).getByRole('radio', { name }).getAttribute('aria-checked'))).toEqual(['true', 'false', 'false'])
+    expect(within(player).getAllByText('На схеме в 08:00')).toHaveLength(2)
+    expect(within(player).getByRole('combobox', { name: 'Скорость воспроизведения' })).toHaveTextContent('Сутки за 2 мин 24 с')
+    // Список «Скорость просмотра» (17083:1232): «Сутки за …» и вторая строка «1 ч суток — за …».
+    fireEvent.click(within(player).getByRole('combobox', { name: 'Скорость воспроизведения' }))
+    const options = await screen.findAllByRole('option')
+    expect(options.map((o) => o.textContent)).toEqual(['Сутки за 12 мин1 ч суток — за 30 с', 'Сутки за 2 мин 24 с1 ч суток — за 6 с', 'Сутки за 48 с1 ч суток — за 2 с'])
+    fireEvent.keyDown(options[0] as HTMLElement, { key: 'Escape' })
 
     fireEvent.click(within(player).getByRole('button', { name: 'Пуск' }))
-    expect(within(player).getByRole('button', { name: 'Пауза' })).toBeInTheDocument()
     fireEvent.click(within(player).getByRole('button', { name: 'Пауза' }))
     fireEvent.click(within(player).getByRole('button', { name: 'Сначала' }))
     expect(within(player).getByRole('timer', { name: 'Время дня' })).toHaveTextContent('07:00')
@@ -89,18 +117,20 @@ describe('Вкладка «Графики и 2D-сравнение» (07a, PRD 1
     expect(within(player).getByRole('timer', { name: 'Время дня' })).toHaveTextContent('06:00')
   })
 
-  it('подтверждено: один состав — без переключателя, один плеер', async () => {
+  it('подтверждено: один состав — один плеер, таблица без фильтра различий', async () => {
     renderTab(await servicesWith('confirmed', [trace(18, 6)]))
-    const player = await screen.findByRole('region', { name: 'Воспроизведение дня · 2D' }, LOAD)
+    const player = await screen.findByRole('region', { name: '2D-сравнение: один и тот же смоделированный день' }, LOAD)
     expect(await within(player).findAllByRole('img')).toHaveLength(1)
-    expect(within(card('Загрузка по часам')).queryByRole('radiogroup')).not.toBeInTheDocument()
+    // Сравнивать не с чем: подписи без «слева… справа…» и «оба состава» (PRD 11.4: состав подбора без изменений).
+    expect(within(player).getByText('Состав не менялся — плеер воспроизводит записанный прогон')).toBeInTheDocument()
+    expect(within(card('Загрузка по часам')).getByText('Один состав, текущий объём')).toBeInTheDocument()
+    expect(within(card('Загрузка по часам')).queryByRole('button', { name: /Показать все строки/ })).not.toBeInTheDocument()
   })
 
-  it('нужно докупить: у проверенного состава часы с нарушением отмечены плашкой и словом', async () => {
+  it('нужно докупить: нарушения у проверенного состава отмечены, без трасс — пустое состояние', async () => {
     renderTab(await servicesWith('need_more', []))
     const load = await screen.findByRole('region', { name: 'Загрузка по часам' }, LOAD)
-    fireEvent.click(within(load).getByRole('radio', { name: 'Проверено · 15/6' }))
-    expect(within(card('Что происходило по часам')).getAllByText(/нарушение/).length).toBeGreaterThan(0)
+    expect(within(load).getAllByText(/нарушение/).length).toBeGreaterThan(0)
     expect(await screen.findByText('2D-запись для этого прогона недоступна')).toBeInTheDocument()
   })
 })

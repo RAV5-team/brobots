@@ -1,0 +1,193 @@
+import { useId, useState } from 'react'
+import { Button } from '@/components/ui/Button'
+import { Dropzone } from '@/components/ui/Dropzone'
+import { Field } from '@/components/ui/Field'
+import { FileInput } from '@/components/ui/FileInput'
+import { FormulaStats } from '@/components/ui/FormulaStats'
+import { Input } from '@/components/ui/Input'
+import { Modal } from '@/components/ui/Modal'
+import { Select } from '@/components/ui/Select'
+import { Chip } from '@/components/ui/Chip'
+import { CharacteristicRow } from '@/components/ui/CharacteristicRow'
+import { Segmented } from '@/components/ui/Segmented'
+import { TabPanel, Tabs, type TabItem } from '@/components/ui/Tabs'
+import { EmptyState, ErrorState, Skeleton, SkeletonList } from '@/components/ui/States'
+import { ru } from '@/shared/i18n/ru'
+import { stateProps, type DemoState } from './demoState'
+import { ShowcaseSection, StateGrid } from './StateGrid'
+
+const s = ru.dev.samples
+const r = ru.location.removeProcess
+const ignore = () => undefined
+const pm = ru.project.matching
+const vs = ru.processNew.volumeStats
+
+export function ModalShowcase() {
+  return (
+    <ShowcaseSection title="Modal">
+      <Modal
+        title={s.modalTitle}
+        description={s.modalDescription}
+        trigger={<Button variant="primary" className="self-start">{s.openModal}</Button>}
+        footer={<><Button className="px-24">{s.cancel}</Button><Button variant="primary" className="px-24">{s.addSource}</Button></>}
+      >
+        <Field label={s.sourceName} required><Input defaultValue={s.sourceNameValue} /></Field>
+        <Field label={s.sourceType} required>
+          <Select options={[{ value: 'specs', label: s.sourceTypeValue }]} defaultValue="specs" />
+        </Field>
+        <Dropzone kind="document" title={s.dropPhotos} onFiles={ignore} />
+      </Modal>
+      <Modal
+        size="sm"
+        title={r.title('Перемещение паллет', 'РЦ Химки')}
+        description={r.description}
+        trigger={<Button className="self-start">{s.openConfirm}</Button>}
+        footer={<><Button className="px-20">{r.cancel}</Button><Button variant="danger" className="px-20">{r.confirm}</Button></>}
+      />
+      <Modal
+        size="side"
+        title={pm.howCalculated}
+        description={pm.howCalculatedLead('AMR 800 · RaaS', ru.processNew.volumeStats.label)}
+        trigger={<Button className="self-start">{pm.howCalculated}</Button>}
+        footer={<><Button className="px-20">{pm.formulasAndSources}</Button><Button variant="primary" className="px-20">{pm.understood}</Button></>}
+      >
+        {Array.from({ length: 4 }, (_, i) => (
+          <FormulaStats
+            key={i}
+            layout="list"
+            label={pm.fleetStep}
+            stats={[
+              { key: 'peak', label: vs.peak, value: vs.opsPerHour('136'), formula: vs.peakFormula('2 000', '22', '1,5') },
+              { key: 'toRobots', label: vs.toRobots, value: vs.tripsPerHour('130'), formula: vs.toRobotsFormula('136', '0,95') },
+              { key: 'average', label: vs.average, value: vs.opsPerHour('86'), formula: vs.averageFormula('2 000', '0,95', '22') },
+            ]}
+          />
+        ))}
+      </Modal>
+      <DetailModalDemo />
+      <Modal
+        size="detail"
+        columns={3}
+        title="Сравнение вариантов"
+        description="3 варианта · одинаковые объём, горизонт и границы затрат"
+        trigger={<Button className="self-start">Сравнение · 3 колонки (detail, 820)</Button>}
+      >
+        <dl>
+          {Array.from({ length: 16 }, (_, i) => (
+            <CharacteristicRow key={i} variant="plain" label={`Показатель ${String(i + 1)}`} value="6,1 млн ₽ · 7,3 млн ₽ · 11,5 млн ₽" />
+          ))}
+        </dl>
+      </Modal>
+    </ShowcaseSection>
+  )
+}
+
+type DetailTab = 'overview' | 'tech' | 'economics'
+const DETAIL_TABS: readonly TabItem<DetailTab>[] = [
+  { value: 'overview', label: 'Обзор' },
+  { value: 'tech', label: 'Технические' },
+  { value: 'economics', label: 'Экономика' },
+]
+
+/** Окно решения 2.1а (16666:10): плашка у заголовка, в шапке — подпись, Segmented и вкладки; прокручивается тело. */
+function DetailModalDemo() {
+  const tabsId = useId()
+  const [tab, setTab] = useState<DetailTab>('tech')
+  const [mode, setMode] = useState<'buy' | 'raas'>('raas')
+  return (
+    <Modal
+      size="detail"
+      title="AMR 800"
+      titleAside={<Chip tone="inverse">Место 1 в рейтинге · балл 0,91</Chip>}
+      headerExtra={(
+        <>
+          <div className="flex items-center gap-16">
+            <p className="flex-1 type-body text-text-secondary">Морос · AMR · 18 роботов · CAPEX 6,1 млн ₽</p>
+            <Segmented label="Способ приобретения" fit="content" options={[{ value: 'buy', label: 'Покупка' }, { value: 'raas', label: 'RaaS' }]} value={mode} onChange={setMode} />
+          </div>
+          <Tabs id={tabsId} label="Разделы решения" items={DETAIL_TABS} value={tab} onChange={setTab} />
+        </>
+      )}
+      trigger={<Button className="self-start">Окно решения (detail, 640)</Button>}
+      footer={<><Button className="px-20">Добавить к сравнению</Button><Button variant="primary" className="px-20">Выбрать этот вариант</Button></>}
+    >
+      <TabPanel tabsId={tabsId} value={tab}>
+        <dl>
+          {Array.from({ length: 12 }, (_, i) => (
+            <CharacteristicRow key={i} variant="stacked" label="Грузоподъёмность" value="800 кг" verification={i % 3 === 0 ? 'analog' : 'confirmed'} source="Технический паспорт" date="2026-03-01" />
+          ))}
+        </dl>
+      </TabPanel>
+    </Modal>
+  )
+}
+
+export function DropzoneShowcase() {
+  return (
+    <ShowcaseSection title="Dropzone">
+      <div className="grid grid-cols-2 gap-24">
+        <Dropzone kind="robotPhoto" title={s.dropPhotos} uploaded={1} onFiles={ignore} message={s.noPhoto} />
+        <Dropzone kind="robotPhoto" title={s.dropPhotos} uploaded={1} onFiles={ignore} data-demo-state="hover" />
+        <Dropzone kind="document" title={s.dropPhotos} onFiles={ignore} />
+        <Dropzone kind="document" title={s.dropPhotos} onFiles={ignore} disabled />
+      </div>
+    </ShowcaseSection>
+  )
+}
+
+export function StatesShowcase() {
+  return (
+    <div className="flex flex-col gap-24">
+      <ShowcaseSection title="EmptyState">
+        <EmptyState title={s.emptyTitle} description={s.emptyDescription} action={<Button variant="primary">{s.addProcess}</Button>} />
+      </ShowcaseSection>
+      <ShowcaseSection title="EmptyState · lg">
+        <EmptyState size="lg" title={s.emptyTitle} description={s.emptyDescription} action={<Button>{s.addProcess}</Button>} />
+      </ShowcaseSection>
+      <ShowcaseSection title="ErrorState">
+        <ErrorState title={s.errorTitle} message={s.errorMessage} onRetry={ignore} />
+      </ShowcaseSection>
+      <ShowcaseSection title="Skeleton">
+        <div className="flex flex-col gap-12">
+          <Skeleton className="h-24 w-[240px]" />
+          <Skeleton className="h-44" />
+          <div className="grid grid-cols-3 gap-16">
+            <Skeleton className="h-[148px] rounded-lg" />
+            <Skeleton className="h-[148px] rounded-lg" />
+            <Skeleton className="h-[148px] rounded-lg" />
+          </div>
+        </div>
+      </ShowcaseSection>
+      <ShowcaseSection title="SkeletonList">
+        <SkeletonList rows={4} rowClassName="h-44" />
+      </ShowcaseSection>
+    </div>
+  )
+}
+
+const FILE_LABEL = ru.dataSources.create.fields.locator
+const SAMPLE_FILE = { name: s.sourceFile, size: 2.4 * 1024 * 1024 }
+
+function DemoFileInput({ state, filled, error }: { state: DemoState; filled: boolean; error?: string }) {
+  const input = <FileInput kind="document" label={FILE_LABEL} file={filled ? SAMPLE_FILE : null} onChange={ignore} onReject={ignore} {...stateProps(state)} />
+  return (
+    <span className="block w-[360px]">
+      {error ? <Field label={FILE_LABEL} required error={error}>{input}</Field> : input}
+    </span>
+  )
+}
+
+export function FileInputShowcase() {
+  return (
+    <ShowcaseSection title="FileInput">
+      <StateGrid
+        states={['default', 'hover', 'focus', 'disabled']}
+        rows={[
+          { label: s.fileEmpty, render: (st) => <DemoFileInput state={st} filled={false} /> },
+          { label: s.fileFilled, render: (st) => <DemoFileInput state={st} filled /> },
+          { label: s.fileError, render: (st) => <DemoFileInput state={st} filled={false} error={ru.dataSources.create.errors.file} /> },
+        ]}
+      />
+    </ShowcaseSection>
+  )
+}

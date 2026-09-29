@@ -8,7 +8,6 @@ import { findVariant } from '../matching/matchingModel'
 import {
   economicsRows,
   kpisLine,
-  planChangeLabel,
   planCheck,
   planDelta,
   planOf,
@@ -42,18 +41,10 @@ describe('план вердикта (PRD 11.4, D-104)', () => {
     expect(planCheck(run, { robots: 20, stations: 6 })).toBeNull()
   })
 
-  it('плашка плана — от проверенного состава, числительные в родительном падеже', () => {
-    expect(planChangeLabel({ robots: 18, stations: 6 }, { robots: 16, stations: 5 })).toBe('Экономия 2\u00a0роботов и 1\u00a0станции')
-    expect(planChangeLabel({ robots: 15, stations: 6 }, { robots: 18, stations: 6 })).toBe('Докупка 3\u00a0роботов')
-    expect(planChangeLabel({ robots: 18, stations: 6 }, { robots: 17, stations: 6 })).toBe('Экономия 1\u00a0робота')
-    expect(planChangeLabel({ robots: 18, stations: 6 }, { robots: 18, stations: 6 })).toBe('Без изменений')
-    expect(planChangeLabel({ robots: 18, stations: 6 }, { robots: 20, stations: 5 })).toBe('Изменение: +2\u00a0робота и −1\u00a0станция')
-  })
-
   it('дельта строки: типографский минус, без изменения — не показывается', () => {
     expect(planDelta(16, 18)).toBe('−2')
     expect(planDelta(19, 18)).toBe('+1')
-    expect(planDelta(18, 18)).toBeUndefined()
+    expect(planDelta(18, 18)).toBeNull()
   })
 })
 
@@ -98,15 +89,26 @@ describe('экономика, предварительно (D-104)', () => {
     expect(less.paybackYears).toBeCloseTo(less.capexRub / less.annualEffectRub)
   })
 
-  it('строки таблицы: было → стало и разница со знаком', () => {
-    const rows = economicsRows(variant, { robots: 16, stations: 5 })
-    expect(rows.map((r) => r.key)).toEqual(['capex', 'effect', 'payback', 'utilization'])
-    expect(rows[0]).toMatchObject({ from: '6,1\u00a0млн\u00a0₽', to: '5,6\u00a0млн\u00a0₽', delta: '−0,5\u00a0млн\u00a0₽' })
-    expect(rows[3]).toMatchObject({ from: '83\u00a0%', to: '93\u00a0%', delta: '+10 п.п.' })
+  it('OPEX роботов — статьи на робота: платёж RaaS, энергия и сервис масштабируются по плану', () => {
+    const same = previewEconomics(variant, { robots: 18, stations: 6 })
+    const more = previewEconomics(variant, { robots: 20, stations: 6 })
+    expect(more.robotOpexRub - same.robotOpexRub).toBeCloseTo(same.robotOpexRub * 2 / 18)
   })
 
-  it('без изменений разница — ноль', () => {
-    expect(economicsRows(variant, { robots: 18, stations: 6 }).map((r) => r.delta)).toEqual(['0', '0', '0', '0 п.п.'])
+  it('строки: CAPEX, OPEX, эффект, окупаемость; изменение в процентах, «хуже» — по смыслу строки', () => {
+    const rows = economicsRows(variant, { robots: 16, stations: 5 })
+    expect(rows.map((r) => r.key)).toEqual(['capex', 'opex', 'effect', 'payback'])
+    expect(rows[0]).toMatchObject({ from: '6,1\u00a0млн\u00a0₽', to: '5,6\u00a0млн\u00a0₽', change: { text: '−8\u00a0%', worse: false } })
+    // Меньше роботов: OPEX падает, эффект растёт — оба лучше.
+    expect(rows[1]?.change?.worse).toBe(false)
+    expect(rows[2]?.change?.worse).toBe(false)
+    const more = economicsRows(variant, { robots: 20, stations: 6 })
+    expect(more[1]?.change?.worse).toBe(true)
+    expect(more[2]?.change?.worse).toBe(true)
+  })
+
+  it('без изменений — изменения нет', () => {
+    expect(economicsRows(variant, { robots: 18, stations: 6 }).map((r) => r.change)).toEqual([null, null, null, null])
   })
 })
 

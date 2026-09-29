@@ -12,7 +12,6 @@ import { formatNumber, parseDecimal, roundHalfUp } from '@/shared/format'
 import { ru } from '@/shared/i18n/ru'
 import { assumptionRows, defaultsOf, locationNumber, type AssumptionRow } from '../params/paramsModel'
 import { DEFAULT_PEAK_HOURS, maxPeakHours, peaksWithin, workingHours } from './hourlyDemand'
-import { DEFAULT_TOLERANCE } from './simulationModel'
 
 const t = ru.project.simulation.conditions
 
@@ -68,6 +67,8 @@ export interface ConditionsContext {
   readonly robot: Robot | null
   /** Часов в сутки расчёта подбора — если режима нет в профиле локации. */
   readonly calcHours: number
+  /** Допуск расхождения с расчётом по умолчанию — норматив А5 `simulation_tolerance_pct` (PRD 11.4, этап 2 «Проверка»). */
+  readonly tolerance: number
 }
 
 /** Коэффициент замещения по способу обработки робота; нет совпадения — первый способ процесса. */
@@ -116,7 +117,7 @@ export function conditionBases(ctx: ConditionsContext, overrides: readonly Assum
     routeLengthM: { value: route?.value ?? d.routeLengthM ?? 0, origin: assumptionOrigin(route) },
     operatorTimeShare: { value: (operators?.value ?? PERCENT) / PERCENT, origin: assumptionOrigin(operators) },
     laborReplacementRatio: { value: replacement.value, origin: 'assumption' },
-    tolerance: byDefault(DEFAULT_TOLERANCE),
+    tolerance: byDefault(ctx.tolerance),
     fleetPolicy: byDefault(CONDITION_DEFAULTS.fleetPolicy),
     designVolume: byDefault(CONDITION_DEFAULTS.designVolume),
   }
@@ -125,7 +126,29 @@ export function conditionBases(ctx: ConditionsContext, overrides: readonly Assum
 
 /** Условия прогона: правки этапа поверх исходных. */
 export function effectiveConditions(bases: ConditionBases, overrides: Partial<SimulationConditions>): SimulationConditions {
-  const values = Object.fromEntries(Object.entries(bases).map(([key, base]) => [key, base.value])) as unknown as SimulationConditions
+  // По ключам, а не через Object.fromEntries: новое условие без исходного значения не соберётся.
+  const values = {
+    firstShiftStartHour: bases.firstShiftStartHour.value,
+    shiftsPerDay: bases.shiftsPerDay.value,
+    shiftHours: bases.shiftHours.value,
+    peakFactor: bases.peakFactor.value,
+    peakHours: bases.peakHours.value,
+    inboundPalletsPerDay: bases.inboundPalletsPerDay.value,
+    outboundPalletsPerDay: bases.outboundPalletsPerDay.value,
+    manualShare: bases.manualShare.value,
+    maxWaitMin: bases.maxWaitMin.value,
+    onTimeTarget: bases.onTimeTarget.value,
+    growthReserve: bases.growthReserve.value,
+    traffic: bases.traffic.value,
+    fastMoversAtGates: bases.fastMoversAtGates.value,
+    repairHours: bases.repairHours.value,
+    routeLengthM: bases.routeLengthM.value,
+    operatorTimeShare: bases.operatorTimeShare.value,
+    laborReplacementRatio: bases.laborReplacementRatio.value,
+    tolerance: bases.tolerance.value,
+    fleetPolicy: bases.fleetPolicy.value,
+    designVolume: bases.designVolume.value,
+  } satisfies SimulationConditions
   return { ...values, ...overrides }
 }
 
