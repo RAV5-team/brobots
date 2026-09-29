@@ -1,0 +1,7 @@
+node_modules/
+dist/
+dist_keycloak/
+*.tsbuildinfo
+coverage/
+# Ресурсы Keycloak для dev-сервера: keycloakify копирует их сам при запуске.
+public/keycloakify-dev-resources/

@@ -1,18 +1,18 @@
 import { Check, Minus } from 'lucide-react'
-import { ActionButton } from '@/components/ui/ActionButton'
+import { ActionButton, ActionLink } from '@/components/ui/ActionButton'
 import { Card } from '@/components/ui/Card'
 import { ru } from '@/shared/i18n/ru'
+import { LoginCard } from './LoginLayout'
 
-interface DemoOfferCardProps {
-  readonly onOpenDemo: () => void
-}
+/** В SPA демо открывается действием (роль гостя, переход), в теме Keycloak — переходом по адресу приложения. */
+type DemoOfferCardProps = { readonly onOpenDemo: () => void } | { readonly openDemoHref: string }
 
 /** Левая карточка экрана 05: вход гостя без регистрации (PRD 4; D-14; 15935:32). */
-export function DemoOfferCard({ onOpenDemo }: DemoOfferCardProps) {
+export function DemoOfferCard(props: DemoOfferCardProps) {
   const t = ru.login.demo
 
   return (
-    <Card padding={28} gap={20} className="flex-1" aria-labelledby="login-demo-title">
+    <LoginCard labelledBy="login-demo-title">
       <p className="type-overline text-text-muted">{t.eyebrow}</p>
       <h2 id="login-demo-title" className="type-display-md text-text">
         {t.title}
@@ -38,9 +38,11 @@ export function DemoOfferCard({ onOpenDemo }: DemoOfferCardProps) {
       </Card>
 
       {/* Кнопка прижата к низу карточки, как в макете: высота карточек выравнивается по правой. */}
-      <ActionButton className="mt-auto" onClick={onOpenDemo}>
-        {t.open}
-      </ActionButton>
-    </Card>
+      {'openDemoHref' in props ? (
+        <ActionLink className="mt-auto" href={props.openDemoHref}>{t.open}</ActionLink>
+      ) : (
+        <ActionButton className="mt-auto" onClick={props.onOpenDemo}>{t.open}</ActionButton>
+      )}
+    </LoginCard>
   )
 }

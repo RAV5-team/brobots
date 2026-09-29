@@ -2,8 +2,16 @@ import { describe, expect, it } from 'vitest'
 import { ru } from './ru'
 
 // Код вне словаря и тестов — где ключи читают. Фикстуры входят: часть ключей берётся по значениям данных (`t.status[row.status]`).
+// Тема входа Keycloak (apps/keycloak-theme) рисует экран 05 и читает раздел login этого же словаря.
 const sources = import.meta.glob<string>(
-  ['/src/**/*.{ts,tsx}', '!/src/**/*.test.{ts,tsx}', '!/src/shared/i18n/**', '!/src/api/generated/**'],
+  [
+    '/src/**/*.{ts,tsx}',
+    '!/src/**/*.test.{ts,tsx}',
+    '!/src/shared/i18n/**',
+    '!/src/api/generated/**',
+    '../../../../keycloak-theme/src/**/*.{ts,tsx}',
+    '!../../../../keycloak-theme/src/**/*.test.{ts,tsx}',
+  ],
   { query: '?raw', import: 'default', eager: true },
 )
 const code = Object.values(sources).join('\n')

@@ -1,0 +1,6 @@
+/* Токены, тема Tailwind и типографика — общие с apps/web: экран входа выглядит как остальной RAV5. */
+@import '@/styles/global.css';
+
+/* Tailwind v4 ищет классы только внутри пакета — компоненты apps/web нужно указать явно. */
+@source '../../web/src/components/ui';
+@source '../../web/src/pages/login';

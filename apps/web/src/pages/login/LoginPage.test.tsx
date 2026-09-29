@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { Outlet, RouterProvider, createMemoryRouter } from 'react-router'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createMockServices } from '@/services/mock'
 import { createMockSession } from '@/services/mock/session'
 import { ServicesProvider } from '@/services/ServicesProvider'
@@ -19,7 +19,7 @@ function RoleProbe() {
   return <p data-testid="role">{useRole()}</p>
 }
 
-function renderLogin(demoAccounts: readonly DemoAccount[]) {
+function renderLogin(demoAccounts: readonly DemoAccount[], keycloakLogin: (() => Promise<void>) | null = null) {
   const options = { latencyMs: 0 }
   const services = { ...createMockServices(options), session: createMockSession(options, demoAccounts) }
   const router = createMemoryRouter(
@@ -33,7 +33,7 @@ function renderLogin(demoAccounts: readonly DemoAccount[]) {
           </ServicesProvider>
         ),
         children: [
-          { path: '/login', element: <LoginPage demoAccounts={demoAccounts} /> },
+          { path: '/login', element: <LoginPage demoAccounts={demoAccounts} keycloakLogin={keycloakLogin} /> },
           { path: '/', element: <RoleProbe /> },
         ],
       },
@@ -80,5 +80,19 @@ describe('LoginPage (экран 05)', () => {
     fireEvent.change(screen.getByLabelText(t.cabinet.password), { target: { value: 'nope' } })
     fireEvent.click(screen.getByRole('button', { name: t.cabinet.submit }))
     expect(await screen.findByText(t.errors.invalidCredentials)).toBeInTheDocument()
+  })
+
+  it('with Keycloak goes straight to its login page themed as screen 05', () => {
+    const keycloakLogin = vi.fn(() => new Promise<void>(() => undefined))
+    renderLogin([], keycloakLogin)
+    expect(keycloakLogin).toHaveBeenCalledOnce()
+    expect(screen.getByRole('status')).toHaveTextContent(t.redirecting)
+    expect(screen.queryByRole('button', { name: t.cabinet.submit })).not.toBeInTheDocument()
+  })
+
+  it('falls back to the demo screen when Keycloak is unreachable', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    renderLogin([], () => Promise.reject(new Error('Вход через Keycloak недоступен')))
+    expect(await screen.findByRole('button', { name: t.demo.open })).toBeInTheDocument()
   })
 })

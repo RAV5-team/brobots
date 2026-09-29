@@ -27,7 +27,8 @@ export function DemoAccessList({ accounts, onPick }: DemoAccessListProps) {
           >
             <span className="flex min-w-0 flex-1 flex-col gap-4">
               <span className="type-caption text-on-accent">{t.demoAccess[account.role]}</span>
-              <span className="type-body font-medium text-text">
+              {/* Почта — одно длинное «слово»: на узком экране переносится посередине, а не обрезается. */}
+              <span className="type-body font-medium text-text wrap-anywhere">
                 {account.email} · {account.password}
               </span>
             </span>
