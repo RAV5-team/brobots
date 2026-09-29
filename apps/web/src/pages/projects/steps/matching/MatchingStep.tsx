@@ -242,7 +242,11 @@ export function MatchingStep({ project: initial, locationName, isGuest }: Projec
           onDetails={() => { setDetails(variantKey(recommended)) }}
         />
       )}
-      hasSelection={selected !== null}
+      selection={selected && [
+        t.variantName(selected.solutionName, t.acquisition[selected.acquisition]),
+        formatCount(selected.robots, ru.plural.robots),
+        ...(selected.stations === null ? [] : [formatCount(selected.stations, t.plural.stations)]),
+      ].join(' · ')}
       stale={state.stale}
       changedParams={canEdit && evaluation.calcDefaults ? Object.keys(overrides).length : null}
       onOpenParams={() => { setParamsOpen(true) }}

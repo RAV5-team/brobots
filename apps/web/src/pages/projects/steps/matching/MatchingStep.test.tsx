@@ -66,6 +66,8 @@ describe('Шаг 2 «Подбор решений» (2.1, 16325:101; PRD 11.3)', 
     fireEvent.click(row('AMR 800 · Покупка'))
     expect(update).toHaveBeenCalledWith('PJ-DEMO', { matching: { selection: { solutionId: 'RB-0008', acquisition: 'purchase' } } })
     await waitFor(() => { expect(row('AMR 800 · Покупка')).toBeChecked() })
+    // «Переход к симуляции» (PRD 11.3): что уйдёт в симуляцию.
+    expect(screen.getByText(/^Выбрано: AMR 800 · Покупка · 18 роботов/)).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent(/Черновик сохранён/)
   })
 
