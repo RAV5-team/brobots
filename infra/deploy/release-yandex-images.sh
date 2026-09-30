@@ -10,15 +10,18 @@ Usage: infra/deploy/release-yandex-images.sh <full-commit-sha>
 
 Required environment:
   YC_REGISTRY_ID              Yandex Container Registry ID
+  PUBLIC_URL                  Public HTTPS base URL for the deployment
   TARGET_PLATFORM             Verified target platform, such as linux/amd64
   TARGET_PLATFORM_VERIFIED    Must be set to true after checking the target VM
   TEST_DATABASE_URL           PostgreSQL URL for API integration tests
   POSTGRES_TEST_DATABASE_URL  PostgreSQL URL for economics tests
   SIMULATION_TEST_DATABASE_URL PostgreSQL URL for simulation tests
 
-Web build arguments are passed through from WEB_DEMO_MODE,
-VITE_DEMO_USER_EMAIL, VITE_DEMO_USER_PASSWORD, VITE_DEMO_ADMIN_EMAIL,
-VITE_DEMO_ADMIN_PASSWORD, and VITE_PUBLIC_SITE_URL. Demo mode defaults to false.
+The web image uses the API service and Keycloak at
+${PUBLIC_URL}/auth/realms/rav5 with client ID rav5-web. Other web build
+arguments are passed through from WEB_DEMO_MODE, VITE_DEMO_USER_EMAIL,
+VITE_DEMO_USER_PASSWORD, VITE_DEMO_ADMIN_EMAIL, VITE_DEMO_ADMIN_PASSWORD,
+and VITE_PUBLIC_SITE_URL. Demo mode defaults to false.
 ECONOMICS_PYTEST and SIMULATION_PYTEST can select separate pytest executables.
 USAGE
   exit 2
@@ -39,11 +42,13 @@ if [[ -n "$(git -C "$REPO_ROOT" status --porcelain --untracked-files=all)" ]]; t
   fail 'checkout must be clean before release'
 fi
 
-for required in YC_REGISTRY_ID TARGET_PLATFORM TARGET_PLATFORM_VERIFIED \
+for required in YC_REGISTRY_ID PUBLIC_URL TARGET_PLATFORM TARGET_PLATFORM_VERIFIED \
   TEST_DATABASE_URL POSTGRES_TEST_DATABASE_URL SIMULATION_TEST_DATABASE_URL; do
   [[ -n "${!required:-}" ]] || fail "missing required configuration: $required"
 done
 [[ "$YC_REGISTRY_ID" =~ ^[a-zA-Z0-9]+$ ]] || fail 'YC_REGISTRY_ID must contain only letters and digits'
+[[ "$PUBLIC_URL" =~ ^https://[A-Za-z0-9.-]+/?$ ]] || \
+  fail 'PUBLIC_URL must be an HTTPS URL without a path, query, or fragment'
 [[ "$TARGET_PLATFORM" =~ ^linux/(amd64|arm64)$ ]] || fail 'TARGET_PLATFORM must be linux/amd64 or linux/arm64'
 [[ "$TARGET_PLATFORM_VERIFIED" == true ]] || fail 'set TARGET_PLATFORM_VERIFIED=true only after verifying the target VM platform'
 economics_pytest=${ECONOMICS_PYTEST:-pytest}
@@ -112,6 +117,9 @@ build_and_push simulation services/simulation/Dockerfile . runtime
 build_and_push economics services/economics/Dockerfile . runtime
 build_and_push web apps/web/Dockerfile . runtime \
   "VITE_DEMO_MODE=$web_demo_mode" \
+  "VITE_SERVICES=api" \
+  "VITE_OIDC_URL=${PUBLIC_URL%/}/auth/realms/rav5" \
+  "VITE_OIDC_CLIENT_ID=rav5-web" \
   "VITE_DEMO_USER_EMAIL=${VITE_DEMO_USER_EMAIL:-}" \
   "VITE_DEMO_USER_PASSWORD=${VITE_DEMO_USER_PASSWORD:-}" \
   "VITE_DEMO_ADMIN_EMAIL=${VITE_DEMO_ADMIN_EMAIL:-}" \

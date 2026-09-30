@@ -318,6 +318,9 @@ deploy command.
    export WEB_DEMO_MODE='false'
    ```
 
+   The release script builds the web image for the API service and configures
+   Keycloak OIDC from `PUBLIC_URL` with client ID `rav5-web`.
+
    For demo mode, set `WEB_DEMO_MODE=true` and provide any needed
    `VITE_DEMO_USER_EMAIL`, `VITE_DEMO_USER_PASSWORD`,
    `VITE_DEMO_ADMIN_EMAIL`, `VITE_DEMO_ADMIN_PASSWORD`, and
