@@ -82,7 +82,15 @@ YC_REGISTRY_ID="$YC_REGISTRY_ID" IMAGE_TAG="$deploy_sha" \
   "${compose_command[@]}" --file "$tmp_dir/compose.yml" config --no-env-resolution \
     > "$rendered_with_placeholders" || \
   fail 'Docker Compose could not render the COI specification'
-sed "s|$tmp_dir/env/|/etc/brobots/|g" "$rendered_with_placeholders" > "$rendered_compose"
+
+# Compose validates the local paths above, but its renderer turns env_file
+# strings into mapping objects that the COI daemon rejects. Send the canonical
+# source spec with only its image placeholders substituted.
+registry_placeholder='\${YC_REGISTRY_ID:?}'
+image_tag_placeholder='\${IMAGE_TAG:?}'
+sed -e "s|$registry_placeholder|$YC_REGISTRY_ID|g" \
+  -e "s|$image_tag_placeholder|$deploy_sha|g" \
+  "$COMPOSE_SOURCE" > "$rendered_compose"
 
 expected_prefix="cr.yandex/$YC_REGISTRY_ID/brobots-"
 image_count=0

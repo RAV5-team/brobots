@@ -109,11 +109,11 @@ yc container registry get <registry-id>
 ```
 
 Use the active `brobots` registry (`crprb9kftitj4diu2jru`) in that folder. It
-was created on 2026-09-29 and verified `ACTIVE`. Grant the local operator identity
-`container-registry.images.pusher` on the registry and the VM's attached
-service account `container-registry.images.puller` on the registry. Check the
-Compute update and operation-read permissions using the same identity that
-will run the local deployment. See [Yandex Container Registry roles](https://yandex.cloud/en/docs/container-registry/security/),
+was created on 2026-09-29 and verified `ACTIVE`. Grant the local operator
+identity `container-registry.images.pusher` on the registry and the VM's
+attached service account `container-registry.images.puller` on the registry.
+Check the Compute update and operation-read permissions with the same identity
+that will run the local deployment. See [Yandex Container Registry roles](https://yandex.cloud/en/docs/container-registry/security/),
 [Compute IAM roles](https://yandex.cloud/en/docs/compute/security/), and
 [Yandex CLI operation wait](https://yandex.cloud/en/docs/cli/cli-ref/operation/cli-ref/wait).
 
@@ -228,6 +228,10 @@ AUTH_DEV_MODE=false
 ```dotenv
 DATABASE_URL=postgresql+psycopg://economics:<url-encoded-password>@postgres:5432/economics
 ECONOMIC_SERVICE_ENV=production
+OIDC_ISSUER=https://<public-ip>/auth/realms/rav5
+OIDC_JWKS_URL=http://keycloak:8080/auth/realms/rav5/protocol/openid-connect/certs
+OIDC_AUDIENCE=rav5-economics
+INTERNAL_CALLER_AZP=rav5-api-internal
 ```
 
 URL-encode reserved characters in database passwords used inside URLs. Apply

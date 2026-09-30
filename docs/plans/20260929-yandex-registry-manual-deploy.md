@@ -100,18 +100,20 @@ access remain unverified.
       operation-polling errors as deployment failures.
 - [x] Run public health checks for the gateway, web app, and Keycloak
       discovery endpoint.
-- [ ] Verify through the existing VM access path that all running images use
+- [x] Verify through the existing VM access path that all running images use
       the requested SHA.
 - [x] Support rollback by invoking the same command with a retained prior SHA.
 - [x] Test rendering, invalid inputs, command failures, and success paths with
       stubbed commands.
 
 **Verification note:** Shell syntax and stubbed deployment-command tests passed.
-The real standalone `docker-compose config --no-env-resolution` render produced
-nine images tagged with the requested SHA and preserved all eight
-`/etc/brobots` env-file paths. The script checks running image tags over SSH,
-and the SSH stub passed; live VM verification remains unchecked because
-deployment and cloud access were explicitly excluded from this task.
+The first live attempt exposed a compatibility issue: Compose v2 normalized
+`env_file` strings into mapping objects, which the COI daemon rejects. The
+script now uses Compose to validate local placeholder paths, then sends the
+canonical spec with the registry ID and SHA substituted. The corrected spec
+was accepted and deployed to `brobots-demo` (`fhmig77p6hrqum1j7hg0`). SSH
+verification confirmed all seven running images use the requested SHA. After
+the script fix, the complete deploy command also returned its success signal.
 
 ### Task 5: Update deployment documentation and prepare the operator comment
 
@@ -129,8 +131,9 @@ deployment scripts and documents the known instance, folder, cloud, public
 URL, and script environment variables. Registry `brobots`
 (`crprb9kftitj4diu2jru`) was created in the deployment folder and verified
 `ACTIVE`; authenticated registry read access, Docker, and Buildx now work.
-Image publication confirmed publisher access. VM pull access and Compute
-operation polling permissions remain to be verified.
+Image publication confirmed publisher access. VM pull access is granted to
+the attached `brobots-vm-puller` service account. The deployment identity
+successfully polled the update operation.
 
 ### Task 6: Verify acceptance criteria
 
@@ -155,12 +158,14 @@ was verified for all seven repositories: `brobots-api`, `brobots-simulation`,
 `brobots-economics`, `brobots-web`, `brobots-keycloak`, `brobots-gateway`, and
 `brobots-postgres`. Each carries tag
 `ada1b300f5931747f63630e2e05dd28add3bfdf1`. Full service checks passed and all
-seven `linux/amd64` images were built and pushed. Publisher access is confirmed
-by the successful push. No VM deployment was attempted; live VM SHA
-verification, VM pull access, and Compute operation polling access remain
-unverified. The web production bundle's main JavaScript chunk is 323.67 KB
-gzip, above the documented 300 KB target, and needs separate performance
-follow-up.
+seven `linux/amd64` images were built and pushed. Deployment to `brobots-demo`
+(`fhmig77p6hrqum1j7hg0`) was verified over SSH: all seven app containers run
+tag `ada1b300f5931747f63630e2e05dd28add3bfdf1` and report healthy. Both
+migration containers exited with code 0. The `/healthz`, web, and OIDC
+endpoints each returned HTTP 200. The VM pulls through attached service account
+`brobots-vm-puller`, which has the registry puller role. The web production
+bundle's main JavaScript chunk is 323.67 KB gzip, above the documented 300 KB
+target, and needs separate performance follow-up.
 
 ## Post-Completion Manual Checklist
 
@@ -168,9 +173,12 @@ follow-up.
 - [x] Use the active `brobots` registry (`crprb9kftitj4diu2jru`) in the
       deployment folder.
 - [x] Verify publisher access by pushing all seven release images.
-- Grant the VM’s attached service account `container-registry.images.puller` on the registry.
-- Confirm your deployment identity can update the instance and read the resulting Compute operation.
-- Run the operator comment’s publish, deploy, verification, and—if needed—rollback commands.
+- [x] Grant the VM’s attached service account
+      `container-registry.images.puller` on the registry.
+- [x] Confirm the deployment identity can update the instance and read the
+      resulting Compute operation.
+- [x] Publish, deploy, and verify the new SHA. Keep rollback available if
+      needed.
 
 ## Alternatives
 
@@ -182,7 +190,8 @@ follow-up.
 
 - A working local Docker engine and Buildx installation.
 - `yc` authenticated to the Yandex Cloud folder containing the VM and registry.
-- Registry push permission for your account; registry pull permission for the VM’s attached service account.
+- Registry push permission for your account and pull permission for the VM’s
+  attached service account.
 - SSH access to inspect running image tags after deployment.
 
 ## Risks & Assumptions
@@ -191,7 +200,6 @@ follow-up.
   gzip, above the documented 300 KB target.
 - **RISK-002:** The Mac is `arm64`; the VM uses Intel `standard-v3`, so builds
   must target `linux/amd64`.
-- **RISK-003:** The current GitHub deploy identity cannot poll the update operation. Manual deployment must verify operation-read permissions for the identity used with `yc`.
 - **ASSUMPTION-001:** The existing COI VM and its root-only runtime env files remain the target environment.
 - **ASSUMPTION-002:** Local commits are sufficient release provenance; no source push to GitHub is part of this workflow.
 
