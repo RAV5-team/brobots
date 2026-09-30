@@ -16,16 +16,18 @@ manual release path does not use GitHub repository variables or federation.
 ## Architecture
 
 The demo runs on one COI VM with one persistent `pgdata` Docker volume. Nginx
-is the only public application entry point and handles HTTPS, ACME challenges,
-and the Keycloak admin CIDR restriction. PostgreSQL, API, simulation, economics,
-Keycloak, and the web app have no host-published ports. The demo database is
-disposable and contains synthetic/demo data only.
+is the only public application entry point and handles HTTPS and ACME
+challenges. On this demo VM, the Keycloak admin routes allow all IPv4 addresses;
+use a narrow CIDR for any deployment that should restrict console access.
+PostgreSQL, API, simulation, economics, Keycloak, and the web app have no
+host-published ports. The demo database is disposable and contains
+synthetic/demo data only.
 
 The local operator's authenticated `yc` profile publishes images using
 `container-registry.images.pusher`. The VM's attached service account pulls
 images using `container-registry.images.puller`; no registry password is
-stored on the VM. Runtime values live in root-only files under `/etc/brobots`
-and never in the Compose specification or VM metadata.
+stored on the VM. Secrets live in root-only files under `/etc/brobots`. The
+non-secret Keycloak admin CIDR policy is set in the COI Compose specification.
 
 ## Provisioned Yandex Cloud resources
 
@@ -187,8 +189,13 @@ DEMO_ADMIN_PASSWORD=<unique-long-random-value>
 
 ```dotenv
 PUBLIC_HOST=<public-ip>
-ADMIN_ALLOW_CIDR=<administrator-ip>/32
 ```
+
+The COI Compose spec sets `ADMIN_ALLOW_CIDR=0.0.0.0/0` directly. This makes
+Keycloak's admin routes publicly reachable over IPv4. Changing this value in
+an existing deployment requires recreating `rav5-gateway` so Nginx renders the
+updated setting. For a restricted deployment, set the administrator's public
+IPv4 CIDR in `docker-compose.coi.yml`, such as `<administrator-ip>/32`.
 
 `/etc/brobots/api.env`:
 

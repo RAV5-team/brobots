@@ -57,6 +57,9 @@ services:
       options: { max-size: "10m", max-file: "3" }
     image: cr.yandex/${YC_REGISTRY_ID:?}/brobots-gateway:${IMAGE_TAG:?}
     env_file: /etc/brobots/gateway.env
+    environment:
+      # Explicit source of truth for the COI gateway access policy.
+      ADMIN_ALLOW_CIDR: 0.0.0.0/0
     ports: ["80:80", "443:443"]
     volumes:
       - /etc/letsencrypt:/etc/letsencrypt:ro
