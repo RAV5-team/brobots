@@ -184,7 +184,7 @@ jobs:
           - image: keycloak
             file: infra/keycloak/Dockerfile
             target: ""
-            context: infra/keycloak
+            context: .
           - image: gateway
             file: infra/nginx/Dockerfile
             target: ""
